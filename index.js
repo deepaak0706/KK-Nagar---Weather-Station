@@ -3,7 +3,7 @@ const app = express();
 
 let latestData = {};
 
-// Capture RAW body
+// Middleware to capture raw body (for POST)
 app.use(express.text({ type: "*/*" }));
 
 // Homepage UI
@@ -23,21 +23,31 @@ app.get("/", (req, res) => {
     `);
 });
 
-// API
+// API to fetch stored data
 app.get("/weather", (req, res) => {
     res.json(latestData);
 });
 
-// RECEIVE EVERYTHING
+// Catch ALL incoming requests (GET + POST)
 app.all("*", (req, res) => {
-    console.log("RAW BODY:", req.body);
-    console.log("QUERY:", req.query);
+    let data = {};
 
-    // Try parsing raw body if exists
+    // 1. Check query parameters (GET)
+    if (Object.keys(req.query).length > 0) {
+        data = req.query;
+    }
+
+    // 2. Check raw body (POST)
     if (req.body && typeof req.body === "string" && req.body.length > 0) {
-        latestData = { raw: req.body };
-    } else {
-        latestData = req.query;
+        const params = new URLSearchParams(req.body);
+        data = Object.fromEntries(params.entries());
+    }
+
+    console.log("Captured Data:", data);
+
+    // Store only if valid data exists
+    if (Object.keys(data).length > 0) {
+        latestData = data;
     }
 
     res.send("OK");
