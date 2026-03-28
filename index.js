@@ -1,10 +1,9 @@
 const express = require("express");
 const app = express();
 
-// Store latest data
 let latestData = {};
 
-// Middleware for JSON / URL-encoded bodies (other devices)
+// Middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -25,53 +24,38 @@ app.get("/", (req, res) => {
     `);
 });
 
-// API to fetch latest data
+// Weather API
 app.get("/weather", (req, res) => {
     res.json(latestData);
 });
 
-// WSView Plus GET request with hash in URL
-app.get("/data/report/*", (req, res) => {
-    const hash = req.url.split("/data/report/")[1]; // get everything after /data/report/
-    if (hash) {
-        latestData = { raw: hash };
-        console.log("Received WSView Plus hash via GET:", hash);
+// 🔥 IMPORTANT: Catch ALL WSView Plus requests
+app.all("/data/report*", (req, res) => {
+    console.log("===== WSView Plus HIT =====");
+    console.log("Method:", req.method);
+    console.log("URL:", req.url);
+    console.log("Query:", req.query);
+    console.log("Body:", req.body);
+
+    // Store ANY data we receive
+    if (Object.keys(req.query).length > 0) {
+        latestData = req.query;
+    } else if (req.body && Object.keys(req.body).length > 0) {
+        latestData = req.body;
     } else {
-        console.log("No hash found in GET request");
+        // fallback: store raw URL (for hash cases)
+        latestData = { raw: req.url };
     }
+
+    console.log("Stored:", latestData);
+
     res.send("OK");
 });
 
-// WSView Plus POST handler (if device ever uses POST)
-app.post("/data/report/", express.text({ type: "*/*" }), (req, res) => {
-    const rawData = req.body;
-    if (rawData) {
-        latestData = { raw: rawData };
-        console.log("Received WSView Plus data via POST:", rawData);
-    }
-    res.send("OK");
-});
-
-// Catch-all for other devices (Ecobit, Wunderground)
+// Catch everything else
 app.all("*", (req, res) => {
-    let data = {};
-
-    if (req.query && Object.keys(req.query).length > 0) {
-        data = req.query;
-    }
-
-    if (req.body && Object.keys(req.body).length > 0) {
-        data = req.body;
-    }
-
-    if (Object.keys(data).length > 0) {
-        latestData = data;
-        console.log("Captured Data (Other device):", latestData);
-    }
-
     res.send("OK");
 });
 
-// Start server
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
