@@ -4,7 +4,7 @@ const app = express();
 // Store latest data
 let latestData = {};
 
-// Middleware for JSON / URL-encoded (other devices)
+// Middleware for JSON / URL-encoded bodies (other devices)
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -30,20 +30,29 @@ app.get("/weather", (req, res) => {
     res.json(latestData);
 });
 
-// WSView Plus raw hash POST handler
-app.post("/data/report/", express.text({ type: "*/*" }), (req, res) => {
-    const rawData = req.body;
-    console.log("===== Incoming WSView Plus request =====");
-    console.log("Raw hash received:", rawData);
-    console.log("Headers:", req.headers);
-
-    // Store raw hash
-    latestData = { raw: rawData };
-
+// WSView Plus GET request with hash in URL
+app.get("/data/report/*", (req, res) => {
+    const hash = req.url.split("/data/report/")[1]; // get everything after /data/report/
+    if (hash) {
+        latestData = { raw: hash };
+        console.log("Received WSView Plus hash via GET:", hash);
+    } else {
+        console.log("No hash found in GET request");
+    }
     res.send("OK");
 });
 
-// Catch-all for other uploads (Ecobit, Wunderground)
+// WSView Plus POST handler (if device ever uses POST)
+app.post("/data/report/", express.text({ type: "*/*" }), (req, res) => {
+    const rawData = req.body;
+    if (rawData) {
+        latestData = { raw: rawData };
+        console.log("Received WSView Plus data via POST:", rawData);
+    }
+    res.send("OK");
+});
+
+// Catch-all for other devices (Ecobit, Wunderground)
 app.all("*", (req, res) => {
     let data = {};
 
