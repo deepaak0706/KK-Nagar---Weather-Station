@@ -3,7 +3,7 @@ const app = express();
 
 let latestData = {};
 
-app.get("/data/report/", (req, res) => {
+app.get("*", (req, res) => {
     latestData = req.query;
     console.log("Received data:", latestData);
     res.send("OK");
