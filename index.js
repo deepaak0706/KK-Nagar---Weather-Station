@@ -1,10 +1,10 @@
 const express = require("express");
 const app = express();
 
-// Store the latest data
+// Store latest data
 let latestData = {};
 
-// Middleware for JSON and URL-encoded bodies (other devices)
+// Middleware for JSON / URL-encoded (other devices)
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -30,57 +30,34 @@ app.get("/weather", (req, res) => {
     res.json(latestData);
 });
 
-// Robust route for WS WeatherView Plus
+// WSView Plus raw hash POST handler
 app.post("/data/report/", express.text({ type: "*/*" }), (req, res) => {
-    let data = {};
-
+    const rawData = req.body;
     console.log("===== Incoming WSView Plus request =====");
-    console.log("Raw body received:", req.body);
+    console.log("Raw hash received:", rawData);
     console.log("Headers:", req.headers);
 
-    // Try to parse JSON
-    try {
-        data = JSON.parse(req.body);
-        console.log("Parsed JSON:", data);
-    } catch (e) {
-        // If not JSON, try URLSearchParams (key=value&key2=value2)
-        try {
-            const params = new URLSearchParams(req.body);
-            data = Object.fromEntries(params.entries());
-            console.log("Parsed URLSearchParams:", data);
-        } catch (err) {
-            console.log("Could not parse body, storing raw string");
-            data = { raw: req.body };
-        }
-    }
-
-    // Store only if keys exist
-    if (Object.keys(data).length > 0) {
-        latestData = data;
-        console.log("Captured Data:", latestData);
-    }
+    // Store raw hash
+    latestData = { raw: rawData };
 
     res.send("OK");
 });
 
-// Catch-all for other uploads (Ecobit, etc.)
+// Catch-all for other uploads (Ecobit, Wunderground)
 app.all("*", (req, res) => {
     let data = {};
 
-    // Check query params
     if (req.query && Object.keys(req.query).length > 0) {
         data = req.query;
     }
 
-    // Check JSON body
     if (req.body && Object.keys(req.body).length > 0) {
         data = req.body;
     }
 
-    // Store if keys exist
     if (Object.keys(data).length > 0) {
         latestData = data;
-        console.log("Captured Data (Other):", latestData);
+        console.log("Captured Data (Other device):", latestData);
     }
 
     res.send("OK");
