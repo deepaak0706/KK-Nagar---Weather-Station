@@ -3,8 +3,8 @@ const app = express();
 
 let latestData = {};
 
-// Needed to parse POST data
-app.use(express.urlencoded({ extended: true }));
+// Capture RAW body
+app.use(express.text({ type: "*/*" }));
 
 // Homepage UI
 app.get("/", (req, res) => {
@@ -28,10 +28,18 @@ app.get("/weather", (req, res) => {
     res.json(latestData);
 });
 
-// RECEIVE DATA (POST + GET both)
+// RECEIVE EVERYTHING
 app.all("*", (req, res) => {
-    latestData = Object.keys(req.body).length ? req.body : req.query;
-    console.log("Received:", latestData);
+    console.log("RAW BODY:", req.body);
+    console.log("QUERY:", req.query);
+
+    // Try parsing raw body if exists
+    if (req.body && typeof req.body === "string" && req.body.length > 0) {
+        latestData = { raw: req.body };
+    } else {
+        latestData = req.query;
+    }
+
     res.send("OK");
 });
 
