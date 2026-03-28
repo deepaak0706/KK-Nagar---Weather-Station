@@ -3,19 +3,22 @@ const app = express();
 
 let latestData = {};
 
-app.get("*", (req, res) => {
+// Receive data from weather station
+app.get("/data/report", (req, res) => {
     latestData = req.query;
-    console.log("Received data:", latestData);
+    console.log("Received:", latestData);
     res.send("OK");
 });
 
+// API to view data
 app.get("/weather", (req, res) => {
     res.json(latestData);
 });
 
+// Homepage UI
 app.get("/", (req, res) => {
     res.send(`
-        <h1>My Weather Station</h1>
+        <h1>KK Nagar Weather Station</h1>
         <pre id="data">Loading...</pre>
         <script>
             async function loadData() {
