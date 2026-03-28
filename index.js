@@ -1,12 +1,14 @@
 const express = require("express");
 const app = express();
 
+// Store the latest data from Ecobit
 let latestData = {};
 
-// Middleware to capture raw body (for POST)
-app.use(express.text({ type: "*/*" }));
+// Middleware to parse JSON and URL-encoded bodies
+app.use(express.json());                // for JSON POSTs
+app.use(express.urlencoded({ extended: true })); // for URL-encoded POSTs
 
-// Homepage UI
+// Homepage
 app.get("/", (req, res) => {
     res.send(`
         <h1>KK Nagar Weather Station</h1>
@@ -28,7 +30,7 @@ app.get("/weather", (req, res) => {
     res.json(latestData);
 });
 
-// Catch ALL incoming requests (GET + POST)
+// Catch-all route to capture Ecobit data
 app.all("*", (req, res) => {
     let data = {};
 
@@ -37,10 +39,9 @@ app.all("*", (req, res) => {
         data = req.query;
     }
 
-    // 2. Check raw body (POST)
-    if (req.body && typeof req.body === "string" && req.body.length > 0) {
-        const params = new URLSearchParams(req.body);
-        data = Object.fromEntries(params.entries());
+    // 2. Check body (JSON or URL-encoded POST)
+    if (req.body && Object.keys(req.body).length > 0) {
+        data = req.body;
     }
 
     console.log("Captured Data:", data);
@@ -53,4 +54,6 @@ app.all("*", (req, res) => {
     res.send("OK");
 });
 
-app.listen(3000, () => console.log("Server running"));
+// Start server
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
