@@ -5,8 +5,8 @@ const app = express();
 let latestData = {};
 
 // Middleware to parse JSON and URL-encoded bodies
-app.use(express.json());                // for JSON POSTs
-app.use(express.urlencoded({ extended: true })); // for URL-encoded POSTs
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 // Homepage
 app.get("/", (req, res) => {
@@ -32,41 +32,39 @@ app.get("/weather", (req, res) => {
 
 // Route for WS WeatherView Plus app
 app.post("/data/report/", (req, res) => {
-    let data = req.body || {};
+    console.log("===== Incoming WSView Plus request =====");
+    console.log("Path:", req.path);
+    console.log("Headers:", req.headers);
+    console.log("Body:", req.body);
 
-    // Also check query parameters just in case
-    if (Object.keys(req.query).length > 0) {
-        data = req.query;
+    // Save data if present
+    if (req.body && Object.keys(req.body).length > 0) {
+        latestData = req.body;
+        console.log("Captured Data:", latestData);
+    } else if (req.query && Object.keys(req.query).length > 0) {
+        latestData = req.query;
+        console.log("Captured Data (from query):", latestData);
     }
-
-    if (Object.keys(data).length > 0) {
-        latestData = data;
-    }
-
-    console.log("Captured Data (WSView Plus):", data);
 
     res.send("OK");
 });
 
-// Catch-all route for other uploads (Ecobit or others)
+// Catch-all route for other uploads (Ecobit, etc.)
 app.all("*", (req, res) => {
+    console.log("===== Incoming request (Other) =====");
+    console.log("Path:", req.path);
+    console.log("Headers:", req.headers);
+    console.log("Body:", req.body);
+
+    // Save data if present
     let data = {};
-
-    // Check query parameters (GET)
-    if (Object.keys(req.query).length > 0) {
-        data = req.query;
-    }
-
-    // Check body (JSON or URL-encoded POST)
-    if (req.body && Object.keys(req.body).length > 0) {
-        data = req.body;
-    }
+    if (req.body && Object.keys(req.body).length > 0) data = req.body;
+    if (req.query && Object.keys(req.query).length > 0) data = req.query;
 
     if (Object.keys(data).length > 0) {
         latestData = data;
+        console.log("Captured Data:", latestData);
     }
-
-    console.log("Captured Data (Other):", data);
 
     res.send("OK");
 });
