@@ -1,7 +1,7 @@
 const express = require("express");
 const app = express();
 
-// Store the latest data from Ecobit
+// Store the latest data
 let latestData = {};
 
 // Middleware to parse JSON and URL-encoded bodies
@@ -25,31 +25,48 @@ app.get("/", (req, res) => {
     `);
 });
 
-// API to fetch stored data
+// API to fetch latest data
 app.get("/weather", (req, res) => {
     res.json(latestData);
 });
 
-// Catch-all route to capture Ecobit data
-app.all("*", (req, res) => {
-    let data = {};
+// Route for WS WeatherView Plus app
+app.post("/data/report/", (req, res) => {
+    let data = req.body || {};
 
-    // 1. Check query parameters (GET)
+    // Also check query parameters just in case
     if (Object.keys(req.query).length > 0) {
         data = req.query;
     }
 
-    // 2. Check body (JSON or URL-encoded POST)
+    if (Object.keys(data).length > 0) {
+        latestData = data;
+    }
+
+    console.log("Captured Data (WSView Plus):", data);
+
+    res.send("OK");
+});
+
+// Catch-all route for other uploads (Ecobit or others)
+app.all("*", (req, res) => {
+    let data = {};
+
+    // Check query parameters (GET)
+    if (Object.keys(req.query).length > 0) {
+        data = req.query;
+    }
+
+    // Check body (JSON or URL-encoded POST)
     if (req.body && Object.keys(req.body).length > 0) {
         data = req.body;
     }
 
-    console.log("Captured Data:", data);
-
-    // Store only if valid data exists
     if (Object.keys(data).length > 0) {
         latestData = data;
     }
+
+    console.log("Captured Data (Other):", data);
 
     res.send("OK");
 });
