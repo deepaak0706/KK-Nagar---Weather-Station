@@ -1,7 +1,11 @@
 const express = require("express");
 const app = express();
 
-let latestData = { status: "No data received yet", timestamp: new Date().toISOString() };
+let latestData = { 
+    status: "No data received from WS2900 yet", 
+    timestamp: new Date().toISOString(),
+    note: "Waiting for station upload..."
+};
 
 // Middleware
 app.use(express.json());
@@ -11,9 +15,9 @@ app.use(express.urlencoded({ extended: true }));
 app.get("/", (req, res) => {
     res.send(`
         <h1>KK Nagar Weather Station (WS2900)</h1>
-        <p>Refresh this page to see latest data. Auto-refreshes every 5 seconds.</p>
-        <pre id="data" style="background:#f4f4f4; padding:15px; border-radius:8px; overflow:auto;">
-            Loading...
+        <p style="color: #666;">Auto-refreshes every 5 seconds • Last update: ${latestData.timestamp}</p>
+        <pre id="data" style="background:#f8f9fa; padding:20px; border-radius:8px; font-family: monospace; white-space: pre-wrap; overflow:auto;">
+            Loading latest weather data...
         </pre>
 
         <script>
@@ -23,7 +27,7 @@ app.get("/", (req, res) => {
                     const data = await res.json();
                     document.getElementById('data').innerText = JSON.stringify(data, null, 2);
                 } catch(e) {
-                    document.getElementById('data').innerText = "Error loading data";
+                    document.getElementById('data').innerText = "Error loading data. Check server logs.";
                 }
             }
             setInterval(loadData, 5000);
@@ -32,55 +36,63 @@ app.get("/", (req, res) => {
     `);
 });
 
-// ====================== WEATHER API ======================
+// ====================== WEATHER DATA API ======================
 app.get("/weather", (req, res) => {
     res.json(latestData);
 });
 
-// ====================== MAIN ROUTE FOR WS2900 ======================
-// Catches /data/report, /data/report/, /, /report, etc.
-app.all(["/data/report*", "/", "/report*"], (req, res) => {
+// ====================== WS2900 / ECOWITT MAIN ROUTE ======================
+// This catches common paths used by WS2900 and EasyWeatherPro
+app.all(["/data/report*", "/", "/report*", "/data/report"], (req, res) => {
+    const now = new Date().toISOString();
+    
     console.log("===== WS2900 DATA RECEIVED =====");
-    console.log("Time:", new Date().toISOString());
+    console.log("Time:", now);
     console.log("Method:", req.method);
-    console.log("Full URL:", req.protocol + "://" + req.get("host") + req.originalUrl);
+    console.log("URL:", req.originalUrl);
+    console.log("Protocol:", req.protocol);
     console.log("Query Params:", req.query);
     console.log("Body:", req.body);
 
-    let receivedData = {
-        timestamp: new Date().toISOString(),
-        source: "WS2900_Ecowitt"
+    let dataToStore = {
+        timestamp: now,
+        source: "WS2900",
+        protocol: req.protocol,
+        method: req.method
     };
 
-    // Most common: data comes as query parameters
+    // Data usually comes as query parameters (GET)
     if (Object.keys(req.query).length > 0) {
-        receivedData = { ...receivedData, ...req.query };
-        console.log("✅ Data stored from Query Parameters");
+        dataToStore = { ...dataToStore, ...req.query };
+        console.log("✅ Successfully stored data from Query Parameters");
     } 
-    // Sometimes comes as form data (POST)
+    // Sometimes comes as form-urlencoded POST
     else if (req.body && Object.keys(req.body).length > 0) {
-        receivedData = { ...receivedData, ...req.body };
-        console.log("✅ Data stored from POST Body");
+        dataToStore = { ...dataToStore, ...req.body };
+        console.log("✅ Successfully stored data from POST Body");
     } 
     else {
-        console.log("⚠️ No query or body data found");
+        console.log("⚠️ Received empty payload (no query or body data)");
     }
 
-    latestData = receivedData;
-    console.log("Final Stored Data:", latestData);
+    latestData = dataToStore;
+    console.log("Final stored data keys:", Object.keys(dataToStore));
+    console.log("=====================================");
 
-    // Many weather stations expect simple "OK" response
-    res.send("OK");
+    res.send("OK");   // Simple response expected by most weather consoles
 });
 
-// Catch any other requests
+// Catch other requests (ignore favicon/apple icons)
 app.all("*", (req, res) => {
-    console.log("Unknown request:", req.method, req.originalUrl);
+    if (!req.url.includes("apple-touch") && !req.url.includes("favicon") && !req.url.includes("icon")) {
+        console.log("Unknown request:", req.method, req.originalUrl);
+    }
     res.send("OK");
 });
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
-    console.log(`Visit: https://kk-nagar-weather-station.onrender.com`);
+    console.log(`✅ Server is running on port ${PORT}`);
+    console.log(`🌐 Visit: https://kk-nagar-weather-station.onrender.com`);
+    console.log(`Waiting for WS2900 to send data...`);
 });
