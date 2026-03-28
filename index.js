@@ -3,17 +3,8 @@ const app = express();
 
 let latestData = {};
 
-// Receive data from weather station
-app.get("/data/report", (req, res) => {
-    latestData = req.query;
-    console.log("Received:", latestData);
-    res.send("OK");
-});
-
-// API to view data
-app.get("/weather", (req, res) => {
-    res.json(latestData);
-});
+// Needed to parse POST data
+app.use(express.urlencoded({ extended: true }));
 
 // Homepage UI
 app.get("/", (req, res) => {
@@ -30,6 +21,18 @@ app.get("/", (req, res) => {
             loadData();
         </script>
     `);
+});
+
+// API
+app.get("/weather", (req, res) => {
+    res.json(latestData);
+});
+
+// RECEIVE DATA (POST + GET both)
+app.all("*", (req, res) => {
+    latestData = Object.keys(req.body).length ? req.body : req.query;
+    console.log("Received:", latestData);
+    res.send("OK");
 });
 
 app.listen(3000, () => console.log("Server running"));
