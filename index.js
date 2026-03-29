@@ -11,10 +11,10 @@ let todayHistory = [];
 let todayMaxRainRate = 0;
 let currentDate = new Date().toDateString();
 
-// Rain accumulators
-let weeklyRain = 0;
-let monthlyRain = 8.9;   // initial monthly
-let yearlyRain = 90.2;   // initial yearly
+// Rain accumulators with initial values
+let weeklyRain = 0;        // You can set initial if needed
+let monthlyRain = 8.9;     // monthly init as you mentioned
+let yearlyRain = 90.2;     // yearly init as you mentioned
 
 // Track week/month/year start dates
 let currentWeek = getWeekNumber(new Date());
@@ -49,6 +49,7 @@ app.get("/weather", async (req, res) => {
     const yearNum = nowDate.getFullYear();
     if(yearNum !== currentYear){ yearlyRain = 0; currentYear = yearNum; }
 
+    // Return cached if within 60s
     if(cachedData && (now - lastFetch < 60000)){
         return res.json(cachedData);
     }
@@ -91,7 +92,7 @@ app.get("/weather", async (req, res) => {
             windDir: obs.winddir || 0
         });
 
-        // Keep last 5 points for live chart (assuming 1-min fetch)
+        // Keep max ~5 min for live chart (1-min fetch assumed)
         while(todayHistory.length>5) todayHistory.shift();
 
         cachedData = {
@@ -129,8 +130,8 @@ body{margin:0;font-family:'Segoe UI',Arial,sans-serif;background:linear-gradient
 h1{text-align:center;padding:16px;font-size:24px;margin:0;background:rgba(15,23,42,0.85);}
 .status{text-align:center;font-size:12px;padding:6px;opacity:0.85;}
 .container{max-width:1000px;margin:0 auto;padding:8px;}
-.card{background:rgba(255,255,255,0.07);backdrop-filter:blur(18px);border-radius:18px;padding:14px;margin-bottom:14px;box-shadow:0 6px 25px rgba(0,0,0,0.35);}
-.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(100px,1fr));gap:10px;}
+.card{background:rgba(255,255,255,0.07);backdrop-filter:blur(16px);border-radius:16px;padding:12px;margin-bottom:12px;box-shadow:0 6px 20px rgba(0,0,0,0.3);}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(100px,1fr));gap:8px;}
 .item{text-align:center;}
 .label{font-size:11px;opacity:0.75;margin-bottom:3px;}
 .value{font-size:20px;font-weight:700;}
@@ -238,7 +239,8 @@ async function loadData(){
 
     document.getElementById('status').innerHTML='✅ Live • Updated '+new Date().toLocaleTimeString();
 
-    const labels=data.history.map(h=>h.time);
+    // X axis auto scaling
+    const labels = data.history.map(h=>h.time);
     charts.temp.data.labels=labels; charts.temp.data.datasets[0].data=data.history.map(h=>h.temp);
     charts.hum.data.labels=labels; charts.hum.data.datasets[0].data=data.history.map(h=>h.hum);
     charts.wind.data.labels=labels; charts.wind.data.datasets[0].data=data.history.map(h=>h.windSpeed);
