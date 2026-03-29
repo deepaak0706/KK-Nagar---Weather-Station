@@ -1,8 +1,8 @@
 const express = require("express");
 const app = express();
 
-const API_KEY = process.env.API_KEY;        // ← Set in Render Environment Variables
-const STATION_ID = "ICHENN63";              // ← Your actual Station ID
+const API_KEY = process.env.API_KEY;
+const STATION_ID = "ICHENN63";
 
 let cachedData = null;
 let lastFetch = 0;
@@ -25,7 +25,7 @@ app.get("/weather", async (req, res) => {
         const weatherData = await weatherRes.json();
         const obs = weatherData.observations[0];
 
-        if (!obs) throw new Error("No data");
+        if (!obs) throw new Error("No observations");
 
         const sunRes = await fetch(
             `https://api.sunrise-sunset.org/json?lat=${obs.lat}&lng=${obs.lon}&formatted=0`
@@ -61,89 +61,42 @@ app.get("/weather", async (req, res) => {
 });
 
 app.get("/", (req, res) => {
-    res.send(`
-<!DOCTYPE html>
+    res.send(`<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>KK Nagar Weather</title>
+    <title>KK Nagar Weather Station</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        :root {
-            --bg: linear-gradient(135deg, #0f172a, #1e293b);
-        }
-        body {
-            margin: 0;
-            font-family: 'Segoe UI', Arial, sans-serif;
-            background: var(--bg);
-            color: #e2e8f0;
-            min-height: 100vh;
-        }
-        h1 {
-            text-align: center;
-            padding: 25px 15px 10px;
-            font-size: 28px;
-            margin: 0;
-            background: rgba(15,23,42,0.8);
-        }
-        .status {
-            text-align: center;
-            font-size: 14px;
-            padding: 8px;
-            opacity: 0.9;
-        }
-        .container {
-            max-width: 1100px;
-            margin: 0 auto;
-            padding: 15px;
-        }
+        body { margin:0; font-family:Arial,sans-serif; background:linear-gradient(135deg,#0f172a,#1e293b); color:#e2e8f0; min-height:100vh; }
+        h1 { text-align:center; padding:25px 15px 10px; font-size:28px; margin:0; background:rgba(15,23,42,0.8); }
+        .status { text-align:center; font-size:14px; padding:10px; opacity:0.9; }
+        .container { max-width:1100px; margin:0 auto; padding:15px; }
         .card {
-            background: rgba(255,255,255,0.08);
-            backdrop-filter: blur(12px);
-            border-radius: 20px;
-            padding: 22px;
-            margin-bottom: 18px;
-            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+            background:rgba(255,255,255,0.08);
+            backdrop-filter:blur(12px);
+            border-radius:20px;
+            padding:22px;
+            margin-bottom:18px;
+            box-shadow:0 8px 32px rgba(0,0,0,0.3);
         }
-        .grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-            gap: 16px;
-        }
-        .item {
-            text-align: center;
-            padding: 12px;
-        }
-        .label {
-            font-size: 13px;
-            opacity: 0.75;
-            margin-bottom: 6px;
-        }
-        .value {
-            font-size: 28px;
-            font-weight: 700;
-        }
-        .wind-container {
-            text-align: center;
-            padding: 20px;
-        }
+        .grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(160px,1fr)); gap:16px; }
+        .item { text-align:center; padding:12px; }
+        .label { font-size:13px; opacity:0.75; margin-bottom:6px; }
+        .value { font-size:28px; font-weight:700; }
+        .wind-container { text-align:center; padding:20px; }
         .wind-arrow {
-            font-size: 52px;
-            margin: 15px 0;
-            transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
-            display: inline-block;
+            font-size:52px;
+            margin:15px 0;
+            transition:transform 0.6s cubic-bezier(0.4,0,0.2,1);
+            display:inline-block;
         }
-        canvas {
-            background: #fff;
-            border-radius: 16px;
-            padding: 15px;
-            margin-top: 12px;
-        }
-        .cool { color: #67e8f9; }
-        .mild { color: #fcd34d; }
-        .hot { color: #fb923c; }
-        .veryhot { color: #f87171; }
+        canvas { background:#fff; border-radius:16px; padding:15px; margin-top:12px; }
+        .cool { color:#67e8f9; }
+        .mild { color:#fcd34d; }
+        .hot { color:#fb923c; }
+        .veryhot { color:#f87171; }
     </style>
 </head>
 <body>
@@ -153,35 +106,17 @@ app.get("/", (req, res) => {
 
         <div class="card">
             <div class="grid">
-                <div class="item">
-                    <div class="label">Temperature</div>
-                    <div class="value" id="temp"></div>
-                </div>
-                <div class="item">
-                    <div class="label">Feels Like</div>
-                    <div class="value" id="feels"></div>
-                </div>
-                <div class="item">
-                    <div class="label">Humidity</div>
-                    <div class="value" id="hum"></div>
-                </div>
+                <div class="item"><div class="label">Temperature</div><div class="value" id="temp"></div></div>
+                <div class="item"><div class="label">Feels Like</div><div class="value" id="feels"></div></div>
+                <div class="item"><div class="label">Humidity</div><div class="value" id="hum"></div></div>
             </div>
         </div>
 
         <div class="card">
             <div class="grid">
-                <div class="item">
-                    <div class="label">Rain Rate</div>
-                    <div class="value" id="rain"></div>
-                </div>
-                <div class="item">
-                    <div class="label">Total Rain</div>
-                    <div class="value" id="totalRain"></div>
-                </div>
-                <div class="item">
-                    <div class="label">Dew Point</div>
-                    <div class="value" id="dewpoint"></div>
-                </div>
+                <div class="item"><div class="label">Rain Rate</div><div class="value" id="rain"></div></div>
+                <div class="item"><div class="label">Total Rain</div><div class="value" id="totalRain"></div></div>
+                <div class="item"><div class="label">Dew Point</div><div class="value" id="dewpoint"></div></div>
             </div>
         </div>
 
@@ -236,9 +171,9 @@ app.get("/", (req, res) => {
 
         function createCharts() {
             const opt = { animation: false, scales: { y: { beginAtZero: true } } };
-            charts.temp = new Chart(document.getElementById('tempChart'), { type: 'line', data: { labels: [], datasets: [{ label: 'Temperature (°C)', data: [], borderColor: '#67e8f9', tension: 0.3 }] }, options: opt });
-            charts.hum = new Chart(document.getElementById('humChart'), { type: 'line', data: { labels: [], datasets: [{ label: 'Humidity (%)', data: [], borderColor: '#4ade80', tension: 0.3 }] }, options: opt });
-            charts.wind = new Chart(document.getElementById('windChart'), { type: 'line', data: { labels: [], datasets: [{ label: 'Wind Speed (km/h)', data: [], borderColor: '#fb923c', tension: 0.3 }] }, options: opt });
+            charts.temp = new Chart(document.getElementById('tempChart'), { type:'line', data:{labels:[], datasets:[{label:'Temp (°C)', data:[], borderColor:'#67e8f9', tension:0.3}]}, options:opt });
+            charts.hum = new Chart(document.getElementById('humChart'), { type:'line', data:{labels:[], datasets:[{label:'Humidity (%)', data:[], borderColor:'#4ade80', tension:0.3}]}, options:opt });
+            charts.wind = new Chart(document.getElementById('windChart'), { type:'line', data:{labels:[], datasets:[{label:'Wind (km/h)', data:[], borderColor:'#fb923c', tension:0.3}]}, options:opt });
         }
 
         async function loadData() {
@@ -247,7 +182,7 @@ app.get("/", (req, res) => {
                 const data = await res.json();
 
                 if (data.error) {
-                    document.getElementById('status').innerHTML = `⚠️ ${data.error}`;
+                    document.getElementById('status').innerHTML = \`⚠️ \${data.error}\`;
                     return;
                 }
 
@@ -266,13 +201,13 @@ app.get("/", (req, res) => {
 
                 const tempClass = getTempClass(d.metric.temp);
 
-                document.getElementById('temp').innerHTML = `<span class="${tempClass}">${format(d.metric.temp)}°C</span>`;
-                document.getElementById('feels').innerHTML = `<span class="${tempClass}">${format(d.metric.heatIndex)}°C</span>`;
+                document.getElementById('temp').innerHTML = \`<span class="\${tempClass}">\${format(d.metric.temp)}°C</span>\`;
+                document.getElementById('feels').innerHTML = \`<span class="\${tempClass}">\${format(d.metric.heatIndex)}°C</span>\`;
                 document.getElementById('hum').innerText = format(d.humidity) + "%";
 
                 document.getElementById('wind').innerText = format(d.metric.windSpeed) + " km/h";
-                document.getElementById('arrow').style.transform = `rotate(${d.winddir}deg)`;
-                document.getElementById('winddir').innerText = `${d.winddir}° (${getWindDirection(d.winddir)})`;
+                document.getElementById('arrow').style.transform = \`rotate(\${d.winddir}deg)\`;
+                document.getElementById('winddir').innerText = \`\${d.winddir}° (\${getWindDirection(d.winddir)})\`;
 
                 document.getElementById('rain').innerText = format(rainRate) + " mm/hr";
                 document.getElementById('totalRain').innerText = format(currentRain) + " mm";
@@ -285,7 +220,7 @@ app.get("/", (req, res) => {
                 if (data.sunrise) document.getElementById('sunrise').innerText = new Date(data.sunrise).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
                 if (data.sunset) document.getElementById('sunset').innerText = new Date(data.sunset).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
 
-                document.getElementById('status').innerHTML = `✅ Live • Updated ${new Date().toLocaleTimeString()}`;
+                document.getElementById('status').innerHTML = \`✅ Live • Updated \${new Date().toLocaleTimeString()}\`;
 
                 const labels = data.history.map(h => h.time);
                 charts.temp.data.labels = labels; charts.temp.data.datasets[0].data = data.history.map(h => h.temp);
@@ -312,6 +247,6 @@ app.get("/", (req, res) => {
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-    console.log(`✅ Modern KK Nagar Weather Station running on port ${PORT}`);
-    console.log(`Station: ${STATION_ID} | Refresh: 60s (safe)`);
+    console.log(\`✅ KK Nagar Weather Station running on port \${PORT}\`);
+    console.log(\`Station ID: \${STATION_ID}\`);
 });
