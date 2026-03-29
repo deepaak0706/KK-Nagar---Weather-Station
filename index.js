@@ -11,10 +11,10 @@ let todayHistory = [];
 let todayMaxRainRate = 0;
 let currentDate = new Date().toDateString();
 
-// Rain accumulators with initial values
-let weeklyRain = 0;        // You can set initial if needed
-let monthlyRain = 8.9;     // monthly init as you mentioned
-let yearlyRain = 90.2;     // yearly init as you mentioned
+// Rain accumulators
+let weeklyRain = 0;
+let monthlyRain = 0;
+let yearlyRain = 0;
 
 // Track week/month/year start dates
 let currentWeek = getWeekNumber(new Date());
@@ -49,7 +49,6 @@ app.get("/weather", async (req, res) => {
     const yearNum = nowDate.getFullYear();
     if(yearNum !== currentYear){ yearlyRain = 0; currentYear = yearNum; }
 
-    // Return cached if within 60s
     if(cachedData && (now - lastFetch < 60000)){
         return res.json(cachedData);
     }
@@ -71,7 +70,7 @@ app.get("/weather", async (req, res) => {
         let rainRate = 0;
         if(todayHistory.length > 0){
             const lastEntry = todayHistory[todayHistory.length-1];
-            const timeDiff = (Date.now() - new Date(lastEntry.time).getTime())/1000;
+            const timeDiff = (Date.now() - new Date('2026-03-28 '+lastEntry.time).getTime())/1000;
             if(timeDiff>0) rainRate = ((rainTotal - lastEntry.rain)*3600)/timeDiff;
         }
         todayMaxRainRate = Math.max(todayMaxRainRate, rainRate);
@@ -92,7 +91,7 @@ app.get("/weather", async (req, res) => {
             windDir: obs.winddir || 0
         });
 
-        // Keep max ~5 min for live chart (1-min fetch assumed)
+        // Keep max ~5 min for live chart (assuming 1-min fetch)
         while(todayHistory.length>5) todayHistory.shift();
 
         cachedData = {
@@ -239,8 +238,7 @@ async function loadData(){
 
     document.getElementById('status').innerHTML='✅ Live • Updated '+new Date().toLocaleTimeString();
 
-    // X axis auto scaling
-    const labels = data.history.map(h=>h.time);
+    const labels=data.history.map(h=>h.time);
     charts.temp.data.labels=labels; charts.temp.data.datasets[0].data=data.history.map(h=>h.temp);
     charts.hum.data.labels=labels; charts.hum.data.datasets[0].data=data.history.map(h=>h.hum);
     charts.wind.data.labels=labels; charts.wind.data.datasets[0].data=data.history.map(h=>h.windSpeed);
