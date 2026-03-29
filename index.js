@@ -1,6 +1,6 @@
 // index.js
 const express = require("express");
-const fetch = require("node-fetch"); // Make sure to npm install node-fetch@2
+const fetch = require("node-fetch"); // npm install node-fetch@2
 const app = express();
 
 const API_KEY = process.env.API_KEY;
@@ -65,9 +65,10 @@ app.get("/weather", async (req, res) => {
 
         if (todayHistory.length > 1440) todayHistory.shift();
 
-        // Calculate daily max/min temperature
+        // Calculate daily max/min temperature and max wind speed
         const maxTemp = Math.max(...todayHistory.map(h => h.temp));
         const minTemp = Math.min(...todayHistory.map(h => h.temp));
+        const maxWind = Math.max(...todayHistory.map(h => h.windSpeed));
 
         cachedData = {
             obs,
@@ -77,6 +78,7 @@ app.get("/weather", async (req, res) => {
             maxRainRate: todayMaxRainRate,
             maxTemp,
             minTemp,
+            maxWind,
             currentDate: currentDate
         };
 
@@ -128,8 +130,8 @@ canvas { background:rgba(15,23,42,0.95); border-radius:12px; padding:12px; margi
     <div class="item">
       <div class="label">TEMPERATURE</div>
       <div class="value" id="temp"></div>
-      <div style="font-size:12px; opacity:0.7; margin-top:4px;">
-        Max: <span id="maxTemp">--</span> °C, 
+      <div style="font-size:12px; opacity:0.7; margin-top:4px; line-height:1.2;">
+        Max: <span id="maxTemp">--</span> °C<br>
         Min: <span id="minTemp">--</span> °C
       </div>
     </div>
@@ -151,7 +153,13 @@ canvas { background:rgba(15,23,42,0.95); border-radius:12px; padding:12px; margi
 <!-- Wind + UV + Solar + Sunrise/Sunset -->
 <div class="card wind-container">
   <div class="grid">
-    <div class="item"><div class="label">WIND SPEED</div><div class="value" id="wind"></div><div class="wind-arrow" id="arrow">⬆️</div><div class="label" id="winddir" style="font-size:12px; margin-top:4px;"></div></div>
+    <div class="item">
+      <div class="label">WIND SPEED</div>
+      <div class="value" id="wind"></div>
+      <div style="font-size:12px; opacity:0.7; margin-top:4px;">Max: <span id="maxWind">--</span> km/h</div>
+      <div class="wind-arrow" id="arrow">⬆️</div>
+      <div class="label" id="winddir" style="font-size:12px; margin-top:4px;"></div>
+    </div>
     <div class="item"><div class="label">UV INDEX</div><div class="value" id="uv"></div></div>
     <div class="item"><div class="label">SOLAR RADIATION</div><div class="value" id="solar"></div></div>
     <div class="item"><div class="label">SUNRISE</div><div class="value" id="sunrise"></div></div>
@@ -196,13 +204,15 @@ async function loadData(){
     document.getElementById('temp').innerHTML='<span class="'+tempClass+'">'+format(d.metric.temp)+'°C</span>';
     document.getElementById('feels').innerHTML='<span class="'+tempClass+'">'+format(d.metric.heatIndex)+'°C</span>';
     document.getElementById('dewpoint').innerText=format(d.metric.dewpt)+'°C';
-    document.getElementById('hum').innerText=format(d.humidity)+'%';
+    document.getElementById('hum').innerText=Math.round(d.humidity)+'%'; // Rounded
 
-    // Update Max/Min temperature
+    // Max/Min Temperature
     document.getElementById('maxTemp').innerText = format(data.maxTemp);
     document.getElementById('minTemp').innerText = format(data.minTemp);
 
+    // Wind + Max wind
     document.getElementById('wind').innerText=format(d.metric.windSpeed)+' km/h';
+    document.getElementById('maxWind').innerText=format(data.maxWind);
     document.getElementById('arrow').style.transform='rotate('+d.winddir+'deg)';
     document.getElementById('winddir').innerText=d.winddir+'° ('+getWindDirection(d.winddir)+')';
 
