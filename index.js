@@ -22,15 +22,12 @@ app.get("/weather", async (req, res) => {
         currentDate = todayStr;
     }
 
-    if (cachedData && (now - lastFetch < 60000)) {
-        return res.json(cachedData);
-    }
+    if (cachedData && (now - lastFetch < 60000)) return res.json(cachedData);
 
     try {
         const weatherRes = await fetch(
             `https://api.weather.com/v2/pws/observations/current?stationId=${STATION_ID}&format=json&units=m&apiKey=${API_KEY}`
         );
-
         if (!weatherRes.ok) throw new Error(`API error: ${weatherRes.status}`);
         const weatherData = await weatherRes.json();
         const obs = weatherData.observations[0];
@@ -65,7 +62,7 @@ app.get("/weather", async (req, res) => {
 
         if (todayHistory.length > 1440) todayHistory.shift();
 
-        // Calculate daily max/min temperature and max wind speed
+        // Max/Min Temperature & Max Wind
         const maxTemp = Math.max(...todayHistory.map(h => h.temp));
         const minTemp = Math.min(...todayHistory.map(h => h.temp));
         const maxWind = Math.max(...todayHistory.map(h => h.windSpeed));
@@ -117,6 +114,10 @@ canvas { background:rgba(15,23,42,0.95); border-radius:12px; padding:12px; margi
 .mild { color:#fcd34d; }
 .hot { color:#fb923c; }
 .veryhot { color:#f87171; }
+.badge { display:inline-block; padding:2px 6px; border-radius:8px; font-size:11px; opacity:0.8; margin-top:2px; }
+.badge-maxTemp { background:#3b82f6; } /* blue */
+.badge-minTemp { background:#60a5fa; } /* light blue */
+.badge-maxWind { background:#f97316; } /* orange */
 </style>
 </head>
 <body>
@@ -130,9 +131,9 @@ canvas { background:rgba(15,23,42,0.95); border-radius:12px; padding:12px; margi
     <div class="item">
       <div class="label">TEMPERATURE</div>
       <div class="value" id="temp"></div>
-      <div style="font-size:12px; opacity:0.7; margin-top:4px; line-height:1.2;">
-        Max: <span id="maxTemp">--</span> °C<br>
-        Min: <span id="minTemp">--</span> °C
+      <div style="line-height:1.2;">
+        <span class="badge badge-maxTemp" id="maxTemp">--</span> Max<br>
+        <span class="badge badge-minTemp" id="minTemp">--</span> Min
       </div>
     </div>
     <div class="item"><div class="label">FEELS LIKE</div><div class="value" id="feels"></div></div>
@@ -156,7 +157,9 @@ canvas { background:rgba(15,23,42,0.95); border-radius:12px; padding:12px; margi
     <div class="item">
       <div class="label">WIND SPEED</div>
       <div class="value" id="wind"></div>
-      <div style="font-size:12px; opacity:0.7; margin-top:4px;">Max: <span id="maxWind">--</span> km/h</div>
+      <div style="line-height:1.2;">
+        <span class="badge badge-maxWind" id="maxWind">--</span> Max
+      </div>
       <div class="wind-arrow" id="arrow">⬆️</div>
       <div class="label" id="winddir" style="font-size:12px; margin-top:4px;"></div>
     </div>
@@ -206,18 +209,18 @@ async function loadData(){
     document.getElementById('dewpoint').innerText=format(d.metric.dewpt)+'°C';
     document.getElementById('hum').innerText=Math.round(d.humidity)+'%'; // Rounded
 
-    // Max/Min Temperature
+    // Max/Min Temperature badges
     document.getElementById('maxTemp').innerText = format(data.maxTemp);
     document.getElementById('minTemp').innerText = format(data.minTemp);
 
-    // Wind + Max wind
+    // Wind + Max Wind badge
     document.getElementById('wind').innerText=format(d.metric.windSpeed)+' km/h';
     document.getElementById('maxWind').innerText=format(data.maxWind);
     document.getElementById('arrow').style.transform='rotate('+d.winddir+'deg)';
     document.getElementById('winddir').innerText=d.winddir+'° ('+getWindDirection(d.winddir)+')';
 
     document.getElementById('currentRain').innerText = format(currentRain)+' mm';
-    document.getElementById('rainRate').innerText = format(rainRate)+' mm/hr (Max: '+format(data.maxRainRate)+')';
+    document.getElementById('rainRate').innerText = format(rainRate)+' mm/hr (Max: '+format(data.maxRainRate)+' mm/hr)';
     document.getElementById('totalRain').innerText = format(currentRain)+' mm';
 
     document.getElementById('uv').innerText=format(d.uv);
