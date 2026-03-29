@@ -42,7 +42,6 @@ app.get("/weather", async (req, res) => {
         const rainTotal = obs.metric.precipTotal || 0;
         const windSpeed = obs.metric.windSpeed || 0;
 
-        // Calculate current rain rate
         let rainRate = 0;
         if (todayHistory.length > 0) {
             const lastEntry = todayHistory[todayHistory.length - 1];
@@ -92,11 +91,11 @@ app.get("/", (req, res) => {
 <title>KK Nagar Weather Station</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
-body { margin:0; font-family:'Segoe UI',Arial,sans-serif; background:linear-gradient(135deg,#0f172a,#1e293b); color:#e2e8f0; font-size:14px; line-height:1.4; min-height:100vh; }
+body { margin:0; font-family:'Segoe UI',Arial,sans-serif; background:linear-gradient(135deg,#0f172a,#1e293b); color:#e2e8f0; min-height:100vh; font-size:14px; }
 h1 { text-align:center; padding:16px 10px 10px; font-size:24px; margin:0; background:rgba(15,23,42,0.85); }
 .status { text-align:center; font-size:12px; padding:6px; opacity:0.85; }
 .container { max-width:1000px; margin:0 auto; padding:8px; }
-.card { background:rgba(255,255,255,0.07); backdrop-filter:blur(12px); border-radius:14px; padding:12px; margin-bottom:12px; box-shadow:0 6px 20px rgba(0,0,0,0.3); }
+.card { background:rgba(255,255,255,0.07); backdrop-filter:blur(16px); border-radius:16px; padding:12px; margin-bottom:12px; box-shadow:0 6px 20px rgba(0,0,0,0.3); }
 .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(100px,1fr)); gap:8px; }
 .item { text-align:center; }
 .label { font-size:11px; opacity:0.75; margin-bottom:3px; }
@@ -128,8 +127,8 @@ canvas { background:rgba(15,23,42,0.95); border-radius:12px; padding:12px; margi
 <!-- Rain -->
 <div class="card">
   <div class="grid">
-    <div class="item"><div class="label">RAIN RATE</div><div class="value" id="rain"></div></div>
-    <div class="item"><div class="label">MAX RAIN TODAY</div><div class="value" id="maxRain"></div></div>
+    <div class="item"><div class="label">CURRENT RAIN</div><div class="value" id="currentRain"></div></div>
+    <div class="item"><div class="label">RAIN RATE</div><div class="value" id="rainRate"></div></div>
     <div class="item"><div class="label">TOTAL RAIN (24h)</div><div class="value" id="totalRain"></div></div>
   </div>
 </div>
@@ -156,13 +155,13 @@ canvas { background:rgba(15,23,42,0.95); border-radius:12px; padding:12px; margi
 </div>
 
 <script>
-let lastRain = null, lastTime = null, charts = {};
-function format(v){ return isNaN(parseFloat(v)) ? '--' : Math.round(v); }
+let lastRain=null,lastTime=null,charts={};
+function format(v){ return isNaN(parseFloat(v)) ? '--' : v.toFixed(1); }
 function getWindDirection(deg){ const dirs=["N","NE","E","SE","S","SW","W","NW"]; return dirs[Math.round(deg/45)%8]; }
 function getTempClass(temp){ if(temp<=25) return "cool"; if(temp<35) return "mild"; if(temp<40) return "hot"; return "veryhot"; }
 
 function createCharts(){
-  const opt={animation:false, scales:{y:{beginAtZero:false, ticks:{stepSize:undefined}}}};
+  const opt={animation:false, scales:{y:{beginAtZero:false}}};
   charts.temp=new Chart(document.getElementById('tempChart'), {type:'line', data:{labels:[], datasets:[{label:'Temperature (°C)', data:[], borderColor:'#67e8f9', tension:0.3}]}, options:opt});
   charts.hum=new Chart(document.getElementById('humChart'), {type:'line', data:{labels:[], datasets:[{label:'Humidity (%)', data:[], borderColor:'#4ade80', tension:0.3}]}, options:opt});
   charts.wind=new Chart(document.getElementById('windChart'), {type:'line', data:{labels:[], datasets:[{label:'Wind Speed (km/h)', data:[], borderColor:'#fb923c', tension:0.3}]}, options:opt});
@@ -188,9 +187,9 @@ async function loadData(){
     document.getElementById('arrow').style.transform='rotate('+d.winddir+'deg)';
     document.getElementById('winddir').innerText=d.winddir+'° ('+getWindDirection(d.winddir)+')';
 
-    document.getElementById('rain').innerText=format(rainRate)+' mm/hr';
-    document.getElementById('maxRain').innerText=format(data.maxRainRate)+' mm/hr';
-    document.getElementById('totalRain').innerText=format(currentRain)+' mm';
+    document.getElementById('currentRain').innerText = format(currentRain)+' mm';
+    document.getElementById('rainRate').innerText = format(rainRate)+' mm/hr (Max: '+format(data.maxRainRate)+')';
+    document.getElementById('totalRain').innerText = format(currentRain)+' mm';
 
     document.getElementById('uv').innerText=format(d.uv);
     document.getElementById('solar').innerText=format(d.solarRadiation);
