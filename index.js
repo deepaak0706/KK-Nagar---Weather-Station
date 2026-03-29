@@ -1,10 +1,8 @@
 const express = require("express");
-const fetch = require("node-fetch");
-
 const app = express();
 
-const API_KEY = process.env.API_KEY;
-const STATION_ID = "ICHENN63";
+const API_KEY = process.env.API_KEY;        // Set this in Render Environment Variables
+const STATION_ID = "ICHENN63";              // ← Change if your Station ID is different
 
 let cachedData = null;
 let lastFetch = 0;
@@ -13,29 +11,43 @@ let history = [];
 app.get("/weather", async (req, res) => {
     const now = Date.now();
 
-    if (cachedData && (now - lastFetch < 10000)) {
+    // Cache for 60 seconds (safe for WU API limits)
+    if (cachedData && (now - lastFetch < 60000)) {
         return res.json(cachedData);
     }
 
     try {
+        console.log(`Fetching weather data for station ${STATION_ID}...`);
+
         const weatherRes = await fetch(
             `https://api.weather.com/v2/pws/observations/current?stationId=${STATION_ID}&format=json&units=m&apiKey=${API_KEY}`
         );
+
+        if (!weatherRes.ok) {
+            throw new Error(`API responded with status ${weatherRes.status}`);
+        }
+
         const weatherData = await weatherRes.json();
         const obs = weatherData.observations[0];
 
+        if (!obs) {
+            throw new Error("No observations returned from API");
+        }
+
+        // Get sunrise/sunset
         const sunRes = await fetch(
             `https://api.sunrise-sunset.org/json?lat=${obs.lat}&lng=${obs.lon}&formatted=0`
         );
-        const sunData = await sunRes.json();
+        const sunData = await sunRes.json().catch(() => ({ results: { sunrise: null, sunset: null } }));
 
+        // Update history
         history.push({
-            time: new Date().toLocaleTimeString(),
+            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
             temp: obs.metric.temp,
             hum: obs.humidity,
             rain: obs.metric.precipTotal,
-            windSpeed: obs.metric.windSpeed,
-            windDir: obs.winddir
+            windSpeed: obs.metric.windSpeed || 0,
+            windDir: obs.winddir || 0
         });
 
         if (history.length > 30) history.shift();
@@ -48,16 +60,28 @@ app.get("/weather", async (req, res) => {
         };
 
         lastFetch = now;
-
+        console.log("Weather data updated successfully");
         res.json(cachedData);
 
-    } catch {
-        res.json({ error: "Failed" });
+    } catch (error) {
+        console.error("Weather API error:", error.message);
+        
+        // Fallback to cached data if available
+        if (cachedData) {
+            console.log("Returning cached data due to API error");
+            return res.json(cachedData);
+        }
+        
+        res.status(500).json({ 
+            error: "Failed to fetch latest weather data",
+            message: error.message 
+        });
     }
 });
 
+// Your original beautiful dashboard (unchanged UI)
 app.get("/", (req, res) => {
-res.send(`
+    res.send(`
 <!DOCTYPE html>
 <html>
 <head>
@@ -72,13 +96,11 @@ body {
     background:linear-gradient(135deg,#0f172a,#1e293b);
     color:white;
 }
-
 h1 {
     text-align:center;
     padding:20px;
     font-size:22px;
 }
-
 .section {
     margin:15px;
     padding:20px;
@@ -86,52 +108,42 @@ h1 {
     background:rgba(255,255,255,0.06);
     backdrop-filter: blur(10px);
 }
-
-/* Temperature color classes */
-.cool { color:#60a5fa; }
-.mild { color:#f59e0b; }
-.hot { color:#f97316; }
-.veryhot { color:#ef4444; }
-
 .grid {
     display:grid;
     grid-template-columns: repeat(auto-fit, minmax(130px,1fr));
     gap:16px;
 }
-
 .item { text-align:center; }
-
 .label {
     font-size:13px;
     opacity:0.7;
 }
-
 .value {
     font-size:22px;
     font-weight:bold;
 }
-
 .wind-box {
     text-align:center;
 }
-
 .wind-arrow {
     font-size:30px;
     margin:10px 0;
 }
-
 canvas {
     background:white;
     border-radius:10px;
     margin-top:15px;
 }
+.cool { color:#60a5fa; }
+.mild { color:#f59e0b; }
+.hot { color:#f97316; }
+.veryhot { color:#ef4444; }
 </style>
 </head>
 
 <body>
-
 <h1>KK Nagar Weather Station</h1>
-<div id="updated" style="text-align:center; opacity:0.6;"></div>
+<div id="updated" style="text-align:center; opacity:0.6; margin-bottom:10px;"></div>
 
 <div class="section">
 <div class="grid">
@@ -176,7 +188,7 @@ canvas {
 </div>
 
 <div class="section">
-<h3>Trends</h3>
+<h3>Trends (Last 30 points)</h3>
 <canvas id="tempChart"></canvas>
 <canvas id="humChart"></canvas>
 <canvas id="rainChart"></canvas>
@@ -185,16 +197,15 @@ canvas {
 </div>
 
 <script>
-let lastRain=null;
-let lastTime=null;
-
+let lastRain = null;
+let lastTime = null;
 let tempChart, humChart, rainChart, windSpeedChart, windDirChart;
 
 function format(v){ return Math.round(v); }
 
 function getWindDirection(deg){
-    const dirs=["N","NE","E","SE","S","SW","W","NW"];
-    return dirs[Math.round(deg/45)%8];
+    const dirs = ["N","NE","E","SE","S","SW","W","NW"];
+    return dirs[Math.round(deg/45) % 8];
 }
 
 function rainLevel(rate){
@@ -204,7 +215,6 @@ function rainLevel(rate){
     return "Heavy";
 }
 
-/* Temperature color logic */
 function getTempClass(temp){
     if(temp <= 25) return "cool";
     if(temp < 35) return "mild";
@@ -213,54 +223,22 @@ function getTempClass(temp){
 }
 
 function createCharts(){
-    tempChart = new Chart(document.getElementById('tempChart'), {
-        type:'line',
-        data:{labels:[],datasets:[{label:'Temperature',data:[]}]},
-        options:{animation:false}
-    });
+    const options = { animation: false, scales: { y: { beginAtZero: true } } };
 
-    humChart = new Chart(document.getElementById('humChart'), {
-        type:'line',
-        data:{labels:[],datasets:[{label:'Humidity',data:[]}]},
-        options:{animation:false}
-    });
-
-    rainChart = new Chart(document.getElementById('rainChart'), {
-        type:'line',
-        data:{labels:[],datasets:[{label:'Rain',data:[]}]},
-        options:{animation:false}
-    });
-
-    windSpeedChart = new Chart(document.getElementById('windSpeedChart'), {
-        type:'line',
-        data:{labels:[],datasets:[{label:'Wind Speed',data:[]}]},
-        options:{animation:false}
-    });
-
-    windDirChart = new Chart(document.getElementById('windDirChart'), {
-        type:'line',
-        data:{labels:[],datasets:[{label:'Wind Direction',data:[]}]},
-        options:{animation:false}
-    });
+    tempChart = new Chart(document.getElementById('tempChart'), { type:'line', data:{labels:[], datasets:[{label:'Temperature (°C)', data:[], borderColor:'#60a5fa'}]}, options });
+    humChart = new Chart(document.getElementById('humChart'), { type:'line', data:{labels:[], datasets:[{label:'Humidity (%)', data:[], borderColor:'#22c55e'}]}, options });
+    rainChart = new Chart(document.getElementById('rainChart'), { type:'line', data:{labels:[], datasets:[{label:'Rain (mm)', data:[], borderColor:'#3b82f6'}]}, options });
+    windSpeedChart = new Chart(document.getElementById('windSpeedChart'), { type:'line', data:{labels:[], datasets:[{label:'Wind Speed (km/h)', data:[], borderColor:'#f59e0b'}]}, options });
+    windDirChart = new Chart(document.getElementById('windDirChart'), { type:'line', data:{labels:[], datasets:[{label:'Wind Direction (°)', data:[], borderColor:'#8b5cf6'}]}, options });
 }
 
 function updateCharts(hist){
-    const labels = hist.map(h=>h.time);
-
-    tempChart.data.labels = labels;
-    tempChart.data.datasets[0].data = hist.map(h=>h.temp);
-
-    humChart.data.labels = labels;
-    humChart.data.datasets[0].data = hist.map(h=>h.hum);
-
-    rainChart.data.labels = labels;
-    rainChart.data.datasets[0].data = hist.map(h=>h.rain);
-
-    windSpeedChart.data.labels = labels;
-    windSpeedChart.data.datasets[0].data = hist.map(h=>h.windSpeed);
-
-    windDirChart.data.labels = labels;
-    windDirChart.data.datasets[0].data = hist.map(h=>h.windDir);
+    const labels = hist.map(h => h.time);
+    tempChart.data.labels = labels; tempChart.data.datasets[0].data = hist.map(h => h.temp);
+    humChart.data.labels = labels; humChart.data.datasets[0].data = hist.map(h => h.hum);
+    rainChart.data.labels = labels; rainChart.data.datasets[0].data = hist.map(h => h.rain);
+    windSpeedChart.data.labels = labels; windSpeedChart.data.datasets[0].data = hist.map(h => h.windSpeed);
+    windDirChart.data.labels = labels; windDirChart.data.datasets[0].data = hist.map(h => h.windDir);
 
     tempChart.update();
     humChart.update();
@@ -270,64 +248,69 @@ function updateCharts(hist){
 }
 
 async function loadData(){
-    const res = await fetch('/weather');
-    const data = await res.json();
-    const d = data.obs;
-
-    const currentRain = d.metric.precipTotal;
-    const now = Date.now();
-
-    let rate = 0;
-    if(lastRain !== null){
-        const diff = currentRain - lastRain;
-        const t = (now - lastTime)/1000;
-        if(t>0 && diff>=0){
-            rate = (diff*3600/t);
+    try {
+        const res = await fetch('/weather');
+        const data = await res.json();
+        
+        if (data.error) {
+            document.getElementById('updated').innerText = "Error: " + data.error;
+            return;
         }
+
+        const d = data.obs;
+        const currentRain = d.metric.precipTotal;
+        const now = Date.now();
+
+        let rate = 0;
+        if (lastRain !== null) {
+            const diff = currentRain - lastRain;
+            const t = (now - lastTime) / 1000;
+            if (t > 0 && diff >= 0) rate = (diff * 3600 / t);
+        }
+
+        lastRain = currentRain;
+        lastTime = now;
+
+        const tempClass = getTempClass(d.metric.temp);
+
+        document.getElementById('temp').innerHTML = '<span class="'+tempClass+'">'+format(d.metric.temp)+'°C</span>';
+        document.getElementById('feels').innerHTML = '<span class="'+tempClass+'">'+format(d.metric.heatIndex)+'°C</span>';
+        document.getElementById('hum').innerText = format(d.humidity)+"%";
+
+        document.getElementById('wind').innerText = format(d.metric.windSpeed)+" km/h";
+        document.getElementById('arrow').style.transform = "rotate("+d.winddir+"deg)";
+        document.getElementById('winddir').innerText = d.winddir+"° ("+getWindDirection(d.winddir)+")";
+
+        document.getElementById('rain').innerText = format(rate)+" mm/hr";
+        document.getElementById('totalRain').innerText = format(currentRain)+" mm";
+        document.getElementById('intensity').innerText = rainLevel(rate);
+
+        document.getElementById('uv').innerText = format(d.uv);
+        document.getElementById('solar').innerText = format(d.solarRadiation);
+
+        if (data.sunrise) document.getElementById('sunrise').innerText = new Date(data.sunrise).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+        if (data.sunset) document.getElementById('sunset').innerText = new Date(data.sunset).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+
+        document.getElementById('updated').innerText = "Updated: " + new Date().toLocaleTimeString();
+
+        updateCharts(data.history);
+    } catch (e) {
+        console.error("Frontend fetch error", e);
+        document.getElementById('updated').innerText = "Connection error - using last known data";
     }
-
-    lastRain = currentRain;
-    lastTime = now;
-
-    const tempClass = getTempClass(d.metric.temp);
-
-    document.getElementById('temp').innerHTML =
-        '<span class="'+tempClass+'">'+format(d.metric.temp)+'°C</span>';
-
-    document.getElementById('feels').innerHTML =
-        '<span class="'+tempClass+'">'+format(d.metric.heatIndex)+'°C</span>';
-
-    document.getElementById('hum').innerText = format(d.humidity)+"%";
-
-    document.getElementById('wind').innerText = format(d.metric.windSpeed)+" km/h";
-    document.getElementById('arrow').style.transform = "rotate("+d.winddir+"deg)";
-    document.getElementById('winddir').innerText =
-        d.winddir+"° ("+getWindDirection(d.winddir)+")";
-
-    document.getElementById('rain').innerText = format(rate)+" mm/hr";
-    document.getElementById('totalRain').innerText = format(currentRain)+" mm";
-    document.getElementById('intensity').innerText = rainLevel(rate);
-
-    document.getElementById('uv').innerText = format(d.uv);
-    document.getElementById('solar').innerText = format(d.solarRadiation);
-
-    document.getElementById('sunrise').innerText = new Date(data.sunrise).toLocaleTimeString();
-    document.getElementById('sunset').innerText = new Date(data.sunset).toLocaleTimeString();
-
-    document.getElementById('updated').innerText =
-        "Updated: " + new Date().toLocaleTimeString();
-
-    updateCharts(data.history);
 }
 
 createCharts();
-setInterval(loadData,10000);
+setInterval(loadData, 60000);   // Updated to 60 seconds
 loadData();
 </script>
-
 </body>
 </html>
 `);
 });
 
-app.listen(3000, () => console.log("Server running"));
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+    console.log(`✅ KK Nagar Weather Station running on port ${PORT}`);
+    console.log(`Station ID: ${STATION_ID}`);
+});
