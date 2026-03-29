@@ -1,4 +1,3 @@
-
 const express = require("express");
 const fetch = require("node-fetch");
 
@@ -50,7 +49,7 @@ app.get("/weather", async (req, res) => {
 
         res.json(cachedData);
 
-    } catch (e) {
+    } catch {
         res.json({ error: "Failed" });
     }
 });
@@ -74,55 +73,66 @@ body {
 
 h1 {
     text-align:center;
-    padding:15px;
+    padding:20px 10px;
+    font-size:22px;
 }
 
+/* SECTION */
 .section {
     margin:15px;
-    padding:15px;
-    border-radius:15px;
-    background:rgba(255,255,255,0.08);
-    border:1px solid rgba(255,255,255,0.1);
-    backdrop-filter: blur(12px);
-    box-shadow:0 8px 32px rgba(0,0,0,0.3);
+    padding:20px;
+    border-radius:16px;
+    background:rgba(255,255,255,0.06);
+    backdrop-filter: blur(10px);
 }
 
+/* TITLE */
 .section h2 {
-    margin-bottom:10px;
+    margin-bottom:15px;
     font-size:18px;
-    border-bottom:1px solid rgba(255,255,255,0.2);
-    padding-bottom:5px;
 }
 
+/* GRID */
 .grid {
     display:grid;
-    grid-template-columns: repeat(auto-fit, minmax(120px,1fr));
-    gap:12px;
+    grid-template-columns: repeat(auto-fit, minmax(130px,1fr));
+    gap:16px;
 }
 
+/* ITEM */
 .item {
     text-align:center;
-    padding:8px;
 }
 
 .label {
     font-size:13px;
     opacity:0.7;
+    margin-bottom:5px;
 }
 
 .value {
-    font-size:20px;
+    font-size:22px;
     font-weight:bold;
 }
 
-.wind-arrow {
-    font-size:18px;
+/* WIND FIX */
+.wind-box {
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:8px;
 }
 
+.wind-arrow {
+    font-size:30px;
+    transition: transform 0.3s ease;
+}
+
+/* CHART */
 canvas {
     background:white;
     border-radius:10px;
-    margin-top:10px;
+    margin-top:15px;
 }
 </style>
 </head>
@@ -133,35 +143,55 @@ canvas {
 
 <div id="updated" style="text-align:center; opacity:0.6;"></div>
 
+<!-- TEMP -->
 <div class="section">
 <h2>🌡 Temperature</h2>
 <div class="grid">
-    <div class="item"><div class="label">Temp</div><div class="value" id="temp"></div></div>
-    <div class="item"><div class="label">Feels Like</div><div class="value" id="feels"></div></div>
-    <div class="item"><div class="label">Humidity</div><div class="value" id="hum"></div></div>
-</div>
-</div>
-
-<div class="section">
-<h2>🌧 Rain</h2>
-<div class="grid">
-    <div class="item"><div class="label">Rain Rate</div><div class="value" id="rain"></div></div>
-    <div class="item"><div class="label">Total Rain</div><div class="value" id="totalRain"></div></div>
-    <div class="item"><div class="label">Intensity</div><div class="value" id="intensity"></div></div>
-</div>
-</div>
-
-<div class="section">
-<h2>🌬 Wind</h2>
-<div class="grid">
     <div class="item">
-        <div class="label">Wind</div>
-        <div class="value" id="wind"></div>
-        <div class="wind-arrow" id="arrow"></div>
+        <div class="label">Temperature</div>
+        <div class="value" id="temp"></div>
+    </div>
+    <div class="item">
+        <div class="label">Feels Like</div>
+        <div class="value" id="feels"></div>
+    </div>
+    <div class="item">
+        <div class="label">Humidity</div>
+        <div class="value" id="hum"></div>
     </div>
 </div>
 </div>
 
+<!-- RAIN -->
+<div class="section">
+<h2>🌧 Rain</h2>
+<div class="grid">
+    <div class="item">
+        <div class="label">Rain Rate</div>
+        <div class="value" id="rain"></div>
+    </div>
+    <div class="item">
+        <div class="label">Total Rain</div>
+        <div class="value" id="totalRain"></div>
+    </div>
+    <div class="item">
+        <div class="label">Intensity</div>
+        <div class="value" id="intensity"></div>
+    </div>
+</div>
+</div>
+
+<!-- WIND -->
+<div class="section">
+<h2>🌬 Wind</h2>
+<div class="wind-box">
+    <div class="value" id="wind"></div>
+    <div class="wind-arrow" id="arrow">⬆️</div>
+    <div id="winddir" style="opacity:0.7;"></div>
+</div>
+</div>
+
+<!-- SUN -->
 <div class="section">
 <h2>☀️ Solar & Sun</h2>
 <div class="grid">
@@ -172,6 +202,7 @@ canvas {
 </div>
 </div>
 
+<!-- CHART -->
 <div class="section">
 <h2>📊 Trends</h2>
 <canvas id="tempChart"></canvas>
@@ -185,39 +216,18 @@ let lastTime=null;
 
 let tempChart, humChart, rainChart;
 
-function format(v){
-    return Math.round(v);
-}
+function format(v){ return Math.round(v); }
 
 function getWindDirection(deg){
-    const dirs = ["N","NE","E","SE","S","SW","W","NW"];
-    return dirs[Math.round(deg / 45) % 8];
+    const dirs=["N","NE","E","SE","S","SW","W","NW"];
+    return dirs[Math.round(deg/45)%8];
 }
 
 function rainLevel(rate){
+    if(rate === 0) return "None";
     if(rate < 2) return "Light";
     if(rate < 10) return "Moderate";
     return "Heavy";
-}
-
-function rainEmoji(rate){
-    if(rate < 2) return "🌦️";
-    if(rate < 10) return "🌧️";
-    return "⛈️";
-}
-
-function formatTime(t){
-    return new Date(t).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
-}
-
-function setTheme(temp){
-    if(temp < 25){
-        document.body.style.background="linear-gradient(135deg,#1e3a8a,#0f172a)";
-    } else if(temp < 35){
-        document.body.style.background="linear-gradient(135deg,#0f766e,#1e293b)";
-    } else {
-        document.body.style.background="linear-gradient(135deg,#7f1d1d,#1e293b)";
-    }
 }
 
 function createCharts(){
@@ -261,51 +271,47 @@ async function loadData(){
     const res=await fetch('/weather');
     const data=await res.json();
 
-    const d = data.obs;
+    const d=data.obs;
 
-    const currentRain = d.metric.precipTotal;
-    const now = Date.now();
+    const currentRain=d.metric.precipTotal;
+    const now=Date.now();
 
-    let rate = 0;
+    let rate=0;
 
-    if(lastRain !== null){
-        const diff = currentRain - lastRain;
-        const t = (now - lastTime)/1000;
-        if(t > 0 && diff >= 0){
-            rate = (diff * 3600 / t);
+    if(lastRain!==null){
+        const diff=currentRain-lastRain;
+        const t=(now-lastTime)/1000;
+        if(t>0 && diff>=0){
+            rate=(diff*3600/t);
         }
     }
 
-    lastRain = currentRain;
-    lastTime = now;
+    lastRain=currentRain;
+    lastTime=now;
 
-    setTheme(d.metric.temp);
+    document.getElementById('temp').innerText=format(d.metric.temp)+"°C";
+    document.getElementById('feels').innerText=format(d.metric.heatIndex)+"°C";
+    document.getElementById('hum').innerText=format(d.humidity)+"%";
 
-    const diff = d.metric.heatIndex - d.metric.temp;
+    document.getElementById('wind').innerText=format(d.metric.windSpeed)+" km/h";
+    document.getElementById('arrow').style.transform="rotate("+d.winddir+"deg)";
+    document.getElementById('winddir').innerText=
+        d.winddir+"° ("+getWindDirection(d.winddir)+")";
 
-    document.getElementById('temp').innerText = format(d.metric.temp) + "°C";
-    document.getElementById('feels').innerText =
-        format(d.metric.heatIndex) + "°C (" + (diff>0?"+":"") + format(diff) + ")";
-    document.getElementById('hum').innerText = format(d.humidity) + "%";
+    document.getElementById('rain').innerText=format(rate)+" mm/hr";
+    document.getElementById('totalRain').innerText=format(currentRain)+" mm";
+    document.getElementById('intensity').innerText=rainLevel(rate);
 
-    document.getElementById('wind').innerText = format(d.metric.windSpeed) + " km/h";
-    document.getElementById('arrow').innerHTML =
-        format(d.winddir) + "° (" + getWindDirection(d.winddir) + ") ⬆️";
-    document.getElementById('arrow').style.transform = "rotate(" + d.winddir + "deg)";
+    document.getElementById('uv').innerText=format(d.uv);
+    document.getElementById('solar').innerText=format(d.solarRadiation);
 
-    document.getElementById('rain').innerText =
-        rainEmoji(rate) + " " + format(rate) + " mm/hr";
-    document.getElementById('totalRain').innerText = format(currentRain) + " mm";
-    document.getElementById('intensity').innerText = rainLevel(rate);
+    document.getElementById('sunrise').innerText=
+        new Date(data.sunrise).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+    document.getElementById('sunset').innerText=
+        new Date(data.sunset).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
 
-    document.getElementById('uv').innerText = format(d.uv);
-    document.getElementById('solar').innerText = format(d.solarRadiation);
-
-    document.getElementById('sunrise').innerText = formatTime(data.sunrise);
-    document.getElementById('sunset').innerText = formatTime(data.sunset);
-
-    document.getElementById('updated').innerText =
-        "Updated: " + new Date().toLocaleTimeString();
+    document.getElementById('updated').innerText=
+        "Updated: "+new Date().toLocaleTimeString();
 
     updateCharts(data.history);
 }
