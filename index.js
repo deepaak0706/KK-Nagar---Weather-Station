@@ -8,8 +8,8 @@ const STATION_ID = "ICHENN63";
 
 let cachedData = null;
 let lastFetch = 0;
+let history = [];
 
-// API route
 app.get("/weather", async (req, res) => {
     const now = Date.now();
 
@@ -18,115 +18,183 @@ app.get("/weather", async (req, res) => {
     }
 
     try {
-        const response = await fetch(
+        // Weather Underground data
+        const weatherRes = await fetch(
             `https://api.weather.com/v2/pws/observations/current?stationId=${STATION_ID}&format=json&units=m&apiKey=${API_KEY}`
         );
+        const weatherData = await weatherRes.json();
+        const obs = weatherData.observations[0];
 
-        const data = await response.json();
-        const obs = data.observations[0];
+        // Sunrise Sunset API (Chennai coords)
+        const sunRes = await fetch(
+            `https://api.sunrise-sunset.org/json?lat=${obs.lat}&lng=${obs.lon}&formatted=0`
+        );
+        const sunData = await sunRes.json();
 
-        cachedData = obs;
+        cachedData = {
+            obs,
+            sunrise: sunData.results.sunrise,
+            sunset: sunData.results.sunset,
+            history
+        };
+
         lastFetch = now;
 
-        res.json(obs);
-    } catch (err) {
-        res.json({ error: "Failed to fetch data" });
+        // history tracking
+        history.push({
+            time: new Date().toLocaleTimeString(),
+            temp: obs.metric.temp,
+            hum: obs.humidity,
+            rain: obs.metric.precipTotal
+        });
+
+        if (history.length > 30) history.shift();
+
+        res.json(cachedData);
+
+    } catch {
+        res.json({ error: "Failed" });
     }
 });
 
-// UI
 app.get("/", (req, res) => {
-    res.send(`
+res.send(`
 <!DOCTYPE html>
 <html>
 <head>
-    <title>KK Nagar Weather</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <style>
-        body { font-family: Arial; margin: 0; background: #0f172a; color: white; text-align: center; }
-        h1 { padding: 15px; }
-        .container {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-            gap: 15px;
-            padding: 15px;
-        }
-        .card {
-            background: #1e293b;
-            padding: 15px;
-            border-radius: 10px;
-        }
-        .value {
-            font-size: 22px;
-            font-weight: bold;
-        }
-    </style>
+<title>KKNagar Weather Station</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<style>
+body {margin:0;font-family:Arial;background:linear-gradient(135deg,#0f172a,#1e293b);color:white;text-align:center;}
+h1{padding:15px;}
+
+.container{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:15px;padding:15px;}
+
+.card{background:rgba(255,255,255,0.05);backdrop-filter:blur(10px);padding:15px;border-radius:12px;}
+
+.value{font-size:22px;font-weight:bold;}
+
+.wind-arrow{
+    font-size:30px;
+    transform: rotate(0deg);
+    display:inline-block;
+}
+
+canvas{background:white;border-radius:10px;margin:10px;}
+</style>
 </head>
+
 <body>
 
-<h1>KK Nagar Weather Station</h1>
+<h1>KKNagar Weather Station</h1>
 
 <div class="container">
-    <div class="card"><div>🌡 Temp</div><div class="value" id="temp">--</div></div>
-    <div class="card"><div>💧 Humidity</div><div class="value" id="hum">--</div></div>
-    <div class="card"><div>🌬 Wind</div><div class="value" id="wind">--</div></div>
-    <div class="card"><div>⚡ Instant Rain</div><div class="value" id="rain">--</div></div>
-    <div class="card"><div>🌧 Total Rain</div><div class="value" id="totalRain">--</div></div>
-    <div class="card"><div>☀️ UV</div><div class="value" id="uv">--</div></div>
-    <div class="card"><div>🌞 Solar</div><div class="value" id="solar">--</div></div>
+<div class="card"><div>🌡 Temp</div><div class="value" id="temp"></div></div>
+<div class="card"><div>🔥 Feels Like</div><div class="value" id="feels"></div></div>
+<div class="card"><div>💧 Humidity</div><div class="value" id="hum"></div></div>
+
+<div class="card">
+<div>🌬 Wind</div>
+<div class="value" id="wind"></div>
+<div class="wind-arrow" id="arrow">⬆️</div>
 </div>
 
+<div class="card"><div>🌧 Rain Rate</div><div class="value" id="rain"></div></div>
+<div class="card"><div>🌧 Total Rain</div><div class="value" id="totalRain"></div></div>
+
+<div class="card"><div>🌦 Intensity</div><div class="value" id="intensity"></div></div>
+
+<div class="card"><div>☀️ UV</div><div class="value" id="uv"></div></div>
+<div class="card"><div>🌞 Solar</div><div class="value" id="solar"></div></div>
+
+<div class="card"><div>🌅 Sunrise</div><div class="value" id="sunrise"></div></div>
+<div class="card"><div>🌇 Sunset</div><div class="value" id="sunset"></div></div>
+</div>
+
+<h2>📊 Trends</h2>
+<canvas id="tempChart"></canvas>
+<canvas id="humChart"></canvas>
+<canvas id="rainChart"></canvas>
+
 <script>
-let lastRain = null;
-let lastTime = null;
+let lastRain=null;
+let lastTime=null;
 
-function formatDecimal(value, digits = 1) {
-    return Number(value).toFixed(digits);
+let tempChart, humChart, rainChart;
+
+function format(v,d=1){ return Number(v).toFixed(d); }
+
+function rainLevel(rate){
+    if(rate < 2) return "Light";
+    if(rate < 10) return "Moderate";
+    return "Heavy";
 }
 
-async function loadData() {
-    try {
-        const res = await fetch('/weather');
-        const data = await res.json();
+function createCharts(){
+    tempChart=new Chart(tempChartCanvas,{type:'line',data:{labels:[],datasets:[{label:'Temp',data:[]}]}});
 
-        const currentRain = data.metric.precipTotal;
-        const currentTime = Date.now();
+    humChart=new Chart(humChartCanvas,{type:'line',data:{labels:[],datasets:[{label:'Humidity',data:[]}]}});
 
-        let instantRainRate = 0;
+    rainChart=new Chart(rainChartCanvas,{type:'line',data:{labels:[],datasets:[{label:'Rain',data:[]}]}});
 
-        if (lastRain !== null && lastTime !== null) {
-            const rainDiff = currentRain - lastRain;
-            const timeDiff = (currentTime - lastTime) / 1000;
+}
 
-            if (timeDiff > 0 && rainDiff >= 0) {
-                instantRainRate = (rainDiff * 3600 / timeDiff);
-            }
+async function loadData(){
+    const res=await fetch('/weather');
+    const data=await res.json();
+
+    const d=data.obs;
+
+    const currentRain=d.metric.precipTotal;
+    const now=Date.now();
+
+    let rate=0;
+
+    if(lastRain!==null){
+        const diff=currentRain-lastRain;
+        const t=(now-lastTime)/1000;
+        if(t>0 && diff>=0){
+            rate=(diff*3600/t);
         }
-
-        lastRain = currentRain;
-        lastTime = currentTime;
-
-        // 👇 DECIMAL FIX APPLIED HERE
-        document.getElementById('temp').innerText = formatDecimal(data.metric.temp, 1) + " °C";
-        document.getElementById('hum').innerText = formatDecimal(data.humidity, 0) + " %";
-        document.getElementById('wind').innerText = formatDecimal(data.metric.windSpeed, 1) + " km/h";
-        document.getElementById('rain').innerText = formatDecimal(instantRainRate, 2) + " mm/hr";
-        document.getElementById('totalRain').innerText = formatDecimal(currentRain, 2) + " mm";
-        document.getElementById('uv').innerText = formatDecimal(data.uv, 1);
-        document.getElementById('solar').innerText = formatDecimal(data.solarRadiation, 0);
-
-    } catch (e) {
-        console.log("Error loading data");
     }
+
+    lastRain=currentRain;
+    lastTime=now;
+
+    document.getElementById('temp').innerText=format(d.metric.temp)+" °C";
+    document.getElementById('feels').innerText=format(d.metric.heatIndex)+" °C";
+    document.getElementById('hum').innerText=format(d.humidity,0)+" %";
+    document.getElementById('wind').innerText=format(d.metric.windSpeed)+" km/h";
+
+    document.getElementById('rain').innerText=format(rate,2)+" mm/hr";
+    document.getElementById('totalRain').innerText=format(currentRain,2)+" mm";
+
+    document.getElementById('intensity').innerText=rainLevel(rate);
+
+    document.getElementById('uv').innerText=format(d.uv,1);
+    document.getElementById('solar').innerText=format(d.solarRadiation,0);
+
+    // Wind direction arrow
+    document.getElementById('arrow').style.transform = "rotate(" + d.winddir + "deg)";
+
+    // Sunrise Sunset
+    const sunrise = new Date(data.sunrise).toLocaleTimeString();
+    const sunset = new Date(data.sunset).toLocaleTimeString();
+
+    document.getElementById('sunrise').innerText = sunrise;
+    document.getElementById('sunset').innerText = sunset;
 }
 
-setInterval(loadData, 10000);
+createCharts();
+setInterval(loadData,10000);
 loadData();
 </script>
 
 </body>
 </html>
-    `);
+`);
 });
 
 app.listen(3000, () => console.log("Server running"));
