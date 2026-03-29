@@ -49,7 +49,7 @@ app.get("/weather", async (req, res) => {
 
         res.json(cachedData);
 
-    } catch {
+    } catch (e) {
         res.json({ error: "Failed" });
     }
 });
@@ -69,38 +69,56 @@ body {
     font-family:Arial;
     background:linear-gradient(135deg,#0f172a,#1e293b);
     color:white;
+}
+h1 {
     text-align:center;
-}
-h1 { padding:15px; }
-
-.container {
-    display:grid;
-    grid-template-columns:repeat(auto-fit,minmax(140px,1fr));
-    gap:15px;
     padding:15px;
 }
 
-.card {
+.section {
+    margin:15px;
+    padding:15px;
+    border-radius:15px;
     background:rgba(255,255,255,0.05);
-    backdrop-filter:blur(10px);
-    padding:15px;
-    border-radius:12px;
+    backdrop-filter: blur(12px);
+}
+
+.section h2 {
+    margin-bottom:10px;
+    font-size:18px;
+    border-bottom:1px solid rgba(255,255,255,0.2);
+    padding-bottom:5px;
+}
+
+.grid {
+    display:grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px,1fr));
+    gap:12px;
+}
+
+.item {
+    text-align:center;
+    padding:8px;
+}
+
+.label {
+    font-size:13px;
+    opacity:0.7;
 }
 
 .value {
-    font-size:22px;
+    font-size:20px;
     font-weight:bold;
 }
 
 .wind-arrow {
-    font-size:30px;
-    display:inline-block;
+    font-size:25px;
 }
 
 canvas {
     background:white;
     border-radius:10px;
-    margin:10px;
+    margin-top:10px;
 }
 </style>
 </head>
@@ -109,33 +127,51 @@ canvas {
 
 <h1>KKNagar Weather Station</h1>
 
-<div class="container">
-<div class="card"><div>🌡 Temp</div><div class="value" id="temp"></div></div>
-<div class="card"><div>🔥 Feels Like</div><div class="value" id="feels"></div></div>
-<div class="card"><div>💧 Humidity</div><div class="value" id="hum"></div></div>
-
-<div class="card">
-<div>🌬 Wind</div>
-<div class="value" id="wind"></div>
-<div class="wind-arrow" id="arrow">⬆️</div>
+<div class="section">
+<h2>🌡 Temperature</h2>
+<div class="grid">
+    <div class="item"><div class="label">Temp</div><div class="value" id="temp"></div></div>
+    <div class="item"><div class="label">Feels Like</div><div class="value" id="feels"></div></div>
+    <div class="item"><div class="label">Humidity</div><div class="value" id="hum"></div></div>
+</div>
 </div>
 
-<div class="card"><div>🌧 Rain Rate (Instant)</div><div class="value" id="rain"></div></div>
-<div class="card"><div>🌧 Total Rain</div><div class="value" id="totalRain"></div></div>
-
-<div class="card"><div>🌦 Intensity</div><div class="value" id="intensity"></div></div>
-
-<div class="card"><div>☀️ UV</div><div class="value" id="uv"></div></div>
-<div class="card"><div>🌞 Solar</div><div class="value" id="solar"></div></div>
-
-<div class="card"><div>🌅 Sunrise</div><div class="value" id="sunrise"></div></div>
-<div class="card"><div>🌇 Sunset</div><div class="value" id="sunset"></div></div>
+<div class="section">
+<h2>🌧 Rain</h2>
+<div class="grid">
+    <div class="item"><div class="label">Rain Rate</div><div class="value" id="rain"></div></div>
+    <div class="item"><div class="label">Total Rain</div><div class="value" id="totalRain"></div></div>
+    <div class="item"><div class="label">Intensity</div><div class="value" id="intensity"></div></div>
+</div>
 </div>
 
+<div class="section">
+<h2>🌬 Wind</h2>
+<div class="grid">
+    <div class="item">
+        <div class="label">Speed</div>
+        <div class="value" id="wind"></div>
+        <div class="wind-arrow" id="arrow">⬆️</div>
+    </div>
+</div>
+</div>
+
+<div class="section">
+<h2>☀️ Solar & Sun</h2>
+<div class="grid">
+    <div class="item"><div class="label">UV</div><div class="value" id="uv"></div></div>
+    <div class="item"><div class="label">Solar</div><div class="value" id="solar"></div></div>
+    <div class="item"><div class="label">Sunrise</div><div class="value" id="sunrise"></div></div>
+    <div class="item"><div class="label">Sunset</div><div class="value" id="sunset"></div></div>
+</div>
+</div>
+
+<div class="section">
 <h2>📊 Trends</h2>
 <canvas id="tempChart"></canvas>
 <canvas id="humChart"></canvas>
 <canvas id="rainChart"></canvas>
+</div>
 
 <script>
 let lastRain=null;
@@ -143,7 +179,9 @@ let lastTime=null;
 
 let tempChart, humChart, rainChart;
 
-function format(v,d=1){ return Number(v).toFixed(d); }
+function format(v){
+    return Math.round(v);
+}
 
 function rainLevel(rate){
     if(rate < 2) return "Light";
@@ -189,7 +227,7 @@ async function loadData(){
     const res=await fetch('/weather');
     const data=await res.json();
 
-    const d = data.obs; // ✅ FIXED
+    const d = data.obs;
 
     const currentRain = d.metric.precipTotal;
     const now = Date.now();
@@ -208,26 +246,24 @@ async function loadData(){
     lastRain = currentRain;
     lastTime = now;
 
-    document.getElementById('temp').innerText = format(d.metric.temp) + " °C";
-    document.getElementById('feels').innerText = format(d.metric.heatIndex) + " °C";
-    document.getElementById('hum').innerText = format(d.humidity,0) + " %";
+    document.getElementById('temp').innerText = format(d.metric.temp) + "°C";
+    document.getElementById('feels').innerText = format(d.metric.heatIndex) + "°C";
+    document.getElementById('hum').innerText = format(d.humidity) + "%";
+
     document.getElementById('wind').innerText = format(d.metric.windSpeed) + " km/h";
 
-    document.getElementById('rain').innerText = format(rate,2) + " mm/hr";
-    document.getElementById('totalRain').innerText = format(currentRain,2) + " mm";
+    document.getElementById('rain').innerText = format(rate) + " mm/hr";
+    document.getElementById('totalRain').innerText = format(currentRain) + " mm";
 
     document.getElementById('intensity').innerText = rainLevel(rate);
 
-    document.getElementById('uv').innerText = format(d.uv,1);
-    document.getElementById('solar').innerText = format(d.solarRadiation,0);
+    document.getElementById('uv').innerText = format(d.uv);
+    document.getElementById('solar').innerText = format(d.solarRadiation);
 
     document.getElementById('arrow').style.transform = "rotate(" + d.winddir + "deg)";
 
-    const sunrise = new Date(data.sunrise).toLocaleTimeString();
-    const sunset = new Date(data.sunset).toLocaleTimeString();
-
-    document.getElementById('sunrise').innerText = sunrise;
-    document.getElementById('sunset').innerText = sunset;
+    document.getElementById('sunrise').innerText = new Date(data.sunrise).toLocaleTimeString();
+    document.getElementById('sunset').innerText = new Date(data.sunset).toLocaleTimeString();
 
     updateCharts(data.history);
 }
