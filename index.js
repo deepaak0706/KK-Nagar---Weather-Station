@@ -20,12 +20,12 @@ app.get("/weather", async (req, res) => {
             `https://api.weather.com/v2/pws/observations/current?stationId=${STATION_ID}&format=json&units=m&apiKey=${API_KEY}`
         );
 
-        if (!weatherRes.ok) throw new Error(`API error: ${weatherRes.status}`);
+        if (!weatherRes.ok) throw new Error("API error");
 
         const weatherData = await weatherRes.json();
         const obs = weatherData.observations[0];
 
-        if (!obs) throw new Error("No observations");
+        if (!obs) throw new Error("No data");
 
         const sunRes = await fetch(
             `https://api.sunrise-sunset.org/json?lat=${obs.lat}&lng=${obs.lon}&formatted=0`
@@ -170,10 +170,31 @@ app.get("/", (req, res) => {
         }
 
         function createCharts() {
-            const opt = { animation: false, scales: { y: { beginAtZero: true } } };
-            charts.temp = new Chart(document.getElementById('tempChart'), { type:'line', data:{labels:[], datasets:[{label:'Temp (°C)', data:[], borderColor:'#67e8f9', tension:0.3}]}, options:opt });
-            charts.hum = new Chart(document.getElementById('humChart'), { type:'line', data:{labels:[], datasets:[{label:'Humidity (%)', data:[], borderColor:'#4ade80', tension:0.3}]}, options:opt });
-            charts.wind = new Chart(document.getElementById('windChart'), { type:'line', data:{labels:[], datasets:[{label:'Wind (km/h)', data:[], borderColor:'#fb923c', tension:0.3}]}, options:opt });
+            const opt = { 
+                animation: false, 
+                scales: { 
+                    y: { 
+                        beginAtZero: true,
+                        ticks: { color: '#94a3b8' }
+                    },
+                    x: { ticks: { color: '#94a3b8' } }
+                }
+            };
+            charts.temp = new Chart(document.getElementById('tempChart'), { 
+                type: 'line', 
+                data: { labels: [], datasets: [{ label: 'Temperature (°C)', data: [], borderColor: '#67e8f9', tension: 0.3, borderWidth: 3 }] }, 
+                options: opt 
+            });
+            charts.hum = new Chart(document.getElementById('humChart'), { 
+                type: 'line', 
+                data: { labels: [], datasets: [{ label: 'Humidity (%)', data: [], borderColor: '#4ade80', tension: 0.3, borderWidth: 3 }] }, 
+                options: opt 
+            });
+            charts.wind = new Chart(document.getElementById('windChart'), { 
+                type: 'line', 
+                data: { labels: [], datasets: [{ label: 'Wind Speed (km/h)', data: [], borderColor: '#fb923c', tension: 0.3, borderWidth: 3 }] }, 
+                options: opt 
+            });
         }
 
         async function loadData() {
@@ -182,7 +203,7 @@ app.get("/", (req, res) => {
                 const data = await res.json();
 
                 if (data.error) {
-                    document.getElementById('status').innerHTML = \`⚠️ \${data.error}\`;
+                    document.getElementById('status').innerHTML = '⚠️ ' + data.error;
                     return;
                 }
 
@@ -201,13 +222,13 @@ app.get("/", (req, res) => {
 
                 const tempClass = getTempClass(d.metric.temp);
 
-                document.getElementById('temp').innerHTML = \`<span class="\${tempClass}">\${format(d.metric.temp)}°C</span>\`;
-                document.getElementById('feels').innerHTML = \`<span class="\${tempClass}">\${format(d.metric.heatIndex)}°C</span>\`;
+                document.getElementById('temp').innerHTML = '<span class="' + tempClass + '">' + format(d.metric.temp) + '°C</span>';
+                document.getElementById('feels').innerHTML = '<span class="' + tempClass + '">' + format(d.metric.heatIndex) + '°C</span>';
                 document.getElementById('hum').innerText = format(d.humidity) + "%";
 
                 document.getElementById('wind').innerText = format(d.metric.windSpeed) + " km/h";
-                document.getElementById('arrow').style.transform = \`rotate(\${d.winddir}deg)\`;
-                document.getElementById('winddir').innerText = \`\${d.winddir}° (\${getWindDirection(d.winddir)})\`;
+                document.getElementById('arrow').style.transform = 'rotate(' + d.winddir + 'deg)';
+                document.getElementById('winddir').innerText = d.winddir + '° (' + getWindDirection(d.winddir) + ')';
 
                 document.getElementById('rain').innerText = format(rainRate) + " mm/hr";
                 document.getElementById('totalRain').innerText = format(currentRain) + " mm";
@@ -220,12 +241,15 @@ app.get("/", (req, res) => {
                 if (data.sunrise) document.getElementById('sunrise').innerText = new Date(data.sunrise).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
                 if (data.sunset) document.getElementById('sunset').innerText = new Date(data.sunset).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
 
-                document.getElementById('status').innerHTML = \`✅ Live • Updated \${new Date().toLocaleTimeString()}\`;
+                document.getElementById('status').innerHTML = '✅ Live • Updated ' + new Date().toLocaleTimeString();
 
                 const labels = data.history.map(h => h.time);
-                charts.temp.data.labels = labels; charts.temp.data.datasets[0].data = data.history.map(h => h.temp);
-                charts.hum.data.labels = labels; charts.hum.data.datasets[0].data = data.history.map(h => h.hum);
-                charts.wind.data.labels = labels; charts.wind.data.datasets[0].data = data.history.map(h => h.windSpeed);
+                charts.temp.data.labels = labels;
+                charts.temp.data.datasets[0].data = data.history.map(h => h.temp);
+                charts.hum.data.labels = labels;
+                charts.hum.data.datasets[0].data = data.history.map(h => h.hum);
+                charts.wind.data.labels = labels;
+                charts.wind.data.datasets[0].data = data.history.map(h => h.windSpeed);
 
                 charts.temp.update();
                 charts.hum.update();
@@ -247,6 +271,6 @@ app.get("/", (req, res) => {
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-    console.log(\`✅ KK Nagar Weather Station running on port \${PORT}\`);
-    console.log(\`Station ID: \${STATION_ID}\`);
+    console.log("Server running on port " + PORT);
+    console.log("Station ID: " + STATION_ID);
 });
