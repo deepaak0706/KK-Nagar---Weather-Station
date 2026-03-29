@@ -1,3 +1,4 @@
+
 const express = require("express");
 const fetch = require("node-fetch");
 
@@ -70,6 +71,7 @@ body {
     background:linear-gradient(135deg,#0f172a,#1e293b);
     color:white;
 }
+
 h1 {
     text-align:center;
     padding:15px;
@@ -79,8 +81,10 @@ h1 {
     margin:15px;
     padding:15px;
     border-radius:15px;
-    background:rgba(255,255,255,0.05);
+    background:rgba(255,255,255,0.08);
+    border:1px solid rgba(255,255,255,0.1);
     backdrop-filter: blur(12px);
+    box-shadow:0 8px 32px rgba(0,0,0,0.3);
 }
 
 .section h2 {
@@ -112,7 +116,7 @@ h1 {
 }
 
 .wind-arrow {
-    font-size:25px;
+    font-size:18px;
 }
 
 canvas {
@@ -126,6 +130,8 @@ canvas {
 <body>
 
 <h1>KKNagar Weather Station</h1>
+
+<div id="updated" style="text-align:center; opacity:0.6;"></div>
 
 <div class="section">
 <h2>🌡 Temperature</h2>
@@ -149,9 +155,9 @@ canvas {
 <h2>🌬 Wind</h2>
 <div class="grid">
     <div class="item">
-        <div class="label">Speed</div>
+        <div class="label">Wind</div>
         <div class="value" id="wind"></div>
-        <div class="wind-arrow" id="arrow">⬆️</div>
+        <div class="wind-arrow" id="arrow"></div>
     </div>
 </div>
 </div>
@@ -183,26 +189,54 @@ function format(v){
     return Math.round(v);
 }
 
+function getWindDirection(deg){
+    const dirs = ["N","NE","E","SE","S","SW","W","NW"];
+    return dirs[Math.round(deg / 45) % 8];
+}
+
 function rainLevel(rate){
     if(rate < 2) return "Light";
     if(rate < 10) return "Moderate";
     return "Heavy";
 }
 
+function rainEmoji(rate){
+    if(rate < 2) return "🌦️";
+    if(rate < 10) return "🌧️";
+    return "⛈️";
+}
+
+function formatTime(t){
+    return new Date(t).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+}
+
+function setTheme(temp){
+    if(temp < 25){
+        document.body.style.background="linear-gradient(135deg,#1e3a8a,#0f172a)";
+    } else if(temp < 35){
+        document.body.style.background="linear-gradient(135deg,#0f766e,#1e293b)";
+    } else {
+        document.body.style.background="linear-gradient(135deg,#7f1d1d,#1e293b)";
+    }
+}
+
 function createCharts(){
     tempChart=new Chart(document.getElementById('tempChart'),{
         type:'line',
-        data:{labels:[],datasets:[{label:'Temp',data:[]}]}
+        data:{labels:[],datasets:[{label:'Temp',data:[]}]},
+        options:{animation:false,elements:{line:{tension:0.4}}}
     });
 
     humChart=new Chart(document.getElementById('humChart'),{
         type:'line',
-        data:{labels:[],datasets:[{label:'Humidity',data:[]}]}
+        data:{labels:[],datasets:[{label:'Humidity',data:[]}]},
+        options:{animation:false,elements:{line:{tension:0.4}}}
     });
 
     rainChart=new Chart(document.getElementById('rainChart'),{
         type:'line',
-        data:{labels:[],datasets:[{label:'Rain',data:[]}]}
+        data:{labels:[],datasets:[{label:'Rain',data:[]}]},
+        options:{animation:false,elements:{line:{tension:0.4}}}
     });
 }
 
@@ -237,7 +271,6 @@ async function loadData(){
     if(lastRain !== null){
         const diff = currentRain - lastRain;
         const t = (now - lastTime)/1000;
-
         if(t > 0 && diff >= 0){
             rate = (diff * 3600 / t);
         }
@@ -246,24 +279,33 @@ async function loadData(){
     lastRain = currentRain;
     lastTime = now;
 
+    setTheme(d.metric.temp);
+
+    const diff = d.metric.heatIndex - d.metric.temp;
+
     document.getElementById('temp').innerText = format(d.metric.temp) + "°C";
-    document.getElementById('feels').innerText = format(d.metric.heatIndex) + "°C";
+    document.getElementById('feels').innerText =
+        format(d.metric.heatIndex) + "°C (" + (diff>0?"+":"") + format(diff) + ")";
     document.getElementById('hum').innerText = format(d.humidity) + "%";
 
     document.getElementById('wind').innerText = format(d.metric.windSpeed) + " km/h";
+    document.getElementById('arrow').innerHTML =
+        format(d.winddir) + "° (" + getWindDirection(d.winddir) + ") ⬆️";
+    document.getElementById('arrow').style.transform = "rotate(" + d.winddir + "deg)";
 
-    document.getElementById('rain').innerText = format(rate) + " mm/hr";
+    document.getElementById('rain').innerText =
+        rainEmoji(rate) + " " + format(rate) + " mm/hr";
     document.getElementById('totalRain').innerText = format(currentRain) + " mm";
-
     document.getElementById('intensity').innerText = rainLevel(rate);
 
     document.getElementById('uv').innerText = format(d.uv);
     document.getElementById('solar').innerText = format(d.solarRadiation);
 
-    document.getElementById('arrow').style.transform = "rotate(" + d.winddir + "deg)";
+    document.getElementById('sunrise').innerText = formatTime(data.sunrise);
+    document.getElementById('sunset').innerText = formatTime(data.sunset);
 
-    document.getElementById('sunrise').innerText = new Date(data.sunrise).toLocaleTimeString();
-    document.getElementById('sunset').innerText = new Date(data.sunset).toLocaleTimeString();
+    document.getElementById('updated').innerText =
+        "Updated: " + new Date().toLocaleTimeString();
 
     updateCharts(data.history);
 }
