@@ -1,4 +1,6 @@
+// index.js
 const express = require("express");
+const fetch = require("node-fetch"); // Make sure to npm install node-fetch@2
 const app = express();
 
 const API_KEY = process.env.API_KEY;
@@ -12,8 +14,8 @@ let currentDate = new Date().toDateString();
 
 app.get("/weather", async (req, res) => {
     const now = Date.now();
-
     const todayStr = new Date().toDateString();
+
     if (todayStr !== currentDate) {
         todayHistory = [];
         todayMaxRainRate = 0;
@@ -63,12 +65,18 @@ app.get("/weather", async (req, res) => {
 
         if (todayHistory.length > 1440) todayHistory.shift();
 
+        // Calculate daily max/min temperature
+        const maxTemp = Math.max(...todayHistory.map(h => h.temp));
+        const minTemp = Math.min(...todayHistory.map(h => h.temp));
+
         cachedData = {
             obs,
             sunrise: sunData.results.sunrise,
             sunset: sunData.results.sunset,
             history: todayHistory,
             maxRainRate: todayMaxRainRate,
+            maxTemp,
+            minTemp,
             currentDate: currentDate
         };
 
@@ -117,7 +125,14 @@ canvas { background:rgba(15,23,42,0.95); border-radius:12px; padding:12px; margi
 <!-- Temperature + Dew Point -->
 <div class="card">
   <div class="grid">
-    <div class="item"><div class="label">TEMPERATURE</div><div class="value" id="temp"></div></div>
+    <div class="item">
+      <div class="label">TEMPERATURE</div>
+      <div class="value" id="temp"></div>
+      <div style="font-size:12px; opacity:0.7; margin-top:4px;">
+        Max: <span id="maxTemp">--</span> °C, 
+        Min: <span id="minTemp">--</span> °C
+      </div>
+    </div>
     <div class="item"><div class="label">FEELS LIKE</div><div class="value" id="feels"></div></div>
     <div class="item"><div class="label">DEW POINT</div><div class="value" id="dewpoint"></div></div>
     <div class="item"><div class="label">HUMIDITY</div><div class="value" id="hum"></div></div>
@@ -183,6 +198,10 @@ async function loadData(){
     document.getElementById('dewpoint').innerText=format(d.metric.dewpt)+'°C';
     document.getElementById('hum').innerText=format(d.humidity)+'%';
 
+    // Update Max/Min temperature
+    document.getElementById('maxTemp').innerText = format(data.maxTemp);
+    document.getElementById('minTemp').innerText = format(data.minTemp);
+
     document.getElementById('wind').innerText=format(d.metric.windSpeed)+' km/h';
     document.getElementById('arrow').style.transform='rotate('+d.winddir+'deg)';
     document.getElementById('winddir').innerText=d.winddir+'° ('+getWindDirection(d.winddir)+')';
@@ -209,7 +228,8 @@ async function loadData(){
 createCharts(); setInterval(loadData,60000); loadData();
 </script>
 </body>
-</html>`);
+</html>
+`);
 });
 
 const PORT = process.env.PORT || 3000;
