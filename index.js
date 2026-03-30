@@ -40,12 +40,12 @@ app.get("/weather", async (req, res) => {
     }
 
     try {
-        const weatherRes = await fetch(
+        const r = await fetch(
             `https://api.weather.com/v2/pws/observations/current?stationId=${STATION_ID}&format=json&units=m&apiKey=${API_KEY}`
         );
 
-        const data = await weatherRes.json();
-        const obs = data.observations[0];
+        const json = await r.json();
+        const obs = json.observations[0];
 
         const temp = obs.metric.temp;
         const wind = obs.metric.windSpeed || 0;
@@ -71,11 +71,14 @@ app.get("/weather", async (req, res) => {
         todayMaxWind = Math.max(todayMaxWind, wind);
         todayMaxGust = Math.max(todayMaxGust, gust);
 
+        // Store RAW timestamp (important)
         todayHistory.push({
-            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            ts: Date.now(),
             temp,
             hum: obs.humidity,
-            wind
+            wind,
+            rain,
+            windDir: obs.winddir || 0
         });
 
         if (todayHistory.length > 1440) todayHistory.shift();
@@ -89,7 +92,7 @@ app.get("/weather", async (req, res) => {
             maxGust: todayMaxGust,
             rainRate,
             maxRainRate: todayMaxRainRate,
-            updatedTime: new Date().toLocaleTimeString()
+            updatedTs: Date.now()
         };
 
         lastFetch = now;
@@ -116,14 +119,15 @@ body { font-family:Arial; background:#0f172a; color:#fff; text-align:center; }
 .card { background:#1e293b; margin:10px; padding:15px; border-radius:12px; }
 .big { font-size:34px; font-weight:bold; }
 .small { font-size:13px; opacity:0.7; }
-.status { font-size:12px; opacity:0.6; margin-bottom:10px; }
+.status { font-size:12px; opacity:0.6; }
+.wind-arrow { font-size:30px; transition:0.5s; }
 </style>
 </head>
 
 <body>
 
 <h2>KK Nagar Weather Station</h2>
-<div class="status" id="status">Loading...</div>
+<div class="status" id="status"></div>
 
 <div class="card">
 <div id="temp" class="big">--</div>
@@ -136,6 +140,8 @@ Humidity: <span id="hum"></span>%
 
 <div class="card">
 <div>Wind: <span id="wind"></span> km/h</div>
+<div class="wind-arrow" id="arrow">⬆️</div>
+<div class="small" id="winddir"></div>
 <div>Gust: <span id="gust"></span> km/h</div>
 <div class="small">Max Wind: <span id="maxWind"></span></div>
 <div class="small">Max Gust: <span id="maxGust"></span></div>
@@ -152,37 +158,45 @@ Humidity: <span id="hum"></span>%
 <div>Solar Radiation: <span id="solar"></span></div>
 </div>
 
-<canvas id="chart"></canvas>
+<canvas id="tempChart"></canvas>
+<canvas id="humChart"></canvas>
+<canvas id="windChart"></canvas>
+<canvas id="rainChart"></canvas>
 
 <script>
-let chart;
+let charts = {};
 
-function initChart(){
-    chart = new Chart(document.getElementById("chart"), {
-        type: "line",
-        data: { labels: [], datasets: [{ label: "Temp (°C)", data: [] }] },
-        options: { animation:false }
-    });
+function initCharts(){
+    charts.temp = new Chart(document.getElementById("tempChart"), {type:"line",data:{labels:[],datasets:[{label:"Temp",data:[]}]},options:{animation:false}});
+    charts.hum = new Chart(document.getElementById("humChart"), {type:"line",data:{labels:[],datasets:[{label:"Humidity",data:[]}]},options:{animation:false}});
+    charts.wind = new Chart(document.getElementById("windChart"), {type:"line",data:{labels:[],datasets:[{label:"Wind",data:[]}]},options:{animation:false}});
+    charts.rain = new Chart(document.getElementById("rainChart"), {type:"line",data:{labels:[],datasets:[{label:"Rain",data:[]}]},options:{animation:false}});
 }
 
-function format(v){
-    return (v===undefined || isNaN(v)) ? '--' : Number(v).toFixed(1);
+function format(v){ return (v===undefined||isNaN(v))?'--':Number(v).toFixed(1); }
+
+// Convert to IST ONLY here
+function toIST(ts){
+    return new Date(ts).toLocaleTimeString("en-IN",{
+        hour:'2-digit',
+        minute:'2-digit',
+        timeZone:'Asia/Kolkata'
+    });
 }
 
 async function load(){
     const res = await fetch('/weather?ts='+Date.now());
     const data = await res.json();
-
     const d = data.obs;
 
     document.getElementById("status").innerText =
-        "Last Updated: " + data.updatedTime;
+        "Last Updated: " + toIST(data.updatedTs);
 
     document.getElementById("temp").innerText =
-        format(d.metric.temp) + "°C";
+        format(d.metric.temp)+"°C";
 
     document.getElementById("range").innerText =
-        "Max: " + format(data.maxTemp) + "°C | Min: " + format(data.minTemp) + "°C";
+        "Max: "+format(data.maxTemp)+"°C | Min: "+format(data.minTemp)+"°C";
 
     document.getElementById("hum").innerText =
         Math.round(d.humidity);
@@ -194,10 +208,10 @@ async function load(){
         format(d.metric.windGust);
 
     document.getElementById("maxWind").innerText =
-        format(data.maxWind) + " km/h";
+        format(data.maxWind)+" km/h";
 
     document.getElementById("maxGust").innerText =
-        format(data.maxGust) + " km/h";
+        format(data.maxGust)+" km/h";
 
     document.getElementById("rain").innerText =
         format(d.metric.precipTotal);
@@ -214,14 +228,35 @@ async function load(){
     document.getElementById("solar").innerText =
         format(d.solarRadiation);
 
-    chart.data.labels = data.history.map(h=>h.time);
-    chart.data.datasets[0].data = data.history.map(h=>h.temp);
-    chart.update();
+    // Compass
+    document.getElementById("arrow").style.transform =
+        "rotate("+d.winddir+"deg)";
+    document.getElementById("winddir").innerText =
+        d.winddir+"°";
+
+    const labels = data.history.map(h=>toIST(h.ts));
+
+    charts.temp.data.labels = labels;
+    charts.temp.data.datasets[0].data = data.history.map(h=>h.temp);
+
+    charts.hum.data.labels = labels;
+    charts.hum.data.datasets[0].data = data.history.map(h=>h.hum);
+
+    charts.wind.data.labels = labels;
+    charts.wind.data.datasets[0].data = data.history.map(h=>h.wind);
+
+    charts.rain.data.labels = labels;
+    charts.rain.data.datasets[0].data = data.history.map(h=>h.rain);
+
+    charts.temp.update();
+    charts.hum.update();
+    charts.wind.update();
+    charts.rain.update();
 }
 
-initChart();
+initCharts();
 load();
-setInterval(load, 60000);
+setInterval(load,60000);
 </script>
 
 </body>
