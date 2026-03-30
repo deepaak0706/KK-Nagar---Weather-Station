@@ -23,7 +23,6 @@ app.get("/weather", async (req, res) => {
     const now = Date.now();
     const todayStr = new Date().toDateString();
 
-    // Reset daily
     if (todayStr !== currentDate) {
         todayHistory = [];
         todayMaxTemp = -Infinity;
@@ -36,7 +35,6 @@ app.get("/weather", async (req, res) => {
         currentDate = todayStr;
     }
 
-    // Cache 1 min
     if (cachedData && now - lastFetch < 60000) {
         return res.json(cachedData);
     }
@@ -54,14 +52,12 @@ app.get("/weather", async (req, res) => {
         const gust = obs.metric.windGust || 0;
         const rain = obs.metric.precipTotal || 0;
 
-        // Rain rate calculation
+        // Rain rate
         let rainRate = 0;
         if (lastRain !== null) {
             const diff = rain - lastRain;
-            const timeDiff = (now - lastTime) / 1000;
-            if (diff >= 0 && timeDiff > 0) {
-                rainRate = (diff * 3600) / timeDiff;
-            }
+            const t = (now - lastTime) / 1000;
+            if (diff >= 0 && t > 0) rainRate = (diff * 3600) / t;
         }
 
         lastRain = rain;
@@ -69,13 +65,12 @@ app.get("/weather", async (req, res) => {
 
         todayMaxRainRate = Math.max(todayMaxRainRate, rainRate);
 
-        // Update max/min
+        // Max tracking
         todayMaxTemp = Math.max(todayMaxTemp, temp);
         todayMinTemp = Math.min(todayMinTemp, temp);
         todayMaxWind = Math.max(todayMaxWind, wind);
         todayMaxGust = Math.max(todayMaxGust, gust);
 
-        // Store history
         todayHistory.push({
             time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
             temp,
@@ -93,7 +88,8 @@ app.get("/weather", async (req, res) => {
             maxWind: todayMaxWind,
             maxGust: todayMaxGust,
             rainRate,
-            maxRainRate: todayMaxRainRate
+            maxRainRate: todayMaxRainRate,
+            updatedTime: new Date().toLocaleTimeString()
         };
 
         lastFetch = now;
@@ -120,12 +116,14 @@ body { font-family:Arial; background:#0f172a; color:#fff; text-align:center; }
 .card { background:#1e293b; margin:10px; padding:15px; border-radius:12px; }
 .big { font-size:34px; font-weight:bold; }
 .small { font-size:13px; opacity:0.7; }
+.status { font-size:12px; opacity:0.6; margin-bottom:10px; }
 </style>
 </head>
 
 <body>
 
 <h2>KK Nagar Weather Station</h2>
+<div class="status" id="status">Loading...</div>
 
 <div class="card">
 <div id="temp" class="big">--</div>
@@ -147,6 +145,11 @@ Humidity: <span id="hum"></span>%
 <div>Rain: <span id="rain"></span> mm</div>
 <div>Rain Rate: <span id="rainRate"></span> mm/hr</div>
 <div class="small">Max Rain Rate: <span id="maxRainRate"></span> mm/hr</div>
+</div>
+
+<div class="card">
+<div>UV Index: <span id="uv"></span></div>
+<div>Solar Radiation: <span id="solar"></span></div>
 </div>
 
 <canvas id="chart"></canvas>
@@ -172,22 +175,44 @@ async function load(){
 
     const d = data.obs;
 
-    document.getElementById("temp").innerText = format(d.metric.temp) + "°C";
+    document.getElementById("status").innerText =
+        "Last Updated: " + data.updatedTime;
+
+    document.getElementById("temp").innerText =
+        format(d.metric.temp) + "°C";
 
     document.getElementById("range").innerText =
         "Max: " + format(data.maxTemp) + "°C | Min: " + format(data.minTemp) + "°C";
 
-    document.getElementById("hum").innerText = Math.round(d.humidity);
+    document.getElementById("hum").innerText =
+        Math.round(d.humidity);
 
-    document.getElementById("wind").innerText = format(d.metric.windSpeed);
-    document.getElementById("gust").innerText = format(d.metric.windGust);
+    document.getElementById("wind").innerText =
+        format(d.metric.windSpeed);
 
-    document.getElementById("maxWind").innerText = format(data.maxWind) + " km/h";
-    document.getElementById("maxGust").innerText = format(data.maxGust) + " km/h";
+    document.getElementById("gust").innerText =
+        format(d.metric.windGust);
 
-    document.getElementById("rain").innerText = format(d.metric.precipTotal);
-    document.getElementById("rainRate").innerText = format(data.rainRate);
-    document.getElementById("maxRainRate").innerText = format(data.maxRainRate);
+    document.getElementById("maxWind").innerText =
+        format(data.maxWind) + " km/h";
+
+    document.getElementById("maxGust").innerText =
+        format(data.maxGust) + " km/h";
+
+    document.getElementById("rain").innerText =
+        format(d.metric.precipTotal);
+
+    document.getElementById("rainRate").innerText =
+        format(data.rainRate);
+
+    document.getElementById("maxRainRate").innerText =
+        format(data.maxRainRate);
+
+    document.getElementById("uv").innerText =
+        format(d.uv);
+
+    document.getElementById("solar").innerText =
+        format(d.solarRadiation);
 
     chart.data.labels = data.history.map(h=>h.time);
     chart.data.datasets[0].data = data.history.map(h=>h.temp);
