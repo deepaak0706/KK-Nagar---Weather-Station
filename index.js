@@ -118,11 +118,6 @@ body {
 
 .container { padding:15px; }
 
-h2 { text-align:center; margin-bottom:5px; }
-
-.status { text-align:center; font-size:12px; opacity:0.6; margin-bottom:10px; }
-
-/* TOP */
 .top {
     display:flex;
     gap:10px;
@@ -142,14 +137,7 @@ h2 { text-align:center; margin-bottom:5px; }
 .up { color:#fb923c; }
 .down { color:#60a5fa; }
 
-/* WIND COMPASS */
-.wind-card {
-    margin-top:10px;
-    background:rgba(255,255,255,0.05);
-    border-radius:16px;
-    padding:15px;
-}
-
+/* COMPASS FIXED */
 .compass {
     width:140px;
     height:140px;
@@ -159,12 +147,34 @@ h2 { text-align:center; margin-bottom:5px; }
     position:relative;
 }
 
+.dir {
+    position:absolute;
+    font-size:12px;
+    opacity:0.7;
+}
+
+.n { top:5px; left:50%; transform:translateX(-50%); }
+.s { bottom:5px; left:50%; transform:translateX(-50%); }
+.e { right:5px; top:50%; transform:translateY(-50%); }
+.w { left:5px; top:50%; transform:translateY(-50%); }
+
+.center-dot {
+    position:absolute;
+    width:6px;
+    height:6px;
+    background:#fff;
+    border-radius:50%;
+    top:50%;
+    left:50%;
+    transform:translate(-50%,-50%);
+}
+
 .arrow {
     position:absolute;
     top:50%;
     left:50%;
     transform-origin:50% 100%;
-    font-size:28px;
+    font-size:18px;
     transform:translate(-50%,-100%) rotate(0deg);
 }
 
@@ -173,17 +183,6 @@ h2 { text-align:center; margin-bottom:5px; }
     margin-top:10px;
 }
 
-.wind-main {
-    font-size:22px;
-    font-weight:600;
-}
-
-.wind-sub {
-    font-size:14px;
-    opacity:0.8;
-}
-
-/* CARDS */
 .card {
     margin-top:10px;
     background:rgba(255,255,255,0.05);
@@ -191,7 +190,6 @@ h2 { text-align:center; margin-bottom:5px; }
     padding:15px;
 }
 
-/* CHART */
 canvas {
     background:#0f172a;
     border-radius:12px;
@@ -204,8 +202,8 @@ canvas {
 
 <div class="container">
 
-<h2>Outdoor ☀️</h2>
-<div id="status" class="status"></div>
+<h2 style="text-align:center;">Outdoor</h2>
+<div id="status" style="text-align:center;font-size:12px;opacity:0.6;"></div>
 
 <div class="top">
 <div class="block">
@@ -222,24 +220,28 @@ canvas {
 </div>
 </div>
 
-<!-- WIND COMPASS -->
-<div class="wind-card">
+<div class="card">
 <div class="compass">
-<div id="arrow" class="arrow">⬆️</div>
+<div class="dir n">N</div>
+<div class="dir s">S</div>
+<div class="dir e">E</div>
+<div class="dir w">W</div>
+<div class="center-dot"></div>
+<div id="arrow" class="arrow">▲</div>
 </div>
 
 <div class="wind-info">
-<div class="wind-main"><span id="wind"></span> km/h</div>
-<div class="wind-sub">Dir: <span id="winddir"></span></div>
-<div class="wind-sub">Gust: <span id="gust"></span> km/h</div>
-<div class="wind-sub">Max: <span id="maxWind"></span> | Gust Max: <span id="maxGust"></span></div>
+<div><b><span id="wind"></span> km/h</b></div>
+<div>Dir: <span id="winddir"></span></div>
+<div>Gust: <span id="gust"></span> km/h</div>
+<div>Max: <span id="maxWind"></span> | Gust Max: <span id="maxGust"></span></div>
 </div>
 </div>
 
 <div class="card">
 <div>Rain: <span id="rain"></span> mm</div>
 <div>Rain Rate: <span id="rainRate"></span> mm/hr</div>
-<div class="sub">Max Rain Rate: <span id="maxRainRate"></span> mm/hr</div>
+<div>Max Rain Rate: <span id="maxRainRate"></span> mm/hr</div>
 </div>
 
 <div class="card">
@@ -258,10 +260,10 @@ canvas {
 let charts={};
 
 function initCharts(){
-charts.temp=new Chart(tempChart,{type:'line',data:{labels:[],datasets:[{label:'Temp',data:[]}]},options:{animation:false}});
-charts.hum=new Chart(humChart,{type:'line',data:{labels:[],datasets:[{label:'Humidity',data:[]}]},options:{animation:false}});
-charts.wind=new Chart(windChart,{type:'line',data:{labels:[],datasets:[{label:'Wind',data:[]}]},options:{animation:false}});
-charts.rain=new Chart(rainChart,{type:'line',data:{labels:[],datasets:[{label:'Rain',data:[]}]},options:{animation:false}});
+charts.temp=new Chart(tempChart,{type:'line',data:{labels:[],datasets:[{data:[]}]},options:{animation:false}});
+charts.hum=new Chart(humChart,{type:'line',data:{labels:[],datasets:[{data:[]}]},options:{animation:false}});
+charts.wind=new Chart(windChart,{type:'line',data:{labels:[],datasets:[{data:[]}]},options:{animation:false}});
+charts.rain=new Chart(rainChart,{type:'line',data:{labels:[],datasets:[{data:[]}]},options:{animation:false}});
 }
 
 function format(v){return isNaN(v)?'--':Number(v).toFixed(1);}
