@@ -70,8 +70,7 @@ app.get("/weather", async (req, res) => {
             temp,
             hum: obs.humidity,
             wind,
-            rain,
-            windDir: obs.winddir || 0
+            rain
         });
 
         if (todayHistory.length > 1440) todayHistory.shift();
@@ -118,77 +117,31 @@ body {
 
 .container { padding:15px; }
 
-.top {
-    display:flex;
-    gap:10px;
-}
-
-.block {
-    flex:1;
+.section {
     background:rgba(255,255,255,0.05);
     border-radius:16px;
     padding:15px;
+    margin-top:10px;
 }
 
-.label { opacity:0.7; font-size:14px; }
-.big { font-size:42px; font-weight:600; }
-.sub { font-size:14px; margin-top:6px; }
-
-.up { color:#fb923c; }
-.down { color:#60a5fa; }
-
-/* COMPASS FIXED */
-.compass {
-    width:140px;
-    height:140px;
-    border-radius:50%;
-    border:2px solid rgba(255,255,255,0.2);
-    margin:auto;
-    position:relative;
-}
-
-.dir {
-    position:absolute;
-    font-size:12px;
+.title {
+    font-size:14px;
     opacity:0.7;
+    margin-bottom:6px;
 }
 
-.n { top:5px; left:50%; transform:translateX(-50%); }
-.s { bottom:5px; left:50%; transform:translateX(-50%); }
-.e { right:5px; top:50%; transform:translateY(-50%); }
-.w { left:5px; top:50%; transform:translateY(-50%); }
-
-.center-dot {
-    position:absolute;
-    width:6px;
-    height:6px;
-    background:#fff;
-    border-radius:50%;
-    top:50%;
-    left:50%;
-    transform:translate(-50%,-50%);
+.temp-big {
+    font-size:32px;
+    font-weight:600;
 }
 
-.arrow {
-    position:absolute;
-    top:50%;
-    left:50%;
-    transform-origin:50% 100%;
-    font-size:18px;
-    transform:translate(-50%,-100%) rotate(0deg);
+.hum-big {
+    font-size:28px;
+    font-weight:600;
 }
 
-.wind-info {
-    text-align:center;
-    margin-top:10px;
-}
-
-.card {
-    margin-top:10px;
-    background:rgba(255,255,255,0.05);
-    border-radius:16px;
-    padding:15px;
-}
+.center { text-align:center; }
+.sub { font-size:14px; opacity:0.8; margin-top:4px; }
 
 canvas {
     background:#0f172a;
@@ -202,49 +155,42 @@ canvas {
 
 <div class="container">
 
-<h2 style="text-align:center;">Outdoor</h2>
-<div id="status" style="text-align:center;font-size:12px;opacity:0.6;"></div>
+<div id="status" class="center sub"></div>
 
-<div class="top">
-<div class="block">
-<div class="label">Temperature</div>
-<div id="temp" class="big">--</div>
+<!-- TEMPERATURE -->
+<div class="section center">
+<div class="title">Temperature</div>
+<div id="temp" class="temp-big"></div>
 <div id="range" class="sub"></div>
-</div>
-
-<div class="block">
-<div class="label">Humidity</div>
-<div id="hum" class="big">--</div>
 <div id="feels" class="sub"></div>
 <div id="dew" class="sub"></div>
 </div>
+
+<!-- HUMIDITY -->
+<div class="section center">
+<div class="title">Humidity</div>
+<div id="hum" class="hum-big"></div>
 </div>
 
-<div class="card">
-<div class="compass">
-<div class="dir n">N</div>
-<div class="dir s">S</div>
-<div class="dir e">E</div>
-<div class="dir w">W</div>
-<div class="center-dot"></div>
-<div id="arrow" class="arrow">▲</div>
-</div>
-
-<div class="wind-info">
+<!-- WIND -->
+<div class="section center">
+<div class="title">Wind</div>
 <div><b><span id="wind"></span> km/h</b></div>
-<div>Dir: <span id="winddir"></span></div>
-<div>Gust: <span id="gust"></span> km/h</div>
-<div>Max: <span id="maxWind"></span> | Gust Max: <span id="maxGust"></span></div>
-</div>
+<div class="sub">Gust: <span id="gust"></span> km/h</div>
+<div class="sub">Max: <span id="maxWind"></span> | Gust Max: <span id="maxGust"></span></div>
 </div>
 
-<div class="card">
+<!-- RAIN -->
+<div class="section center">
+<div class="title">Rainfall</div>
 <div>Rain: <span id="rain"></span> mm</div>
-<div>Rain Rate: <span id="rainRate"></span> mm/hr</div>
-<div>Max Rain Rate: <span id="maxRainRate"></span> mm/hr</div>
+<div>Rate: <span id="rainRate"></span> mm/hr</div>
+<div class="sub">(Max: <span id="maxRainRate"></span> mm/hr)</div>
 </div>
 
-<div class="card">
+<!-- SUN -->
+<div class="section center">
+<div class="title">Sun</div>
 <div>UV Index: <span id="uv"></span></div>
 <div>Solar Radiation: <span id="solar"></span></div>
 </div>
@@ -260,10 +206,10 @@ canvas {
 let charts={};
 
 function initCharts(){
-charts.temp=new Chart(tempChart,{type:'line',data:{labels:[],datasets:[{data:[]}]},options:{animation:false}});
-charts.hum=new Chart(humChart,{type:'line',data:{labels:[],datasets:[{data:[]}]},options:{animation:false}});
-charts.wind=new Chart(windChart,{type:'line',data:{labels:[],datasets:[{data:[]}]},options:{animation:false}});
-charts.rain=new Chart(rainChart,{type:'line',data:{labels:[],datasets:[{data:[]}]},options:{animation:false}});
+charts.temp=new Chart(tempChart,{type:'line',data:{labels:[],datasets:[{label:"Temp",data:[]}]},options:{animation:false}});
+charts.hum=new Chart(humChart,{type:'line',data:{labels:[],datasets:[{label:"Humidity",data:[]}]},options:{animation:false}});
+charts.wind=new Chart(windChart,{type:'line',data:{labels:[],datasets:[{label:"Wind",data:[]}]},options:{animation:false}});
+charts.rain=new Chart(rainChart,{type:'line',data:{labels:[],datasets:[{label:"Rain",data:[]}]},options:{animation:false}});
 }
 
 function format(v){return isNaN(v)?'--':Number(v).toFixed(1);}
@@ -277,11 +223,11 @@ const d=data.obs;
 document.getElementById("status").innerText="Updated: "+toIST(data.updatedTs);
 
 document.getElementById("temp").innerText=format(d.metric.temp)+"°C";
-document.getElementById("range").innerHTML='<span class="up">↑ '+format(data.maxTemp)+'°C</span> <span class="down">↓ '+format(data.minTemp)+'°C</span>';
-
-document.getElementById("hum").innerText=Math.round(d.humidity)+"%";
+document.getElementById("range").innerText="Max "+format(data.maxTemp)+"°C | Min "+format(data.minTemp)+"°C";
 document.getElementById("feels").innerText="Feels "+format(d.metric.heatIndex)+"°C";
 document.getElementById("dew").innerText="Dew "+format(d.metric.dewpt)+"°C";
+
+document.getElementById("hum").innerText=Math.round(d.humidity)+"%";
 
 document.getElementById("wind").innerText=format(d.metric.windSpeed);
 document.getElementById("gust").innerText=format(d.metric.windGust);
@@ -294,9 +240,6 @@ document.getElementById("maxRainRate").innerText=format(data.maxRainRate);
 
 document.getElementById("uv").innerText=format(data.uv);
 document.getElementById("solar").innerText=format(data.solar);
-
-document.getElementById("arrow").style.transform="translate(-50%,-100%) rotate("+d.winddir+"deg)";
-document.getElementById("winddir").innerText=d.winddir+"°";
 
 const labels=data.history.map(h=>toIST(h.ts));
 
