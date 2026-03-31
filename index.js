@@ -39,6 +39,7 @@ app.get("/weather", async (req, res) => {
 
         const d = ecowitt.data;
 
+        // Convert to numbers first
         const tempC = ((parseFloat(d.outdoor.temperature.value) - 32) * 5 / 9).toFixed(1);
         const feelsLikeC = ((parseFloat(d.outdoor.feels_like.value) - 32) * 5 / 9).toFixed(1);
         const dewPointC = ((parseFloat(d.outdoor.dew_point.value) - 32) * 5 / 9).toFixed(1);
@@ -47,22 +48,27 @@ app.get("/weather", async (req, res) => {
         const windSpeedKmh = (parseFloat(d.wind.wind_speed.value) * 1.60934).toFixed(1);
         const windGustKmh = (parseFloat(d.wind.wind_gust.value) * 1.60934).toFixed(1);
 
+        const tempNum = parseFloat(tempC);
+        const feelsLikeNum = parseFloat(feelsLikeC);
+        const dewPointNum = parseFloat(dewPointC);
+
+        // Temperature rate calculation
         let tempChangeRate = 0;
         if (lastTemp !== null) {
             const timeDiffHours = (Date.now() - lastTempTime) / (1000 * 3600);
-            if (timeDiffHours > 0) {
-                tempChangeRate = (parseFloat(tempC) - lastTemp) / timeDiffHours;
+            if (timeDiffHours >= 0.01) { // avoid absurd spikes
+                tempChangeRate = (tempNum - lastTemp) / timeDiffHours;
             }
         }
-        lastTemp = parseFloat(tempC);
+        lastTemp = tempNum;
         lastTempTime = Date.now();
 
         const currentRainRate = parseFloat(rainRateMmHr);
         if (currentRainRate > todayMaxRainRate) todayMaxRainRate = currentRainRate;
 
         todayHistory.push({
-            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-            temp: parseFloat(tempC),
+            time: new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' }),
+            temp: tempNum,
             hum: parseFloat(d.outdoor.humidity.value),
             rainRate: currentRainRate,
             totalRain: parseFloat(totalRainMm),
@@ -74,10 +80,10 @@ app.get("/weather", async (req, res) => {
 
         cachedData = {
             outdoor: {
-                temp: tempC,
-                feelsLike: feelsLikeC,
+                temp: tempNum,
+                feelsLike: feelsLikeNum,
                 humidity: d.outdoor.humidity.value,
-                dewPoint: dewPointC,
+                dewPoint: dewPointNum,
                 solar: d.solar_and_uvi.solar.value,
                 uvi: d.solar_and_uvi.uvi.value,
                 tempChangeRate: tempChangeRate.toFixed(1)
@@ -213,8 +219,6 @@ app.get("/", (req, res) => {
     </div>
 
     <script>
-        let lastRain = null;
-        let lastTime = null;
         let charts = {};
 
         function format(v) { return isNaN(parseFloat(v)) ? '--' : parseFloat(v).toFixed(1); }
