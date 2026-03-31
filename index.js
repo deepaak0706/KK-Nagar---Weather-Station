@@ -15,8 +15,9 @@ let todayMaxGust = 0;
 let todayMaxTemp = null;
 let todayMinTemp = null;
 let currentDate = new Date().toDateString();
-let lastTemp = null;
-let lastTempTime = null;
+
+// Temperature smoothing for rate calculation
+const tempHistory = [];
 
 app.get("/weather", async (req, res) => {
     const now = Date.now();
@@ -29,10 +30,11 @@ app.get("/weather", async (req, res) => {
         todayMaxGust = 0;
         todayMaxTemp = null;
         todayMinTemp = null;
+        tempHistory.length = 0;
         currentDate = todayStr;
     }
 
-    if (cachedData && now - lastFetch < 15000) return res.json(cachedData);
+    if (cachedData && now - lastFetch < 30000) return res.json(cachedData); // 30 sec cache
 
     try {
         const url = `https://api.ecowitt.net/api/v3/device/real_time?application_key=${APPLICATION_KEY}&api_key=${API_KEY}&mac=${MAC}`;
@@ -43,50 +45,50 @@ app.get("/weather", async (req, res) => {
 
         const d = ecowitt.data;
 
-        const tempC = ((parseFloat(d.outdoor.temperature.value) - 32) * 5 / 9).toFixed(1);
-        const feelsLikeC = ((parseFloat(d.outdoor.feels_like.value) - 32) * 5 / 9).toFixed(1);
-        const dewPointC = ((parseFloat(d.outdoor.dew_point.value) - 32) * 5 / 9).toFixed(1);
+        const tempC = parseFloat(((parseFloat(d.outdoor.temperature.value) - 32) * 5 / 9).toFixed(1));
+        const feelsLikeC = parseFloat(((parseFloat(d.outdoor.feels_like.value) - 32) * 5 / 9).toFixed(1));
+        const dewPointC = parseFloat(((parseFloat(d.outdoor.dew_point.value) - 32) * 5 / 9).toFixed(1));
         const humidity = parseFloat(d.outdoor.humidity.value);
 
-        const rainRateMmHr = (parseFloat(d.rainfall.rain_rate.value) * 25.4).toFixed(1);
-        const totalRainMm = (parseFloat(d.rainfall.daily.value) * 25.4).toFixed(1);
+        const rainRateMmHr = parseFloat((parseFloat(d.rainfall.rain_rate.value) * 25.4).toFixed(1));
+        const totalRainMm = parseFloat((parseFloat(d.rainfall.daily.value) * 25.4).toFixed(1));
 
-        const windSpeedKmh = (parseFloat(d.wind.wind_speed.value) * 1.60934).toFixed(1);
-        const windGustKmh = (parseFloat(d.wind.wind_gust.value) * 1.60934).toFixed(1);
+        const windSpeedKmh = parseFloat((parseFloat(d.wind.wind_speed.value) * 1.60934).toFixed(1));
+        const windGustKmh = parseFloat((parseFloat(d.wind.wind_gust.value) * 1.60934).toFixed(1));
         const windDir = parseFloat(d.wind.wind_direction.value);
 
-        const pressureHPa = (parseFloat(d.pressure.relative.value) * 33.8639).toFixed(1);
+        const pressureHPa = parseFloat((parseFloat(d.pressure.relative.value) * 33.8639).toFixed(1));
         const solarRadiation = d.solar_and_uvi?.solar?.value ?? 0;
         const uvIndex = d.solar_and_uvi?.uvi?.value ?? '--';
 
-        // Temp rate °C/hr, realistic
-        const MIN_INTERVAL_MS = 5 * 60 * 1000;
+        // Temp rate calculation over last ~5 min (smoothed)
+        tempHistory.push({ temp: tempC, time: now });
+        while (tempHistory.length > 10) tempHistory.shift(); // keep last 10 readings (~5 min)
         let tempChangeRate = 0;
-        if (lastTemp !== null && lastTempTime && now - lastTempTime >= MIN_INTERVAL_MS) {
-            const diffHours = (now - lastTempTime) / (1000 * 3600);
-            tempChangeRate = (parseFloat(tempC) - lastTemp) / diffHours;
-            if (Math.abs(tempChangeRate) > 5) tempChangeRate = 0; // ignore unrealistic spikes
+        if (tempHistory.length >= 2) {
+            const first = tempHistory[0];
+            const last = tempHistory[tempHistory.length - 1];
+            const hours = (last.time - first.time) / (1000 * 3600);
+            if (hours > 0) tempChangeRate = parseFloat(((last.temp - first.temp) / hours).toFixed(1));
         }
-        lastTemp = parseFloat(tempC);
-        lastTempTime = now;
 
         // Daily max/min temp
-        if (todayMaxTemp === null || tempC > todayMaxTemp) todayMaxTemp = parseFloat(tempC);
-        if (todayMinTemp === null || tempC < todayMinTemp) todayMinTemp = parseFloat(tempC);
+        if (todayMaxTemp === null || tempC > todayMaxTemp) todayMaxTemp = tempC;
+        if (todayMinTemp === null || tempC < todayMinTemp) todayMinTemp = tempC;
 
         // Max rain/wind/gust
-        if (parseFloat(rainRateMmHr) > todayMaxRainRate) todayMaxRainRate = parseFloat(rainRateMmHr);
-        if (parseFloat(windSpeedKmh) > todayMaxWind) todayMaxWind = parseFloat(windSpeedKmh);
-        if (parseFloat(windGustKmh) > todayMaxGust) todayMaxGust = parseFloat(windGustKmh);
+        if (rainRateMmHr > todayMaxRainRate) todayMaxRainRate = rainRateMmHr;
+        if (windSpeedKmh > todayMaxWind) todayMaxWind = windSpeedKmh;
+        if (windGustKmh > todayMaxGust) todayMaxGust = windGustKmh;
 
         todayHistory.push({
             time: new Date().toLocaleTimeString('en-IN', { hour:'2-digit', minute:'2-digit', hour12:false, timeZone:'Asia/Kolkata' }),
-            temp: parseFloat(tempC),
+            temp: tempC,
             hum: humidity,
-            dewPoint: parseFloat(dewPointC),
-            rainRate: parseFloat(rainRateMmHr),
-            totalRain: parseFloat(totalRainMm),
-            windSpeed: parseFloat(windSpeedKmh),
+            dewPoint: dewPointC,
+            rainRate: rainRateMmHr,
+            totalRain: totalRainMm,
+            windSpeed: windSpeedKmh,
             windDir
         });
 
@@ -98,7 +100,7 @@ app.get("/weather", async (req, res) => {
                 feelsLike: feelsLikeC,
                 humidity,
                 dewPoint: dewPointC,
-                tempChangeRate: tempChangeRate.toFixed(1),
+                tempChangeRate,
                 maxTemp: todayMaxTemp,
                 minTemp: todayMinTemp,
                 solar: solarRadiation,
@@ -130,8 +132,7 @@ app.get("/weather", async (req, res) => {
 });
 
 app.get("/", (req,res)=>{
-res.send(`
-<!DOCTYPE html>
+res.send(`<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -185,7 +186,7 @@ h1 { text-align:center; padding:22px 15px 15px; font-size:28px; margin:0; backgr
 <div class="item"><div class="label">GUST</div><div class="value" id="gust"></div></div>
 <div class="item"><div class="small-value red" id="maxWind"></div></div>
 <div class="item"><div class="small-value orange" id="maxGust"></div></div>
-<div class="item"><div class="small-value" id="winddir"></div></div>
+<div class="item"><div class="small-value" id="windDirection"></div></div>
 </div></div>
 
 <div class="card">
@@ -237,14 +238,14 @@ async function loadData(){
         if(data.error){ document.getElementById('status').innerText=data.error; return; }
         const o=data.outdoor,r=data.rainfall,w=data.wind;
         const tempClass=getTempClass(parseFloat(o.temp));
-        document.getElementById('temp').innerHTML=\`<span class="\${tempClass}">\${o.temp}°C</span>\`;
-        document.getElementById('feels').innerHTML=\`<span class="\${tempClass}">\${o.feelsLike}°C</span>\`;
-        document.getElementById('dewpoint').innerText=o.dewPoint+"°C";
-        document.getElementById('hum').innerText=o.humidity+"%";
+        document.getElementById('temp').innerHTML=\`<span class="\${tempClass}">\${o.temp.toFixed(1)}°C</span>\`;
+        document.getElementById('feels').innerHTML=\`<span class="\${tempClass}">\${o.feelsLike.toFixed(1)}°C</span>\`;
+        document.getElementById('dewpoint').innerText=o.dewPoint.toFixed(1)+"°C";
+        document.getElementById('hum').innerText=o.humidity.toFixed(1)+"%";
 
-        let rateHTML=''; if(o.tempChangeRate){ const r=parseFloat(o.tempChangeRate); const sign=r>=0?'↑':'↓'; const color=r>=0?'#4ade80':'#f87171'; rateHTML=\`<span style="color:\${color}; font-size:13px;">\${sign} \${Math.abs(r)} °C/hr</span>\`; }
+        let rateHTML=''; if(o.tempChangeRate!==undefined){ const r=parseFloat(o.tempChangeRate); const sign=r>=0?'↑':'↓'; const color=r>=0?'#4ade80':'#f87171'; rateHTML=\`<span style="color:\${color}; font-size:13px;">\${sign} \${Math.abs(r).toFixed(1)} °C/hr</span>\`; }
         document.getElementById('tempRate').innerHTML=rateHTML;
-        document.getElementById('maxMinTemp').innerHTML=\`<span class="red">Max: \${o.maxTemp}°C</span> | <span class="blue">Min: \${o.minTemp}°C</span>\`;
+        document.getElementById('maxMinTemp').innerHTML=\`<span class="red">Max: \${o.maxTemp.toFixed(1)}°C</span> | <span class="blue">Min: \${o.minTemp.toFixed(1)}°C</span>\`;
 
         document.getElementById('rain').innerText=r.rainRate+" mm/hr";
         document.getElementById('totalRain').innerText=r.totalRain+" mm";
@@ -254,7 +255,7 @@ async function loadData(){
         document.getElementById('gust').innerText=w.gust+" km/h";
         document.getElementById('maxWind').innerHTML=\`<span class="red">Max Speed: \${w.maxSpeed} km/h</span>\`;
         document.getElementById('maxGust').innerHTML=\`<span class="orange">Max Gust: \${w.maxGust} km/h</span>\`;
-        document.getElementById('winddir').innerText=w.direction+"° ("+getWindDir(w.direction)+")";
+        document.getElementById('windDirection').innerText=w.direction+"° ("+getWindDir(w.direction)+")";
 
         document.getElementById('solar').innerText=o.solar+" W/m²";
         document.getElementById('uv').innerText=o.uvi;
@@ -266,20 +267,21 @@ async function loadData(){
         const humData=data.history.map(h=>h.hum);
         const windData=data.history.map(h=>h.windSpeed);
 
-        charts.temp.options.scales.y.min=Math.min(...tempData)-1;
-        charts.temp.options.scales.y.max=Math.max(...tempData)+1;
+        charts.temp.options.scales.y.min=Math.floor(Math.min(...tempData)*10)/10;
+        charts.temp.options.scales.y.max=Math.ceil(Math.max(...tempData)*10)/10;
         charts.temp.data.labels=labels; charts.temp.data.datasets[0].data=tempData; charts.temp.update();
 
-        charts.hum.options.scales.y.min=0; charts.hum.options.scales.y.max=100;
+        charts.hum.options.scales.y.min=0;
+        charts.hum.options.scales.y.max=100;
         charts.hum.data.labels=labels; charts.hum.data.datasets[0].data=humData; charts.hum.update();
 
-        charts.wind.options.scales.y.min=0; charts.wind.options.scales.y.max=Math.max(...windData)+2;
+        charts.wind.options.scales.y.min=0; charts.wind.options.scales.y.max=Math.ceil(Math.max(...windData)+2);
         charts.wind.data.labels=labels; charts.wind.data.datasets[0].data=windData; charts.wind.update();
 
     }catch(e){ document.getElementById('status').innerText="⚠️ Using last known data"; }
 }
 
-createCharts(); loadData(); setInterval(loadData,15000);
+createCharts(); loadData(); setInterval(loadData,30000);
 });
 </script>
 </body>
