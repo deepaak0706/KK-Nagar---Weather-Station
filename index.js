@@ -47,10 +47,6 @@ app.get("/weather", async (req, res) => {
         const windSpeedKmh = (parseFloat(d.wind.wind_speed.value) * 1.60934).toFixed(1);
         const windGustKmh = (parseFloat(d.wind.wind_gust.value) * 1.60934).toFixed(1);
 
-        const currentRainRate = parseFloat(rainRateMmHr);
-        if (currentRainRate > todayMaxRainRate) todayMaxRainRate = currentRainRate;
-
-        // Calculate temperature change rate (°C/hr)
         let tempChangeRate = 0;
         if (lastTemp !== null) {
             const timeDiffHours = (Date.now() - lastTempTime) / (1000 * 3600);
@@ -60,6 +56,9 @@ app.get("/weather", async (req, res) => {
         }
         lastTemp = parseFloat(tempC);
         lastTempTime = Date.now();
+
+        const currentRainRate = parseFloat(rainRateMmHr);
+        if (currentRainRate > todayMaxRainRate) todayMaxRainRate = currentRainRate;
 
         todayHistory.push({
             time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
@@ -153,7 +152,7 @@ app.get("/", (req, res) => {
                 <div class="item">
                     <div class="label">TEMPERATURE</div>
                     <div class="value" id="temp"></div>
-                    <div class="label" id="tempRate" style="font-size:13px; margin-top:4px;"></div>
+                    <div id="tempRate" style="font-size:13px; margin-top:4px;"></div>
                 </div>
                 <div class="item">
                     <div class="label">FEELS LIKE</div>
@@ -253,14 +252,15 @@ app.get("/", (req, res) => {
 
                 document.getElementById('temp').innerHTML = '<span class="' + tempClass + '">' + o.temp + '°C</span>';
                 
-                // Temperature rate of change
                 let rateHTML = '';
                 if (o.tempChangeRate !== undefined) {
                     const rate = parseFloat(o.tempChangeRate);
                     const sign = rate >= 0 ? '↑' : '↓';
-                    const colorClass = rate >= 0 ? 'rise' : 'fall';
-                    rateHTML = `<span class="${colorClass}" style="font-size:13px;">${sign} ${Math.abs(rate)} °C/hr</span>`;
+                    const color = rate >= 0 ? '#4ade80' : '#f87171';
+                    rateHTML = '<span style="color:' + color + '; font-size:13px;">' + sign + ' ' + Math.abs(rate) + ' °C/hr</span>';
                 }
+                document.getElementById('tempRate').innerHTML = rateHTML;
+
                 document.getElementById('feels').innerHTML = '<span class="' + tempClass + '">' + o.feelsLike + '°C</span>';
                 document.getElementById('hum').innerText = o.humidity + "%";
 
@@ -294,7 +294,7 @@ app.get("/", (req, res) => {
         }
 
         createCharts();
-        setInterval(loadData, 15000);   // 15 seconds - responsive & safe
+        setInterval(loadData, 15000);   // 15 seconds - safe and responsive
         loadData();
     </script>
 </body>
