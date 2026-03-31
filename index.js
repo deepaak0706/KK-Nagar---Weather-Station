@@ -229,15 +229,7 @@ app.get("/", (req, res) => {
         }
 
         function createCharts() {
-            const opt = { 
-                animation: false, 
-                scales: { 
-                    y: { 
-                        beginAtZero: true, 
-                        ticks: { stepSize: 5 } 
-                    } 
-                } 
-            };
+            const opt = { animation: false, scales: { y: { beginAtZero: true, ticks: { stepSize: 5 } } } };
             charts.temp = new Chart(document.getElementById('tempChart'), { type:'line', data:{labels:[], datasets:[{label:'Temperature (°C)', data:[], borderColor:'#67e8f9', tension:0.3}]}, options:opt });
             charts.hum = new Chart(document.getElementById('humChart'), { type:'line', data:{labels:[], datasets:[{label:'Humidity (%)', data:[], borderColor:'#4ade80', tension:0.3}]}, options:opt });
             charts.wind = new Chart(document.getElementById('windChart'), { type:'line', data:{labels:[], datasets:[{label:'Wind Speed (km/h)', data:[], borderColor:'#fb923c', tension:0.3}]}, options:opt });
