@@ -10,6 +10,10 @@ let cachedData = null;
 let lastFetch = 0;
 let todayHistory = [];
 let todayMaxRainRate = 0;
+let todayMaxWind = 0;
+let todayMaxGust = 0;
+let todayMaxTemp = null;
+let todayMinTemp = null;
 let currentDate = new Date().toDateString();
 let lastTemp = null;
 let lastTempTime = null;
@@ -21,6 +25,10 @@ app.get("/weather", async (req, res) => {
     if (todayStr !== currentDate) {
         todayHistory = [];
         todayMaxRainRate = 0;
+        todayMaxWind = 0;
+        todayMaxGust = 0;
+        todayMaxTemp = null;
+        todayMinTemp = null;
         currentDate = todayStr;
     }
 
@@ -51,20 +59,27 @@ app.get("/weather", async (req, res) => {
         const solarRadiation = d.solar_and_uvi?.solar?.value ?? 0;
         const uvIndex = d.solar_and_uvi?.uvi?.value ?? '--';
 
-        // Temp change rate °C/hr
+        // Smoothed temp change rate °C/hr
+        const MIN_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
         let tempChangeRate = 0;
-        if (lastTemp !== null && lastTempTime) {
+        if (lastTemp !== null && lastTempTime && now - lastTempTime >= MIN_INTERVAL_MS) {
             const diffHours = (now - lastTempTime) / (1000 * 3600);
-            if (diffHours >= 0.01) {
-                tempChangeRate = (parseFloat(tempC) - lastTemp) / diffHours;
-                if (Math.abs(tempChangeRate) > 5) tempChangeRate = 0;
-            }
+            tempChangeRate = (parseFloat(tempC) - lastTemp) / diffHours;
+            if (Math.abs(tempChangeRate) > 5) tempChangeRate = 0; // ignore spikes
         }
         lastTemp = parseFloat(tempC);
         lastTempTime = now;
 
-        if (parseFloat(rainRateMmHr) > todayMaxRainRate) todayMaxRainRate = parseFloat(rainRateMmHr);
+        // Update daily max/min temp
+        if (todayMaxTemp === null || tempC > todayMaxTemp) todayMaxTemp = parseFloat(tempC);
+        if (todayMinTemp === null || tempC < todayMinTemp) todayMinTemp = parseFloat(tempC);
 
+        // Update max rain/wind/gust
+        if (parseFloat(rainRateMmHr) > todayMaxRainRate) todayMaxRainRate = parseFloat(rainRateMmHr);
+        if (parseFloat(windSpeedKmh) > todayMaxWind) todayMaxWind = parseFloat(windSpeedKmh);
+        if (parseFloat(windGustKmh) > todayMaxGust) todayMaxGust = parseFloat(windGustKmh);
+
+        // Push to history
         todayHistory.push({
             time: new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' }),
             temp: parseFloat(tempC),
@@ -85,14 +100,25 @@ app.get("/weather", async (req, res) => {
                 humidity,
                 dewPoint: dewPointC,
                 tempChangeRate: tempChangeRate.toFixed(1),
+                maxTemp: todayMaxTemp,
+                minTemp: todayMinTemp,
                 solar: solarRadiation,
                 uvi: uvIndex
             },
-            rainfall: { rainRate: rainRateMmHr, totalRain: totalRainMm },
-            wind: { speed: windSpeedKmh, gust: windGustKmh, direction: windDir },
+            rainfall: {
+                rainRate: rainRateMmHr,
+                totalRain: totalRainMm,
+                maxRainRate: todayMaxRainRate
+            },
+            wind: {
+                speed: windSpeedKmh,
+                gust: windGustKmh,
+                maxSpeed: todayMaxWind,
+                maxGust: todayMaxGust,
+                direction: windDir
+            },
             pressure: pressureHPa,
-            history: todayHistory,
-            maxRainRate: todayMaxRainRate.toFixed(1)
+            history: todayHistory
         };
 
         lastFetch = now;
@@ -104,7 +130,6 @@ app.get("/weather", async (req, res) => {
     }
 });
 
-// Serve integrated HTML
 app.get("/", (req, res) => {
     res.send(`
 <!DOCTYPE html>
@@ -116,19 +141,15 @@ app.get("/", (req, res) => {
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
 body { margin:0; font-family:'Segoe UI',Arial,sans-serif; background:linear-gradient(135deg,#0f172a,#1e293b); color:#e2e8f0; min-height:100vh; }
-h1 { text-align:center; padding:22px 15px 15px; font-size:27px; margin:0; background:rgba(15,23,42,0.85); }
+h1 { text-align:center; padding:22px 15px 15px; font-size:28px; margin:0; background:rgba(15,23,42,0.85); }
 .status { text-align:center; font-size:14px; padding:8px; opacity:0.9; }
 .container { max-width:1100px; margin:0 auto; padding:12px; }
-.card { background:rgba(255,255,255,0.07); backdrop-filter:blur(16px); border-radius:18px; padding:20px; margin-bottom:16px; box-shadow:0 8px 25px rgba(0,0,0,0.35); }
+.card { background:rgba(255,255,255,0.07); backdrop-filter:blur(18px); border-radius:20px; padding:22px; margin-bottom:18px; box-shadow:0 10px 30px rgba(0,0,0,0.35); }
 .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(120px,1fr)); gap:14px; }
 .item { text-align:center; }
 .label { font-size:13px; opacity:0.75; margin-bottom:5px; }
-.value { font-size:26px; font-weight:700; }
-.small-value { font-size:16px; font-weight:400; color:#cbd5e1; }
-.wind-container { text-align:center; padding:22px 20px; }
-.wind-arrow { font-size:24px; transition:transform 0.6s; display:inline-block; }
-.compass { position:relative; width:60px; height:60px; margin:15px auto; border:2px solid rgba(255,255,255,0.3); border-radius:50%; }
-canvas { background:rgba(15,23,42,0.95); border-radius:16px; padding:16px; margin-top:12px; }
+.value { font-size:28px; font-weight:700; }
+.small-value { font-size:16px; font-weight:400; color:#cbd5e1; margin-top:2px; }
 .cool { color:#67e8f9; } .mild { color:#fcd34d; } .hot { color:#fb923c; } .veryhot { color:#f87171; }
 </style>
 </head>
@@ -136,88 +157,126 @@ canvas { background:rgba(15,23,42,0.95); border-radius:16px; padding:16px; margi
 <h1>KK Nagar Weather Station</h1>
 <div id="status" class="status">Loading live data...</div>
 <div class="container">
+
+<!-- Temperature + Dew + Humidity -->
 <div class="card">
 <div class="grid">
 <div class="item"><div class="label">TEMP</div><div class="value" id="temp"></div><div id="tempRate" class="small-value"></div></div>
 <div class="item"><div class="label">FEELS LIKE</div><div class="value" id="feels"></div></div>
 <div class="item"><div class="label">DEW POINT</div><div class="value" id="dewpoint"></div></div>
 <div class="item"><div class="label">HUMIDITY</div><div class="value" id="hum"></div></div>
+<div class="item"><div class="small-value" id="maxMinTemp"></div></div>
 </div></div>
 
+<!-- Rain Section -->
 <div class="card">
 <div class="grid">
 <div class="item"><div class="label">RAIN RATE</div><div class="small-value" id="rain"></div></div>
 <div class="item"><div class="label">TOTAL RAIN</div><div class="small-value" id="totalRain"></div></div>
+<div class="item"><div class="small-value" id="maxRain"></div></div>
 </div></div>
 
-<div class="card wind-container">
-<div class="label">WIND</div>
-<div class="value" id="wind"></div>
-<div class="small-value">Gust: <span id="gust"></span> km/h</div>
-<div class="compass"><div id="arrow" class="wind-arrow">↑</div></div>
-<div class="small-value" id="winddir"></div>
-</div>
+<!-- Wind Section -->
+<div class="card">
+<div class="grid">
+<div class="item"><div class="label">WIND SPEED</div><div class="value" id="wind"></div></div>
+<div class="item"><div class="label">GUST</div><div class="value" id="gust"></div></div>
+<div class="item"><div class="small-value" id="maxWind"></div></div>
+<div class="item"><div class="small-value" id="winddir"></div></div>
+</div></div>
 
+<!-- Solar + UV -->
 <div class="card">
 <div class="grid">
 <div class="item"><div class="label">SOLAR RADIATION</div><div class="small-value" id="solar"></div></div>
 <div class="item"><div class="label">UV INDEX</div><div class="small-value" id="uv"></div></div>
 </div></div>
 
+<!-- Charts -->
 <div class="card">
 <h3 style="text-align:center; opacity:0.9;">Recent Trends (IST)</h3>
 <canvas id="tempChart" height="140"></canvas>
 <canvas id="humChart" height="140"></canvas>
 <canvas id="windChart" height="140"></canvas>
 </div>
+
 </div>
 
 <script>
 let charts={};
-function getTempClass(temp){return temp<=25?'cool':temp<35?'mild':temp<40?'hot':'veryhot';}
-function getWindDir(deg){const dirs=["N","NE","E","SE","S","SW","W","NW"];return dirs[Math.round(deg/45)%8];}
+
+function getTempClass(temp){
+    if(temp<=25) return 'cool';
+    if(temp<35) return 'mild';
+    if(temp<40) return 'hot';
+    return 'veryhot';
+}
+function getWindDir(deg){
+    const dirs=["N","NE","E","SE","S","SW","W","NW"];
+    return dirs[Math.round(deg/45)%8];
+}
 function createCharts(){
-const opt={animation:false,scales:{y:{beginAtZero:true,ticks:{stepSize:5}}}};
-charts.temp=new Chart(document.getElementById('tempChart'),{type:'line',data:{labels:[],datasets:[{label:'Temp °C',data:[],borderColor:'#67e8f9',tension:0.3}]},options:opt});
-charts.hum=new Chart(document.getElementById('humChart'),{type:'line',data:{labels:[],datasets:[{label:'Humidity %',data:[],borderColor:'#4ade80',tension:0.3}]},options:opt});
-charts.wind=new Chart(document.getElementById('windChart'),{type:'line',data:{labels:[],datasets:[{label:'Wind km/h',data:[],borderColor:'#fb923c',tension:0.3}]},options:opt});
+    const opt={animation:false,scales:{y:{beginAtZero:true,ticks:{stepSize:5}}}};
+    charts.temp=new Chart(document.getElementById('tempChart'),{type:'line',data:{labels:[],datasets:[{label:'Temp °C',data:[],borderColor:'#67e8f9',tension:0.3}]},options:opt});
+    charts.hum=new Chart(document.getElementById('humChart'),{type:'line',data:{labels:[],datasets:[{label:'Humidity %',data:[],borderColor:'#4ade80',tension:0.3}]},options:opt});
+    charts.wind=new Chart(document.getElementById('windChart'),{type:'line',data:{labels:[],datasets:[{label:'Wind km/h',data:[],borderColor:'#fb923c',tension:0.3}]},options:opt});
 }
+
 async function loadData(){
-try{
-const res=await fetch('/weather');
-const data=await res.json();
-if(data.error){document.getElementById('status').innerText=data.error;return;}
-const o=data.outdoor,r=data.rainfall,w=data.wind;
-const tempClass=getTempClass(parseFloat(o.temp));
-document.getElementById('temp').innerHTML=\`<span class="\${tempClass}">\${o.temp}°C</span>\`;
-document.getElementById('feels').innerHTML=\`<span class="\${tempClass}">\${o.feelsLike}°C</span>\`;
-document.getElementById('dewpoint').innerText=o.dewPoint+"°C";
-document.getElementById('hum').innerText=o.humidity+"%";
-let rateHTML='';if(o.tempChangeRate){const r=parseFloat(o.tempChangeRate);const sign=r>=0?'↑':'↓';const color=r>=0?'#4ade80':'#f87171';rateHTML=\`<span style="color:\${color}; font-size:13px;">\${sign} \${Math.abs(r)} °C/hr</span>\`; }
-document.getElementById('tempRate').innerHTML=rateHTML;
-document.getElementById('wind').innerText=w.speed+" km/h";
-document.getElementById('gust').innerText=w.gust;
-document.getElementById('arrow').style.transform=\`rotate(\${w.direction}deg)\`;
-document.getElementById('winddir').innerText=w.direction+"° ("+getWindDir(w.direction)+")";
-document.getElementById('rain').innerText=r.rainRate+" mm/hr";
-document.getElementById('totalRain').innerText=r.totalRain+" mm";
-document.getElementById('solar').innerText=o.solar+" W/m²";
-document.getElementById('uv').innerText=o.uvi;
-document.getElementById('status').innerText='✅ Live • Updated '+new Date().toLocaleTimeString('en-IN',{timeZone:'Asia/Kolkata'});
-const labels=data.history.map(h=>h.time);
-charts.temp.data.labels=labels;charts.temp.data.datasets[0].data=data.history.map(h=>h.temp);
-charts.hum.data.labels=labels;charts.hum.data.datasets[0].data=data.history.map(h=>h.hum);
-charts.wind.data.labels=labels;charts.wind.data.datasets[0].data=data.history.map(h=>h.windSpeed);
-charts.temp.update();charts.hum.update();charts.wind.update();
-}catch(e){document.getElementById('status').innerText="⚠️ Using last known data";}
+    try{
+        const res=await fetch('/weather');
+        const data=await res.json();
+        if(data.error){document.getElementById('status').innerText=data.error; return;}
+        const o=data.outdoor, r=data.rainfall, w=data.wind;
+
+        const tempClass=getTempClass(parseFloat(o.temp));
+        document.getElementById('temp').innerHTML=\`<span class="\${tempClass}">\${o.temp}°C</span>\`;
+        document.getElementById('feels').innerHTML=\`<span class="\${tempClass}">\${o.feelsLike}°C</span>\`;
+        document.getElementById('dewpoint').innerText=o.dewPoint+"°C";
+        document.getElementById('hum').innerText=o.humidity+"%";
+
+        let rateHTML='';
+        if(o.tempChangeRate){
+            const r=parseFloat(o.tempChangeRate);
+            const sign=r>=0?'↑':'↓';
+            const color=r>=0?'#4ade80':'#f87171';
+            rateHTML=\`<span style="color:\${color}; font-size:13px;">\${sign} \${Math.abs(r)} °C/hr</span>\`;
+        }
+        document.getElementById('tempRate').innerHTML=rateHTML;
+        document.getElementById('maxMinTemp').innerText=\`Max: \${o.maxTemp}°C | Min: \${o.minTemp}°C\`;
+
+        document.getElementById('rain').innerText=r.rainRate+" mm/hr";
+        document.getElementById('totalRain').innerText=r.totalRain+" mm";
+        document.getElementById('maxRain').innerText=r.maxRainRate?"Max Rain Rate: "+r.maxRainRate+" mm/hr":'';
+
+        document.getElementById('wind').innerText=w.speed+" km/h";
+        document.getElementById('gust').innerText=w.gust+" km/h";
+        document.getElementById('maxWind').innerText=\`Max Speed: \${w.maxSpeed} | Max Gust: \${w.maxGust}\`;
+        document.getElementById('winddir').innerText=w.direction+"° ("+getWindDir(w.direction)+")";
+
+        document.getElementById('solar').innerText=o.solar+" W/m²";
+        document.getElementById('uv').innerText=o.uvi;
+
+        document.getElementById('status').innerText='✅ Live • Updated '+new Date().toLocaleTimeString('en-IN',{timeZone:'Asia/Kolkata'});
+
+        const labels=data.history.map(h=>h.time);
+        charts.temp.data.labels=labels; charts.temp.data.datasets[0].data=data.history.map(h=>h.temp);
+        charts.hum.data.labels=labels; charts.hum.data.datasets[0].data=data.history.map(h=>h.hum);
+        charts.wind.data.labels=labels; charts.wind.data.datasets[0].data=data.history.map(h=>h.windSpeed);
+
+        charts.temp.update(); charts.hum.update(); charts.wind.update();
+    }catch(e){
+        document.getElementById('status').innerText="⚠️ Using last known data";
+    }
 }
+
 createCharts();
 loadData();
 setInterval(loadData,15000);
 </script>
 </body>
 </html>
-    `);
+`);
 });
 
 const PORT = process.env.PORT || 3000;
