@@ -183,8 +183,11 @@ app.get("/", (req, res) => {
             <div class="label">WIND SPEED</div>
             <div class="value" id="wind"></div>
             <div class="label" style="font-size:14px; margin-top:8px;">Gust: <span id="gust"></span> km/h</div>
-            <div class="wind-arrow" id="arrow">⬆️</div>
-            <div class="label" id="winddir" style="font-size:15px; margin-top:8px;"></div>
+            <div style="position:relative; width:80px; height:80px; margin:15px auto;">
+                <div style="position:absolute; width:100%; height:100%; border:3px solid rgba(255,255,255,0.3); border-radius:50%;"></div>
+                <div class="wind-arrow" id="arrow" style="position:absolute; top:50%; left:50%; transform:translate(-50%, -50%);">⬆️</div>
+            </div>
+            <div class="label" id="winddir" style="font-size:15px;"></div>
         </div>
 
         <div class="card">
@@ -279,7 +282,7 @@ app.get("/", (req, res) => {
                 document.getElementById('uv').innerText = o.uvi || '--';
                 document.getElementById('solar').innerText = o.solar + " W/m²";
 
-                document.getElementById('status').innerHTML = '✅ Live from Ecowitt • Updated ' + new Date().toLocaleTimeString();
+                document.getElementById('status').innerHTML = '✅ Live from Ecowitt • Updated ' + new Date().toLocaleTimeString('en-IN', {timeZone: 'Asia/Kolkata'});
 
                 const labels = data.history.map(h => h.time);
                 charts.temp.data.labels = labels; charts.temp.data.datasets[0].data = data.history.map(h => h.temp);
@@ -296,7 +299,7 @@ app.get("/", (req, res) => {
         }
 
         createCharts();
-        setInterval(loadData, 15000);   // 15 seconds
+        setInterval(loadData, 15000);
         loadData();
     </script>
 </body>
