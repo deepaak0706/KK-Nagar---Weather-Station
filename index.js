@@ -143,9 +143,9 @@ h1 { text-align:center; padding:22px 15px 15px; font-size:27px; margin:0; backgr
 .item { text-align:center; }
 .label { font-size:13px; opacity:0.75; margin-bottom:5px; }
 .value { font-size:26px; font-weight:700; }
-.subvalue { font-size:13px; opacity:0.8; margin-top:3px; }
-.rise { color:#4ade80; }
-.fall { color:#f87171; }
+.subvalue { font-size:13px; opacity:0.85; margin-top:3px; }
+.tempMax { color:#f87171; font-weight:600; }
+.tempMin { color:#3b82f6; font-weight:600; }
 canvas { background:rgba(15,23,42,0.95); border-radius:16px; padding:16px; margin-top:12px; }
 </style>
 </head>
@@ -196,9 +196,14 @@ canvas { background:rgba(15,23,42,0.95); border-radius:16px; padding:16px; margi
 <div class="card">
 <div class="grid">
   <div class="item">
-    <div class="label">WIND</div>
+    <div class="label">WIND SPEED</div>
     <div class="value" id="wind"></div>
-    <div class="subvalue" id="windMax"></div>
+    <div class="subvalue" id="windMaxSpeed"></div>
+  </div>
+  <div class="item">
+    <div class="label">WIND GUST</div>
+    <div class="value" id="gust"></div>
+    <div class="subvalue" id="windMaxGust"></div>
   </div>
   <div class="item">
     <div class="label">WIND DIRECTION</div>
@@ -238,14 +243,16 @@ async function fetchWeather(){
         document.getElementById('temp').innerText=d.outdoor.temp+"°C";
         const rate=d.outdoor.tempChangeRate;
         document.getElementById('tempRate').innerText=(rate>=0?'↑':'↓')+ " "+Math.abs(rate)+" °C/hr";
-        document.getElementById('maxminTemp').innerText="Max: "+d.outdoor.maxTemp+" | Min: "+d.outdoor.minTemp;
+        document.getElementById('maxminTemp').innerHTML="Max: <span class='tempMax'>"+d.outdoor.maxTemp+"</span> | Min: <span class='tempMin'>"+d.outdoor.minTemp+"</span>";
         document.getElementById('dewpoint').innerText=d.outdoor.dewPoint+"°C";
         document.getElementById('hum').innerText=d.outdoor.humidity+"%";
         document.getElementById('feels').innerText=d.outdoor.feelsLike+"°C";
         document.getElementById('rainRate').innerText=d.rainfall.rainRate+" mm/hr (Max: "+d.rainfall.maxRainRate+")";
         document.getElementById('totalRain').innerText=d.rainfall.totalRain+" mm";
-        document.getElementById('wind').innerText=d.wind.speed+" km/h, Gust: "+d.wind.gust+" km/h";
-        document.getElementById('windMax').innerText="Max Speed: "+d.wind.maxSpeed+" km/h | Max Gust: "+d.wind.maxGust+" km/h";
+        document.getElementById('wind').innerText=d.wind.speed+" km/h";
+        document.getElementById('windMaxSpeed').innerText="Max Speed: "+d.wind.maxSpeed+" km/h";
+        document.getElementById('gust').innerText=d.wind.gust+" km/h";
+        document.getElementById('windMaxGust').innerText="Max Gust: "+d.wind.maxGust+" km/h";
         document.getElementById('windDir').innerText=d.wind.direction+"°";
         document.getElementById('solar').innerText=d.outdoor.solar+" W/m²";
         document.getElementById('uv').innerText=d.outdoor.uvi;
