@@ -15,7 +15,7 @@ let todayMaxWindSpeed = 0;
 let todayMaxWindGust = 0;
 let currentDate = new Date().toDateString();
 
-let tempHistory = []; // {time: timestamp, temp: value}
+let tempHistory = [];
 
 app.get("/weather", async (req, res) => {
     const now = Date.now();
@@ -41,7 +41,6 @@ app.get("/weather", async (req, res) => {
 
         const d = ecowitt.data;
 
-        // Convert to metric
         const tempC = ((parseFloat(d.outdoor.temperature.value) - 32) * 5 / 9).toFixed(1);
         const feelsLikeC = ((parseFloat(d.outdoor.feels_like.value) - 32) * 5 / 9).toFixed(1);
         const dewPointC = ((parseFloat(d.outdoor.dew_point.value) - 32) * 5 / 9).toFixed(1);
@@ -53,13 +52,9 @@ app.get("/weather", async (req, res) => {
         const solarWm2 = parseFloat(d.solar_and_uvi.solar.value).toFixed(1);
         const uvi = d.solar_and_uvi.uvi.value;
 
-        // Store temp history
         tempHistory.push({ time: now, temp: parseFloat(tempC) });
-
-        // Remove older than 24h
         tempHistory = tempHistory.filter(t => now - t.time <= 24 * 3600 * 1000);
 
-        // Calculate temp change rate per hour based on temp 1 hour ago
         let tempChangeRate = 0;
         const oneHourAgo = now - 3600 * 1000;
         const past = tempHistory.find(t => t.time <= oneHourAgo) || tempHistory[0];
@@ -68,13 +63,11 @@ app.get("/weather", async (req, res) => {
             tempChangeRate = ((parseFloat(tempC) - past.temp) / hoursDiff).toFixed(1);
         }
 
-        // Max values for the day
         const currentRainRate = parseFloat(rainRateMmHr);
         if (currentRainRate > todayMaxRainRate) todayMaxRainRate = currentRainRate;
         if (parseFloat(windSpeedKmh) > todayMaxWindSpeed) todayMaxWindSpeed = parseFloat(windSpeedKmh);
         if (parseFloat(windGustKmh) > todayMaxWindGust) todayMaxWindGust = parseFloat(windGustKmh);
 
-        // Update today's history
         const istTimeStr = new Date().toLocaleTimeString('en-IN', { hour12: false, hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Kolkata' });
         todayHistory.push({
             time: istTimeStr,
@@ -145,9 +138,7 @@ h1 { text-align:center; padding:22px 15px 15px; font-size:27px; margin:0; backgr
 .item { text-align:center; }
 .label { font-size:13px; opacity:0.75; margin-bottom:5px; }
 .value { font-size:26px; font-weight:700; }
-.subvalue { font-size:14px; opacity:0.85; }
-.wind-container { text-align:center; padding:22px 20px; }
-canvas { background:rgba(15,23,42,0.95); border-radius:16px; padding:16px; margin-top:12px; }
+.subvalue { font-size:14px; opacity:0.85; display:block; }
 .cool { color:#67e8f9; }
 .mild { color:#fcd34d; }
 .hot { color:#fb923c; }
@@ -199,10 +190,11 @@ canvas { background:rgba(15,23,42,0.95); border-radius:16px; padding:16px; margi
 </div>
 </div>
 
-<div class="card wind-container">
+<div class="card">
 <div class="label">WIND</div>
 <div class="value" id="wind"></div>
 <div class="subvalue" id="windMax"></div>
+<div class="subvalue" id="windGustMax"></div>
 <div class="subvalue" id="windDir"></div>
 </div>
 
@@ -251,7 +243,7 @@ document.getElementById('temp').innerHTML='<span class="'+tempClass+'">'+o.temp+
 
 let rateHTML='';if(o.tempChangeRate!==undefined){const rate=parseFloat(o.tempChangeRate);const sign=rate>=0?'↑':'↓';const color=rate>=0?'#4ade80':'#f87171';rateHTML='<span style="color:'+color+'; font-size:13px;">'+sign+' '+Math.abs(rate)+' °C/hr</span>';}
 document.getElementById('tempRate').innerHTML=rateHTML;
-document.getElementById('tempMaxMin').innerHTML='<span class="maxVal">Max: '+o.tempMax+'°C</span> | <span class="minVal">Min: '+o.tempMin+'°C</span>';
+document.getElementById('tempMaxMin').innerHTML='<span class="maxVal">Max: '+o.tempMax+'°C</span><br><span class="minVal">Min: '+o.tempMin+'°C</span>';
 
 document.getElementById('dewpoint').innerText=o.dewPoint+'°C';
 document.getElementById('hum').innerText=o.humidity+'%';
@@ -261,7 +253,8 @@ document.getElementById('rain').innerText=r.rainRate+' mm/hr (Max: '+r.maxRainRa
 document.getElementById('totalRain').innerText=r.totalRain+' mm';
 
 document.getElementById('wind').innerText=w.speed+' km/h, Gust: '+w.gust+' km/h';
-document.getElementById('windMax').innerText='Max Speed: '+w.maxSpeed+' km/h | Max Gust: '+w.maxGust+' km/h';
+document.getElementById('windMax').innerText='Max Speed: '+w.maxSpeed+' km/h';
+document.getElementById('windGustMax').innerText='Max Gust: '+w.maxGust+' km/h';
 document.getElementById('windDir').innerText=w.direction+'° ('+getWindDir(w.direction)+')';
 
 document.getElementById('pressure').innerText=data.pressure+' hPa';
