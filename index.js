@@ -182,6 +182,7 @@ app.get("/", (req, res) => {
         <div class="card wind-container">
             <div class="label">WIND SPEED</div>
             <div class="value" id="wind"></div>
+            <div class="label" style="font-size:14px; margin-top:8px;">Gust: <span id="gust"></span> km/h</div>
             <div class="wind-arrow" id="arrow">⬆️</div>
             <div class="label" id="winddir" style="font-size:15px; margin-top:8px;"></div>
         </div>
@@ -228,7 +229,15 @@ app.get("/", (req, res) => {
         }
 
         function createCharts() {
-            const opt = { animation: false, scales: { y: { beginAtZero: true, ticks: { stepSize: 5 } } } };
+            const opt = { 
+                animation: false, 
+                scales: { 
+                    y: { 
+                        beginAtZero: true, 
+                        ticks: { stepSize: 5 } 
+                    } 
+                } 
+            };
             charts.temp = new Chart(document.getElementById('tempChart'), { type:'line', data:{labels:[], datasets:[{label:'Temperature (°C)', data:[], borderColor:'#67e8f9', tension:0.3}]}, options:opt });
             charts.hum = new Chart(document.getElementById('humChart'), { type:'line', data:{labels:[], datasets:[{label:'Humidity (%)', data:[], borderColor:'#4ade80', tension:0.3}]}, options:opt });
             charts.wind = new Chart(document.getElementById('windChart'), { type:'line', data:{labels:[], datasets:[{label:'Wind Speed (km/h)', data:[], borderColor:'#fb923c', tension:0.3}]}, options:opt });
@@ -264,7 +273,8 @@ app.get("/", (req, res) => {
                 document.getElementById('feels').innerHTML = '<span class="' + tempClass + '">' + o.feelsLike + '°C</span>';
                 document.getElementById('hum').innerText = o.humidity + "%";
 
-                document.getElementById('wind').innerText = w.speed + " km/h (Gust " + w.gust + "km/h )";
+                document.getElementById('wind').innerText = w.speed + " km/h";
+                document.getElementById('gust').innerText = w.gust + " km/h";
                 document.getElementById('arrow').style.transform = 'rotate(' + w.direction + 'deg)';
                 document.getElementById('winddir').innerText = w.direction + '° (' + getWindDirection(w.direction) + ')';
 
@@ -277,7 +287,7 @@ app.get("/", (req, res) => {
                 document.getElementById('uv').innerText = o.uvi || '--';
                 document.getElementById('solar').innerText = o.solar + " W/m²";
 
-                document.getElementById('status').innerHTML = '✅ Live • Updated ' + new Date().toLocaleTimeString();
+                document.getElementById('status').innerHTML = '✅ Live from Ecowitt • Updated ' + new Date().toLocaleTimeString();
 
                 const labels = data.history.map(h => h.time);
                 charts.temp.data.labels = labels; charts.temp.data.datasets[0].data = data.history.map(h => h.temp);
@@ -294,7 +304,7 @@ app.get("/", (req, res) => {
         }
 
         createCharts();
-        setInterval(loadData, 15000);   // 15 seconds - safe and responsive
+        setInterval(loadData, 15000);   // 15 seconds
         loadData();
     </script>
 </body>
