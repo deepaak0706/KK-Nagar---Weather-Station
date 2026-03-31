@@ -196,8 +196,8 @@ async function load(){
     document.getElementById("wind").innerText = format(d.metric.windSpeed);
     document.getElementById("gust").innerText = format(d.metric.windGust);
 
-    document.getElementById("maxWind").innerText = format(data.maxWind)+" km/h";
-    document.getElementById("maxGust").innerText = format(data.maxGust)+" km/h";
+    document.getElementById("maxWind").innerText = format(data.maxWind);
+    document.getElementById("maxGust").innerText = format(data.maxGust);
 
     document.getElementById("rain").innerText = format(d.metric.precipTotal);
     document.getElementById("rainRate").innerText = format(data.rainRate);
