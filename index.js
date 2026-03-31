@@ -264,7 +264,7 @@ app.get("/", (req, res) => {
                 document.getElementById('feels').innerHTML = '<span class="' + tempClass + '">' + o.feelsLike + '°C</span>';
                 document.getElementById('hum').innerText = o.humidity + "%";
 
-                document.getElementById('wind').innerText = w.speed + " km/h (Gust " + w.gust + ")";
+                document.getElementById('wind').innerText = w.speed + " km/h (Gust " + w.gust + "km/h )";
                 document.getElementById('arrow').style.transform = 'rotate(' + w.direction + 'deg)';
                 document.getElementById('winddir').innerText = w.direction + '° (' + getWindDirection(w.direction) + ')';
 
@@ -277,7 +277,7 @@ app.get("/", (req, res) => {
                 document.getElementById('uv').innerText = o.uvi || '--';
                 document.getElementById('solar').innerText = o.solar + " W/m²";
 
-                document.getElementById('status').innerHTML = '✅ Live from Ecowitt • Updated ' + new Date().toLocaleTimeString();
+                document.getElementById('status').innerHTML = '✅ Live • Updated ' + new Date().toLocaleTimeString();
 
                 const labels = data.history.map(h => h.time);
                 charts.temp.data.labels = labels; charts.temp.data.datasets[0].data = data.history.map(h => h.temp);
