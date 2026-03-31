@@ -46,8 +46,8 @@ app.get("/weather", async (req, res) => {
         const wind = obs.metric.windSpeed || 0;
         const gust = obs.metric.windGust || 0;
         const rain = obs.metric.precipTotal || 0;
-        const uv = obs.uv || 0;
-        const solar = obs.solarRadiation || 0;
+        const uv = obs.uv ?? 0;
+        const solar = obs.solarRadiation ?? 0;
 
         let rainRate = 0;
         if (lastRain !== null) {
@@ -111,19 +111,20 @@ res.send(`<!DOCTYPE html>
 <style>
 body {
     margin:0;
-    font-family: 'Segoe UI', sans-serif;
-    background: linear-gradient(135deg,#1e293b,#0f172a);
+    font-family:'Segoe UI',sans-serif;
+    background:linear-gradient(135deg,#1e293b,#0f172a);
     color:#fff;
 }
 
-.container {
-    padding:15px;
-}
+.container { padding:15px; }
 
-/* TOP SPLIT */
+h2 { text-align:center; margin-bottom:5px; }
+
+.status { text-align:center; font-size:12px; opacity:0.6; margin-bottom:10px; }
+
+/* TOP */
 .top {
     display:flex;
-    justify-content:space-between;
     gap:10px;
 }
 
@@ -134,41 +135,63 @@ body {
     padding:15px;
 }
 
-.label {
-    opacity:0.7;
-    font-size:14px;
-}
-
-.big {
-    font-size:42px;
-    font-weight:600;
-}
-
-.sub {
-    font-size:14px;
-    margin-top:6px;
-    opacity:0.8;
-}
+.label { opacity:0.7; font-size:14px; }
+.big { font-size:42px; font-weight:600; }
+.sub { font-size:14px; margin-top:6px; }
 
 .up { color:#fb923c; }
 .down { color:#60a5fa; }
+
+/* WIND COMPASS */
+.wind-card {
+    margin-top:10px;
+    background:rgba(255,255,255,0.05);
+    border-radius:16px;
+    padding:15px;
+}
+
+.compass {
+    width:140px;
+    height:140px;
+    border-radius:50%;
+    border:2px solid rgba(255,255,255,0.2);
+    margin:auto;
+    position:relative;
+}
+
+.arrow {
+    position:absolute;
+    top:50%;
+    left:50%;
+    transform-origin:50% 100%;
+    font-size:28px;
+    transform:translate(-50%,-100%) rotate(0deg);
+}
+
+.wind-info {
+    text-align:center;
+    margin-top:10px;
+}
+
+.wind-main {
+    font-size:22px;
+    font-weight:600;
+}
+
+.wind-sub {
+    font-size:14px;
+    opacity:0.8;
+}
 
 /* CARDS */
 .card {
     margin-top:10px;
     background:rgba(255,255,255,0.05);
     border-radius:16px;
-    padding:12px;
+    padding:15px;
 }
 
-/* WIND */
-.wind-arrow {
-    font-size:28px;
-    transition:0.5s;
-    text-align:center;
-}
-
-/* GRAPH */
+/* CHART */
 canvas {
     background:#0f172a;
     border-radius:12px;
@@ -181,15 +204,13 @@ canvas {
 
 <div class="container">
 
-<h2 style="text-align:center;">Outdoor ☀️</h2>
-<div id="status" style="text-align:center; font-size:12px; opacity:0.6;"></div>
+<h2>Outdoor ☀️</h2>
+<div id="status" class="status"></div>
 
 <div class="top">
-
 <div class="block">
 <div class="label">Temperature</div>
 <div id="temp" class="big">--</div>
-<div id="rate" class="sub"></div>
 <div id="range" class="sub"></div>
 </div>
 
@@ -199,16 +220,20 @@ canvas {
 <div id="feels" class="sub"></div>
 <div id="dew" class="sub"></div>
 </div>
-
 </div>
 
-<div class="card">
-<div>Wind: <span id="wind"></span> km/h</div>
-<div class="wind-arrow" id="arrow">⬆️</div>
-<div id="winddir" class="sub"></div>
-<div>Gust: <span id="gust"></span> km/h</div>
-<div class="sub">Max Wind: <span id="maxWind"></span></div>
-<div class="sub">Max Gust: <span id="maxGust"></span></div>
+<!-- WIND COMPASS -->
+<div class="wind-card">
+<div class="compass">
+<div id="arrow" class="arrow">⬆️</div>
+</div>
+
+<div class="wind-info">
+<div class="wind-main"><span id="wind"></span> km/h</div>
+<div class="wind-sub">Dir: <span id="winddir"></span></div>
+<div class="wind-sub">Gust: <span id="gust"></span> km/h</div>
+<div class="wind-sub">Max: <span id="maxWind"></span> | Gust Max: <span id="maxGust"></span></div>
+</div>
 </div>
 
 <div class="card">
@@ -230,79 +255,65 @@ canvas {
 </div>
 
 <script>
-let charts = {};
-let prevTemp = null, prevTime = null;
+let charts={};
 
 function initCharts(){
-    charts.temp = new Chart(tempChart,{type:'line',data:{labels:[],datasets:[{label:'Temp',data:[]}]},options:{animation:false}});
-    charts.hum = new Chart(humChart,{type:'line',data:{labels:[],datasets:[{label:'Humidity',data:[]}]},options:{animation:false}});
-    charts.wind = new Chart(windChart,{type:'line',data:{labels:[],datasets:[{label:'Wind',data:[]}]},options:{animation:false}});
-    charts.rain = new Chart(rainChart,{type:'line',data:{labels:[],datasets:[{label:'Rain',data:[]}]},options:{animation:false}});
+charts.temp=new Chart(tempChart,{type:'line',data:{labels:[],datasets:[{label:'Temp',data:[]}]},options:{animation:false}});
+charts.hum=new Chart(humChart,{type:'line',data:{labels:[],datasets:[{label:'Humidity',data:[]}]},options:{animation:false}});
+charts.wind=new Chart(windChart,{type:'line',data:{labels:[],datasets:[{label:'Wind',data:[]}]},options:{animation:false}});
+charts.rain=new Chart(rainChart,{type:'line',data:{labels:[],datasets:[{label:'Rain',data:[]}]},options:{animation:false}});
 }
 
-function format(v){ return isNaN(v)?'--':Number(v).toFixed(1); }
-function toIST(ts){ return new Date(ts).toLocaleTimeString("en-IN",{hour:'2-digit',minute:'2-digit',timeZone:'Asia/Kolkata'}); }
+function format(v){return isNaN(v)?'--':Number(v).toFixed(1);}
+function toIST(ts){return new Date(ts).toLocaleTimeString("en-IN",{hour:'2-digit',minute:'2-digit',timeZone:'Asia/Kolkata'});}
 
 async function load(){
-    const res = await fetch('/weather?ts='+Date.now());
-    const data = await res.json();
-    const d = data.obs;
+const res=await fetch('/weather?ts='+Date.now());
+const data=await res.json();
+const d=data.obs;
 
-    document.getElementById("status").innerText = "Updated: "+toIST(data.updatedTs);
+document.getElementById("status").innerText="Updated: "+toIST(data.updatedTs);
 
-    document.getElementById("temp").innerText = format(d.metric.temp)+"°C";
-    document.getElementById("range").innerHTML =
-        '<span class="up">↑ '+format(data.maxTemp)+'°C</span> &nbsp; ' +
-        '<span class="down">↓ '+format(data.minTemp)+'°C</span>';
+document.getElementById("temp").innerText=format(d.metric.temp)+"°C";
+document.getElementById("range").innerHTML='<span class="up">↑ '+format(data.maxTemp)+'°C</span> <span class="down">↓ '+format(data.minTemp)+'°C</span>';
 
-    document.getElementById("hum").innerText = Math.round(d.humidity)+"%";
-    document.getElementById("feels").innerText = "Feels Like "+format(d.metric.heatIndex)+"°C";
-    document.getElementById("dew").innerText = "Dew Point "+format(d.metric.dewpt)+"°C";
+document.getElementById("hum").innerText=Math.round(d.humidity)+"%";
+document.getElementById("feels").innerText="Feels "+format(d.metric.heatIndex)+"°C";
+document.getElementById("dew").innerText="Dew "+format(d.metric.dewpt)+"°C";
 
-    document.getElementById("wind").innerText = format(d.metric.windSpeed);
-    document.getElementById("gust").innerText = format(d.metric.windGust);
-    document.getElementById("maxWind").innerText = format(data.maxWind)+" km/h";
-    document.getElementById("maxGust").innerText = format(data.maxGust)+" km/h";
+document.getElementById("wind").innerText=format(d.metric.windSpeed);
+document.getElementById("gust").innerText=format(d.metric.windGust);
+document.getElementById("maxWind").innerText=format(data.maxWind)+" km/h";
+document.getElementById("maxGust").innerText=format(data.maxGust)+" km/h";
 
-    document.getElementById("rain").innerText = format(d.metric.precipTotal);
-    document.getElementById("rainRate").innerText = format(data.rainRate);
-    document.getElementById("maxRainRate").innerText = format(data.maxRainRate);
+document.getElementById("rain").innerText=format(d.metric.precipTotal);
+document.getElementById("rainRate").innerText=format(data.rainRate);
+document.getElementById("maxRainRate").innerText=format(data.maxRainRate);
 
-    document.getElementById("uv").innerText = format(data.uv);
-    document.getElementById("solar").innerText = format(data.solar);
+document.getElementById("uv").innerText=format(data.uv);
+document.getElementById("solar").innerText=format(data.solar);
 
-    document.getElementById("arrow").style.transform = "rotate("+d.winddir+"deg)";
-    document.getElementById("winddir").innerText = d.winddir+"°";
+document.getElementById("arrow").style.transform="translate(-50%,-100%) rotate("+d.winddir+"deg)";
+document.getElementById("winddir").innerText=d.winddir+"°";
 
-    // Temp rate
-    let rate = "--";
-    if(prevTemp !== null){
-        const diff = d.metric.temp - prevTemp;
-        const t = (Date.now() - prevTime)/3600000;
-        if(t>0) rate = (diff/t).toFixed(1)+" °C/hr";
-    }
-    prevTemp = d.metric.temp;
-    prevTime = Date.now();
-    document.getElementById("rate").innerHTML = rate;
+const labels=data.history.map(h=>toIST(h.ts));
 
-    const labels = data.history.map(h=>toIST(h.ts));
+charts.temp.data.labels=labels;
+charts.temp.data.datasets[0].data=data.history.map(h=>h.temp);
 
-    charts.temp.data.labels = labels;
-    charts.temp.data.datasets[0].data = data.history.map(h=>h.temp);
+charts.hum.data.labels=labels;
+charts.hum.data.datasets[0].data=data.history.map(h=>h.hum);
 
-    charts.hum.data.labels = labels;
-    charts.hum.data.datasets[0].data = data.history.map(h=>h.hum);
+charts.wind.data.labels=labels;
+charts.wind.data.datasets[0].data=data.history.map(h=>h.wind);
 
-    charts.wind.data.labels = labels;
-    charts.wind.data.datasets[0].data = data.history.map(h=>h.wind);
+charts.rain.data.labels=labels;
+charts.rain.data.datasets[0].data=data.history.map(h=>h.rain);
 
-    charts.rain.data.labels = labels;
-    charts.rain.data.datasets[0].data = data.history.map(h=>h.rain);
-
-    charts.temp.update();
-    charts.hum.update();
-    charts.wind.update();
-    charts.rain.update();
+charts.temp.update();
+charts.hum.update();
+charts.wind.update();
+charts.rain.update();
 }
 
 initCharts();
