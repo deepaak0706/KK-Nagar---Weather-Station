@@ -14,7 +14,6 @@ let currentDate = new Date().toDateString();
 app.get("/weather", async (req, res) => {
     const now = Date.now();
 
-    // Reset daily stats at midnight
     const todayStr = new Date().toDateString();
     if (todayStr !== currentDate) {
         todayHistory = [];
@@ -22,7 +21,7 @@ app.get("/weather", async (req, res) => {
         currentDate = todayStr;
     }
 
-    if (cachedData && (now - lastFetch < 60000)) {
+    if (cachedData && (now - lastFetch < 15000)) {
         return res.json(cachedData);
     }
 
@@ -38,17 +37,15 @@ app.get("/weather", async (req, res) => {
 
         const d = ecowitt.data;
 
-        // Keep actual decimal values (no rounding)
         const tempC = ((parseFloat(d.outdoor.temperature.value) - 32) * 5 / 9).toFixed(1);
         const feelsLikeC = ((parseFloat(d.outdoor.feels_like.value) - 32) * 5 / 9).toFixed(1);
         const dewPointC = ((parseFloat(d.outdoor.dew_point.value) - 32) * 5 / 9).toFixed(1);
-        const rainRateIn = parseFloat(d.rainfall.rain_rate.value);
-        const rainRateMmHr = (rainRateIn * 25.4).toFixed(1);
-        const totalRainIn = parseFloat(d.rainfall.daily.value);
-        const totalRainMm = (totalRainIn * 25.4).toFixed(1);
+        const rainRateMmHr = (parseFloat(d.rainfall.rain_rate.value) * 25.4).toFixed(1);
+        const totalRainMm = (parseFloat(d.rainfall.daily.value) * 25.4).toFixed(1);
+        const windSpeedKmh = (parseFloat(d.wind.wind_speed.value) * 1.60934).toFixed(1);
+        const windGustKmh = (parseFloat(d.wind.wind_gust.value) * 1.60934).toFixed(1);
 
         const currentRainRate = parseFloat(rainRateMmHr);
-
         if (currentRainRate > todayMaxRainRate) todayMaxRainRate = currentRainRate;
 
         todayHistory.push({
@@ -57,7 +54,7 @@ app.get("/weather", async (req, res) => {
             hum: parseFloat(d.outdoor.humidity.value),
             rainRate: currentRainRate,
             totalRain: parseFloat(totalRainMm),
-            windSpeed: parseFloat(d.wind.wind_speed.value) * 1.60934,
+            windSpeed: parseFloat(windSpeedKmh),
             windDir: parseFloat(d.wind.wind_direction.value)
         });
 
@@ -77,13 +74,13 @@ app.get("/weather", async (req, res) => {
                 totalRain: totalRainMm
             },
             wind: {
-                speed: (parseFloat(d.wind.wind_speed.value) * 1.60934).toFixed(1),
+                speed: windSpeedKmh,
+                gust: windGustKmh,
                 direction: d.wind.wind_direction.value
             },
-            pressure: d.pressure.relative.value,
+            pressure: (parseFloat(d.pressure.relative.value) * 33.8639).toFixed(1), // inHg → hPa
             history: todayHistory,
-            maxRainRate: todayMaxRainRate.toFixed(1),
-            lastUpdated: new Date().toISOString()
+            maxRainRate: todayMaxRainRate.toFixed(1)
         };
 
         lastFetch = now;
@@ -175,8 +172,6 @@ app.get("/", (req, res) => {
         <div class="card">
             <div class="grid">
                 <div class="item"><div class="label">SOLAR RADIATION</div><div class="value" id="solar"></div></div>
-                <div class="item"><div class="label">SUNRISE</div><div class="value" id="sunrise"></div></div>
-                <div class="item"><div class="label">SUNSET</div><div class="value" id="sunset"></div></div>
             </div>
         </div>
 
@@ -191,6 +186,7 @@ app.get("/", (req, res) => {
     <script>
         let lastRain = null;
         let lastTime = null;
+        let lastTemp = null;
         let charts = {};
 
         function format(v) { return isNaN(parseFloat(v)) ? '--' : parseFloat(v).toFixed(1); }
@@ -234,7 +230,7 @@ app.get("/", (req, res) => {
                 document.getElementById('feels').innerHTML = '<span class="' + tempClass + '">' + o.feelsLike + '°C</span>';
                 document.getElementById('hum').innerText = o.humidity + "%";
 
-                document.getElementById('wind').innerText = w.speed + " km/h";
+                document.getElementById('wind').innerText = w.speed + " km/h (Gust " + w.gust + ")";
                 document.getElementById('arrow').style.transform = 'rotate(' + w.direction + 'deg)';
                 document.getElementById('winddir').innerText = w.direction + '° (' + getWindDirection(w.direction) + ')';
 
@@ -243,12 +239,9 @@ app.get("/", (req, res) => {
                 document.getElementById('totalRain').innerText = r.totalRain + " mm";
 
                 document.getElementById('dewpoint').innerText = o.dewPoint + "°C";
-                document.getElementById('pressure').innerText = data.pressure + " inHg";
+                document.getElementById('pressure').innerText = data.pressure + " hPa";
                 document.getElementById('uv').innerText = o.uvi || '--';
                 document.getElementById('solar').innerText = o.solar + " W/m²";
-
-                if (data.sunrise) document.getElementById('sunrise').innerText = new Date(data.sunrise).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
-                if (data.sunset) document.getElementById('sunset').innerText = new Date(data.sunset).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
 
                 document.getElementById('status').innerHTML = '✅ Live from Ecowitt • Updated ' + new Date().toLocaleTimeString();
 
@@ -267,7 +260,7 @@ app.get("/", (req, res) => {
         }
 
         createCharts();
-        setInterval(loadData, 60000);   // 1 minute interval
+        setInterval(loadData, 15000);   // 15 seconds - safe and responsive
         loadData();
     </script>
 </body>
@@ -278,5 +271,5 @@ app.get("/", (req, res) => {
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
     console.log("✅ KK Nagar Weather Station (Ecowitt) running on port " + PORT);
-    console.log("Refresh interval: 60 seconds (1 minute)");
+    console.log("Refresh interval: 15 seconds");
 });
