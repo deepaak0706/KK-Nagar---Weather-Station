@@ -65,7 +65,7 @@ app.get("/weather", async (req, res) => {
         if (lastTemp !== null && lastTempTime && now - lastTempTime >= MIN_INTERVAL_MS) {
             const diffHours = (now - lastTempTime) / (1000 * 3600);
             tempChangeRate = (parseFloat(tempC) - lastTemp) / diffHours;
-            if (Math.abs(tempChangeRate) > 5) tempChangeRate = 0; // unrealistic spikes ignored
+            if (Math.abs(tempChangeRate) > 5) tempChangeRate = 0; // ignore unrealistic spikes
         }
         lastTemp = parseFloat(tempC);
         lastTempTime = now;
@@ -151,6 +151,7 @@ h1 { text-align:center; padding:22px 15px 15px; font-size:28px; margin:0; backgr
 .small-value { font-size:16px; font-weight:400; color:#cbd5e1; margin-top:2px; }
 .cool { color:#67e8f9; } .mild { color:#fcd34d; } .hot { color:#fb923c; } .veryhot { color:#f87171; }
 .red { color:#f87171; } .blue { color:#3b82f6; } .orange { color:#fb923c; }
+.chart-container { height:200px; margin-top:12px; }
 </style>
 </head>
 <body>
@@ -195,30 +196,38 @@ h1 { text-align:center; padding:22px 15px 15px; font-size:28px; margin:0; backgr
 
 <div class="card">
 <h3 style="text-align:center; opacity:0.9;">Recent Trends (IST)</h3>
-<canvas id="tempChart" height="140"></canvas>
-<canvas id="humChart" height="140"></canvas>
-<canvas id="windChart" height="140"></canvas>
+<div class="chart-container"><canvas id="tempChart"></canvas></div>
+<div class="chart-container"><canvas id="humChart"></canvas></div>
+<div class="chart-container"><canvas id="windChart"></canvas></div>
 </div>
 
 </div>
 
 <script>
+document.addEventListener("DOMContentLoaded", function(){
 let charts={};
 
 function getTempClass(temp){ if(temp<=25) return 'cool'; if(temp<35) return 'mild'; if(temp<40) return 'hot'; return 'veryhot'; }
 function getWindDir(deg){ const dirs=["N","NE","E","SE","S","SW","W","NW"]; return dirs[Math.round(deg/45)%8]; }
 
 function createCharts(){
-    const commonOptions = {
-        animation: false,
-        responsive:true,
-        maintainAspectRatio:false,
-        plugins: { legend:{ display:true, labels:{color:'#e2e8f0'} } },
-        scales: { x:{ ticks:{color:'#e2e8f0'}, grid:{color:'rgba(255,255,255,0.1)'} }, y:{ ticks:{color:'#e2e8f0'}, grid:{color:'rgba(255,255,255,0.1)'} } }
+    const options = {
+        animation:false, responsive:true, maintainAspectRatio:false,
+        plugins:{ legend:{ labels:{ color:'#e2e8f0' } } },
+        scales:{
+            x:{ ticks:{ color:'#e2e8f0' }, grid:{ color:'rgba(255,255,255,0.1)' } },
+            y:{ ticks:{ color:'#e2e8f0' }, grid:{ color:'rgba(255,255,255,0.1)' } }
+        }
     };
-    charts.temp = new Chart(document.getElementById('tempChart'),{type:'line',data:{labels:[],datasets:[{label:'Temp (°C)',data:[],borderColor:'#67e8f9',backgroundColor:'rgba(103,232,249,0.2)',tension:0.4,fill:true,pointRadius:2} ]},options:commonOptions});
-    charts.hum = new Chart(document.getElementById('humChart'),{type:'line',data:{labels:[],datasets:[{label:'Humidity (%)',data:[],borderColor:'#4ade80',backgroundColor:'rgba(74,222,128,0.2)',tension:0.4,fill:true,pointRadius:2}]},options:commonOptions});
-    charts.wind = new Chart(document.getElementById('windChart'),{type:'line',data:{labels:[],datasets:[{label:'Wind km/h',data:[],borderColor:'#fb923c',backgroundColor:'rgba(251,146,60,0.2)',tension:0.4,fill:true,pointRadius:2}]},options:commonOptions});
+    charts.temp = new Chart(document.getElementById('tempChart'),{
+        type:'line', data:{ labels:[], datasets:[{label:'Temp (°C)', data:[], borderColor:'#67e8f9', backgroundColor:'rgba(103,232,249,0.2)', tension:0.4, fill:true, pointRadius:2}] }, options
+    });
+    charts.hum = new Chart(document.getElementById('humChart'),{
+        type:'line', data:{ labels:[], datasets:[{label:'Humidity (%)', data:[], borderColor:'#4ade80', backgroundColor:'rgba(74,222,128,0.2)', tension:0.4, fill:true, pointRadius:2}] }, options
+    });
+    charts.wind = new Chart(document.getElementById('windChart'),{
+        type:'line', data:{ labels:[], datasets:[{label:'Wind km/h', data:[], borderColor:'#fb923c', backgroundColor:'rgba(251,146,60,0.2)', tension:0.4, fill:true, pointRadius:2}] }, options
+    });
 }
 
 async function loadData(){
@@ -226,7 +235,6 @@ async function loadData(){
         const res=await fetch('/weather');
         const data=await res.json();
         if(data.error){ document.getElementById('status').innerText=data.error; return; }
-
         const o=data.outdoor,r=data.rainfall,w=data.wind;
         const tempClass=getTempClass(parseFloat(o.temp));
         document.getElementById('temp').innerHTML=\`<span class="\${tempClass}">\${o.temp}°C</span>\`;
@@ -234,13 +242,7 @@ async function loadData(){
         document.getElementById('dewpoint').innerText=o.dewPoint+"°C";
         document.getElementById('hum').innerText=o.humidity+"%";
 
-        let rateHTML='';
-        if(o.tempChangeRate){
-            const r=parseFloat(o.tempChangeRate);
-            const sign=r>=0?'↑':'↓';
-            const color=r>=0?'#4ade80':'#f87171';
-            rateHTML=\`<span style="color:\${color}; font-size:13px;">\${sign} \${Math.abs(r)} °C/hr</span>\`;
-        }
+        let rateHTML=''; if(o.tempChangeRate){ const r=parseFloat(o.tempChangeRate); const sign=r>=0?'↑':'↓'; const color=r>=0?'#4ade80':'#f87171'; rateHTML=\`<span style="color:\${color}; font-size:13px;">\${sign} \${Math.abs(r)} °C/hr</span>\`; }
         document.getElementById('tempRate').innerHTML=rateHTML;
         document.getElementById('maxMinTemp').innerHTML=\`<span class="red">Max: \${o.maxTemp}°C</span> | <span class="blue">Min: \${o.minTemp}°C</span>\`;
 
@@ -259,7 +261,6 @@ async function loadData(){
 
         document.getElementById('status').innerText='✅ Live • Updated '+new Date().toLocaleTimeString('en-IN',{timeZone:'Asia/Kolkata'});
 
-        // Charts
         const labels=data.history.map(h=>h.time);
         const tempData=data.history.map(h=>h.temp);
         const humData=data.history.map(h=>h.hum);
@@ -278,7 +279,8 @@ async function loadData(){
     }catch(e){ document.getElementById('status').innerText="⚠️ Using last known data"; }
 }
 
-createCharts(); loadData(); setInterval(loadData,30000);
+createCharts(); loadData(); setInterval(loadData,15000);
+});
 </script>
 </body>
 </html>
