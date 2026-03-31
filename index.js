@@ -10,14 +10,12 @@ let cachedData = null;
 let lastFetch = 0;
 let todayHistory = [];
 let todayMaxRainRate = 0;
-let todayMaxWind = 0;
-let todayMaxGust = 0;
 let todayMaxTemp = null;
 let todayMinTemp = null;
+let todayMaxWind = 0;
+let todayMaxGust = 0;
+let tempHistory = [];
 let currentDate = new Date().toDateString();
-
-// Temperature smoothing for rate calculation
-const tempHistory = [];
 
 app.get("/weather", async (req, res) => {
     const now = Date.now();
@@ -25,16 +23,16 @@ app.get("/weather", async (req, res) => {
 
     if (todayStr !== currentDate) {
         todayHistory = [];
+        tempHistory = [];
         todayMaxRainRate = 0;
-        todayMaxWind = 0;
-        todayMaxGust = 0;
         todayMaxTemp = null;
         todayMinTemp = null;
-        tempHistory.length = 0;
+        todayMaxWind = 0;
+        todayMaxGust = 0;
         currentDate = todayStr;
     }
 
-    if (cachedData && now - lastFetch < 30000) return res.json(cachedData); // 30 sec cache
+    if (cachedData && now - lastFetch < 30000) return res.json(cachedData);
 
     try {
         const url = `https://api.ecowitt.net/api/v3/device/real_time?application_key=${APPLICATION_KEY}&api_key=${API_KEY}&mac=${MAC}`;
@@ -45,66 +43,58 @@ app.get("/weather", async (req, res) => {
 
         const d = ecowitt.data;
 
-        const tempC = parseFloat(((parseFloat(d.outdoor.temperature.value) - 32) * 5 / 9).toFixed(1));
-        const feelsLikeC = parseFloat(((parseFloat(d.outdoor.feels_like.value) - 32) * 5 / 9).toFixed(1));
-        const dewPointC = parseFloat(((parseFloat(d.outdoor.dew_point.value) - 32) * 5 / 9).toFixed(1));
-        const humidity = parseFloat(d.outdoor.humidity.value);
+        // Convert units
+        const tempC = parseFloat(((parseFloat(d.outdoor.temperature.value)-32)*5/9).toFixed(1));
+        const feelsLikeC = parseFloat(((parseFloat(d.outdoor.feels_like.value)-32)*5/9).toFixed(1));
+        const dewPointC = parseFloat(((parseFloat(d.outdoor.dew_point.value)-32)*5/9).toFixed(1));
+        const rainRateMmHr = parseFloat((parseFloat(d.rainfall.rain_rate.value)*25.4).toFixed(1));
+        const totalRainMm = parseFloat((parseFloat(d.rainfall.daily.value)*25.4).toFixed(1));
+        const windSpeedKmh = parseFloat((parseFloat(d.wind.wind_speed.value)*1.60934).toFixed(1));
+        const windGustKmh = parseFloat((parseFloat(d.wind.wind_gust.value)*1.60934).toFixed(1));
+        const pressurehPa = parseFloat((parseFloat(d.pressure.relative.value)*33.8639).toFixed(1));
+        const solar = parseFloat(d.solar_and_uvi.solar.value);
+        const uvi = d.solar_and_uvi.uvi.value;
 
-        const rainRateMmHr = parseFloat((parseFloat(d.rainfall.rain_rate.value) * 25.4).toFixed(1));
-        const totalRainMm = parseFloat((parseFloat(d.rainfall.daily.value) * 25.4).toFixed(1));
-
-        const windSpeedKmh = parseFloat((parseFloat(d.wind.wind_speed.value) * 1.60934).toFixed(1));
-        const windGustKmh = parseFloat((parseFloat(d.wind.wind_gust.value) * 1.60934).toFixed(1));
-        const windDir = parseFloat(d.wind.wind_direction.value);
-
-        const pressureHPa = parseFloat((parseFloat(d.pressure.relative.value) * 33.8639).toFixed(1));
-        const solarRadiation = d.solar_and_uvi?.solar?.value ?? 0;
-        const uvIndex = d.solar_and_uvi?.uvi?.value ?? '--';
-
-        // Temp rate calculation over last ~5 min (smoothed)
-        tempHistory.push({ temp: tempC, time: now });
-        while (tempHistory.length > 10) tempHistory.shift(); // keep last 10 readings (~5 min)
-        let tempChangeRate = 0;
-        if (tempHistory.length >= 2) {
-            const first = tempHistory[0];
-            const last = tempHistory[tempHistory.length - 1];
-            const hours = (last.time - first.time) / (1000 * 3600);
-            if (hours > 0) tempChangeRate = parseFloat(((last.temp - first.temp) / hours).toFixed(1));
-        }
-
-        // Daily max/min temp
+        // Track max/min
         if (todayMaxTemp === null || tempC > todayMaxTemp) todayMaxTemp = tempC;
         if (todayMinTemp === null || tempC < todayMinTemp) todayMinTemp = tempC;
-
-        // Max rain/wind/gust
-        if (rainRateMmHr > todayMaxRainRate) todayMaxRainRate = rainRateMmHr;
         if (windSpeedKmh > todayMaxWind) todayMaxWind = windSpeedKmh;
         if (windGustKmh > todayMaxGust) todayMaxGust = windGustKmh;
+        if (rainRateMmHr > todayMaxRainRate) todayMaxRainRate = rainRateMmHr;
 
+        // Temp rate based on 1 hour difference
+        tempHistory.push({ temp: tempC, time: now });
+        while (tempHistory.length > 0 && now - tempHistory[0].time > 2*3600*1000) tempHistory.shift(); // keep last 2hr
+        let tempChangeRate = 0;
+        const oneHourAgo = tempHistory.find(h => now - h.time >= 3600*1000);
+        if (oneHourAgo) {
+            const hoursDiff = (now - oneHourAgo.time)/(1000*3600);
+            tempChangeRate = parseFloat(((tempC - oneHourAgo.temp)/hoursDiff).toFixed(1));
+        }
+
+        // Track history
         todayHistory.push({
-            time: new Date().toLocaleTimeString('en-IN', { hour:'2-digit', minute:'2-digit', hour12:false, timeZone:'Asia/Kolkata' }),
+            time: new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: false }),
             temp: tempC,
-            hum: humidity,
-            dewPoint: dewPointC,
+            hum: parseFloat(d.outdoor.humidity.value),
             rainRate: rainRateMmHr,
             totalRain: totalRainMm,
             windSpeed: windSpeedKmh,
-            windDir
+            windDir: parseFloat(d.wind.wind_direction.value)
         });
-
         if (todayHistory.length > 1440) todayHistory.shift();
 
         cachedData = {
             outdoor: {
                 temp: tempC,
                 feelsLike: feelsLikeC,
-                humidity,
                 dewPoint: dewPointC,
+                humidity: parseFloat(d.outdoor.humidity.value),
                 tempChangeRate,
                 maxTemp: todayMaxTemp,
                 minTemp: todayMinTemp,
-                solar: solarRadiation,
-                uvi: uvIndex
+                solar,
+                uvi
             },
             rainfall: {
                 rainRate: rainRateMmHr,
@@ -116,23 +106,24 @@ app.get("/weather", async (req, res) => {
                 gust: windGustKmh,
                 maxSpeed: todayMaxWind,
                 maxGust: todayMaxGust,
-                direction: windDir
+                direction: parseFloat(d.wind.wind_direction.value)
             },
-            pressure: pressureHPa,
+            pressure: pressurehPa,
             history: todayHistory
         };
 
         lastFetch = now;
         res.json(cachedData);
-    } catch (err) {
-        console.error(err.message);
+
+    } catch (error) {
+        console.error("Ecowitt API Error:", error.message);
         if (cachedData) return res.json(cachedData);
         res.status(500).json({ error: "Failed to fetch data from Ecowitt" });
     }
 });
 
 app.get("/", (req,res)=>{
-res.send(`<!DOCTYPE html>
+    res.send(`<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -140,19 +131,23 @@ res.send(`<!DOCTYPE html>
 <title>KK Nagar Weather Station</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
-body { margin:0; font-family:'Segoe UI',Arial,sans-serif; background:linear-gradient(135deg,#0f172a,#1e293b); color:#e2e8f0; min-height:100vh; }
-h1 { text-align:center; padding:22px 15px 15px; font-size:28px; margin:0; background:rgba(15,23,42,0.85); }
-.status { text-align:center; font-size:14px; padding:8px; opacity:0.9; }
-.container { max-width:1100px; margin:0 auto; padding:12px; }
-.card { background:rgba(255,255,255,0.07); backdrop-filter:blur(18px); border-radius:20px; padding:22px; margin-bottom:18px; box-shadow:0 10px 30px rgba(0,0,0,0.35); }
-.grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(120px,1fr)); gap:14px; }
-.item { text-align:center; }
-.label { font-size:13px; opacity:0.75; margin-bottom:5px; }
-.value { font-size:28px; font-weight:700; }
-.small-value { font-size:16px; font-weight:400; color:#cbd5e1; margin-top:2px; }
-.cool { color:#67e8f9; } .mild { color:#fcd34d; } .hot { color:#fb923c; } .veryhot { color:#f87171; }
-.red { color:#f87171; } .blue { color:#3b82f6; } .orange { color:#fb923c; }
-.chart-container { height:200px; margin-top:12px; }
+body{margin:0;font-family:'Segoe UI',Arial,sans-serif;background:linear-gradient(135deg,#0f172a,#1e293b);color:#e2e8f0;min-height:100vh;}
+h1{text-align:center;padding:22px 15px 15px;font-size:27px;margin:0;background:rgba(15,23,42,0.85);}
+.status{text-align:center;font-size:14px;padding:8px;opacity:0.9;}
+.container{max-width:1100px;margin:0 auto;padding:12px;}
+.card{background:rgba(255,255,255,0.07);backdrop-filter:blur(16px);border-radius:18px;padding:20px;margin-bottom:16px;box-shadow:0 8px 25px rgba(0,0,0,0.35);}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:14px;}
+.item{text-align:center;}
+.label{font-size:13px;opacity:0.75;margin-bottom:5px;}
+.value{font-size:26px;font-weight:700;}
+.subvalue{font-size:13px;font-weight:400;color:#cbd5e1;}
+.cool{color:#67e8f9;}
+.mild{color:#fcd34d;}
+.hot{color:#fb923c;}
+.veryhot{color:#f87171;}
+.rise{color:#4ade80;}
+.fall{color:#f87171;}
+canvas{background:rgba(15,23,42,0.95);border-radius:16px;padding:16px;margin-top:12px;}
 </style>
 </head>
 <body>
@@ -163,131 +158,107 @@ h1 { text-align:center; padding:22px 15px 15px; font-size:28px; margin:0; backgr
 <div class="card">
 <div class="grid">
 <div class="item">
-<div class="label">TEMP</div>
+<div class="label">TEMPERATURE</div>
 <div class="value" id="temp"></div>
-<div id="tempRate" class="small-value"></div>
-<div class="small-value" id="maxMinTemp"></div>
+<div class="subvalue" id="tempRate"></div>
+<div class="subvalue" id="maxminTemp"></div>
 </div>
-<div class="item"><div class="label">FEELS LIKE</div><div class="value" id="feels"></div></div>
-<div class="item"><div class="label">DEW POINT</div><div class="value" id="dewpoint"></div></div>
-<div class="item"><div class="label">HUMIDITY</div><div class="value" id="hum"></div></div>
-</div></div>
-
-<div class="card">
-<div class="grid">
-<div class="item"><div class="label">RAIN RATE</div><div class="small-value" id="rain"></div></div>
-<div class="item"><div class="label">TOTAL RAIN</div><div class="small-value" id="totalRain"></div></div>
-<div class="item"><div class="small-value" id="maxRain"></div></div>
-</div></div>
-
-<div class="card">
-<div class="grid">
-<div class="item"><div class="label">WIND SPEED</div><div class="value" id="wind"></div></div>
-<div class="item"><div class="label">GUST</div><div class="value" id="gust"></div></div>
-<div class="item"><div class="small-value red" id="maxWind"></div></div>
-<div class="item"><div class="small-value orange" id="maxGust"></div></div>
-<div class="item"><div class="small-value" id="windDirection"></div></div>
-</div></div>
-
-<div class="card">
-<div class="grid">
-<div class="item"><div class="label">SOLAR RADIATION</div><div class="small-value" id="solar"></div></div>
-<div class="item"><div class="label">UV INDEX</div><div class="small-value" id="uv"></div></div>
-</div></div>
-
-<div class="card">
-<h3 style="text-align:center; opacity:0.9;">Recent Trends (IST)</h3>
-<div class="chart-container"><canvas id="tempChart"></canvas></div>
-<div class="chart-container"><canvas id="humChart"></canvas></div>
-<div class="chart-container"><canvas id="windChart"></canvas></div>
+<div class="item">
+<div class="label">DEW POINT & HUMIDITY</div>
+<div class="value" id="dewHum"></div>
+</div>
+<div class="item">
+<div class="label">FEELS LIKE</div>
+<div class="value" id="feels"></div>
+</div>
+</div>
 </div>
 
+<div class="card">
+<div class="grid">
+<div class="item">
+<div class="label">RAIN RATE</div>
+<div class="value" id="rain"></div>
+</div>
+<div class="item">
+<div class="label">TOTAL RAIN (Today)</div>
+<div class="value" id="totalRain"></div>
+</div>
+</div>
+</div>
+
+<div class="card">
+<div class="label">WIND</div>
+<div class="value" id="wind"></div>
+<div class="subvalue" id="maxWind"></div>
+<div class="subvalue" id="windDir"></div>
+</div>
+
+<div class="card">
+<div class="grid">
+<div class="item"><div class="label">PRESSURE</div><div class="value" id="pressure"></div></div>
+<div class="item"><div class="label">SOLAR & UV</div><div class="value" id="solar"></div></div>
+</div>
+</div>
+
+<div class="card">
+<h3 style="margin:0 0 16px 0;text-align:center;opacity:0.9;">Recent Trends</h3>
+<canvas id="tempChart" height="140"></canvas>
+<canvas id="humChart" height="140"></canvas>
+<canvas id="windChart" height="140"></canvas>
+</div>
 </div>
 
 <script>
-document.addEventListener("DOMContentLoaded", function(){
-let charts={};
-
-function getTempClass(temp){ if(temp<=25) return 'cool'; if(temp<35) return 'mild'; if(temp<40) return 'hot'; return 'veryhot'; }
-function getWindDir(deg){ const dirs=["N","NE","E","SE","S","SW","W","NW"]; return dirs[Math.round(deg/45)%8]; }
-
+let charts = {};
+function format(v){return isNaN(parseFloat(v))?'--':parseFloat(v).toFixed(1);}
+function getWindDirection(deg){const dirs=["N","NE","E","SE","S","SW","W","NW"];return dirs[Math.round(deg/45)%8];}
+function getTempClass(temp){if(temp<=25)return"cool";if(temp<35)return"mild";if(temp<40)return"hot";return"veryhot";}
 function createCharts(){
-    const options = {
-        animation:false, responsive:true, maintainAspectRatio:false,
-        plugins:{ legend:{ labels:{ color:'#e2e8f0' } } },
-        scales:{
-            x:{ ticks:{ color:'#e2e8f0' }, grid:{ color:'rgba(255,255,255,0.1)' } },
-            y:{ ticks:{ color:'#e2e8f0' }, grid:{ color:'rgba(255,255,255,0.1)' } }
-        }
-    };
-    charts.temp = new Chart(document.getElementById('tempChart'),{
-        type:'line', data:{ labels:[], datasets:[{label:'Temp (°C)', data:[], borderColor:'#67e8f9', backgroundColor:'rgba(103,232,249,0.2)', tension:0.4, fill:true, pointRadius:2}] }, options
-    });
-    charts.hum = new Chart(document.getElementById('humChart'),{
-        type:'line', data:{ labels:[], datasets:[{label:'Humidity (%)', data:[], borderColor:'#4ade80', backgroundColor:'rgba(74,222,128,0.2)', tension:0.4, fill:true, pointRadius:2}] }, options
-    });
-    charts.wind = new Chart(document.getElementById('windChart'),{
-        type:'line', data:{ labels:[], datasets:[{label:'Wind km/h', data:[], borderColor:'#fb923c', backgroundColor:'rgba(251,146,60,0.2)', tension:0.4, fill:true, pointRadius:2}] }, options
-    });
+const opt={animation:false,scales:{y:{beginAtZero:false,ticks:{callback:v=>parseFloat(v).toFixed(1)}}}};
+charts.temp=new Chart(document.getElementById('tempChart'),{type:'line',data:{labels:[],datasets:[{label:'Temperature (°C)',data:[],borderColor:'#67e8f9',tension:0.4,fill:false}]},options:opt});
+charts.hum=new Chart(document.getElementById('humChart'),{type:'line',data:{labels:[],datasets:[{label:'Humidity (%)',data:[],borderColor:'#4ade80',tension:0.4,fill:false}]},options:opt});
+charts.wind=new Chart(document.getElementById('windChart'),{type:'line',data:{labels:[],datasets:[{label:'Wind Speed (km/h)',data:[],borderColor:'#fb923c',tension:0.4,fill:false}]},options:opt});
 }
-
 async function loadData(){
-    try{
-        const res=await fetch('/weather');
-        const data=await res.json();
-        if(data.error){ document.getElementById('status').innerText=data.error; return; }
-        const o=data.outdoor,r=data.rainfall,w=data.wind;
-        const tempClass=getTempClass(parseFloat(o.temp));
-        document.getElementById('temp').innerHTML=\`<span class="\${tempClass}">\${o.temp.toFixed(1)}°C</span>\`;
-        document.getElementById('feels').innerHTML=\`<span class="\${tempClass}">\${o.feelsLike.toFixed(1)}°C</span>\`;
-        document.getElementById('dewpoint').innerText=o.dewPoint.toFixed(1)+"°C";
-        document.getElementById('hum').innerText=o.humidity.toFixed(1)+"%";
+try{
+const res=await fetch('/weather');const data=await res.json();
+if(data.error){document.getElementById('status').innerHTML='⚠️ '+data.error;return;}
+const o=data.outdoor||{};const r=data.rainfall||{};const w=data.wind||{};
+const tempClass=getTempClass(parseFloat(o.temp));
+document.getElementById('temp').innerHTML='<span class="'+tempClass+'">'+o.temp+'°C</span>';
+let rateHTML='';if(o.tempChangeRate!==undefined){const rate=parseFloat(o.tempChangeRate);const sign=rate>=0?'↑':'↓';const color=rate>=0?'#4ade80':'#f87171';rateHTML='<span style="color:'+color+'; font-size:13px;">'+sign+' '+Math.abs(rate)+' °C/hr</span>';}
+document.getElementById('tempRate').innerHTML=rateHTML;
+document.getElementById('maxminTemp').innerHTML='Max: <span style="color:#f87171;">'+o.maxTemp+'</span> | Min: <span style="color:#67e8f9;">'+o.minTemp+'</span>';
+document.getElementById('dewHum').innerHTML=o.dewPoint+'°C / '+o.humidity+'%';
+document.getElementById('feels').innerHTML=o.feelsLike+'°C';
+document.getElementById('rain').innerHTML=r.rainRate+' mm/hr (Max: '+r.maxRainRate+')';
+document.getElementById('totalRain').innerHTML=r.totalRain+' mm';
+document.getElementById('wind').innerHTML=w.speed+' km/h, Gust: '+w.gust+' km/h';
+document.getElementById('maxWind').innerHTML='Max Speed: '+w.maxSpeed+' km/h | Max Gust: '+w.maxGust+' km/h';
+document.getElementById('windDir').innerHTML=w.direction+'° ('+getWindDirection(w.direction)+')';
+document.getElementById('pressure').innerHTML=data.pressure+' hPa';
+document.getElementById('solar').innerHTML='Solar: '+o.solar+' W/m², UV: '+(o.uvi||'--');
 
-        let rateHTML=''; if(o.tempChangeRate!==undefined){ const r=parseFloat(o.tempChangeRate); const sign=r>=0?'↑':'↓'; const color=r>=0?'#4ade80':'#f87171'; rateHTML=\`<span style="color:\${color}; font-size:13px;">\${sign} \${Math.abs(r).toFixed(1)} °C/hr</span>\`; }
-        document.getElementById('tempRate').innerHTML=rateHTML;
-        document.getElementById('maxMinTemp').innerHTML=\`<span class="red">Max: \${o.maxTemp.toFixed(1)}°C</span> | <span class="blue">Min: \${o.minTemp.toFixed(1)}°C</span>\`;
+const labels=data.history.map(h=>h.time);
+charts.temp.data.labels=labels;charts.temp.data.datasets[0].data=data.history.map(h=>h.temp);
+charts.hum.data.labels=labels;charts.hum.data.datasets[0].data=data.history.map(h=>h.hum);
+charts.wind.data.labels=labels;charts.wind.data.datasets[0].data=data.history.map(h=>h.windSpeed);
 
-        document.getElementById('rain').innerText=r.rainRate+" mm/hr";
-        document.getElementById('totalRain').innerText=r.totalRain+" mm";
-        document.getElementById('maxRain').innerText=r.maxRainRate?"Max Rain Rate: "+r.maxRainRate+" mm/hr":'';
-
-        document.getElementById('wind').innerText=w.speed+" km/h";
-        document.getElementById('gust').innerText=w.gust+" km/h";
-        document.getElementById('maxWind').innerHTML=\`<span class="red">Max Speed: \${w.maxSpeed} km/h</span>\`;
-        document.getElementById('maxGust').innerHTML=\`<span class="orange">Max Gust: \${w.maxGust} km/h</span>\`;
-        document.getElementById('windDirection').innerText=w.direction+"° ("+getWindDir(w.direction)+")";
-
-        document.getElementById('solar').innerText=o.solar+" W/m²";
-        document.getElementById('uv').innerText=o.uvi;
-
-        document.getElementById('status').innerText='✅ Live • Updated '+new Date().toLocaleTimeString('en-IN',{timeZone:'Asia/Kolkata'});
-
-        const labels=data.history.map(h=>h.time);
-        const tempData=data.history.map(h=>h.temp);
-        const humData=data.history.map(h=>h.hum);
-        const windData=data.history.map(h=>h.windSpeed);
-
-        charts.temp.options.scales.y.min=Math.floor(Math.min(...tempData)*10)/10;
-        charts.temp.options.scales.y.max=Math.ceil(Math.max(...tempData)*10)/10;
-        charts.temp.data.labels=labels; charts.temp.data.datasets[0].data=tempData; charts.temp.update();
-
-        charts.hum.options.scales.y.min=0;
-        charts.hum.options.scales.y.max=100;
-        charts.hum.data.labels=labels; charts.hum.data.datasets[0].data=humData; charts.hum.update();
-
-        charts.wind.options.scales.y.min=0; charts.wind.options.scales.y.max=Math.ceil(Math.max(...windData)+2);
-        charts.wind.data.labels=labels; charts.wind.data.datasets[0].data=windData; charts.wind.update();
-
-    }catch(e){ document.getElementById('status').innerText="⚠️ Using last known data"; }
+charts.temp.update();charts.hum.update();charts.wind.update();
+document.getElementById('status').innerHTML='✅ Live • Updated '+new Date().toLocaleTimeString('en-IN',{timeZone:'Asia/Kolkata'});
+}catch(e){document.getElementById('status').innerHTML="⚠️ Using last known data";}
 }
-
-createCharts(); loadData(); setInterval(loadData,30000);
-});
+createCharts();
+setInterval(loadData,30000);
+loadData();
 </script>
 </body>
-</html>
-`);
+</html>`);
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log("✅ KK Nagar Weather Station running on port " + PORT));
+app.listen(PORT, () => {
+    console.log("✅ KK Nagar Weather Station (Ecowitt) running on port " + PORT);
+    console.log("Refresh interval: 30 seconds");
+});
