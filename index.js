@@ -70,7 +70,8 @@ app.get("/weather", async (req, res) => {
             temp,
             hum: obs.humidity,
             wind,
-            rain
+            rain,
+            windDir: obs.winddir || 0
         });
 
         if (todayHistory.length > 1440) todayHistory.shift();
@@ -130,18 +131,42 @@ body {
     margin-bottom:6px;
 }
 
-.temp-big {
-    font-size:32px;
-    font-weight:600;
-}
-
-.hum-big {
-    font-size:28px;
-    font-weight:600;
-}
+.temp-big { font-size:32px; font-weight:600; }
+.hum-big { font-size:28px; font-weight:600; }
 
 .center { text-align:center; }
 .sub { font-size:14px; opacity:0.8; margin-top:4px; }
+
+/* COMPASS */
+.compass {
+    width:120px;
+    height:120px;
+    border-radius:50%;
+    border:2px solid rgba(255,255,255,0.2);
+    margin:auto;
+    position:relative;
+}
+
+.dir {
+    position:absolute;
+    font-size:11px;
+    opacity:0.7;
+}
+
+.n { top:4px; left:50%; transform:translateX(-50%); }
+.s { bottom:4px; left:50%; transform:translateX(-50%); }
+.e { right:4px; top:50%; transform:translateY(-50%); }
+.w { left:4px; top:50%; transform:translateY(-50%); }
+
+.arrow {
+    position:absolute;
+    top:50%;
+    left:50%;
+    transform-origin:50% 100%;
+    font-size:16px;
+    transform:translate(-50%,-100%) rotate(0deg);
+    transition:0.6s ease;
+}
 
 canvas {
     background:#0f172a;
@@ -157,7 +182,6 @@ canvas {
 
 <div id="status" class="center sub"></div>
 
-<!-- TEMPERATURE -->
 <div class="section center">
 <div class="title">Temperature</div>
 <div id="temp" class="temp-big"></div>
@@ -166,21 +190,29 @@ canvas {
 <div id="dew" class="sub"></div>
 </div>
 
-<!-- HUMIDITY -->
 <div class="section center">
 <div class="title">Humidity</div>
 <div id="hum" class="hum-big"></div>
 </div>
 
-<!-- WIND -->
+<!-- WIND RESTORED -->
 <div class="section center">
 <div class="title">Wind</div>
-<div><b><span id="wind"></span> km/h</b></div>
+
+<div class="compass">
+<div class="dir n">N</div>
+<div class="dir s">S</div>
+<div class="dir e">E</div>
+<div class="dir w">W</div>
+<div id="arrow" class="arrow">▲</div>
+</div>
+
+<div class="sub"><b><span id="wind"></span> km/h</b></div>
+<div class="sub">Dir: <span id="winddir"></span></div>
 <div class="sub">Gust: <span id="gust"></span> km/h</div>
 <div class="sub">Max: <span id="maxWind"></span> | Gust Max: <span id="maxGust"></span></div>
 </div>
 
-<!-- RAIN -->
 <div class="section center">
 <div class="title">Rainfall</div>
 <div>Rain: <span id="rain"></span> mm</div>
@@ -188,11 +220,10 @@ canvas {
 <div class="sub">(Max: <span id="maxRainRate"></span> mm/hr)</div>
 </div>
 
-<!-- SUN -->
 <div class="section center">
 <div class="title">Sun</div>
-<div>UV Index: <span id="uv"></span></div>
-<div>Solar Radiation: <span id="solar"></span></div>
+<div>UV: <span id="uv"></span></div>
+<div>Solar: <span id="solar"></span></div>
 </div>
 
 <canvas id="tempChart"></canvas>
@@ -240,6 +271,9 @@ document.getElementById("maxRainRate").innerText=format(data.maxRainRate);
 
 document.getElementById("uv").innerText=format(data.uv);
 document.getElementById("solar").innerText=format(data.solar);
+
+document.getElementById("arrow").style.transform="translate(-50%,-100%) rotate("+d.winddir+"deg)";
+document.getElementById("winddir").innerText=d.winddir+"°";
 
 const labels=data.history.map(h=>toIST(h.ts));
 
