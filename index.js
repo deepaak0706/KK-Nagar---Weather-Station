@@ -1,6 +1,5 @@
-// index.js  ← Single file for Vercel
+// index.js - Single file for Vercel (Robust version)
 
-// ====================== BACKEND LOGIC ======================
 let cachedData = null;
 let lastFetch = 0;
 let todayHistory = [];
@@ -33,19 +32,26 @@ async function getWeatherData() {
         const MAC = process.env.MAC;
 
         if (!APPLICATION_KEY || !API_KEY || !MAC) {
-            throw new Error("Missing environment variables");
+            throw new Error("Missing one or more Ecowitt environment variables (APPLICATION_KEY, API_KEY, MAC)");
         }
 
-        const url = `https://api.ecowitt.net/api/v3/device/real_time?application_key=${APPLICATION_KEY}&api_key=${API_KEY}&mac=${MAC}`;
-        const response = await fetch(url);
+        const url = `https://api.ecowitt.net/api/v3/device/real_time?application_key=${encodeURIComponent(APPLICATION_KEY)}&api_key=${encodeURIComponent(API_KEY)}&mac=${encodeURIComponent(MAC)}`;
 
-        if (!response.ok) throw new Error(`API error: ${response.status}`);
+        const response = await fetch(url, { timeout: 10000 });  // Add timeout protection
+
+        if (!response.ok) {
+            throw new Error(`Ecowitt API returned ${response.status}`);
+        }
 
         const ecowitt = await response.json();
-        if (ecowitt.code !== 0) throw new Error(ecowitt.msg || "API error");
+
+        if (ecowitt.code !== 0) {
+            throw new Error(ecowitt.msg || "Ecowitt API error");
+        }
 
         const d = ecowitt.data;
 
+        // Unit conversions
         const tempC = ((parseFloat(d.outdoor.temperature.value) - 32) * 5 / 9).toFixed(1);
         const feelsLikeC = ((parseFloat(d.outdoor.feels_like.value) - 32) * 5 / 9).toFixed(1);
         const dewPointC = ((parseFloat(d.outdoor.dew_point.value) - 32) * 5 / 9).toFixed(1);
@@ -57,9 +63,7 @@ async function getWeatherData() {
         let tempChangeRate = 0;
         if (lastTemp !== null && lastTempTime !== null) {
             const timeDiffHrs = (Date.now() - lastTempTime) / (1000 * 3600);
-            if (timeDiffHrs > 0) {
-                tempChangeRate = ((parseFloat(tempC) - lastTemp) / timeDiffHrs).toFixed(1);
-            }
+            if (timeDiffHrs > 0) tempChangeRate = ((parseFloat(tempC) - lastTemp) / timeDiffHrs).toFixed(1);
         }
         lastTemp = parseFloat(tempC);
         lastTempTime = Date.now();
@@ -108,10 +112,10 @@ async function getWeatherData() {
                 direction: d.wind.wind_direction.value
             },
             solar_uv: {
-                solar: d.solar_and_uvi.solar.value,
-                uvi: d.solar_and_uvi.uvi.value
+                solar: d.solar_and_uvi.solar.value || 0,
+                uvi: d.solar_and_uvi.uvi.value || 0
             },
-            pressure: (parseFloat(d.pressure.relative.value) * 33.8639).toFixed(1),
+            pressure: (parseFloat(d.pressure.relative.value || 0) * 33.8639).toFixed(1),
             history: todayHistory
         };
 
@@ -119,20 +123,20 @@ async function getWeatherData() {
         return cachedData;
 
     } catch (error) {
-        console.error("Weather Error:", error.message);
-        if (cachedData) return cachedData;
-        throw error;
+        console.error("Weather fetch error:", error.message);
+        if (cachedData) return cachedData;   // Fallback to last good data
+        throw new Error(`Failed to fetch weather: ${error.message}`);
     }
 }
 
-// ====================== FRONTEND HTML ======================
+// HTML Dashboard
 const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>KK Nagar Weather Station</title>
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
 <style>
 body { margin:0; font-family:'Segoe UI',Arial,sans-serif; background:linear-gradient(135deg,#0f172a,#1e293b); color:#e2e8f0; min-height:100vh; }
 h1 { text-align:center; padding:22px 15px 15px; font-size:27px; margin:0; background:rgba(15,23,42,0.85); }
@@ -150,46 +154,45 @@ h1 { text-align:center; padding:22px 15px 15px; font-size:27px; margin:0; backgr
 <h1>KK Nagar Weather Station</h1>
 <div id="status" class="status">Loading live data...</div>
 <div class="container">
-
-<div class="card">
-    <div class="grid">
-        <div class="item"><div class="label">TEMPERATURE</div><div class="value" id="temp"></div><div class="small" id="tempRate"></div><div class="small" id="tempMaxMin"></div></div>
-        <div class="item"><div class="label">DEW POINT</div><div class="value" id="dewpoint"></div></div>
-        <div class="item"><div class="label">HUMIDITY</div><div class="value" id="hum"></div></div>
-        <div class="item"><div class="label">FEELS LIKE</div><div class="value" id="feels"></div></div>
+    <!-- Cards -->
+    <div class="card">
+        <div class="grid">
+            <div class="item"><div class="label">TEMPERATURE</div><div class="value" id="temp"></div><div class="small" id="tempRate"></div><div class="small" id="tempMaxMin"></div></div>
+            <div class="item"><div class="label">DEW POINT</div><div class="value" id="dewpoint"></div></div>
+            <div class="item"><div class="label">HUMIDITY</div><div class="value" id="hum"></div></div>
+            <div class="item"><div class="label">FEELS LIKE</div><div class="value" id="feels"></div></div>
+        </div>
     </div>
-</div>
 
-<div class="card">
-    <div class="grid">
-        <div class="item"><div class="label">RAIN RATE</div><div class="value" id="rain"></div></div>
-        <div class="item"><div class="label">TOTAL RAIN (Today)</div><div class="value" id="totalRain"></div></div>
+    <div class="card">
+        <div class="grid">
+            <div class="item"><div class="label">RAIN RATE</div><div class="value" id="rain"></div></div>
+            <div class="item"><div class="label">TOTAL RAIN (Today)</div><div class="value" id="totalRain"></div></div>
+        </div>
     </div>
-</div>
 
-<div class="card">
-    <div class="grid">
-        <div class="item"><div class="label">WIND SPEED</div><div class="value" id="wind"></div><div class="small" id="windMax"></div></div>
-        <div class="item"><div class="label">WIND GUST</div><div class="value" id="gust"></div><div class="small" id="gustMax"></div></div>
-        <div class="item" style="grid-column:1/-1; text-align:center;"><div class="label">WIND DIRECTION</div><div class="value" id="winddir"></div></div>
+    <div class="card">
+        <div class="grid">
+            <div class="item"><div class="label">WIND SPEED</div><div class="value" id="wind"></div><div class="small" id="windMax"></div></div>
+            <div class="item"><div class="label">WIND GUST</div><div class="value" id="gust"></div><div class="small" id="gustMax"></div></div>
+            <div class="item" style="grid-column:1/-1;text-align:center;"><div class="label">WIND DIRECTION</div><div class="value" id="winddir"></div></div>
+        </div>
     </div>
-</div>
 
-<div class="card">
-    <div class="grid">
-        <div class="item"><div class="label">PRESSURE</div><div class="value" id="pressure"></div></div>
-        <div class="item"><div class="label">UV INDEX</div><div class="value" id="uv"></div></div>
-        <div class="item"><div class="label">SOLAR RADIATION</div><div class="value" id="solar"></div></div>
+    <div class="card">
+        <div class="grid">
+            <div class="item"><div class="label">PRESSURE</div><div class="value" id="pressure"></div></div>
+            <div class="item"><div class="label">UV INDEX</div><div class="value" id="uv"></div></div>
+            <div class="item"><div class="label">SOLAR RADIATION</div><div class="value" id="solar"></div></div>
+        </div>
     </div>
-</div>
 
-<div class="card">
-    <h3 style="margin:0 0 16px 0; text-align:center; opacity:0.9;">Recent Trends • Live IST Timestamps</h3>
-    <canvas id="tempChart" height="150"></canvas>
-    <canvas id="humChart" height="150"></canvas>
-    <canvas id="windChart" height="150"></canvas>
-</div>
-
+    <div class="card">
+        <h3 style="margin:0 0 16px 0; text-align:center; opacity:0.9;">Recent Trends • IST Time</h3>
+        <canvas id="tempChart" height="150"></canvas>
+        <canvas id="humChart" height="150"></canvas>
+        <canvas id="windChart" height="150"></canvas>
+    </div>
 </div>
 
 <script>
@@ -197,24 +200,25 @@ let charts = {};
 
 function createCharts() {
     const opt = {
-        animation: { duration: 800 },
+        animation: {duration: 800},
         responsive: true,
         maintainAspectRatio: false,
         scales: {
-            y: { beginAtZero: false, ticks: { callback: v => v.toFixed(1) }},
-            x: { type: 'category', ticks: { autoSkip: true, maxTicksLimit: 12, maxRotation: 0 }}
+            y: {beginAtZero: false, ticks: {callback: v => v.toFixed(1)}},
+            x: {type: 'category', ticks: {autoSkip: true, maxTicksLimit: 12, maxRotation: 0}}
         },
-        plugins: { legend: { position: 'top' }}
+        plugins: {legend: {position: 'top'}}
     };
 
-    charts.temp = new Chart(document.getElementById('tempChart'), { type:'line', data:{labels:[], datasets:[{label:'Temperature (°C)', data:[], borderColor:'#67e8f9', tension:0.4}]}, options:opt });
-    charts.hum = new Chart(document.getElementById('humChart'), { type:'line', data:{labels:[], datasets:[{label:'Humidity (%)', data:[], borderColor:'#4ade80', tension:0.4}]}, options:opt });
-    charts.wind = new Chart(document.getElementById('windChart'), { type:'line', data:{labels:[], datasets:[{label:'Wind Speed (km/h)', data:[], borderColor:'#fb923c', tension:0.4}]}, options:opt });
+    charts.temp = new Chart('tempChart', {type:'line', data:{labels:[], datasets:[{label:'Temperature (°C)', data:[], borderColor:'#67e8f9', tension:0.4}]}, options:opt});
+    charts.hum = new Chart('humChart', {type:'line', data:{labels:[], datasets:[{label:'Humidity (%)', data:[], borderColor:'#4ade80', tension:0.4}]}, options:opt});
+    charts.wind = new Chart('windChart', {type:'line', data:{labels:[], datasets:[{label:'Wind Speed (km/h)', data:[], borderColor:'#fb923c', tension:0.4}]}, options:opt});
 }
 
 async function loadData() {
     try {
         const res = await fetch('/weather');
+        if (!res.ok) throw new Error('API error');
         const data = await res.json();
 
         if (data.error) {
@@ -248,7 +252,6 @@ async function loadData() {
         document.getElementById('uv').innerText = s.uvi;
         document.getElementById('solar').innerText = s.solar + ' W/m²';
 
-        // Live IST timestamps on X-axis
         const labels = data.history.map(h => {
             const d = new Date(h.time);
             return d.toLocaleTimeString('en-IN', {hour:'2-digit', minute:'2-digit', hour12:false, timeZone:'Asia/Kolkata'});
@@ -281,20 +284,20 @@ setInterval(loadData, 30000);
 </body>
 </html>`;
 
-// ====================== VERCEL HANDLER ======================
+// Vercel Handler
 export default async function handler(req, res) {
-    const url = new URL(req.url, `http://${req.headers.host}`);
+    const url = new URL(req.url || '/', `http://${req.headers.host}`);
 
     if (url.pathname === '/weather') {
         try {
             const data = await getWeatherData();
             res.status(200).json(data);
         } catch (err) {
-            res.status(500).json({ error: err.message || "Server error" });
+            console.error("Handler error:", err.message);
+            res.status(500).json({ error: err.message || "Internal server error" });
         }
     } else {
-        // Serve the HTML dashboard
-        res.setHeader('Content-Type', 'text/html');
+        res.setHeader('Content-Type', 'text/html; charset=utf-8');
         res.status(200).send(html);
     }
 }
