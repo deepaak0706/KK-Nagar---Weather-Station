@@ -1,11 +1,6 @@
-const express = require("express");
-const fetch = require("node-fetch");
-const app = express();
+// index.js  ← Single file for Vercel
 
-const APPLICATION_KEY = process.env.APPLICATION_KEY;
-const API_KEY = process.env.API_KEY;
-const MAC = process.env.MAC;
-
+// ====================== BACKEND LOGIC ======================
 let cachedData = null;
 let lastFetch = 0;
 let todayHistory = [];
@@ -16,7 +11,7 @@ let currentDate = new Date().toDateString();
 let lastTemp = null;
 let lastTempTime = null;
 
-app.get("/weather", async (req, res) => {
+async function getWeatherData() {
     const now = Date.now();
     const todayStr = new Date().toDateString();
 
@@ -29,16 +24,26 @@ app.get("/weather", async (req, res) => {
     }
 
     if (cachedData && (now - lastFetch < 30000)) {
-        return res.json(cachedData);
+        return cachedData;
     }
 
     try {
+        const APPLICATION_KEY = process.env.APPLICATION_KEY;
+        const API_KEY = process.env.API_KEY;
+        const MAC = process.env.MAC;
+
+        if (!APPLICATION_KEY || !API_KEY || !MAC) {
+            throw new Error("Missing environment variables");
+        }
+
         const url = `https://api.ecowitt.net/api/v3/device/real_time?application_key=${APPLICATION_KEY}&api_key=${API_KEY}&mac=${MAC}`;
         const response = await fetch(url);
-        if (!response.ok) throw new Error(`Ecowitt API error: ${response.status}`);
+
+        if (!response.ok) throw new Error(`API error: ${response.status}`);
 
         const ecowitt = await response.json();
         if (ecowitt.code !== 0) throw new Error(ecowitt.msg || "API error");
+
         const d = ecowitt.data;
 
         const tempC = ((parseFloat(d.outdoor.temperature.value) - 32) * 5 / 9).toFixed(1);
@@ -78,7 +83,7 @@ app.get("/weather", async (req, res) => {
             windDir: parseFloat(d.wind.wind_direction.value)
         });
 
-        if (todayHistory.length > 288) todayHistory.shift(); // Keep ~24 hours
+        if (todayHistory.length > 288) todayHistory.shift();
 
         cachedData = {
             outdoor: {
@@ -111,17 +116,17 @@ app.get("/weather", async (req, res) => {
         };
 
         lastFetch = now;
-        res.json(cachedData);
+        return cachedData;
 
     } catch (error) {
-        console.error("Ecowitt API Error:", error.message);
-        if (cachedData) return res.json(cachedData);
-        res.status(500).json({ error: "Failed to fetch data from Ecowitt" });
+        console.error("Weather Error:", error.message);
+        if (cachedData) return cachedData;
+        throw error;
     }
-});
+}
 
-app.get("/", (req, res) => {
-    res.send(`<!DOCTYPE html>
+// ====================== FRONTEND HTML ======================
+const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -148,12 +153,7 @@ h1 { text-align:center; padding:22px 15px 15px; font-size:27px; margin:0; backgr
 
 <div class="card">
     <div class="grid">
-        <div class="item">
-            <div class="label">TEMPERATURE</div>
-            <div class="value" id="temp"></div>
-            <div class="small" id="tempRate"></div>
-            <div class="small" id="tempMaxMin"></div>
-        </div>
+        <div class="item"><div class="label">TEMPERATURE</div><div class="value" id="temp"></div><div class="small" id="tempRate"></div><div class="small" id="tempMaxMin"></div></div>
         <div class="item"><div class="label">DEW POINT</div><div class="value" id="dewpoint"></div></div>
         <div class="item"><div class="label">HUMIDITY</div><div class="value" id="hum"></div></div>
         <div class="item"><div class="label">FEELS LIKE</div><div class="value" id="feels"></div></div>
@@ -169,20 +169,9 @@ h1 { text-align:center; padding:22px 15px 15px; font-size:27px; margin:0; backgr
 
 <div class="card">
     <div class="grid">
-        <div class="item">
-            <div class="label">WIND SPEED</div>
-            <div class="value" id="wind"></div>
-            <div class="small" id="windMax"></div>
-        </div>
-        <div class="item">
-            <div class="label">WIND GUST</div>
-            <div class="value" id="gust"></div>
-            <div class="small" id="gustMax"></div>
-        </div>
-        <div class="item" style="grid-column:1/-1; text-align:center;">
-            <div class="label">WIND DIRECTION</div>
-            <div class="value" id="winddir"></div>
-        </div>
+        <div class="item"><div class="label">WIND SPEED</div><div class="value" id="wind"></div><div class="small" id="windMax"></div></div>
+        <div class="item"><div class="label">WIND GUST</div><div class="value" id="gust"></div><div class="small" id="gustMax"></div></div>
+        <div class="item" style="grid-column:1/-1; text-align:center;"><div class="label">WIND DIRECTION</div><div class="value" id="winddir"></div></div>
     </div>
 </div>
 
@@ -195,7 +184,7 @@ h1 { text-align:center; padding:22px 15px 15px; font-size:27px; margin:0; backgr
 </div>
 
 <div class="card">
-    <h3 style="margin:0 0 16px 0; text-align:center; opacity:0.9;">Recent Trends • Live Updating</h3>
+    <h3 style="margin:0 0 16px 0; text-align:center; opacity:0.9;">Recent Trends • Live IST Timestamps</h3>
     <canvas id="tempChart" height="150"></canvas>
     <canvas id="humChart" height="150"></canvas>
     <canvas id="windChart" height="150"></canvas>
@@ -207,45 +196,20 @@ h1 { text-align:center; padding:22px 15px 15px; font-size:27px; margin:0; backgr
 let charts = {};
 
 function createCharts() {
-    const options = {
+    const opt = {
         animation: { duration: 800 },
         responsive: true,
         maintainAspectRatio: false,
         scales: {
-            y: { beginAtZero: false, ticks: { callback: v => v.toFixed(1) } },
-            x: {
-                type: 'category',
-                ticks: {
-                    autoSkip: true,
-                    maxTicksLimit: 12,
-                    maxRotation: 0,
-                    minRotation: 0,
-                    callback: function(value, index) {
-                        return index % 2 === 0 ? this.getLabelForValue(value) : '';
-                    }
-                }
-            }
+            y: { beginAtZero: false, ticks: { callback: v => v.toFixed(1) }},
+            x: { type: 'category', ticks: { autoSkip: true, maxTicksLimit: 12, maxRotation: 0 }}
         },
-        plugins: { legend: { position: 'top' } }
+        plugins: { legend: { position: 'top' }}
     };
 
-    charts.temp = new Chart(document.getElementById('tempChart'), {
-        type: 'line',
-        data: { labels: [], datasets: [{ label: 'Temperature (°C)', data: [], borderColor: '#67e8f9', tension: 0.4 }] },
-        options: options
-    });
-
-    charts.hum = new Chart(document.getElementById('humChart'), {
-        type: 'line',
-        data: { labels: [], datasets: [{ label: 'Humidity (%)', data: [], borderColor: '#4ade80', tension: 0.4 }] },
-        options: options
-    });
-
-    charts.wind = new Chart(document.getElementById('windChart'), {
-        type: 'line',
-        data: { labels: [], datasets: [{ label: 'Wind Speed (km/h)', data: [], borderColor: '#fb923c', tension: 0.4 }] },
-        options: options
-    });
+    charts.temp = new Chart(document.getElementById('tempChart'), { type:'line', data:{labels:[], datasets:[{label:'Temperature (°C)', data:[], borderColor:'#67e8f9', tension:0.4}]}, options:opt });
+    charts.hum = new Chart(document.getElementById('humChart'), { type:'line', data:{labels:[], datasets:[{label:'Humidity (%)', data:[], borderColor:'#4ade80', tension:0.4}]}, options:opt });
+    charts.wind = new Chart(document.getElementById('windChart'), { type:'line', data:{labels:[], datasets:[{label:'Wind Speed (km/h)', data:[], borderColor:'#fb923c', tension:0.4}]}, options:opt });
 }
 
 async function loadData() {
@@ -258,12 +222,8 @@ async function loadData() {
             return;
         }
 
-        const o = data.outdoor;
-        const r = data.rainfall;
-        const w = data.wind;
-        const s = data.solar_uv;
+        const o = data.outdoor, r = data.rainfall, w = data.wind, s = data.solar_uv;
 
-        // Update all displayed values
         document.getElementById('temp').innerText = o.temp + '°C';
         const rate = o.tempChangeRate || 0;
         const sign = rate >= 0 ? '↑' : '↓';
@@ -288,18 +248,12 @@ async function loadData() {
         document.getElementById('uv').innerText = s.uvi;
         document.getElementById('solar').innerText = s.solar + ' W/m²';
 
-        // === LIVE UPDATE: Rebuild IST timestamps and update charts ===
+        // Live IST timestamps on X-axis
         const labels = data.history.map(h => {
             const d = new Date(h.time);
-            return d.toLocaleTimeString('en-IN', {
-                hour: '2-digit',
-                minute: '2-digit',
-                hour12: false,
-                timeZone: 'Asia/Kolkata'
-            });
+            return d.toLocaleTimeString('en-IN', {hour:'2-digit', minute:'2-digit', hour12:false, timeZone:'Asia/Kolkata'});
         });
 
-        // Update charts with new data (this happens every 30s without page refresh)
         charts.temp.data.labels = labels;
         charts.temp.data.datasets[0].data = data.history.map(h => h.temp);
         charts.temp.update();
@@ -312,12 +266,7 @@ async function loadData() {
         charts.wind.data.datasets[0].data = data.history.map(h => h.windSpeed);
         charts.wind.update();
 
-        // Show last update time in IST
-        document.getElementById('status').innerHTML = `✅ Live • Updated ${new Date().toLocaleTimeString('en-IN', {
-            hour: '2-digit',
-            minute: '2-digit',
-            timeZone: 'Asia/Kolkata'
-        })} IST`;
+        document.getElementById('status').innerHTML = \`✅ Live • Updated \${new Date().toLocaleTimeString('en-IN', {hour:'2-digit', minute:'2-digit', timeZone:'Asia/Kolkata'})} IST\`;
 
     } catch (e) {
         console.error(e);
@@ -325,14 +274,27 @@ async function loadData() {
     }
 }
 
-// Initialize
 createCharts();
 loadData();
-setInterval(loadData, 30000);   // Update every 30 seconds
+setInterval(loadData, 30000);
 </script>
 </body>
-</html>`);
-});
+</html>`;
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log("✅ KK Nagar Weather Station running on port " + PORT));
+// ====================== VERCEL HANDLER ======================
+export default async function handler(req, res) {
+    const url = new URL(req.url, `http://${req.headers.host}`);
+
+    if (url.pathname === '/weather') {
+        try {
+            const data = await getWeatherData();
+            res.status(200).json(data);
+        } catch (err) {
+            res.status(500).json({ error: err.message || "Server error" });
+        }
+    } else {
+        // Serve the HTML dashboard
+        res.setHeader('Content-Type', 'text/html');
+        res.status(200).send(html);
+    }
+}
