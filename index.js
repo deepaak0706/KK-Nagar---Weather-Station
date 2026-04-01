@@ -148,10 +148,7 @@ h1 { text-align:center; padding:22px 15px 15px; font-size:29px; margin:0; backgr
 .small { font-size:14px; font-weight:400; opacity:0.85; }
 .rise { color:#4ade80; } .fall { color:#f87171; }
 .cool { color:#67e8f9; } .mild { color:#fcd34d; } .hot { color:#fb923c; } .veryhot { color:#f87171; }
-
-@keyframes pulse {
-    50% { opacity: 0.4; }
-}
+@keyframes pulse { 50% { opacity: 0.4; } }
 </style>
 </head>
 <body>
@@ -246,10 +243,7 @@ function createCharts(){
     const opt = {
         animation: { duration: 1000, easing: 'easeOutQuart' },
         scales:{
-            y:{ 
-                beginAtZero:false,
-                ticks:{ callback: v=>v.toFixed(1), font: { size: 13 } }
-            },
+            y:{ beginAtZero:false,ticks:{ callback: v=>v.toFixed(1), font: { size: 13 } } },
             x:{ 
                 type:'category', 
                 ticks:{ 
@@ -262,11 +256,7 @@ function createCharts(){
             }
         },
         plugins: {
-            legend: { 
-                display: true, 
-                position: 'top', 
-                labels: { boxWidth: 12, padding: 20, font: { size: 14 } }
-            }
+            legend: { display: true, position: 'top', labels: { boxWidth: 12, padding: 20, font: { size: 14 } } }
         }
     };
     charts.temp = new Chart(document.getElementById('tempChart'),{
@@ -327,13 +317,10 @@ async function loadData(){
         charts.wind.data.labels = labels;
         charts.wind.data.datasets[0].data = data.history.map(h=>h.windSpeed);
 
-        charts.temp.update(); 
-        charts.hum.update(); 
-        charts.wind.update();
+        charts.temp.update(); charts.hum.update(); charts.wind.update();
 
-        // Live pulsing status
         document.getElementById('status').innerHTML = 
-            `<span style="animation: pulse 2s infinite;">🟢</span> Live • Updated ` + 
+            '<span style="animation:pulse 2s infinite;">🟢</span> Live • Updated ' + 
             new Date().toLocaleTimeString('en-IN',{timeZone:'Asia/Kolkata'});
     }catch(e){
         console.error(e);
