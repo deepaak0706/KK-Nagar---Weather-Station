@@ -239,11 +239,47 @@ function getTempClass(temp){
     return "red";
 }
 
-function createCharts(){
-    const opt = { animation:false, scales:{ y:{ beginAtZero:false,ticks:{ callback: v => v.toFixed(1) } }, x:{ ticks:{ callback: t=>t } } } };
-    charts.temp = new Chart(document.getElementById('tempChart'),{ type:'line', data:{ labels:[], datasets:[{label:'Temperature (°C)', data:[], borderColor:'#67e8f9', tension:0.3}] }, options:opt });
-    charts.hum = new Chart(document.getElementById('humChart'),{ type:'line', data:{ labels:[], datasets:[{label:'Humidity (%)', data:[], borderColor:'#4ade80', tension:0.3}] }, options:opt });
-    charts.wind = new Chart(document.getElementById('windChart'),{ type:'line', data:{ labels:[], datasets:[{label:'Wind Speed (km/h)', data:[], borderColor:'#fb923c', tension:0.3}] }, options:opt });
+function createCharts() {
+    const opt = {
+        animation: false,
+        scales: {
+            x: { 
+                type: 'category',           // use category labels for x-axis
+                ticks: { callback: t => t } // show the time strings as-is
+            },
+            y: { 
+                beginAtZero: false, 
+                ticks: { callback: v => v.toFixed(1) } // 1 decimal precision
+            }
+        }
+    };
+
+    charts.temp = new Chart(document.getElementById('tempChart'), { 
+        type: 'line', 
+        data: { 
+            labels: [], 
+            datasets: [{ label: 'Temperature (°C)', data: [], borderColor: '#67e8f9', tension: 0.3 }] 
+        }, 
+        options: opt 
+    });
+
+    charts.hum = new Chart(document.getElementById('humChart'), { 
+        type: 'line', 
+        data: { 
+            labels: [], 
+            datasets: [{ label: 'Humidity (%)', data: [], borderColor: '#4ade80', tension: 0.3 }] 
+        }, 
+        options: opt 
+    });
+
+    charts.wind = new Chart(document.getElementById('windChart'), { 
+        type: 'line', 
+        data: { 
+            labels: [], 
+            datasets: [{ label: 'Wind Speed (km/h)', data: [], borderColor: '#fb923c', tension: 0.3 }] 
+        }, 
+        options: opt 
+    });
 }
 
 async function loadData(){
