@@ -61,13 +61,14 @@ app.get("/weather", async (req, res) => {
 
         const currentRainRate = parseFloat(rainRateMmHr);
         if (currentRainRate > todayMaxRainRate) todayMaxRainRate = currentRainRate;
+
         const currentWindSpeed = parseFloat(windSpeedKmh);
         const currentWindGust = parseFloat(windGustKmh);
         if (currentWindSpeed > todayMaxWindSpeed) todayMaxWindSpeed = currentWindSpeed;
         if (currentWindGust > todayMaxWindGust) todayMaxWindGust = currentWindGust;
 
         todayHistory.push({
-            time: new Date().toISOString(),           // Store in UTC ISO
+            time: new Date().toISOString(),
             temp: parseFloat(tempC),
             hum: parseFloat(d.outdoor.humidity.value),
             rainRate: currentRainRate,
@@ -77,7 +78,7 @@ app.get("/weather", async (req, res) => {
             windDir: parseFloat(d.wind.wind_direction.value)
         });
 
-        if (todayHistory.length > 1440) todayHistory.shift();
+        if (todayHistory.length > 288) todayHistory.shift(); // Keep ~24 hours
 
         cachedData = {
             outdoor: {
@@ -86,8 +87,8 @@ app.get("/weather", async (req, res) => {
                 humidity: parseFloat(d.outdoor.humidity.value),
                 dewPoint: dewPointC,
                 tempChangeRate: parseFloat(tempChangeRate),
-                maxTemp: Math.max(...todayHistory.map(h=>h.temp)).toFixed(1),
-                minTemp: Math.min(...todayHistory.map(h=>h.temp)).toFixed(1)
+                maxTemp: Math.max(...todayHistory.map(h => h.temp)).toFixed(1),
+                minTemp: Math.min(...todayHistory.map(h => h.temp)).toFixed(1)
             },
             rainfall: {
                 rainRate: rainRateMmHr,
@@ -138,8 +139,6 @@ h1 { text-align:center; padding:22px 15px 15px; font-size:27px; margin:0; backgr
 .label { font-size:13px; opacity:0.75; margin-bottom:5px; }
 .value { font-size:26px; font-weight:700; }
 .small { font-size:14px; font-weight:400; opacity:0.85; }
-.rise { color:#4ade80; } .fall { color:#f87171; }
-.cool { color:#67e8f9; } .mild { color:#fcd34d; } .hot { color:#fb923c; } .veryhot { color:#f87171; }
 </style>
 </head>
 <body>
@@ -155,31 +154,16 @@ h1 { text-align:center; padding:22px 15px 15px; font-size:27px; margin:0; backgr
             <div class="small" id="tempRate"></div>
             <div class="small" id="tempMaxMin"></div>
         </div>
-        <div class="item">
-            <div class="label">DEW POINT</div>
-            <div class="value" id="dewpoint"></div>
-        </div>
-        <div class="item">
-            <div class="label">HUMIDITY</div>
-            <div class="value" id="hum"></div>
-        </div>
-        <div class="item">
-            <div class="label">FEELS LIKE</div>
-            <div class="value" id="feels"></div>
-        </div>
+        <div class="item"><div class="label">DEW POINT</div><div class="value" id="dewpoint"></div></div>
+        <div class="item"><div class="label">HUMIDITY</div><div class="value" id="hum"></div></div>
+        <div class="item"><div class="label">FEELS LIKE</div><div class="value" id="feels"></div></div>
     </div>
 </div>
 
 <div class="card">
     <div class="grid">
-        <div class="item">
-            <div class="label">RAIN RATE</div>
-            <div class="value" id="rain"></div>
-        </div>
-        <div class="item">
-            <div class="label">TOTAL RAIN (Today)</div>
-            <div class="value" id="totalRain"></div>
-        </div>
+        <div class="item"><div class="label">RAIN RATE</div><div class="value" id="rain"></div></div>
+        <div class="item"><div class="label">TOTAL RAIN (Today)</div><div class="value" id="totalRain"></div></div>
     </div>
 </div>
 
@@ -211,10 +195,10 @@ h1 { text-align:center; padding:22px 15px 15px; font-size:27px; margin:0; backgr
 </div>
 
 <div class="card">
-    <h3 style="margin:0 0 16px 0; text-align:center; opacity:0.9;">Recent Trends</h3>
-    <canvas id="tempChart" height="140"></canvas>
-    <canvas id="humChart" height="140"></canvas>
-    <canvas id="windChart" height="140"></canvas>
+    <h3 style="margin:0 0 16px 0; text-align:center; opacity:0.9;">Recent Trends • Live Updating</h3>
+    <canvas id="tempChart" height="150"></canvas>
+    <canvas id="humChart" height="150"></canvas>
+    <canvas id="windChart" height="150"></canvas>
 </div>
 
 </div>
@@ -222,68 +206,70 @@ h1 { text-align:center; padding:22px 15px 15px; font-size:27px; margin:0; backgr
 <script>
 let charts = {};
 
-function format(v){ return isNaN(parseFloat(v)) ? '--' : parseFloat(v).toFixed(1); }
-
-function createCharts(){
-    const opt = {
-        animation: false,
+function createCharts() {
+    const options = {
+        animation: { duration: 800 },
+        responsive: true,
+        maintainAspectRatio: false,
         scales: {
-            y: { 
-                beginAtZero: false,
-                ticks: { callback: v => v.toFixed(1) }
-            },
-            x: { 
+            y: { beginAtZero: false, ticks: { callback: v => v.toFixed(1) } },
+            x: {
                 type: 'category',
-                ticks: { 
-                    maxRotation: 45,
-                    minRotation: 45,
+                ticks: {
+                    autoSkip: true,
+                    maxTicksLimit: 12,
+                    maxRotation: 0,
+                    minRotation: 0,
                     callback: function(value, index) {
-                        // Show every 4th label to avoid overcrowding
-                        return index % 4 === 0 ? this.getLabelForValue(value) : '';
+                        return index % 2 === 0 ? this.getLabelForValue(value) : '';
                     }
                 }
             }
         },
-        plugins: {
-            legend: { display: true, position: 'top' }
-        }
+        plugins: { legend: { position: 'top' } }
     };
 
     charts.temp = new Chart(document.getElementById('tempChart'), {
         type: 'line',
-        data: { labels: [], datasets: [{ label: 'Temperature (°C)', data: [], borderColor: '#67e8f9', tension: 0.3 }] },
-        options: opt
+        data: { labels: [], datasets: [{ label: 'Temperature (°C)', data: [], borderColor: '#67e8f9', tension: 0.4 }] },
+        options: options
     });
 
     charts.hum = new Chart(document.getElementById('humChart'), {
         type: 'line',
-        data: { labels: [], datasets: [{ label: 'Humidity (%)', data: [], borderColor: '#4ade80', tension: 0.3 }] },
-        options: opt
+        data: { labels: [], datasets: [{ label: 'Humidity (%)', data: [], borderColor: '#4ade80', tension: 0.4 }] },
+        options: options
     });
 
     charts.wind = new Chart(document.getElementById('windChart'), {
         type: 'line',
-        data: { labels: [], datasets: [{ label: 'Wind Speed (km/h)', data: [], borderColor: '#fb923c', tension: 0.3 }] },
-        options: opt
+        data: { labels: [], datasets: [{ label: 'Wind Speed (km/h)', data: [], borderColor: '#fb923c', tension: 0.4 }] },
+        options: options
     });
 }
 
-async function loadData(){
-    try{
+async function loadData() {
+    try {
         const res = await fetch('/weather');
         const data = await res.json();
-        if(data.error){ 
-            document.getElementById('status').innerHTML = '⚠️ ' + data.error; 
-            return; 
+
+        if (data.error) {
+            document.getElementById('status').innerHTML = '⚠️ ' + data.error;
+            return;
         }
 
-        const o = data.outdoor, r = data.rainfall, w = data.wind, s = data.solar_uv;
+        const o = data.outdoor;
+        const r = data.rainfall;
+        const w = data.wind;
+        const s = data.solar_uv;
 
-        // Update main values
+        // Update all displayed values
         document.getElementById('temp').innerText = o.temp + '°C';
-        let rate = o.tempChangeRate, sign = rate >= 0 ? '↑' : '↓', color = rate >= 0 ? '#4ade80' : '#f87171';
-        document.getElementById('tempRate').innerHTML = '<span style="color:' + color + '">' + sign + ' ' + Math.abs(rate) + ' °C/hr</span>';
-        document.getElementById('tempMaxMin').innerHTML = 'Max: <span style="color:#f87171">' + o.maxTemp + '</span> | Min: <span style="color:#67e8f9">' + o.minTemp + '</span>';
+        const rate = o.tempChangeRate || 0;
+        const sign = rate >= 0 ? '↑' : '↓';
+        const color = rate >= 0 ? '#4ade80' : '#f87171';
+        document.getElementById('tempRate').innerHTML = `<span style="color:${color}">${sign} ${Math.abs(rate)} °C/hr</span>`;
+        document.getElementById('tempMaxMin').innerHTML = `Max: <span style="color:#f87171">${o.maxTemp}</span> | Min: <span style="color:#67e8f9">${o.minTemp}</span>`;
 
         document.getElementById('dewpoint').innerText = o.dewPoint + '°C';
         document.getElementById('hum').innerText = o.humidity + '%';
@@ -302,10 +288,10 @@ async function loadData(){
         document.getElementById('uv').innerText = s.uvi;
         document.getElementById('solar').innerText = s.solar + ' W/m²';
 
-        // === FIXED: Proper IST time labels ===
+        // === LIVE UPDATE: Rebuild IST timestamps and update charts ===
         const labels = data.history.map(h => {
-            const date = new Date(h.time);
-            return date.toLocaleTimeString('en-IN', {
+            const d = new Date(h.time);
+            return d.toLocaleTimeString('en-IN', {
                 hour: '2-digit',
                 minute: '2-digit',
                 hour12: false,
@@ -313,38 +299,37 @@ async function loadData(){
             });
         });
 
-        // Update charts
+        // Update charts with new data (this happens every 30s without page refresh)
         charts.temp.data.labels = labels;
         charts.temp.data.datasets[0].data = data.history.map(h => h.temp);
+        charts.temp.update();
 
         charts.hum.data.labels = labels;
         charts.hum.data.datasets[0].data = data.history.map(h => h.hum);
+        charts.hum.update();
 
         charts.wind.data.labels = labels;
         charts.wind.data.datasets[0].data = data.history.map(h => h.windSpeed);
-
-        charts.temp.update();
-        charts.hum.update();
         charts.wind.update();
 
-        document.getElementById('status').innerHTML = '✅ Live • Updated ' + 
-            new Date().toLocaleTimeString('en-IN', { 
-                hour: '2-digit', 
-                minute: '2-digit',
-                timeZone: 'Asia/Kolkata' 
-            });
+        // Show last update time in IST
+        document.getElementById('status').innerHTML = `✅ Live • Updated ${new Date().toLocaleTimeString('en-IN', {
+            hour: '2-digit',
+            minute: '2-digit',
+            timeZone: 'Asia/Kolkata'
+        })} IST`;
 
-    } catch(e){
+    } catch (e) {
         console.error(e);
         document.getElementById('status').innerHTML = "⚠️ Using last known data";
     }
 }
 
+// Initialize
 createCharts();
 loadData();
-setInterval(loadData, 30000);
+setInterval(loadData, 30000);   // Update every 30 seconds
 </script>
-
 </body>
 </html>`);
 });
