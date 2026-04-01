@@ -129,17 +129,29 @@ app.get("/", (req, res) => {
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
 body { margin:0; font-family:'Segoe UI',Arial,sans-serif; background:linear-gradient(135deg,#0f172a,#1e293b); color:#e2e8f0; min-height:100vh; }
-h1 { text-align:center; padding:22px 15px 15px; font-size:27px; margin:0; background:rgba(15,23,42,0.85); }
-.status { text-align:center; font-size:14px; padding:8px; opacity:0.9; }
-.container { max-width:1100px; margin:0 auto; padding:12px; }
-.card { background:rgba(255,255,255,0.07); backdrop-filter:blur(16px); border-radius:18px; padding:20px; margin-bottom:16px; box-shadow:0 8px 25px rgba(0,0,0,0.35); }
-.grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:14px; }
+h1 { text-align:center; padding:22px 15px 15px; font-size:29px; margin:0; background:rgba(15,23,42,0.85); letter-spacing:-0.5px; }
+.status { text-align:center; font-size:15px; padding:8px; opacity:0.9; letter-spacing:0.5px; }
+.container { max-width:1100px; margin:0 auto; padding:20px; }
+.card { 
+    background:rgba(255,255,255,0.08); 
+    backdrop-filter:blur(20px); 
+    border:1px solid rgba(255,255,255,0.1);
+    border-radius:18px; 
+    padding:24px; 
+    margin-bottom:20px; 
+    box-shadow:0 10px 30px rgba(0,0,0,0.4); 
+}
+.grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:18px; }
 .item { text-align:center; }
 .label { font-size:13px; opacity:0.75; margin-bottom:5px; }
-.value { font-size:26px; font-weight:700; }
+.value { font-size:32px; font-weight:700; letter-spacing:-1px; text-shadow:0 2px 10px rgba(0,0,0,0.3); }
 .small { font-size:14px; font-weight:400; opacity:0.85; }
 .rise { color:#4ade80; } .fall { color:#f87171; }
 .cool { color:#67e8f9; } .mild { color:#fcd34d; } .hot { color:#fb923c; } .veryhot { color:#f87171; }
+
+@keyframes pulse {
+    50% { opacity: 0.4; }
+}
 </style>
 </head>
 <body>
@@ -212,9 +224,9 @@ h1 { text-align:center; padding:22px 15px 15px; font-size:27px; margin:0; backgr
 
 <div class="card">
     <h3 style="margin:0 0 16px 0; text-align:center; opacity:0.9;">Recent Trends</h3>
-    <canvas id="tempChart" height="140"></canvas>
-    <canvas id="humChart" height="140"></canvas>
-    <canvas id="windChart" height="140"></canvas>
+    <canvas id="tempChart" height="220"></canvas>
+    <canvas id="humChart" height="220"></canvas>
+    <canvas id="windChart" height="220"></canvas>
 </div>
 
 </div>
@@ -232,21 +244,29 @@ function getWindDirection(degrees) {
 
 function createCharts(){
     const opt = {
-        animation:false,
+        animation: { duration: 1000, easing: 'easeOutQuart' },
         scales:{
-            y:{ beginAtZero:false,ticks:{ callback: v=>v.toFixed(1) } },
+            y:{ 
+                beginAtZero:false,
+                ticks:{ callback: v=>v.toFixed(1), font: { size: 13 } }
+            },
             x:{ 
                 type:'category', 
                 ticks:{ 
                     autoSkip: true,
                     maxTicksLimit: 12,
-                    maxRotation: 45,
-                    minRotation: 45
+                    maxRotation: 0,
+                    minRotation: 0,
+                    font: { size: 13 }
                 }
             }
         },
         plugins: {
-            legend: { display: true, position: 'top' }
+            legend: { 
+                display: true, 
+                position: 'top', 
+                labels: { boxWidth: 12, padding: 20, font: { size: 14 } }
+            }
         }
     };
     charts.temp = new Chart(document.getElementById('tempChart'),{
@@ -307,12 +327,14 @@ async function loadData(){
         charts.wind.data.labels = labels;
         charts.wind.data.datasets[0].data = data.history.map(h=>h.windSpeed);
 
-        // FORCE update so X-axis timestamps appear immediately (this fixes the issue)
-        charts.temp.update('none'); 
-        charts.hum.update('none'); 
-        charts.wind.update('none');
+        charts.temp.update(); 
+        charts.hum.update(); 
+        charts.wind.update();
 
-        document.getElementById('status').innerHTML='✅ Live • Updated '+new Date().toLocaleTimeString('en-IN',{timeZone:'Asia/Kolkata'});
+        // Live pulsing status
+        document.getElementById('status').innerHTML = 
+            `<span style="animation: pulse 2s infinite;">🟢</span> Live • Updated ` + 
+            new Date().toLocaleTimeString('en-IN',{timeZone:'Asia/Kolkata'});
     }catch(e){
         console.error(e);
         document.getElementById('status').innerHTML="⚠️ Using last known data";
