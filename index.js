@@ -238,12 +238,10 @@ function createCharts(){
             x:{ 
                 type:'category', 
                 ticks:{ 
+                    autoSkip: true,
+                    maxTicksLimit: 12,
                     maxRotation: 45,
-                    minRotation: 45,
-                    callback: function(value, index) {
-                        // Show timestamp every 1 minute (data updates every 30s → every 2nd point)
-                        return index % 2 === 0 ? this.getLabelForValue(value) : '';
-                    }
+                    minRotation: 45
                 }
             }
         },
@@ -289,7 +287,6 @@ async function loadData(){
         document.getElementById('windMax').innerText='Max Speed: '+w.maxSpeed+' km/h';
         document.getElementById('gustMax').innerText='Max Gust: '+w.maxGust+' km/h';
 
-        // Wind direction with name in brackets
         const dir = parseFloat(w.direction);
         const dirName = getWindDirection(dir);
         document.getElementById('winddir').innerText = dir + '° (' + dirName + ')';
@@ -310,7 +307,10 @@ async function loadData(){
         charts.wind.data.labels = labels;
         charts.wind.data.datasets[0].data = data.history.map(h=>h.windSpeed);
 
-        charts.temp.update(); charts.hum.update(); charts.wind.update();
+        // FORCE update so X-axis timestamps appear immediately (this fixes the issue)
+        charts.temp.update('none'); 
+        charts.hum.update('none'); 
+        charts.wind.update('none');
 
         document.getElementById('status').innerHTML='✅ Live • Updated '+new Date().toLocaleTimeString('en-IN',{timeZone:'Asia/Kolkata'});
     }catch(e){
