@@ -224,6 +224,12 @@ let charts={};
 
 function format(v){ return isNaN(parseFloat(v))?'--':parseFloat(v).toFixed(1); }
 
+function getWindDirection(degrees) {
+    const directions = ['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW'];
+    const index = Math.round(degrees / 22.5) % 16;
+    return directions[index];
+}
+
 function createCharts(){
     const opt = {
         animation:false,
@@ -235,8 +241,7 @@ function createCharts(){
                     maxRotation: 45,
                     minRotation: 45,
                     callback: function(value, index) {
-                        // Show label every 1 minute (every 2 data points since update is every 30s)
-                        return index % 2 === 0 ? this.getLabelForValue(value) : '';
+                        return index % 4 === 0 ? this.getLabelForValue(value) : '';
                     }
                 }
             }
@@ -283,13 +288,17 @@ async function loadData(){
         document.getElementById('gust').innerText=w.gust+' km/h';
         document.getElementById('windMax').innerText='Max Speed: '+w.maxSpeed+' km/h';
         document.getElementById('gustMax').innerText='Max Gust: '+w.maxGust+' km/h';
-        document.getElementById('winddir').innerText=w.direction+'°';
+
+        // Wind direction with name in brackets (e.g. 225° (SW))
+        const dir = parseFloat(w.direction);
+        const dirName = getWindDirection(dir);
+        document.getElementById('winddir').innerText = dir + '° (' + dirName + ')';
 
         document.getElementById('pressure').innerText=data.pressure+' hPa';
         document.getElementById('uv').innerText=s.uvi;
         document.getElementById('solar').innerText=s.solar+' W/m²';
 
-        // IST time labels - updated every fetch (every 30s) → shows ~every minute
+        // IST time labels
         const labels = data.history.map(h=>{
             const d = new Date(h.time);
             return d.toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',hour12:false,timeZone:'Asia/Kolkata'});
@@ -302,9 +311,7 @@ async function loadData(){
         charts.wind.data.labels = labels;
         charts.wind.data.datasets[0].data = data.history.map(h=>h.windSpeed);
 
-        charts.temp.update(); 
-        charts.hum.update(); 
-        charts.wind.update();
+        charts.temp.update(); charts.hum.update(); charts.wind.update();
 
         document.getElementById('status').innerHTML='✅ Live • Updated '+new Date().toLocaleTimeString('en-IN',{timeZone:'Asia/Kolkata'});
     }catch(e){
