@@ -1,4 +1,4 @@
-// index.js - Single file for Vercel (Robust version)
+// index.js - Final working single file for Vercel
 
 let cachedData = null;
 let lastFetch = 0;
@@ -32,26 +32,20 @@ async function getWeatherData() {
         const MAC = process.env.MAC;
 
         if (!APPLICATION_KEY || !API_KEY || !MAC) {
-            throw new Error("Missing one or more Ecowitt environment variables (APPLICATION_KEY, API_KEY, MAC)");
+            throw new Error("Missing Ecowitt environment variables. Please add them in Vercel Dashboard.");
         }
 
         const url = `https://api.ecowitt.net/api/v3/device/real_time?application_key=${encodeURIComponent(APPLICATION_KEY)}&api_key=${encodeURIComponent(API_KEY)}&mac=${encodeURIComponent(MAC)}`;
 
-        const response = await fetch(url, { timeout: 10000 });  // Add timeout protection
+        const response = await fetch(url);
 
-        if (!response.ok) {
-            throw new Error(`Ecowitt API returned ${response.status}`);
-        }
+        if (!response.ok) throw new Error(`Ecowitt API error: ${response.status}`);
 
         const ecowitt = await response.json();
-
-        if (ecowitt.code !== 0) {
-            throw new Error(ecowitt.msg || "Ecowitt API error");
-        }
+        if (ecowitt.code !== 0) throw new Error(ecowitt.msg || "Ecowitt API returned error");
 
         const d = ecowitt.data;
 
-        // Unit conversions
         const tempC = ((parseFloat(d.outdoor.temperature.value) - 32) * 5 / 9).toFixed(1);
         const feelsLikeC = ((parseFloat(d.outdoor.feels_like.value) - 32) * 5 / 9).toFixed(1);
         const dewPointC = ((parseFloat(d.outdoor.dew_point.value) - 32) * 5 / 9).toFixed(1);
@@ -63,7 +57,9 @@ async function getWeatherData() {
         let tempChangeRate = 0;
         if (lastTemp !== null && lastTempTime !== null) {
             const timeDiffHrs = (Date.now() - lastTempTime) / (1000 * 3600);
-            if (timeDiffHrs > 0) tempChangeRate = ((parseFloat(tempC) - lastTemp) / timeDiffHrs).toFixed(1);
+            if (timeDiffHrs > 0) {
+                tempChangeRate = ((parseFloat(tempC) - lastTemp) / timeDiffHrs).toFixed(1);
+            }
         }
         lastTemp = parseFloat(tempC);
         lastTempTime = Date.now();
@@ -123,13 +119,13 @@ async function getWeatherData() {
         return cachedData;
 
     } catch (error) {
-        console.error("Weather fetch error:", error.message);
-        if (cachedData) return cachedData;   // Fallback to last good data
-        throw new Error(`Failed to fetch weather: ${error.message}`);
+        console.error("Weather Error:", error.message);
+        if (cachedData) return cachedData;
+        throw error;
     }
 }
 
-// HTML Dashboard
+// ==================== HTML DASHBOARD ====================
 const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -154,7 +150,6 @@ h1 { text-align:center; padding:22px 15px 15px; font-size:27px; margin:0; backgr
 <h1>KK Nagar Weather Station</h1>
 <div id="status" class="status">Loading live data...</div>
 <div class="container">
-    <!-- Cards -->
     <div class="card">
         <div class="grid">
             <div class="item"><div class="label">TEMPERATURE</div><div class="value" id="temp"></div><div class="small" id="tempRate"></div><div class="small" id="tempMaxMin"></div></div>
@@ -163,22 +158,19 @@ h1 { text-align:center; padding:22px 15px 15px; font-size:27px; margin:0; backgr
             <div class="item"><div class="label">FEELS LIKE</div><div class="value" id="feels"></div></div>
         </div>
     </div>
-
     <div class="card">
         <div class="grid">
             <div class="item"><div class="label">RAIN RATE</div><div class="value" id="rain"></div></div>
             <div class="item"><div class="label">TOTAL RAIN (Today)</div><div class="value" id="totalRain"></div></div>
         </div>
     </div>
-
     <div class="card">
         <div class="grid">
             <div class="item"><div class="label">WIND SPEED</div><div class="value" id="wind"></div><div class="small" id="windMax"></div></div>
             <div class="item"><div class="label">WIND GUST</div><div class="value" id="gust"></div><div class="small" id="gustMax"></div></div>
-            <div class="item" style="grid-column:1/-1;text-align:center;"><div class="label">WIND DIRECTION</div><div class="value" id="winddir"></div></div>
+            <div class="item" style="grid-column:1/-1; text-align:center;"><div class="label">WIND DIRECTION</div><div class="value" id="winddir"></div></div>
         </div>
     </div>
-
     <div class="card">
         <div class="grid">
             <div class="item"><div class="label">PRESSURE</div><div class="value" id="pressure"></div></div>
@@ -186,7 +178,6 @@ h1 { text-align:center; padding:22px 15px 15px; font-size:27px; margin:0; backgr
             <div class="item"><div class="label">SOLAR RADIATION</div><div class="value" id="solar"></div></div>
         </div>
     </div>
-
     <div class="card">
         <h3 style="margin:0 0 16px 0; text-align:center; opacity:0.9;">Recent Trends • IST Time</h3>
         <canvas id="tempChart" height="150"></canvas>
@@ -200,25 +191,24 @@ let charts = {};
 
 function createCharts() {
     const opt = {
-        animation: {duration: 800},
+        animation: { duration: 800 },
         responsive: true,
         maintainAspectRatio: false,
         scales: {
-            y: {beginAtZero: false, ticks: {callback: v => v.toFixed(1)}},
-            x: {type: 'category', ticks: {autoSkip: true, maxTicksLimit: 12, maxRotation: 0}}
+            y: { beginAtZero: false, ticks: { callback: v => v.toFixed(1) } },
+            x: { type: 'category', ticks: { autoSkip: true, maxTicksLimit: 12, maxRotation: 0 } }
         },
-        plugins: {legend: {position: 'top'}}
+        plugins: { legend: { position: 'top' } }
     };
 
-    charts.temp = new Chart('tempChart', {type:'line', data:{labels:[], datasets:[{label:'Temperature (°C)', data:[], borderColor:'#67e8f9', tension:0.4}]}, options:opt});
-    charts.hum = new Chart('humChart', {type:'line', data:{labels:[], datasets:[{label:'Humidity (%)', data:[], borderColor:'#4ade80', tension:0.4}]}, options:opt});
-    charts.wind = new Chart('windChart', {type:'line', data:{labels:[], datasets:[{label:'Wind Speed (km/h)', data:[], borderColor:'#fb923c', tension:0.4}]}, options:opt});
+    charts.temp = new Chart('tempChart', { type: 'line', data: { labels: [], datasets: [{ label: 'Temperature (°C)', data: [], borderColor: '#67e8f9', tension: 0.4 }] }, options: opt });
+    charts.hum = new Chart('humChart', { type: 'line', data: { labels: [], datasets: [{ label: 'Humidity (%)', data: [], borderColor: '#4ade80', tension: 0.4 }] }, options: opt });
+    charts.wind = new Chart('windChart', { type: 'line', data: { labels: [], datasets: [{ label: 'Wind Speed (km/h)', data: [], borderColor: '#fb923c', tension: 0.4 }] }, options: opt });
 }
 
 async function loadData() {
     try {
         const res = await fetch('/weather');
-        if (!res.ok) throw new Error('API error');
         const data = await res.json();
 
         if (data.error) {
@@ -254,7 +244,7 @@ async function loadData() {
 
         const labels = data.history.map(h => {
             const d = new Date(h.time);
-            return d.toLocaleTimeString('en-IN', {hour:'2-digit', minute:'2-digit', hour12:false, timeZone:'Asia/Kolkata'});
+            return d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' });
         });
 
         charts.temp.data.labels = labels;
@@ -269,7 +259,7 @@ async function loadData() {
         charts.wind.data.datasets[0].data = data.history.map(h => h.windSpeed);
         charts.wind.update();
 
-        document.getElementById('status').innerHTML = \`✅ Live • Updated \${new Date().toLocaleTimeString('en-IN', {hour:'2-digit', minute:'2-digit', timeZone:'Asia/Kolkata'})} IST\`;
+        document.getElementById('status').innerHTML = \`✅ Live • Updated \${new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Kolkata' })} IST\`;
 
     } catch (e) {
         console.error(e);
@@ -284,20 +274,20 @@ setInterval(loadData, 30000);
 </body>
 </html>`;
 
-// Vercel Handler
+// ==================== VERCEL HANDLER ====================
 export default async function handler(req, res) {
-    const url = new URL(req.url || '/', `http://${req.headers.host}`);
+    try {
+        const url = new URL(req.url || '/', `http://${req.headers.host || 'localhost'}`);
 
-    if (url.pathname === '/weather') {
-        try {
+        if (url.pathname === '/weather') {
             const data = await getWeatherData();
             res.status(200).json(data);
-        } catch (err) {
-            console.error("Handler error:", err.message);
-            res.status(500).json({ error: err.message || "Internal server error" });
+        } else {
+            res.setHeader('Content-Type', 'text/html; charset=utf-8');
+            res.status(200).send(html);
         }
-    } else {
-        res.setHeader('Content-Type', 'text/html; charset=utf-8');
-        res.status(200).send(html);
+    } catch (err) {
+        console.error("Handler Error:", err.message);
+        res.status(500).json({ error: err.message || "Internal Server Error" });
     }
 }
