@@ -241,7 +241,8 @@ function createCharts(){
                     maxRotation: 45,
                     minRotation: 45,
                     callback: function(value, index) {
-                        return index % 4 === 0 ? this.getLabelForValue(value) : '';
+                        // Show timestamp every 1 minute (data updates every 30s → every 2nd point)
+                        return index % 2 === 0 ? this.getLabelForValue(value) : '';
                     }
                 }
             }
@@ -272,7 +273,6 @@ async function loadData(){
 
         const o=data.outdoor, r=data.rainfall, w=data.wind, s=data.solar_uv;
 
-        // Temperature
         document.getElementById('temp').innerText = o.temp+'°C';
         let rate=o.tempChangeRate, sign=rate>=0?'↑':'↓', color=rate>=0?'#4ade80':'#f87171';
         document.getElementById('tempRate').innerHTML='<span style="color:'+color+'">'+sign+' '+Math.abs(rate)+' °C/hr</span>';
@@ -289,7 +289,7 @@ async function loadData(){
         document.getElementById('windMax').innerText='Max Speed: '+w.maxSpeed+' km/h';
         document.getElementById('gustMax').innerText='Max Gust: '+w.maxGust+' km/h';
 
-        // Wind direction with name in brackets (e.g. 225° (SW))
+        // Wind direction with name in brackets
         const dir = parseFloat(w.direction);
         const dirName = getWindDirection(dir);
         document.getElementById('winddir').innerText = dir + '° (' + dirName + ')';
@@ -298,7 +298,6 @@ async function loadData(){
         document.getElementById('uv').innerText=s.uvi;
         document.getElementById('solar').innerText=s.solar+' W/m²';
 
-        // IST time labels
         const labels = data.history.map(h=>{
             const d = new Date(h.time);
             return d.toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',hour12:false,timeZone:'Asia/Kolkata'});
