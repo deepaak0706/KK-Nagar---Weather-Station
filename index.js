@@ -133,216 +133,98 @@ app.get("/", (req, res) => {
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>KK Nagar Weather Station</title>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
-body { margin:0; font-family:'Segoe UI',Arial,sans-serif; background:linear-gradient(135deg,#0f172a,#1e293b); color:#e2e8f0; min-height:100vh; }
-h1 { text-align:center; padding:22px 15px 15px; font-size:29px; margin:0; background:rgba(15,23,42,0.85); letter-spacing:-0.5px; }
-.status { text-align:center; font-size:15px; padding:8px; opacity:0.9; letter-spacing:0.5px; }
-.container { max-width:1100px; margin:0 auto; padding:24px; }
-.card { 
-    background:rgba(255,255,255,0.08); 
-    backdrop-filter:blur(20px); 
-    border:1px solid rgba(255,255,255,0.1);
-    border-radius:18px; 
-    padding:28px 24px; 
-    margin-bottom:22px; 
-    box-shadow:0 10px 30px rgba(0,0,0,0.4); 
-}
-.grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:20px; }
-.item { text-align:center; }
-.label { font-size:12.5px; opacity:0.8; margin-bottom:6px; font-weight:600; letter-spacing:0.5px; }
-.value { font-size:28px; font-weight:700; letter-spacing:-1px; text-shadow:0 2px 10px rgba(0,0,0,0.3); }
-.small { font-size:13.5px; font-weight:400; opacity:0.85; }
-.rise { color:#4ade80; } .fall { color:#f87171; }
-.cool { color:#67e8f9; } .mild { color:#fcd34d; } .hot { color:#fb923c; } .veryhot { color:#f87171; }
-@keyframes pulse { 50% { opacity: 0.4; } }
-</style>
-</head>
-<body>
-<h1>KK Nagar Weather Station</h1>
-<div id="status" class="status">Loading live data...</div>
-<div class="container">
-
-<div class="card">
-    <div class="grid">
-        <div class="item">
-            <div class="label">TEMPERATURE</div>
-            <div class="value" id="temp"></div>
-            <div class="small" id="tempRate"></div>
-            <div class="small" id="tempMaxMin"></div>
-        </div>
-        <div class="item">
-            <div class="label">DEW POINT</div>
-            <div class="value" id="dewpoint"></div>
-        </div>
-        <div class="item">
-            <div class="label">HUMIDITY</div>
-            <div class="value" id="hum"></div>
-        </div>
-        <div class="item">
-            <div class="label">FEELS LIKE</div>
-            <div class="value" id="feels"></div>
-        </div>
-    </div>
-</div>
-
-<div class="card">
-    <div class="grid">
-        <div class="item">
-            <div class="label">RAIN RATE</div>
-            <div class="value" id="rain"></div>
-        </div>
-        <div class="item">
-            <div class="label">TOTAL RAIN (Today)</div>
-            <div class="value" id="totalRain"></div>
-        </div>
-    </div>
-</div>
-
-<div class="card">
-    <div class="grid">
-        <div class="item">
-            <div class="label">WIND SPEED</div>
-            <div class="value" id="wind"></div>
-            <div class="small" id="windMax"></div>
-        </div>
-        <div class="item">
-            <div class="label">WIND GUST</div>
-            <div class="value" id="gust"></div>
-            <div class="small" id="gustMax"></div>
-        </div>
-        <div class="item" style="grid-column:1/-1; text-align:center;">
-            <div class="label">WIND DIRECTION</div>
-            <div class="value" id="winddir"></div>
-        </div>
-    </div>
-</div>
-
-<div class="card">
-    <div class="grid">
-        <div class="item"><div class="label">PRESSURE</div><div class="value" id="pressure"></div></div>
-        <div class="item"><div class="label">UV INDEX</div><div class="value" id="uv"></div></div>
-        <div class="item"><div class="label">SOLAR RADIATION</div><div class="value" id="solar"></div></div>
-    </div>
-</div>
-
-<div class="card">
-    <h3 style="margin:0 0 20px 0; text-align:center; opacity:0.9;">Recent Trends</h3>
-    <canvas id="tempChart" height="220"></canvas>
-    <canvas id="humChart" height="220"></canvas>
-    <canvas id="windChart" height="220"></canvas>
-</div>
-
-</div>
-
-<script>
-let charts={};
-
-function format(v){ return isNaN(parseFloat(v))?'--':parseFloat(v).toFixed(1); }
-
-function getWindDirection(degrees) {
-    const directions = ['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW'];
-    const index = Math.round(degrees / 22.5) % 16;
-    return directions[index];
-}
-
-function createCharts(){
-    const opt = {
-        animation: { duration: 1000, easing: 'easeOutQuart' },
-        scales:{
-            y:{ beginAtZero:false,ticks:{ callback: v=>v.toFixed(1), font: { size: 13 } } },
-            x:{ 
-                type:'category', 
-                ticks:{ 
-                    autoSkip: true,
-                    maxTicksLimit: 12,
-                    maxRotation: 0,
-                    minRotation: 0,
-                    font: { size: 13 }
-                }
-            }
-        },
-        plugins: {
-            legend: { display: true, position: 'top', labels: { boxWidth: 12, padding: 20, font: { size: 14 } } }
-        }
-    };
-    charts.temp = new Chart(document.getElementById('tempChart'),{
-        type:'line', data:{ labels:[], datasets:[{label:'Temperature (°C)', data:[], borderColor:'#67e8f9', tension:0.3}]}, options:opt
-    });
-    charts.hum = new Chart(document.getElementById('humChart'),{
-        type:'line', data:{ labels:[], datasets:[{label:'Humidity (%)', data:[], borderColor:'#4ade80', tension:0.3}]}, options:opt
-    });
-    charts.wind = new Chart(document.getElementById('windChart'),{
-        type:'line', data:{ labels:[], datasets:[{label:'Wind Speed (km/h)', data:[], borderColor:'#fb923c', tension:0.3}]}, options:opt
-    });
-}
-
-async function loadData(){
-    try{
-        const res = await fetch('/weather');
-        const data = await res.json();
-        if(data.error){ 
-            document.getElementById('status').innerHTML='⚠️ '+data.error; 
-            return; 
-        }
-
-        const o=data.outdoor, r=data.rainfall, w=data.wind, s=data.solar_uv;
-
-        document.getElementById('temp').innerText = o.temp+'°C';
-        let rate=o.tempChangeRate, sign=rate>=0?'↑':'↓', color=rate>=0?'#4ade80':'#f87171';
-        document.getElementById('tempRate').innerHTML='<span style="color:'+color+'">'+sign+' '+Math.abs(rate)+' °C/hr</span>';
-        document.getElementById('tempMaxMin').innerHTML='Max: <span style="color:#f87171">'+o.maxTemp+'</span> | Min: <span style="color:#67e8f9">'+o.minTemp+'</span>';
-        document.getElementById('dewpoint').innerText=o.dewPoint+'°C';
-        document.getElementById('hum').innerText=o.humidity+'%';
-        document.getElementById('feels').innerText=o.feelsLike+'°C';
-
-        document.getElementById('rain').innerText=r.rainRate+' mm/hr (Max: '+r.maxRainRate+')';
-        document.getElementById('totalRain').innerText=r.totalRain+' mm';
-
-        document.getElementById('wind').innerText=w.speed+' km/h';
-        document.getElementById('gust').innerText=w.gust+' km/h';
-        document.getElementById('windMax').innerText='Max Speed: '+w.maxSpeed+' km/h';
-        document.getElementById('gustMax').innerText='Max Gust: '+w.maxGust+' km/h';
-
-        const dir = parseFloat(w.direction);
-        const dirName = getWindDirection(dir);
-        document.getElementById('winddir').innerText = dir + '° (' + dirName + ')';
-
-        document.getElementById('pressure').innerText=data.pressure+' hPa';
-        document.getElementById('uv').innerText=s.uvi;
-        document.getElementById('solar').innerText=s.solar+' W/m²';
-
-        const labels = data.history.map(h=>{
-            const d = new Date(h.time);
-            return d.toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',hour12:false,timeZone:'Asia/Kolkata'});
-        });
-
-        charts.temp.data.labels = labels;
-        charts.temp.data.datasets[0].data = data.history.map(h=>h.temp);
-        charts.hum.data.labels = labels;
-        charts.hum.data.datasets[0].data = data.history.map(h=>h.hum);
-        charts.wind.data.labels = labels;
-        charts.wind.data.datasets[0].data = data.history.map(h=>h.windSpeed);
-
-        charts.temp.update(); charts.hum.update(); charts.wind.update();
-
-        document.getElementById('status').innerHTML = 
-            '<span style="animation:pulse 2s infinite;">🟢</span> Live • Updated ' + 
-            new Date().toLocaleTimeString('en-IN',{timeZone:'Asia/Kolkata'});
-    }catch(e){
-        console.error(e);
-        document.getElementById('status').innerHTML="⚠️ Using last known data";
+    body { 
+        margin:0; 
+        font-family:'Outfit', system-ui, sans-serif; 
+        background: radial-gradient(circle at top right, #1e293b, #020617); 
+        color:#e2e8f0; 
+        min-height:100vh; 
     }
-}
+    .header-container {
+        padding: 30px 15px 20px;
+        text-align: center;
+        background: linear-gradient(180deg, rgba(2,6,23,0.9) 0%, rgba(2,6,23,0) 100%);
+    }
+    h1 { 
+        font-size: 36px; 
+        margin:0 0 10px 0; 
+        font-weight: 800;
+        letter-spacing: -1px; 
+        background: linear-gradient(90deg, #38bdf8, #818cf8, #c084fc);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+    }
+    .status { 
+        display: inline-block;
+        background: rgba(255,255,255,0.05);
+        border: 1px solid rgba(255,255,255,0.1);
+        border-radius: 20px;
+        font-size: 13px; 
+        padding: 6px 16px; 
+        font-weight: 400;
+        letter-spacing: 0.5px; 
+    }
+    .container { max-width:1100px; margin:0 auto; padding:20px; }
+    
+    .card { 
+        background: linear-gradient(145deg, rgba(30,41,59,0.6), rgba(15,23,42,0.8));
+        backdrop-filter: blur(16px); 
+        -webkit-backdrop-filter: blur(16px);
+        border: 1px solid rgba(255,255,255,0.08);
+        border-top: 1px solid rgba(255,255,255,0.15);
+        border-radius: 24px; 
+        padding: 30px; 
+        margin-bottom: 24px; 
+        box-shadow: 0 20px 40px rgba(0,0,0,0.4); 
+    }
+    
+    .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:25px; }
+    .item { 
+        text-align:center; 
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        padding: 15px;
+        background: rgba(0,0,0,0.15);
+        border-radius: 16px;
+    }
+    
+    .label { 
+        font-size: 12px; 
+        color: #94a3b8; 
+        margin-bottom: 8px; 
+        font-weight: 600; 
+        letter-spacing: 1.5px; 
+        text-transform: uppercase;
+    }
+    .value { 
+        font-size: 34px; 
+        font-weight: 800; 
+        letter-spacing: -1px; 
+        color: #ffffff;
+        text-shadow: 0 0 20px rgba(255,255,255,0.1);
+    }
+    .small { 
+        font-size: 13px; 
+        font-weight: 400; 
+        color: #cbd5e1;
+        margin-top: 6px;
+    }
+    
+    .chart-container {
+        padding: 10px;
+        margin-bottom: 10px;
+    }
+    .chart-title {
+        text-align: center;
+        font-size: 18px;
+        font-weight: 600;
+        margin: 0 0 25px 0;
+        color: #e2e8f0;
+    }
 
-createCharts();
-loadData();
-setInterval(loadData,30000);
-</script>
-
-</body>
-</html>`);
-});
-
-const PORT = process.env.PORT || 3000;
-app.listen(PORT,()=>console.log("✅ KK Nagar Weather Station running on port "+PORT));
+    /* Value Specific Colors */
+    .val-temp { color: #38bdf8;
