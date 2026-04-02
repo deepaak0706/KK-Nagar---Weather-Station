@@ -8,7 +8,6 @@ const API_KEY = process.env.API_KEY;
 const MAC = process.env.MAC;
 const STORAGE_FILE = "./weather_records.json"; 
 
-// --- INITIAL STATE & PERSISTENCE ---
 let state = {
     cachedData: null,
     todayHistory: [],
@@ -20,7 +19,7 @@ let state = {
     lastFetchTime: 0
 };
 
-// Load saved records from disk on startup
+// Load saved records from disk
 if (fs.existsSync(STORAGE_FILE)) {
     try {
         const saved = JSON.parse(fs.readFileSync(STORAGE_FILE, 'utf-8'));
@@ -29,17 +28,13 @@ if (fs.existsSync(STORAGE_FILE)) {
         state.maxWindSpeed = saved.maxWindSpeed ?? 0;
         state.maxGust = saved.maxGust ?? 0;
         state.maxRainRate = saved.maxRainRate ?? 0;
-        console.log("📂 Historical records loaded successfully.");
-    } catch (e) { console.log("⚠️ Could not parse records file."); }
+    } catch (e) { console.log("Error loading records"); }
 }
 
 function saveToDisk() {
     const data = {
-        maxTemp: state.maxTemp,
-        minTemp: state.minTemp,
-        maxWindSpeed: state.maxWindSpeed,
-        maxGust: state.maxGust,
-        maxRainRate: state.maxRainRate
+        maxTemp: state.maxTemp, minTemp: state.minTemp,
+        maxWindSpeed: state.maxWindSpeed, maxGust: state.maxGust, maxRainRate: state.maxRainRate
     };
     fs.writeFileSync(STORAGE_FILE, JSON.stringify(data), 'utf-8');
 }
@@ -48,7 +43,10 @@ const getCard = (a) => ["N","NNE","NE","ENE","E","ESE","SE","SSE","S","SSW","SW"
 
 async function syncWithEcowitt() {
     const now = Date.now();
-    if (state.cachedData && (now - state.lastFetchTime < 40000)) return state.cachedData;
+    // Cache check: return cached data if less than 40 seconds old
+    if (state.cachedData && (now - state.lastFetchTime < 40000)) {
+        return state.cachedData;
+    }
 
     try {
         const url = `https://api.ecowitt.net/api/v3/device/real_time?application_key=${APPLICATION_KEY}&api_key=${API_KEY}&mac=${MAC}`;
@@ -63,14 +61,12 @@ async function syncWithEcowitt() {
         const windKmh = parseFloat((d.wind.wind_speed.value * 1.60934).toFixed(1));
         const gustKmh = parseFloat((d.wind.wind_gust.value * 1.60934).toFixed(1));
 
-        // Logic for Records
         let newRecord = false;
         if (tempC > state.maxTemp || state.maxTemp === -999) { state.maxTemp = tempC; newRecord = true; }
         if (tempC < state.minTemp || state.minTemp === 999) { state.minTemp = tempC; newRecord = true; }
         if (windKmh > state.maxWindSpeed) { state.maxWindSpeed = windKmh; newRecord = true; }
         if (gustKmh > state.maxGust) { state.maxGust = gustKmh; newRecord = true; }
         if (rainRate > state.maxRainRate) { state.maxRainRate = rainRate; newRecord = true; }
-        
         if (newRecord) saveToDisk();
 
         let trend = 0;
@@ -89,13 +85,13 @@ async function syncWithEcowitt() {
             lastSync: new Date().toISOString(),
             history: state.todayHistory
         };
-        state.lastFetchTime = now;
+        state.lastFetchTime = now; // CRITICAL: Updates the timer
         return state.cachedData;
     } catch (e) { return state.cachedData || { error: "Offline" }; }
 }
 
 app.get("/weather", async (req, res) => {
-    res.setHeader('Cache-Control', 'no-store');
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
     res.json(await syncWithEcowitt());
 });
 
@@ -186,6 +182,7 @@ app.get("/", (req, res) => {
         }
         async function update() {
             try {
+                // The query string v=Date.now() forces the browser to bypass its own cache
                 const res = await fetch('/weather?v=' + Date.now());
                 const d = await res.json();
                 document.getElementById('t').innerText = d.temp.current + '°C';
@@ -198,18 +195,25 @@ app.get("/", (req, res) => {
                 document.getElementById('r').innerText = d.rain.total + ' mm'; document.getElementById('rr').innerText = 'Intensity: ' + d.rain.rate + ' mm/h';
                 document.getElementById('mr').innerText = d.rain.maxR + ' mm/h'; document.getElementById('rs').innerText = d.rain.rate > 0 ? 'Raining' : 'Dry';
                 document.getElementById('ts').innerText = new Date(d.lastSync).toLocaleTimeString('en-IN', {hour12: false});
+                
                 const lbls = d.history.map(h => new Date(h.time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }));
-                if (!charts.cT) { charts.cT = setupChart('cT', 'Temp (°C)', '#0ea5e9'); charts.cH = setupChart('cH', 'Hum (%)', '#10b981', true); charts.cW = setupChart('cW', 'Wind (km/h)', '#f59e0b', true); charts.cR = setupChart('cR', 'Rain (mm/h)', '#6366f1', true); }
+                if (!charts.cT) { 
+                    charts.cT = setupChart('cT', 'Temp (°C)', '#0ea5e9'); 
+                    charts.cH = setupChart('cH', 'Hum (%)', '#10b981', true); 
+                    charts.cW = setupChart('cW', 'Wind (km/h)', '#f59e0b', true); 
+                    charts.cR = setupChart('cR', 'Rain (mm/h)', '#6366f1', true); 
+                }
                 charts.cT.data.labels = lbls; charts.cT.data.datasets[0].data = d.history.map(h=>h.temp); charts.cT.update('none');
                 charts.cH.data.labels = lbls; charts.cH.data.datasets[0].data = d.history.map(h=>h.hum); charts.cH.update('none');
                 charts.cW.data.labels = lbls; charts.cW.data.datasets[0].data = d.history.map(h=>h.wind); charts.cW.update('none');
                 charts.cR.data.labels = lbls; charts.cR.data.datasets[0].data = d.history.map(h=>h.rain); charts.cR.update('none');
-            } catch(e) {}
+            } catch(e) { console.error("Update failed", e); }
         }
-        setInterval(update, 45000); update();
+        setInterval(update, 45000); 
+        update();
     </script>
 </body>
 </html>`);
 });
 
-app.listen(3000, () => console.log("Station online. Records persisted to disk."));
+app.listen(3000, () => console.log("Station ready. Auto-refresh enabled."));
