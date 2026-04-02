@@ -188,7 +188,7 @@ app.get("/", (req, res) => {
             try {
                 const res = await fetch('/weather?v=' + Date.now());
                 const d = await res.json();
-                document.getElementById('t').innerText = d.temp.current + '°';
+                document.getElementById('t').innerText = d.temp.current + '°C';
                 const symb = d.temp.trend > 0 ? '▲' : d.temp.trend < 0 ? '▼' : '●';
                 document.getElementById('tr').innerHTML = 'Trend: <span style="color:' + (d.temp.trend >= 0 ? 'var(--max-t)' : '#22c55e') + '">' + symb + ' ' + Math.abs(d.temp.trend) + '°C/hr</span>';
                 document.getElementById('mx').innerText = d.temp.max + '°'; document.getElementById('mn').innerText = d.temp.min + '°';
@@ -212,4 +212,4 @@ app.get("/", (req, res) => {
 </html>`);
 });
 
-app.listen(3000, () => console.log("Station online. History saved to local storage."));
+app.listen(3000, () => console.log("Station online. Records persisted to disk."));
