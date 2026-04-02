@@ -19,7 +19,7 @@ let state = {
     lastFetchTime: 0
 };
 
-// Load saved records from disk
+// --- LOAD RECORDS FROM DISK ---
 if (fs.existsSync(STORAGE_FILE)) {
     try {
         const saved = JSON.parse(fs.readFileSync(STORAGE_FILE, 'utf-8'));
@@ -43,7 +43,8 @@ const getCard = (a) => ["N","NNE","NE","ENE","E","ESE","SE","SSE","S","SSW","SW"
 
 async function syncWithEcowitt() {
     const now = Date.now();
-    // Cache check: return cached data if less than 40 seconds old
+    
+    // RE-ENABLED CACHE LOGIC: Only fetch from API if 40 seconds have passed
     if (state.cachedData && (now - state.lastFetchTime < 40000)) {
         return state.cachedData;
     }
@@ -85,13 +86,17 @@ async function syncWithEcowitt() {
             lastSync: new Date().toISOString(),
             history: state.todayHistory
         };
-        state.lastFetchTime = now; // CRITICAL: Updates the timer
+        
+        state.lastFetchTime = now; // RESET TIMER
         return state.cachedData;
     } catch (e) { return state.cachedData || { error: "Offline" }; }
 }
 
+// RESTORED STRICT CACHE HEADERS
 app.get("/weather", async (req, res) => {
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
     res.json(await syncWithEcowitt());
 });
 
@@ -168,6 +173,7 @@ app.get("/", (req, res) => {
     </div>
     <div class="graphs-title">Live Trend Analytics</div>
     <div class="graphs-grid"><div class="graph-card"><canvas id="cT"></canvas></div><div class="graph-card"><canvas id="cH"></canvas></div><div class="graph-card"><canvas id="cW"></canvas></div><div class="graph-card"><canvas id="cR"></canvas></div></div>
+    
     <script>
         let charts = {};
         function setupChart(id, label, col, minZero = false) {
@@ -180,22 +186,35 @@ app.get("/", (req, res) => {
                 options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: true, labels: {color: '#94a3b8', font: {size: 11, weight: 'bold'}} } }, scales: { x: { ticks: { color: '#475569', font: { size: 10 }, autoSkip: true, maxTicksLimit: 6 }, grid: { display: false } }, y: { beginAtZero: minZero, min: minZero ? 0 : undefined, ticks: { color: '#475569' }, grid: { color: '#1e293b' } } } }
             });
         }
+
         async function update() {
             try {
-                // The query string v=Date.now() forces the browser to bypass its own cache
+                // v=Date.now() forces the browser to bypass its cache
                 const res = await fetch('/weather?v=' + Date.now());
                 const d = await res.json();
+                
                 document.getElementById('t').innerText = d.temp.current + '°C';
                 const symb = d.temp.trend > 0 ? '▲' : d.temp.trend < 0 ? '▼' : '●';
                 document.getElementById('tr').innerHTML = 'Trend: <span style="color:' + (d.temp.trend >= 0 ? 'var(--max-t)' : '#22c55e') + '">' + symb + ' ' + Math.abs(d.temp.trend) + '°C/hr</span>';
-                document.getElementById('mx').innerText = d.temp.max + '°'; document.getElementById('mn').innerText = d.temp.min + '°';
-                document.getElementById('h').innerText = d.atmo.hum + '%'; document.getElementById('dp').innerText = d.atmo.dew + '°'; document.getElementById('pr').innerText = d.atmo.press + ' hPa';
-                document.getElementById('w').innerText = d.wind.speed + ' km/h'; document.getElementById('wg').innerText = 'Dir: ' + d.wind.card + ' | Gust: ' + d.wind.gust + ' km/h';
-                document.getElementById('mw').innerText = d.wind.maxS + ' km/h'; document.getElementById('mg').innerText = d.wind.maxG + ' km/h';
-                document.getElementById('r').innerText = d.rain.total + ' mm'; document.getElementById('rr').innerText = 'Intensity: ' + d.rain.rate + ' mm/h';
-                document.getElementById('mr').innerText = d.rain.maxR + ' mm/h'; document.getElementById('rs').innerText = d.rain.rate > 0 ? 'Raining' : 'Dry';
-                document.getElementById('ts').innerText = new Date(d.lastSync).toLocaleTimeString('en-IN', {hour12: false});
                 
+                document.getElementById('mx').innerText = d.temp.max + '°'; 
+                document.getElementById('mn').innerText = d.temp.min + '°';
+                document.getElementById('h').innerText = d.atmo.hum + '%'; 
+                document.getElementById('dp').innerText = d.atmo.dew + '°'; 
+                document.getElementById('pr').innerText = d.atmo.press + ' hPa';
+                
+                document.getElementById('w').innerText = d.wind.speed + ' km/h'; 
+                document.getElementById('wg').innerText = 'Dir: ' + d.wind.card + ' | Gust: ' + d.wind.gust + ' km/h';
+                document.getElementById('mw').innerText = d.wind.maxS + ' km/h'; 
+                document.getElementById('mg').innerText = d.wind.maxG + ' km/h';
+                
+                document.getElementById('r').innerText = d.rain.total + ' mm'; 
+                document.getElementById('rr').innerText = 'Intensity: ' + d.rain.rate + ' mm/h';
+                document.getElementById('mr').innerText = d.rain.maxR + ' mm/h'; 
+                document.getElementById('rs').innerText = d.rain.rate > 0 ? 'Raining' : 'Dry';
+                
+                document.getElementById('ts').innerText = new Date(d.lastSync).toLocaleTimeString('en-IN', {hour12: false});
+
                 const lbls = d.history.map(h => new Date(h.time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }));
                 if (!charts.cT) { 
                     charts.cT = setupChart('cT', 'Temp (°C)', '#0ea5e9'); 
@@ -209,6 +228,8 @@ app.get("/", (req, res) => {
                 charts.cR.data.labels = lbls; charts.cR.data.datasets[0].data = d.history.map(h=>h.rain); charts.cR.update('none');
             } catch(e) { console.error("Update failed", e); }
         }
+
+        // Run update every 45 seconds
         setInterval(update, 45000); 
         update();
     </script>
@@ -216,4 +237,4 @@ app.get("/", (req, res) => {
 </html>`);
 });
 
-app.listen(3000, () => console.log("Station ready. Auto-refresh enabled."));
+app.listen(3000, () => console.log("Live auto-update server online."));
