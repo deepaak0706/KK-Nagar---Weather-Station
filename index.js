@@ -19,7 +19,8 @@ const getCard = (a) => ["N","NNE","NE","ENE","E","ESE","SE","SSE","S","SSW","SW"
 
 async function syncWithEcowitt() {
     const now = Date.now();
-    if (state.cachedData && (now - state.lastFetchTime < 45000)) return state.cachedData;
+    // Cache on server for 40s so we don't hit Ecowitt limits
+    if (state.cachedData && (now - state.lastFetchTime < 40000)) return state.cachedData;
 
     try {
         const url = `https://api.ecowitt.net/api/v3/device/real_time?application_key=${APPLICATION_KEY}&api_key=${API_KEY}&mac=${MAC}`;
@@ -38,9 +39,9 @@ async function syncWithEcowitt() {
         if (state.todayHistory.length > 500) state.todayHistory.shift();
 
         state.cachedData = {
-            temp: { current: tempC, max: state.maxTemp, min: state.minTemp, feels: ((d.outdoor.feels_like.value - 32) * 5 / 9).toFixed(1) },
-            wind: { speed: windKmh, deg: d.wind.wind_direction.value, card: getCard(d.wind.wind_direction.value) },
-            atmo: { hum: d.outdoor.humidity.value, press: (d.pressure.relative.value * 33.8639).toFixed(1), uv: d.solar_and_uvi.uvi.value },
+            temp: { current: tempC, max: state.maxTemp, min: state.minTemp },
+            wind: { speed: windKmh, card: getCard(d.wind.wind_direction.value) },
+            atmo: { hum: d.outdoor.humidity.value, press: (d.pressure.relative.value * 33.8639).toFixed(1) },
             rain: { total: (d.rainfall.daily.value * 25.4).toFixed(1), rate: rainRate },
             history: state.todayHistory,
             lastSync: new Date().toISOString()
@@ -50,80 +51,97 @@ async function syncWithEcowitt() {
     } catch (e) { return state.cachedData || { error: "Offline" }; }
 }
 
+// API ROUTE
 app.get("/weather", async (req, res) => {
-    res.set('Cache-Control', 'no-store');
-    res.json(await syncWithEcowitt());
+    // ESSENTIAL: Stop Vercel from caching the JSON response
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    const data = await syncWithEcowitt();
+    res.json(data);
 });
 
+// UI ROUTE
 app.get("/", (req, res) => {
     res.send(`<!DOCTYPE html>
 <html>
 <head>
     <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>KK Nagar Weather Pro</title>
+    <title>KK Nagar Weather Live</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        :root { --bg: #0b0f1a; --card: #172035; --accent: #38bdf8; }
-        body { margin:0; font-family: sans-serif; background: var(--bg); color: #f1f5f9; padding: 15px; }
-        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 15px; }
-        .card { background: var(--card); padding: 20px; border-radius: 12px; border: 1px solid #ffffff10; }
-        .label { color: var(--accent); font-size: 11px; font-weight: bold; text-transform: uppercase; margin-bottom: 5px; }
-        .val { font-size: 32px; font-weight: 800; margin: 5px 0; }
-        .sub-grid { display: grid; grid-template-columns: 1fr 1fr; font-size: 12px; opacity: 0.8; border-top: 1px solid #ffffff10; padding-top: 10px; margin-top: 5px; }
-        .chart-box { height: 180px; margin-top: 15px; }
-        #status { text-align: center; font-size: 12px; margin-bottom: 15px; color: #4ade80; }
+        :root { --bg: #0b1120; --card: #1e293b; --accent: #38bdf8; }
+        body { margin:0; font-family: sans-serif; background: var(--bg); color: #f1f5f9; padding: 15px; text-align: center; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; max-width: 1000px; margin: 0 auto; }
+        .card { background: var(--card); padding: 20px; border-radius: 12px; border: 1px solid #334155; }
+        .label { color: var(--accent); font-size: 11px; font-weight: bold; text-transform: uppercase; }
+        .val { font-size: 32px; font-weight: 800; margin: 10px 0; }
+        .chart-container { max-width: 1000px; margin: 20px auto; height: 250px; background: var(--card); border-radius: 12px; padding: 15px; border: 1px solid #334155; }
+        #status { font-size: 12px; color: #4ade80; margin-bottom: 20px; }
     </style>
 </head>
 <body>
-    <div id="status">Connecting...</div>
+    <h2>KK Nagar Weather</h2>
+    <div id="status">Linking to station...</div>
+    
     <div class="grid">
-        <div class="card"><div class="label">Temperature</div><div id="t" class="val">--</div><div class="sub-grid"><span>Max: <b id="mx">--</b></span><span>Min: <b id="mn">--</b></span></div><div class="chart-box"><canvas id="cT"></canvas></div></div>
-        <div class="card"><div class="label">Wind</div><div id="w" class="val">--</div><div class="sub-grid"><span id="wd">--</span><span id="wg">--</span></div><div class="chart-box"><canvas id="cW"></canvas></div></div>
-        <div class="card"><div class="label">Humidity & UV</div><div id="h" class="val">--</div><div class="sub-grid"><span>Press: <b id="p">--</b></span><span>UV: <b id="uv">--</b></span></div><div class="chart-box"><canvas id="cH"></canvas></div></div>
-        <div class="card"><div class="label">Rainfall</div><div id="r" class="val">--</div><div class="sub-grid"><span>Rate: <b id="rr">--</b></span><span>Day: <b id="rd">--</b></span></div><div class="chart-box"><canvas id="cR"></canvas></div></div>
+        <div class="card"><div class="label">Temp</div><div id="t" class="val">--</div><small>High: <span id="mx">--</span> Low: <span id="mn">--</span></small></div>
+        <div class="card"><div class="label">Wind</div><div id="w" class="val">--</div><small id="wd">--</small></div>
+        <div class="card"><div class="label">Humidity</div><div id="h" class="val">--</div><small id="p">--</small></div>
+        <div class="card"><div class="label">Rain Today</div><div id="r" class="val">--</div><small id="rr">--</small></div>
     </div>
 
+    <div class="chart-container"><canvas id="mainChart"></canvas></div>
+
     <script>
-        let charts = {};
-        function initChart(id, label, color) {
-            return new Chart(document.getElementById(id), {
-                type: 'line',
-                data: { labels: [], datasets: [{ label: label, data: [], borderColor: color, tension: 0.3, pointRadius: 0, borderWidth: 2 }]},
-                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { display: false }, y: { ticks: { display: false }, grid: { display: false } } } }
-            });
-        }
+        let chart;
 
-        async function update() {
+        async function fetchNewData() {
             try {
-                const res = await fetch('/weather?t=' + Date.now());
-                const d = await res.json();
-                document.getElementById('t').innerText = d.temp.current + '°C';
-                document.getElementById('mx').innerText = d.temp.max;
-                document.getElementById('mn').innerText = d.temp.min;
-                document.getElementById('w').innerText = d.wind.speed + ' km/h';
-                document.getElementById('wd').innerText = d.wind.card;
-                document.getElementById('h').innerText = d.atmo.hum + '%';
-                document.getElementById('p').innerText = d.atmo.press;
-                document.getElementById('uv').innerText = d.atmo.uv;
-                document.getElementById('r').innerText = d.rain.total + ' mm';
-                document.getElementById('rr').innerText = d.rain.rate;
-                document.getElementById('status').innerText = '🟢 Live: ' + new Date(d.lastSync).toLocaleTimeString();
+                // We add ?v=... to the end to force the browser to bypass any cache
+                const response = await fetch('/weather?v=' + Date.now());
+                const data = await response.json();
 
-                const times = d.history.map(h => '');
-                if (!charts.cT) {
-                    charts.cT = initChart('cT', 'Temp', '#38bdf8');
-                    charts.cW = initChart('cW', 'Wind', '#fb923c');
-                    charts.cH = initChart('cH', 'Hum', '#4ade80');
-                    charts.cR = initChart('cR', 'Rain', '#818cf8');
+                if(data.error) return;
+
+                // Update text values
+                document.getElementById('t').innerText = data.temp.current + '°C';
+                document.getElementById('mx').innerText = data.temp.max + '°';
+                document.getElementById('mn').innerText = data.temp.min + '°';
+                document.getElementById('w').innerText = data.wind.speed + ' km/h';
+                document.getElementById('wd').innerText = 'Direction: ' + data.wind.card;
+                document.getElementById('h').innerText = data.atmo.hum + '%';
+                document.getElementById('p').innerText = data.atmo.press + ' hPa';
+                document.getElementById('r').innerText = data.rain.total + ' mm';
+                document.getElementById('rr').innerText = 'Rate: ' + data.rain.rate + ' mm/h';
+                
+                const timeStr = new Date(data.lastSync).toLocaleTimeString('en-IN');
+                document.getElementById('status').innerText = '🟢 AUTO-SYNC ACTIVE: ' + timeStr;
+
+                // Update Chart
+                const labels = data.history.map(h => new Date(h.time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}));
+                const temps = data.history.map(h => h.temp);
+
+                if(!chart) {
+                    const ctx = document.getElementById('mainChart').getContext('2d');
+                    chart = new Chart(ctx, {
+                        type: 'line',
+                        data: { labels: labels, datasets: [{ label: 'Temp °C', data: temps, borderColor: '#38bdf8', tension: 0.3, pointRadius: 0 }] },
+                        options: { responsive: true, maintainAspectRatio: false, scales: { x: { display: true }, y: { beginAtZero: false } } }
+                    });
+                } else {
+                    chart.data.labels = labels;
+                    chart.data.datasets[0].data = temps;
+                    chart.update('none');
                 }
-                charts.cT.data.labels = times; charts.cT.data.datasets[0].data = d.history.map(h=>h.temp); charts.cT.update('none');
-                charts.cW.data.labels = times; charts.cW.data.datasets[0].data = d.history.map(h=>h.wind); charts.cW.update('none');
-                charts.cH.data.labels = times; charts.cH.data.datasets[0].data = d.history.map(h=>h.hum); charts.cH.update('none');
-                charts.cR.data.labels = times; charts.cR.data.datasets[0].data = d.history.map(h=>h.rain); charts.cR.update('none');
-            } catch(e) {}
+            } catch (e) {
+                document.getElementById('status').innerText = '🔴 Connection lost. Reconnecting...';
+            }
         }
-        setInterval(update, 45000);
-        update();
+
+        // TRIGGER AUTO-REFRESH EVERY 45 SECONDS
+        setInterval(fetchNewData, 45000);
+
+        // Load immediately on page open
+        fetchNewData();
     </script>
 </body>
 </html>`);
