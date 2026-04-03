@@ -249,10 +249,11 @@ app.get("/", (req, res) => {
 
             <div class="card">
                 <div class="label">Atmospheric</div>
-                <div class="main-val"><span id="sol">--</span><span class="unit">W/m²</span></div>
-                <div class="minor-line" style="color:#fbbf24">UV Index: <span id="uv">--</span></div>
-                <div class="sub-box-4" style="grid-template-columns: 1fr;">
-                    <div class="badge"><span class="badge-label">Barometer</span><span id="pr" class="badge-val">--</span></div>
+                <div class="main-val"><span id="pr">--</span><span class="unit">hPa</span></div>
+                <div class="minor-line" style="color:#94a3b8">Stable Barometer</div>
+                <div class="sub-box-4">
+                    <div class="badge"><span class="badge-label">Solar Radiation</span><span id="sol" class="badge-val">--</span></div>
+                    <div class="badge"><span class="badge-label">UV Index</span><span id="uv" class="badge-val" style="color:#fbbf24">--</span></div>
                 </div>
             </div>
 
@@ -312,7 +313,6 @@ app.get("/", (req, res) => {
                 document.getElementById('t').innerText = d.temp.current;
                 document.getElementById('rf').innerText = d.temp.realFeel;
                 
-                // Enhanced Trend Arrows
                 const trendIcon = d.temp.trend > 0 ? '↗' : d.temp.trend < 0 ? '↘' : '→';
                 document.getElementById('tr').innerHTML = \`<span style="color:\${d.temp.trend > 0 ? 'var(--max-t)' : d.temp.trend < 0 ? '#22c55e' : '#94a3b8'}">\${trendIcon} \${Math.abs(d.temp.trend)}°C/hr Trend</span>\`;
                 
@@ -327,9 +327,9 @@ app.get("/", (req, res) => {
                 document.getElementById('mg').innerText = d.wind.maxG + ' km/h';
                 document.getElementById('needle').style.transform = \`rotate(\${d.wind.deg}deg)\`;
 
-                document.getElementById('sol').innerText = d.solar.rad;
+                document.getElementById('sol').innerText = d.solar.rad + ' W/m²';
                 document.getElementById('uv').innerText = d.solar.uvi;
-                document.getElementById('pr').innerText = Math.round(d.atmo.press) + ' hPa';
+                document.getElementById('pr').innerText = Math.round(d.atmo.press);
 
                 document.getElementById('r').innerText = d.rain.total;
                 document.getElementById('rr_main').innerText = 'Rate: ' + d.rain.rate + ' mm/h';
