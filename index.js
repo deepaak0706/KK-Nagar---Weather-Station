@@ -3,6 +3,10 @@ const fetch = require("node-fetch");
 const { Pool } = require('pg'); 
 const app = express();
 
+/**
+ * DATABASE CONFIGURATION
+ * Connects to your Neon PostgreSQL instance
+ */
 const pool = new Pool({
     connectionString: process.env.POSTGRES_URL + "?sslmode=require",
 });
@@ -11,6 +15,7 @@ const APPLICATION_KEY = process.env.APPLICATION_KEY;
 const API_KEY = process.env.API_KEY;
 const MAC = process.env.MAC;
 
+// Persistent state for calculations within a single server session
 let state = {
     cachedData: null,
     maxTemp: -999,
@@ -27,11 +32,17 @@ let state = {
     currentDate: new Date().toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' })
 };
 
+/**
+ * HELPER: Get Wind Cardinal Direction
+ */
 const getCard = (a) => {
     const directions = ["N","NNE","NE","ENE","E","ESE","SE","SSE","S","SSW","SW","WSW","W","WNW","NW","NNW"];
     return directions[Math.round(a / 22.5) % 16];
 };
 
+/**
+ * HELPER: Calculate RealFeel (Heat Index)
+ */
 function calculateRealFeel(tempC, humidity) {
     const T = (tempC * 9/5) + 32;
     const R = humidity;
@@ -44,72 +55,103 @@ function calculateRealFeel(tempC, humidity) {
     return parseFloat(((hi - 32) * 5 / 9).toFixed(1));
 }
 
+/**
+ * MAIN LOGIC: Sync with Ecowitt API and Database
+ */
 async function syncWithEcowitt() {
     const now = Date.now();
-    if (state.cachedData && (now - state.lastFetchTime < 35000)) return state.cachedData;
+    
+    // Throttle API calls to every 35 seconds to stay within rate limits
+    if (state.cachedData && (now - state.lastFetchTime < 35000)) {
+        return state.cachedData;
+    }
 
     try {
         const url = `https://api.ecowitt.net/api/v3/device/real_time?application_key=${APPLICATION_KEY}&api_key=${API_KEY}&mac=${MAC}`;
         const response = await fetch(url);
         const json = await response.json();
+        
+        if (!json.data) throw new Error("API returned no data");
         const d = json.data;
 
+        // Unit Conversions
         const tempC = parseFloat(((d.outdoor.temperature.value - 32) * 5 / 9).toFixed(1));
-        const hum = d.outdoor.humidity.value;
+        const hum = d.outdoor.humidity.value || 0;
         const press = parseFloat((d.pressure.relative.value * 33.8639).toFixed(1));
         const dailyRain = parseFloat((d.rainfall.daily.value * 25.4).toFixed(1));
-        
+        const curWind = parseFloat((d.wind.wind_speed.value * 1.60934).toFixed(1));
+        const curGust = parseFloat((d.wind.wind_gust.value * 1.60934).toFixed(1));
+        const solar = d.solar_and_uvi?.solar?.value || 0;
+        const uvi = d.solar_and_uvi?.uvi?.value || 0;
+
+        // Davis-Style Instantaneous Rain Rate Calculation
         let instantRR = 0;
         if (dailyRain > state.lastRainfall) {
             const timeDiffMin = (now - state.lastRainTime) / 60000;
-            if (timeDiffMin > 0) instantRR = parseFloat(((0.254 / timeDiffMin) * 60).toFixed(1));
+            if (timeDiffMin > 0) {
+                instantRR = parseFloat(((0.254 / timeDiffMin) * 60).toFixed(1));
+            }
             state.lastRainfall = dailyRain;
             state.lastRainTime = now;
-        } else if ((now - state.lastRainTime) > 15 * 60000) { instantRR = 0; }
+        } else if ((now - state.lastRainTime) > 15 * 60000) {
+            instantRR = 0; // Reset if no rain for 15 mins
+        }
 
+        // Daily Resets and High/Low Tracking
         const today = new Date().toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' });
-        const currentTimeStr = new Date(now).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' });
+        const currentTimeStr = new Date(now).toLocaleTimeString('en-IN', { 
+            hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' 
+        });
 
         if (state.currentDate !== today) {
             state.currentDate = today;
-            state.maxTemp = -999; state.minTemp = 999; state.maxWindSpeed = 0; state.maxGust = 0; state.maxRainRate = 0;
+            state.maxTemp = -999; state.minTemp = 999; 
+            state.maxWindSpeed = 0; state.maxGust = 0; state.maxRainRate = 0;
         }
 
         if (tempC > state.maxTemp || state.maxTemp === -999) { state.maxTemp = tempC; state.maxTempTime = currentTimeStr; }
         if (tempC < state.minTemp || state.minTemp === 999) { state.minTemp = tempC; state.minTempTime = currentTimeStr; }
-        if (parseFloat((d.wind.wind_speed.value * 1.60934).toFixed(1)) > state.maxWindSpeed) state.maxWindSpeed = parseFloat((d.wind.wind_speed.value * 1.60934).toFixed(1));
-        if (parseFloat((d.wind.wind_gust.value * 1.60934).toFixed(1)) > state.maxGust) state.maxGust = parseFloat((d.wind.wind_gust.value * 1.60934).toFixed(1));
+        if (curWind > state.maxWindSpeed) state.maxWindSpeed = curWind;
+        if (curGust > state.maxGust) state.maxGust = curGust;
         if (instantRR > state.maxRainRate) state.maxRainRate = instantRR;
 
-        // DB Insert with 2-minute cooldown to prevent multiple points for the same minute
+        // Write to Database every 2 minutes
         if (now - state.lastDbWrite >= 120000) {
-            await pool.query(`INSERT INTO weather_history (temp_f, humidity, wind_speed_mph, wind_gust_mph, rain_rate_in, daily_rain_in, solar_radiation, press_rel) 
-                        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`, 
-                        [d.outdoor.temperature.value, hum, d.wind.wind_speed.value, d.wind.wind_gust.value, instantRR, dailyRain, d.solar_and_uvi?.solar?.value || 0, press]);
-            state.lastDbWrite = now;
+            try {
+                await pool.query(`
+                    INSERT INTO weather_history (temp_f, humidity, wind_speed_mph, wind_gust_mph, rain_rate_in, daily_rain_in, solar_radiation, press_rel) 
+                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`, 
+                    [d.outdoor.temperature.value, hum, d.wind.wind_speed.value, d.wind.wind_gust.value, instantRR, dailyRain, solar, press]
+                );
+                state.lastDbWrite = now;
+            } catch (dbError) {
+                console.error("Database Insert Failed:", dbError);
+            }
         }
 
-        // Clean Graph Data: Group by minute to prevent "collapsed" points
+        // Fetch Clean History for Graphs (Grouped by Minute)
         const historyRes = await pool.query(`
             SELECT date_trunc('minute', time) as time, AVG(temp_f) as t, AVG(humidity) as h, AVG(wind_speed_mph) as w, AVG(rain_rate_in) as r, AVG(press_rel) as p
-            FROM weather_history WHERE time > NOW() - INTERVAL '24 hours'
+            FROM weather_history 
+            WHERE time > NOW() - INTERVAL '24 hours'
             GROUP BY 1 ORDER BY 1 ASC
         `);
 
-        const history = historyRes.rows.map(r => ({
+        const history = (historyRes.rows || []).map(r => ({
             time: r.time,
             temp: parseFloat(((r.t - 32) * 5 / 9).toFixed(1)),
-            hum: Math.round(r.h),
-            press: parseFloat(r.p.toFixed(1)),
-            wind: parseFloat((r.w * 1.60934).toFixed(1)),
-            rain: parseFloat(r.r.toFixed(1))
+            hum: Math.round(r.h || 0),
+            press: parseFloat((r.p || 0).toFixed(1)),
+            wind: parseFloat(((r.w || 0) * 1.60934).toFixed(1)),
+            rain: parseFloat((r.r || 0).toFixed(1))
         }));
 
+        // Trend Calculations (Units per hour)
         let tTrend = 0, hTrend = 0, pTrend = 0;
         if (history.length >= 2) {
             const first = history[0];
             const timeDiffHrs = (now - new Date(first.time).getTime()) / 3600000;
-            if (timeDiffHrs > 0.05) {
+            if (timeDiffHrs > 0.1) {
                 tTrend = parseFloat(((tempC - first.temp) / timeDiffHrs).toFixed(1));
                 hTrend = parseFloat(((hum - first.hum) / timeDiffHrs).toFixed(1));
                 pTrend = parseFloat(((press - first.press) / timeDiffHrs).toFixed(1));
@@ -117,17 +159,27 @@ async function syncWithEcowitt() {
         }
 
         state.cachedData = {
-            temp: { current: tempC, max: state.maxTemp, maxTime: state.maxTempTime, min: state.minTemp, minTime: state.minTempTime, trend: tTrend, realFeel: calculateRealFeel(tempC, hum) },
+            temp: { 
+                current: tempC, 
+                max: state.maxTemp, maxTime: state.maxTempTime, 
+                min: state.minTemp, minTime: state.minTempTime, 
+                trend: tTrend, realFeel: calculateRealFeel(tempC, hum) 
+            },
             atmo: { hum: hum, hTrend: hTrend, press: press, pTrend: pTrend, dew: parseFloat(((d.outdoor.dew_point.value - 32) * 5 / 9).toFixed(1)) },
-            wind: { speed: parseFloat((d.wind.wind_speed.value * 1.60934).toFixed(1)), gust: parseFloat((d.wind.wind_gust.value * 1.60934).toFixed(1)), maxS: state.maxWindSpeed, maxG: state.maxGust, card: getCard(d.wind.wind_direction.value), deg: d.wind.wind_direction.value },
+            wind: { speed: curWind, gust: curGust, maxS: state.maxWindSpeed, maxG: state.maxGust, card: getCard(d.wind.wind_direction.value), deg: d.wind.wind_direction.value },
             rain: { total: dailyRain, rate: instantRR, maxR: state.maxRainRate },
-            solar: { rad: d.solar_and_uvi?.solar?.value || 0, uvi: d.solar_and_uvi?.uvi?.value || 0 },
+            solar: { rad: solar, uvi: uvi },
             lastSync: d.time || new Date().toISOString(),
             history: history
         };
+
         state.lastFetchTime = now;
         return state.cachedData;
-    } catch (e) { return state.cachedData || { error: "Update failed" }; }
+
+    } catch (e) {
+        console.error("Sync Error:", e);
+        return state.cachedData || { error: "Update failed", history: [] };
+    }
 }
 
 app.get("/weather", async (req, res) => {
@@ -147,16 +199,10 @@ app.get("/", (req, res) => {
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800;900&display=swap" rel="stylesheet">
     <style>
         :root { 
-            --bg-1: #020617; 
-            --bg-2: #0f172a;
-            --bg-3: #1e293b;
-            --card: rgba(15, 23, 42, 0.45); 
-            --accent: #38bdf8; 
-            --max-t: #fb7185; 
-            --min-t: #60a5fa; 
-            --wind: #fbbf24; 
-            --rain: #818cf8; 
-            --border: rgba(255, 255, 255, 0.08);
+            --bg-1: #020617; --bg-2: #0f172a; --bg-3: #1e293b;
+            --card: rgba(15, 23, 42, 0.45); --accent: #38bdf8; 
+            --max-t: #fb7185; --min-t: #60a5fa; --wind: #fbbf24; 
+            --rain: #818cf8; --border: rgba(255, 255, 255, 0.08);
             --gap: 24px;
         }
 
@@ -174,28 +220,16 @@ app.get("/", (req, res) => {
         }
 
         body { 
-            margin: 0; 
-            font-family: 'Outfit', system-ui, sans-serif; 
+            margin: 0; font-family: 'Outfit', sans-serif; 
             background: linear-gradient(-45deg, var(--bg-1), var(--bg-2), var(--bg-3), var(--bg-1));
-            background-size: 400% 400%;
-            animation: gradient-pan 20s ease infinite;
-            color: #f8fafc; 
-            padding: 32px 24px; 
-            display: flex; 
-            flex-direction: column; 
-            align-items: center; 
-            min-height: 100vh;
-            transition: background 2s ease, color 2s ease;
+            background-size: 400% 400%; animation: gradient-pan 20s ease infinite;
+            color: #f8fafc; padding: 32px 24px; display: flex; flex-direction: column; align-items: center; min-height: 100vh;
         }
 
         body::before {
-            content: '';
-            position: fixed;
-            top: 0; left: 0; width: 100%; height: 100%;
+            content: ''; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background-image: radial-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px);
-            background-size: 24px 24px;
-            pointer-events: none;
-            z-index: 0;
+            background-size: 24px 24px; pointer-events: none; z-index: 0;
         }
 
         body.solar-low { background: #000; color: #cbd5e1; animation: none; }
@@ -222,60 +256,43 @@ app.get("/", (req, res) => {
         .grid-system { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: var(--gap); width: 100%; margin-bottom: var(--gap); }
         
         .card, .graph-card { 
-            background: var(--card); 
-            padding: 32px; 
-            border-radius: 28px; 
-            border: 1px solid var(--border); 
-            border-top: 1px solid rgba(255,255,255,0.15);
-            border-left: 1px solid rgba(255,255,255,0.1);
-            position: relative; 
-            width: 100%; 
-            backdrop-filter: blur(24px); 
-            -webkit-backdrop-filter: blur(24px);
-            box-shadow: 0 24px 40px -10px rgba(0, 0, 0, 0.4), inset 0 2px 20px rgba(255, 255, 255, 0.02); 
+            background: var(--card); padding: 32px; border-radius: 28px; 
+            border: 1px solid var(--border); border-top: 1px solid rgba(255,255,255,0.15);
+            backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
+            box-shadow: 0 24px 40px -10px rgba(0, 0, 0, 0.4); 
             transition: transform 0.3s ease, box-shadow 0.3s ease;
-            animation: fade-in-up 0.6s ease-out forwards;
-            opacity: 0;
+            animation: fade-in-up 0.6s ease-out forwards; opacity: 0;
         }
 
-        .card:nth-child(1) { animation-delay: 0.1s; }
-        .card:nth-child(2) { animation-delay: 0.2s; }
-        .card:nth-child(3) { animation-delay: 0.3s; }
-        .card:nth-child(4) { animation-delay: 0.4s; }
+        .card:nth-child(1) { animation-delay: 0.1s; } .card:nth-child(2) { animation-delay: 0.2s; }
+        .card:nth-child(3) { animation-delay: 0.3s; } .card:nth-child(4) { animation-delay: 0.4s; }
 
         .card:hover, .graph-card:hover { transform: translateY(-4px); box-shadow: 0 30px 50px -12px rgba(0, 0, 0, 0.5); }
 
-        .glow-wind { box-shadow: 0 0 40px rgba(251, 191, 36, 0.15), inset 0 2px 20px rgba(255, 255, 255, 0.02); border-color: rgba(251, 191, 36, 0.3); }
-        .glow-rain { box-shadow: 0 0 40px rgba(129, 140, 248, 0.2), inset 0 2px 20px rgba(255, 255, 255, 0.02); border-color: rgba(129, 140, 248, 0.4); }
-        .glow-uv { box-shadow: 0 0 40px rgba(251, 113, 133, 0.2), inset 0 2px 20px rgba(255, 255, 255, 0.02); border-color: rgba(251, 113, 133, 0.4); }
-        
         .label { color: #94a3b8; font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 8px; }
         .main-val { font-size: 56px; font-weight: 900; margin: 4px 0; display: flex; align-items: baseline; letter-spacing: -2px; text-shadow: 0 4px 12px rgba(0,0,0,0.3); }
-        .unit { font-size: 22px; font-weight: 600; color: #64748b; margin-left: 8px; text-shadow: none; }
+        .unit { font-size: 22px; font-weight: 600; color: #64748b; margin-left: 8px; }
         
         .minor-line { font-size: 16px; font-weight: 600; margin: 4px 0 16px 0; display: flex; align-items: center; gap: 8px; }
-        .trend-badge { font-size: 13px; font-weight: 800; margin-bottom: 24px; display: inline-flex; align-items: center; gap: 8px; padding: 6px 14px; background: rgba(255,255,255,0.06); border-radius: 12px; border: 1px solid rgba(255,255,255,0.08); box-shadow: inset 0 1px 0 rgba(255,255,255,0.1); }
+        .trend-badge { font-size: 13px; font-weight: 800; margin-bottom: 24px; display: inline-flex; align-items: center; gap: 8px; padding: 6px 14px; background: rgba(255,255,255,0.06); border-radius: 12px; border: 1px solid rgba(255,255,255,0.08); }
         
         .sub-box-4 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding-top: 24px; border-top: 1px solid rgba(255, 255, 255, 0.08); }
         
         .badge { 
-            padding: 16px; 
-            border-radius: 20px; 
-            background: rgba(0, 0, 0, 0.2); 
-            display: flex; flex-direction: column; gap: 8px; 
-            border: 1px solid rgba(255,255,255,0.03);
+            padding: 16px; border-radius: 20px; background: rgba(0, 0, 0, 0.2); 
+            display: flex; flex-direction: column; gap: 8px; border: 1px solid rgba(255,255,255,0.03);
             box-shadow: inset 0 2px 4px rgba(0,0,0,0.2);
         }
         
-        .badge-label { font-size: 11px; color: #64748b; text-transform: uppercase; font-weight: 800; letter-spacing: 0.5px; }
+        .badge-label { font-size: 11px; color: #64748b; text-transform: uppercase; font-weight: 800; }
         .badge-val { font-size: 16px; font-weight: 700; color: #f1f5f9; display: flex; align-items: center; gap: 6px; }
         
-        .time-mark { font-size: 10px; font-weight: 800; color: #94a3b8; background: rgba(255,255,255,0.08); padding: 2px 6px; border-radius: 6px; margin-left: 4px; border: 1px solid rgba(255,255,255,0.05); }
+        .time-mark { font-size: 10px; font-weight: 800; color: #94a3b8; background: rgba(255,255,255,0.08); padding: 2px 6px; border-radius: 6px; margin-left: 4px; }
         
-        .compass-ui { position: absolute; top: 32px; right: 32px; width: 60px; height: 60px; border: 2px solid rgba(255,255,255,0.1); border-radius: 50%; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.4); box-shadow: inset 0 4px 12px rgba(0,0,0,0.5); }
-        #needle { width: 4px; height: 38px; background: linear-gradient(to bottom, var(--max-t) 50%, #e2e8f0 50%); clip-path: polygon(50% 0%, 100% 100%, 50% 85%, 0% 100%); transition: transform 1.5s cubic-bezier(0.34, 1.56, 0.64, 1); filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5)); }
+        .compass-ui { position: absolute; top: 32px; right: 32px; width: 60px; height: 60px; border: 2px solid rgba(255,255,255,0.1); border-radius: 50%; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.4); }
+        #needle { width: 4px; height: 38px; background: linear-gradient(to bottom, var(--max-t) 50%, #e2e8f0 50%); clip-path: polygon(50% 0%, 100% 100%, 50% 85%, 0% 100%); transition: transform 1.5s cubic-bezier(0.34, 1.56, 0.64, 1); }
         
-        .graph-card { height: 360px; padding: 25px 20px 20px 20px; cursor: crosshair; }
+        .graph-card { height: 360px; padding: 25px 20px 20px 20px; }
     </style>
 </head>
 <body>
@@ -288,6 +305,7 @@ app.get("/", (req, res) => {
                 </div>
             </div>
         </div>
+
         <div class="grid-system">
             <div class="card" id="card-temp">
                 <div class="label">Temperature</div>
@@ -297,10 +315,11 @@ app.get("/", (req, res) => {
                 <div class="sub-box-4">
                     <div class="badge"><span class="badge-label">Today High</span><span id="mx" class="badge-val" style="color:var(--max-t)">--</span></div>
                     <div class="badge"><span class="badge-label">Today Low</span><span id="mn" class="badge-val" style="color:var(--min-t)">--</span></div>
-                    <div class="badge"><div style="display:flex; align-items:center; gap:6px"><span class="badge-label">Humidity</span><span id="h_tr"></span></div><span id="h" class="badge-val">--</span></div>
+                    <div class="badge"><span class="badge-label">Humidity</span><span id="h" class="badge-val">--</span></div>
                     <div class="badge"><span class="badge-label">Dew Point</span><span id="dp" class="badge-val">--</span></div>
                 </div>
             </div>
+
             <div class="card" id="card-wind">
                 <div class="label">Wind Dynamics</div>
                 <div class="compass-ui"><div id="needle"></div></div>
@@ -311,22 +330,27 @@ app.get("/", (req, res) => {
                     <div class="badge"><span class="badge-label">Max Gust</span><span id="mg" class="badge-val">--</span></div>
                 </div>
             </div>
+
             <div class="card" id="card-atmo">
-                <div class="label" style="display:flex; align-items:center; gap:8px"><span>Atmospheric</span><span id="p_tr"></span></div>
+                <div class="label">Atmospheric</div>
                 <div class="main-val"><span id="pr">--</span><span class="unit">hPa</span></div>
-                <div id="p_status" class="minor-line" style="color:#64748b">Barometer Loading...</div>
+                <div id="p_status" class="minor-line" style="color:#64748b">--</div>
                 <div class="sub-box-4">
                     <div class="badge"><span class="badge-label">Solar Rad</span><span id="sol" class="badge-val">--</span></div>
                     <div class="badge"><span class="badge-label">UV Index</span><span id="uv" class="badge-val" style="color:#fbbf24">--</span></div>
                 </div>
             </div>
+
             <div class="card" id="card-rain">
                 <div class="label">Precipitation</div>
                 <div class="main-val"><span id="r">--</span><span class="unit">mm</span></div>
                 <div class="minor-line"><span id="rr_main" style="color:var(--rain)">Rate: --</span><span id="rain_status" style="font-size:10px; padding:2px 6px; border-radius:4px; font-weight:800; text-transform:uppercase">--</span></div>
-                <div class="sub-box-4" style="grid-template-columns: 1fr;"><div class="badge"><span class="badge-label">Max Intensity</span><span id="mr" class="badge-val" style="color:var(--rain)">--</span></div></div>
+                <div class="sub-box-4" style="grid-template-columns: 1fr;">
+                    <div class="badge"><span class="badge-label">Max Intensity</span><span id="mr" class="badge-val" style="color:var(--rain)">--</span></div>
+                </div>
             </div>
         </div>
+
         <div class="grid-system">
             <div class="graph-card"><canvas id="cT"></canvas></div>
             <div class="graph-card"><canvas id="cH"></canvas></div>
@@ -334,8 +358,11 @@ app.get("/", (req, res) => {
             <div class="graph-card"><canvas id="cR"></canvas></div>
         </div>
     </div>
+
     <script>
         let charts = {};
+
+        // Sync Plugin for multi-chart hover
         const syncPlugin = {
             id: 'syncPlugin',
             afterDraw: (chart) => {
@@ -352,6 +379,7 @@ app.get("/", (req, res) => {
                     ctx.setLineDash([5, 5]);
                     ctx.stroke();
                     ctx.restore();
+
                     Object.values(charts).forEach(otherChart => {
                         if (otherChart !== chart) {
                             const meta = otherChart.getDatasetMeta(0);
@@ -378,8 +406,14 @@ app.get("/", (req, res) => {
                 options: { 
                     responsive: true, maintainAspectRatio: false, 
                     interaction: { mode: 'index', intersect: false },
-                    plugins: { legend: { labels: { color: '#f8fafc', font: { family: "'Outfit', sans-serif", weight: '700' } } }, tooltip: { enabled: true, backgroundColor: 'rgba(15, 23, 42, 0.9)', titleFont: {family: "'Outfit'"}, bodyFont: {family: "'Outfit'"} } },
-                    scales: { x: { ticks: { font: { family: "'Outfit'", size: 10 }, color: '#94a3b8' }, grid: { display: false } }, y: { beginAtZero: minZero, ticks: { font: { family: "'Outfit'", size: 10 }, color: '#94a3b8' }, grid: { color: 'rgba(255,255,255,0.03)' } } }
+                    plugins: { 
+                        legend: { labels: { color: '#f8fafc', font: { family: "'Outfit'", weight: '700' } } },
+                        tooltip: { enabled: true, backgroundColor: 'rgba(15, 23, 42, 0.9)' }
+                    },
+                    scales: { 
+                        x: { ticks: { font: { size: 10 }, color: '#94a3b8' }, grid: { display: false } }, 
+                        y: { beginAtZero: minZero, ticks: { font: { size: 10 }, color: '#94a3b8' }, grid: { color: 'rgba(255,255,255,0.03)' } } 
+                    }
                 }
             });
         }
@@ -388,27 +422,18 @@ app.get("/", (req, res) => {
             try {
                 const res = await fetch('/weather?v=' + Date.now());
                 const d = await res.json();
+                if(!d || d.error) return;
+
+                // Update Text
                 document.getElementById('t').innerText = d.temp.current;
                 document.getElementById('rf').innerText = d.temp.realFeel;
                 const tIcon = d.temp.trend > 0 ? '↗' : d.temp.trend < 0 ? '↘' : '→';
-                const tCol = d.temp.trend > 0 ? 'var(--max-t)' : d.temp.trend < 0 ? '#22c55e' : '#94a3b8';
-                document.getElementById('tr').innerHTML = '<span style="color:'+tCol+'">'+tIcon+' '+Math.abs(d.temp.trend)+'°C/hr Trend</span>';
-                const mxT = d.temp.maxTime ? '<span class="time-mark">'+d.temp.maxTime+'</span>' : '';
-                const mnT = d.temp.minTime ? '<span class="time-mark">'+d.temp.minTime+'</span>' : '';
-                document.getElementById('mx').innerHTML = d.temp.max + '°C' + mxT;
-                document.getElementById('mn').innerHTML = d.temp.min + '°C' + mnT;
-                const getTrend = (val) => {
-                    if (val > 0) return { icon: '▲', col: '#10b981' };
-                    if (val < 0) return { icon: '▼', col: '#fb7185' };
-                    return { icon: '●', col: '#475569' };
-                };
-                const hT = getTrend(d.atmo.hTrend);
-                document.getElementById('h_tr').innerHTML = '<span style="color:'+hT.col+'; font-size:10px">'+hT.icon+'</span>';
+                document.getElementById('tr').innerHTML = '<span style="color:'+(d.temp.trend > 0 ? 'var(--max-t)' : '#22c55e')+'">'+tIcon+' '+Math.abs(d.temp.trend)+'°C/hr Trend</span>';
+                document.getElementById('mx').innerHTML = d.temp.max + '°C <span class="time-mark">'+(d.temp.maxTime||'')+'</span>';
+                document.getElementById('mn').innerHTML = d.temp.min + '°C <span class="time-mark">'+(d.temp.minTime||'')+'</span>';
                 document.getElementById('h').innerText = d.atmo.hum + '%';
-                const pT = getTrend(d.atmo.pTrend);
-                document.getElementById('p_tr').innerHTML = '<span style="color:'+pT.col+'; font-size:10px">'+pT.icon+'</span>';
                 document.getElementById('pr').innerText = d.atmo.press;
-                document.getElementById('p_status').innerText = d.atmo.pTrend > 0 ? 'Rising Pressure' : d.atmo.pTrend < 0 ? 'Falling Pressure' : 'Stable Barometer';
+                document.getElementById('p_status').innerText = d.atmo.pTrend > 0 ? 'Rising Pressure' : d.atmo.pTrend < 0 ? 'Falling Pressure' : 'Stable';
                 document.getElementById('dp').innerText = d.atmo.dew + '°C';
                 document.getElementById('w').innerText = d.wind.speed;
                 document.getElementById('wg').innerText = d.wind.card + ' | Gust ' + d.wind.gust;
@@ -419,31 +444,33 @@ app.get("/", (req, res) => {
                 document.getElementById('uv').innerText = d.solar.uvi;
                 document.getElementById('r').innerText = d.rain.total;
                 document.getElementById('rr_main').innerText = 'Rate: ' + d.rain.rate + ' mm/h';
+                document.getElementById('mr').innerText = d.rain.maxR + ' mm/h';
+
+                // Status Classes
                 document.body.classList.toggle('solar-low', d.solar.rad <= 0);
-                document.getElementById('card-wind').classList.toggle('glow-wind', d.wind.speed > 15);
-                document.getElementById('card-rain').classList.toggle('glow-rain', d.rain.rate > 0);
-                document.getElementById('card-atmo').classList.toggle('glow-uv', d.solar.uvi > 5);
                 const rStat = d.rain.rate > 0 ? {t:'Raining', c:'#38bdf8', b:'rgba(56,189,248,0.1)'} : {t:'Dry', c:'#64748b', b:'rgba(255,255,255,0.06)'};
-                document.getElementById('rain_status').innerText = rStat.t;
-                document.getElementById('rain_status').style.color = rStat.c;
-                document.getElementById('rain_status').style.background = rStat.b;
-                const syncDate = new Date(d.lastSync);
-                document.getElementById('ts').innerText = syncDate.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
-                const labels = d.history.map(h => new Date(h.time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: false }));
-                if (!charts.cT) {
-                    charts.cT = setupChart('cT', 'Temp (°C)', '#38bdf8');
-                    charts.cH = setupChart('cH', 'Humidity (%)', '#10b981', true);
-                    charts.cW = setupChart('cW', 'Wind (km/h)', '#fbbf24', true);
-                    charts.cR = setupChart('cR', 'Rain (mm/h)', '#818cf8', true);
+                const rsEl = document.getElementById('rain_status');
+                rsEl.innerText = rStat.t; rsEl.style.color = rStat.c; rsEl.style.background = rStat.b;
+                document.getElementById('ts').innerText = new Date(d.lastSync).toLocaleTimeString('en-IN', { hour12: false });
+
+                // Update Charts
+                if (d.history && d.history.length > 0) {
+                    const labs = d.history.map(h => new Date(h.time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: false }));
+                    if (!charts.cT) {
+                        charts.cT = setupChart('cT', 'Temp (°C)', '#38bdf8');
+                        charts.cH = setupChart('cH', 'Humidity (%)', '#10b981', true);
+                        charts.cW = setupChart('cW', 'Wind (km/h)', '#fbbf24', true);
+                        charts.cR = setupChart('cR', 'Rain (mm/h)', '#818cf8', true);
+                    }
+                    charts.cT.data.labels = labs; charts.cT.data.datasets[0].data = d.history.map(h => h.temp); charts.cT.update('none');
+                    charts.cH.data.labels = labs; charts.cH.data.datasets[0].data = d.history.map(h => h.hum); charts.cH.update('none');
+                    charts.cW.data.labels = labs; charts.cW.data.datasets[0].data = d.history.map(h => h.wind); charts.cW.update('none');
+                    charts.cR.data.labels = labs; charts.cR.data.datasets[0].data = d.history.map(h => h.rain); charts.cR.update('none');
                 }
-                charts.cT.data.labels = labels; charts.cT.data.datasets[0].data = d.history.map(h => h.temp); charts.cT.update('none');
-                charts.cH.data.labels = labels; charts.cH.data.datasets[0].data = d.history.map(h => h.hum); charts.cH.update('none');
-                charts.cW.data.labels = labels; charts.cW.data.datasets[0].data = d.history.map(h => h.wind); charts.cW.update('none');
-                charts.cR.data.labels = labels; charts.cR.data.datasets[0].data = d.history.map(h => h.rain); charts.cR.update('none');
-                document.getElementById('mr').innerText = (d.rain.maxR || 0) + ' mm/h';
-            } catch (e) {}
+            } catch (e) { console.error("UI Update Failed", e); }
         }
-        setInterval(update, 36000); update();
+        setInterval(update, 36000); 
+        update();
     </script>
 </body>
 </html>
