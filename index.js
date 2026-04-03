@@ -1,12 +1,12 @@
 const express = require("express");
 const fetch = require("node-fetch");
-const fs = require("fs"); 
+const fs = require("fs");
 const app = express();
 
 const APPLICATION_KEY = process.env.APPLICATION_KEY;
 const API_KEY = process.env.API_KEY;
 const MAC = process.env.MAC;
-const STORAGE_FILE = "./weather_records.json"; 
+const STORAGE_FILE = "./weather_records.json";
 
 let state = {
     cachedData: null,
@@ -16,23 +16,28 @@ let state = {
     maxWindSpeed: 0,
     maxGust: 0,
     maxRainRate: 0,
-    lastFetchTime: 0
+    lastFetchTime: 0,
+    currentDate: new Date().toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' })
 };
 
-// --- RECORDS PERSISTENCE ---
+// --- PERSISTENCE: LOAD RECORDS ON STARTUP ---
 if (fs.existsSync(STORAGE_FILE)) {
     try {
         const saved = JSON.parse(fs.readFileSync(STORAGE_FILE, 'utf-8'));
-        state.maxTemp = Number(saved.maxTemp) || -999;
-        state.minTemp = Number(saved.minTemp) || 999;
-        state.maxWindSpeed = Number(saved.maxWindSpeed) || 0;
-        state.maxGust = Number(saved.maxGust) || 0;
-        state.maxRainRate = Number(saved.maxRainRate) || 0;
-    } catch (e) { console.log("Records reset."); }
+        // Only load saved max/min if they belong to today!
+        if (saved.currentDate === state.currentDate) {
+            state.maxTemp = saved.maxTemp ?? -999;
+            state.minTemp = saved.minTemp ?? 999;
+            state.maxWindSpeed = saved.maxWindSpeed ?? 0;
+            state.maxGust = saved.maxGust ?? 0;
+            state.maxRainRate = saved.maxRainRate ?? 0;
+        }
+    } catch (e) { console.log("Error loading records"); }
 }
 
 function saveToDisk() {
     const data = {
+        currentDate: state.currentDate,
         maxTemp: state.maxTemp, minTemp: state.minTemp,
         maxWindSpeed: state.maxWindSpeed, maxGust: state.maxGust, maxRainRate: state.maxRainRate
     };
@@ -42,6 +47,10 @@ function saveToDisk() {
 const getCard = (a) => ["N","NNE","NE","ENE","E","ESE","SE","SSE","S","SSW","SW","WSW","W","WNW","NW","NNW"][Math.round(a/22.5)%16];
 
 async function syncWithEcowitt() {
+    const now = Date.now();
+    // Keep your flawless cache timing
+    if (state.cachedData && (now - state.lastFetchTime < 40000)) return state.cachedData;
+
     try {
         const url = `https://api.ecowitt.net/api/v3/device/real_time?application_key=${APPLICATION_KEY}&api_key=${API_KEY}&mac=${MAC}`;
         const response = await fetch(url);
@@ -54,8 +63,18 @@ async function syncWithEcowitt() {
         const dailyRain = parseFloat((d.rainfall.daily.value * 25.4).toFixed(1));
         const windKmh = parseFloat((d.wind.wind_speed.value * 1.60934).toFixed(1));
         const gustKmh = parseFloat((d.wind.wind_gust.value * 1.60934).toFixed(1));
+        const windDeg = d.wind.wind_direction.value;
 
-        // Update Records
+        // --- DAILY RESET LOGIC ---
+        const today = new Date().toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' });
+        if (state.currentDate !== today) {
+            state.currentDate = today;
+            state.maxTemp = -999; state.minTemp = 999;
+            state.maxWindSpeed = 0; state.maxGust = 0; state.maxRainRate = 0;
+            state.todayHistory = []; // clear history chart for the new day
+        }
+
+        // --- UPDATE MAX/MIN & SAVE ---
         let changed = false;
         if (tempC > state.maxTemp || state.maxTemp === -999) { state.maxTemp = tempC; changed = true; }
         if (tempC < state.minTemp || state.minTemp === 999) { state.minTemp = tempC; changed = true; }
@@ -64,36 +83,30 @@ async function syncWithEcowitt() {
         if (rainRate > state.maxRainRate) { state.maxRainRate = rainRate; changed = true; }
         if (changed) saveToDisk();
 
-        // Trend Logic
         let trend = 0;
         if (state.todayHistory.length > 10) {
             trend = parseFloat((tempC - state.todayHistory[state.todayHistory.length - 10].temp).toFixed(1));
         }
 
-        // History Management
-        state.todayHistory.push({ 
-            time: new Date().toISOString(), 
-            temp: tempC, 
-            hum: d.outdoor.humidity.value, 
-            wind: windKmh, 
-            rain: rainRate 
-        });
+        state.todayHistory.push({ time: new Date().toISOString(), temp: tempC, hum: d.outdoor.humidity.value, wind: windKmh, rain: rainRate });
         if (state.todayHistory.length > 300) state.todayHistory.shift();
 
         state.cachedData = {
             temp: { current: tempC, max: state.maxTemp, min: state.minTemp, trend: trend },
             atmo: { hum: d.outdoor.humidity.value, dew: dewC, press: (d.pressure.relative.value * 33.8639).toFixed(1) },
-            wind: { speed: windKmh, gust: gustKmh, maxS: state.maxWindSpeed, maxG: state.maxGust, card: getCard(d.wind.wind_direction.value), deg: d.wind.wind_direction.value },
+            wind: { speed: windKmh, gust: gustKmh, maxS: state.maxWindSpeed, maxG: state.maxGust, card: getCard(windDeg), deg: windDeg },
             rain: { total: dailyRain, rate: rainRate, maxR: state.maxRainRate },
             lastSync: new Date().toISOString(),
             history: state.todayHistory
         };
+        
+        state.lastFetchTime = now;
         return state.cachedData;
     } catch (e) { return state.cachedData || { error: "Offline" }; }
 }
 
 app.get("/weather", async (req, res) => {
-    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.setHeader('Cache-Control', 'no-store');
     res.json(await syncWithEcowitt());
 });
 
@@ -105,7 +118,10 @@ app.get("/", (req, res) => {
     <title>KK Nagar Weather Station</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        :root { --bg: #06080e; --card: #111827; --accent: #0ea5e9; --max-t: #f87171; --min-t: #60a5fa; --wind: #fbbf24; --rain: #818cf8; }
+        :root { 
+            --bg: #06080e; --card: #111827; --accent: #0ea5e9;
+            --max-t: #f87171; --min-t: #60a5fa; --wind: #fbbf24; --rain: #818cf8;
+        }
         body { margin:0; font-family: 'Inter', system-ui, sans-serif; background: var(--bg); color: #f1f5f9; padding: 20px; }
         
         .header { text-align: center; margin-bottom: 25px; }
@@ -115,7 +131,12 @@ app.get("/", (req, res) => {
         @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
 
         .readings-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 30px; }
-        .card { background: var(--card); padding: 22px; border-radius: 20px; border: 1px solid #1e293b; position: relative; overflow: hidden; }
+
+        .card { 
+            background: var(--card); padding: 22px; border-radius: 20px; 
+            border: 1px solid #1e293b; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.4);
+            position: relative; overflow: hidden;
+        }
         
         .label { color: var(--accent); font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 5px; }
         .main-val { font-size: 38px; font-weight: 900; margin: 2px 0; letter-spacing: -1.5px; }
@@ -124,6 +145,7 @@ app.get("/", (req, res) => {
         .sub-box { display: flex; flex-wrap: wrap; gap: 8px; padding-top: 15px; border-top: 1px solid #1e293b; }
         .badge { padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: 700; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); }
 
+        /* COMPASS CSS INJECTED */
         .compass-ui { position: absolute; top: 15px; right: 15px; width: 60px; height: 60px; border: 2px solid #1e293b; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.2); }
         .compass-ui::after { content: 'N'; position: absolute; top: -2px; font-size: 8px; font-weight: 900; color: var(--max-t); }
         #needle { width: 4px; height: 35px; background: linear-gradient(to bottom, var(--max-t) 50%, #f1f5f9 50%); clip-path: polygon(50% 0%, 100% 100%, 0% 100%); transition: transform 1.5s cubic-bezier(0.4, 0, 0.2, 1); }
@@ -221,9 +243,9 @@ app.get("/", (req, res) => {
                 const d = await res.json();
                 
                 // Temp
-                document.getElementById('t').innerText = d.temp.current + '°C';
+                document.getElementById('t').innerText = d.temp.current + '°';
                 const symb = d.temp.trend > 0 ? '▲' : d.temp.trend < 0 ? '▼' : '●';
-                document.getElementById('tr').innerHTML = 'Trend: <span style="color:' + (d.temp.trend >= 0 ? 'var(--max-t)' : '#22c55e') + '">' + symb + ' ' + Math.abs(d.temp.trend) + '°C/hr</span>';
+                document.getElementById('tr').innerHTML = '<span>Trend: </span> <span style="color:' + (d.temp.trend >= 0 ? 'var(--max-t)' : '#22c55e') + '">' + symb + ' ' + Math.abs(d.temp.trend) + '°C/hr</span>';
                 document.getElementById('mx').innerText = d.temp.max + '°';
                 document.getElementById('mn').innerText = d.temp.min + '°';
 
@@ -232,16 +254,16 @@ app.get("/", (req, res) => {
                 document.getElementById('dp').innerText = d.atmo.dew + '°';
                 document.getElementById('pr').innerText = d.atmo.press + ' hPa';
 
-                // Wind
+                // Wind (Compass logic injected here)
                 document.getElementById('w').innerText = d.wind.speed + ' km/h';
-                document.getElementById('wg').innerText = 'Direction: ' + d.wind.card + ' (' + d.wind.deg + '°) | Gust: ' + d.wind.gust + ' km/h';
+                document.getElementById('wg').innerText = 'Direction: ' + d.wind.card + ' | Current Gust: ' + d.wind.gust + ' km/h';
                 document.getElementById('mw').innerText = d.wind.maxS + ' km/h';
                 document.getElementById('mg').innerText = d.wind.maxG + ' km/h';
                 document.getElementById('needle').style.transform = 'rotate(' + d.wind.deg + 'deg)';
 
                 // Rain
                 document.getElementById('r').innerText = d.rain.total + ' mm';
-                document.getElementById('rr').innerText = 'Intensity: ' + d.rain.rate + ' mm/h';
+                document.getElementById('rr').innerText = 'Current Intensity: ' + d.rain.rate + ' mm/h';
                 document.getElementById('mr').innerText = d.rain.maxR + ' mm/h';
                 document.getElementById('rs').innerText = d.rain.rate > 0 ? 'Raining' : 'Dry';
 
@@ -259,12 +281,12 @@ app.get("/", (req, res) => {
                 charts.cW.data.labels = lbls; charts.cW.data.datasets[0].data = d.history.map(h=>h.wind); charts.cW.update('none');
                 charts.cR.data.labels = lbls; charts.cR.data.datasets[0].data = d.history.map(h=>h.rain); charts.cR.update('none');
             } catch(e) {}
-            setTimeout(update, 45000); 
         }
+        setInterval(update, 45000);
         update();
     </script>
 </body>
 </html>`);
 });
 
-app.listen(3000, () => console.log("Station fully active."));
+module.exports = app;
