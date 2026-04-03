@@ -1,9 +1,13 @@
 {
-  "name": "kk-nagar-weather-station",
+  "name": "kk-nagar-weather-hub",
   "version": "1.0.0",
   "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
   "dependencies": {
-    "pg": "^8.11.0",
-    "node-fetch": "^2.6.7"
+    "express": "^4.18.2",
+    "node-fetch": "^2.6.7",
+    "pg": "^8.11.0"
   }
 }
