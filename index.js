@@ -6,7 +6,8 @@ const app = express();
 const APPLICATION_KEY = process.env.APPLICATION_KEY;
 const API_KEY = process.env.API_KEY;
 const MAC = process.env.MAC;
-const STORAGE_FILE = "./weather_records.json";
+// Use /tmp which is the only writable folder on serverless platforms like Vercel
+const STORAGE_FILE = process.env.VERCEL ? "/tmp/weather_records.json" : "./weather_records.json";
 
 let state = {
     cachedData: null,
@@ -20,11 +21,10 @@ let state = {
     currentDate: new Date().toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' })
 };
 
-// --- PERSISTENCE: LOAD RECORDS ON STARTUP ---
+// --- PERSISTENCE: LOAD RECORDS ---
 if (fs.existsSync(STORAGE_FILE)) {
     try {
         const saved = JSON.parse(fs.readFileSync(STORAGE_FILE, 'utf-8'));
-        // Only load saved max/min if they belong to today!
         if (saved.currentDate === state.currentDate) {
             state.maxTemp = saved.maxTemp ?? -999;
             state.minTemp = saved.minTemp ?? 999;
@@ -32,23 +32,28 @@ if (fs.existsSync(STORAGE_FILE)) {
             state.maxGust = saved.maxGust ?? 0;
             state.maxRainRate = saved.maxRainRate ?? 0;
         }
-    } catch (e) { console.log("Error loading records"); }
+    } catch (e) { console.log("No previous records found."); }
 }
 
+// --- CRASH-PROOF SAVE ---
 function saveToDisk() {
-    const data = {
-        currentDate: state.currentDate,
-        maxTemp: state.maxTemp, minTemp: state.minTemp,
-        maxWindSpeed: state.maxWindSpeed, maxGust: state.maxGust, maxRainRate: state.maxRainRate
-    };
-    fs.writeFileSync(STORAGE_FILE, JSON.stringify(data), 'utf-8');
+    try {
+        const data = {
+            currentDate: state.currentDate,
+            maxTemp: state.maxTemp, minTemp: state.minTemp,
+            maxWindSpeed: state.maxWindSpeed, maxGust: state.maxGust, maxRainRate: state.maxRainRate
+        };
+        fs.writeFileSync(STORAGE_FILE, JSON.stringify(data), 'utf-8');
+    } catch (e) {
+        // If server denies write access, just log it and move on so the app DOES NOT FREEZE
+        console.log("File system is read-only, holding records in memory instead.");
+    }
 }
 
 const getCard = (a) => ["N","NNE","NE","ENE","E","ESE","SE","SSE","S","SSW","SW","WSW","W","WNW","NW","NNW"][Math.round(a/22.5)%16];
 
 async function syncWithEcowitt() {
     const now = Date.now();
-    // Keep your flawless cache timing
     if (state.cachedData && (now - state.lastFetchTime < 40000)) return state.cachedData;
 
     try {
@@ -71,16 +76,18 @@ async function syncWithEcowitt() {
             state.currentDate = today;
             state.maxTemp = -999; state.minTemp = 999;
             state.maxWindSpeed = 0; state.maxGust = 0; state.maxRainRate = 0;
-            state.todayHistory = []; // clear history chart for the new day
+            state.todayHistory = []; 
         }
 
-        // --- UPDATE MAX/MIN & SAVE ---
+        // --- UPDATE MAX/MIN ---
         let changed = false;
         if (tempC > state.maxTemp || state.maxTemp === -999) { state.maxTemp = tempC; changed = true; }
         if (tempC < state.minTemp || state.minTemp === 999) { state.minTemp = tempC; changed = true; }
         if (windKmh > state.maxWindSpeed) { state.maxWindSpeed = windKmh; changed = true; }
         if (gustKmh > state.maxGust) { state.maxGust = gustKmh; changed = true; }
         if (rainRate > state.maxRainRate) { state.maxRainRate = rainRate; changed = true; }
+        
+        // This is safe now, it won't crash the server
         if (changed) saveToDisk();
 
         let trend = 0;
@@ -145,7 +152,6 @@ app.get("/", (req, res) => {
         .sub-box { display: flex; flex-wrap: wrap; gap: 8px; padding-top: 15px; border-top: 1px solid #1e293b; }
         .badge { padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: 700; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); }
 
-        /* COMPASS CSS INJECTED */
         .compass-ui { position: absolute; top: 15px; right: 15px; width: 60px; height: 60px; border: 2px solid #1e293b; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.2); }
         .compass-ui::after { content: 'N'; position: absolute; top: -2px; font-size: 8px; font-weight: 900; color: var(--max-t); }
         #needle { width: 4px; height: 35px; background: linear-gradient(to bottom, var(--max-t) 50%, #f1f5f9 50%); clip-path: polygon(50% 0%, 100% 100%, 0% 100%); transition: transform 1.5s cubic-bezier(0.4, 0, 0.2, 1); }
@@ -242,26 +248,25 @@ app.get("/", (req, res) => {
                 const res = await fetch('/weather?v=' + Date.now());
                 const d = await res.json();
                 
-                // Temp
+                // If API is down, silently fail and try again in 45 seconds rather than crashing UI
+                if (d.error) return; 
+                
                 document.getElementById('t').innerText = d.temp.current + '°';
                 const symb = d.temp.trend > 0 ? '▲' : d.temp.trend < 0 ? '▼' : '●';
                 document.getElementById('tr').innerHTML = '<span>Trend: </span> <span style="color:' + (d.temp.trend >= 0 ? 'var(--max-t)' : '#22c55e') + '">' + symb + ' ' + Math.abs(d.temp.trend) + '°C/hr</span>';
                 document.getElementById('mx').innerText = d.temp.max + '°';
                 document.getElementById('mn').innerText = d.temp.min + '°';
 
-                // Humidity
                 document.getElementById('h').innerText = d.atmo.hum + '%';
                 document.getElementById('dp').innerText = d.atmo.dew + '°';
                 document.getElementById('pr').innerText = d.atmo.press + ' hPa';
 
-                // Wind (Compass logic injected here)
                 document.getElementById('w').innerText = d.wind.speed + ' km/h';
                 document.getElementById('wg').innerText = 'Direction: ' + d.wind.card + ' | Current Gust: ' + d.wind.gust + ' km/h';
                 document.getElementById('mw').innerText = d.wind.maxS + ' km/h';
                 document.getElementById('mg').innerText = d.wind.maxG + ' km/h';
                 document.getElementById('needle').style.transform = 'rotate(' + d.wind.deg + 'deg)';
 
-                // Rain
                 document.getElementById('r').innerText = d.rain.total + ' mm';
                 document.getElementById('rr').innerText = 'Current Intensity: ' + d.rain.rate + ' mm/h';
                 document.getElementById('mr').innerText = d.rain.maxR + ' mm/h';
