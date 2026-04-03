@@ -155,7 +155,7 @@ app.get("/weather", async (req, res) => {
 });
 
 app.get("/", (req, res) => {
-    res.send(`
+    res.send(\`
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -175,7 +175,13 @@ app.get("/", (req, res) => {
             margin: 0; font-family: 'Inter', system-ui, sans-serif; 
             background: radial-gradient(circle at top left, #0f172a, #020617);
             color: #f8fafc; padding: 32px 24px; display: flex; flex-direction: column; align-items: center; min-height: 100vh;
+            transition: background 2s ease, color 2s ease;
         }
+        
+        /* Night Mode Overrides */
+        body.solar-low { background: #000; color: #cbd5e1; }
+        body.solar-low .card, body.solar-low .graph-card { background: rgba(15, 23, 42, 0.9); }
+
         .container { width: 100%; max-width: 1200px; }
         .header { margin-bottom: 40px; display: flex; justify-content: space-between; align-items: center; width: 100%; }
         .header h1 { margin: 0; font-size: 28px; font-weight: 800; letter-spacing: -1.2px; background: linear-gradient(to right, #fff, #94a3b8); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
@@ -191,7 +197,12 @@ app.get("/", (req, res) => {
         .timestamp { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #64748b; }
 
         .grid-system { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: var(--gap); width: 100%; margin-bottom: var(--gap); }
-        .card, .graph-card { background: var(--card); padding: 32px; border-radius: 32px; border: 1px solid var(--border); position: relative; width: 100%; backdrop-filter: blur(12px); box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2); transition: all 0.3s ease; }
+        .card, .graph-card { background: var(--card); padding: 32px; border-radius: 32px; border: 1px solid var(--border); position: relative; width: 100%; backdrop-filter: blur(12px); box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2); transition: all 0.5s ease; }
+
+        /* Glow Effects */
+        .glow-wind { box-shadow: 0 0 30px rgba(251, 191, 36, 0.15); border-color: rgba(251, 191, 36, 0.3); }
+        .glow-rain { box-shadow: 0 0 30px rgba(129, 140, 248, 0.2); border-color: rgba(129, 140, 248, 0.4); }
+        .glow-uv { box-shadow: 0 0 30px rgba(251, 113, 133, 0.2); border-color: rgba(251, 113, 133, 0.4); }
 
         .label { color: #94a3b8; font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 12px; }
         .main-val { font-size: 48px; font-weight: 900; margin: 4px 0; display: flex; align-items: baseline; letter-spacing: -2px; }
@@ -207,7 +218,7 @@ app.get("/", (req, res) => {
 
         .compass-ui { position: absolute; top: 30px; right: 30px; width: 54px; height: 54px; border: 2.5px solid rgba(255,255,255,0.05); border-radius: 50%; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.3); }
         #needle { width: 4px; height: 34px; background: linear-gradient(to bottom, var(--max-t) 50%, #fff 50%); clip-path: polygon(50% 0%, 100% 100%, 50% 85%, 0% 100%); transition: transform 1.5s cubic-bezier(0.34, 1.56, 0.64, 1); }
-        .graph-card { height: 340px; padding: 25px 20px 20px 20px; }
+        .graph-card { height: 340px; padding: 25px 20px 20px 20px; cursor: crosshair; }
 
         @media (max-width: 768px) { body { padding: 20px 16px; } .header { flex-direction: column; align-items: flex-start; gap: 16px; } .grid-system { grid-template-columns: 1fr; } .main-val { font-size: 42px; } }
     </style>
@@ -216,7 +227,7 @@ app.get("/", (req, res) => {
     <div class="container">
         <div class="header">
             <div>
-                <h1>Kk Nagar Weather Station</h1>
+                <h1>Kk Nagar Weather Hub</h1>
                 <div class="live-container">
                     <div class="dot"></div><span class="live-text">LIVE</span><span class="timestamp" id="ts">--:--:--</span>
                 </div>
@@ -224,7 +235,7 @@ app.get("/", (req, res) => {
         </div>
 
         <div class="grid-system">
-            <div class="card">
+            <div class="card" id="card-temp">
                 <div class="label">Temperature</div>
                 <div class="main-val"><span id="t">--</span><span class="unit">°C</span></div>
                 <div class="minor-line" style="color:var(--accent)">RealFeel: <span id="rf">--</span>°C</div>
@@ -240,7 +251,7 @@ app.get("/", (req, res) => {
                 </div>
             </div>
 
-            <div class="card">
+            <div class="card" id="card-wind">
                 <div class="label">Wind Dynamics</div>
                 <div class="compass-ui"><div id="needle"></div></div>
                 <div class="main-val"><span id="w">--</span><span class="unit">km/h</span></div>
@@ -251,7 +262,7 @@ app.get("/", (req, res) => {
                 </div>
             </div>
 
-            <div class="card">
+            <div class="card" id="card-atmo">
                 <div class="label" style="display:flex; align-items:center; gap:8px">
                     <span>Atmospheric</span>
                     <span id="p_tr"></span>
@@ -264,7 +275,7 @@ app.get("/", (req, res) => {
                 </div>
             </div>
 
-            <div class="card">
+            <div class="card" id="card-rain">
                 <div class="label">Precipitation</div>
                 <div class="main-val"><span id="r">--</span><span class="unit">mm</span></div>
                 <div class="minor-line"><span id="rr_main" style="color:var(--rain)">Rate: --</span><span id="rain_status" style="font-size:10px; padding:2px 6px; border-radius:4px; font-weight:800; text-transform:uppercase">--</span></div>
@@ -284,6 +295,41 @@ app.get("/", (req, res) => {
 
     <script>
         let charts = {};
+
+        // SYNC PLUGIN: Syncs crosshairs across all charts
+        const syncPlugin = {
+            id: 'syncPlugin',
+            afterDraw: (chart) => {
+                if (chart.tooltip?._active?.length) {
+                    const x = chart.tooltip._active[0].element.x;
+                    const yAxis = chart.scales.y;
+                    const ctx = chart.ctx;
+                    ctx.save();
+                    ctx.beginPath();
+                    ctx.moveTo(x, yAxis.top);
+                    ctx.lineTo(x, yAxis.bottom);
+                    ctx.lineWidth = 1;
+                    ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+                    ctx.setLineDash([5, 5]);
+                    ctx.stroke();
+                    ctx.restore();
+                    
+                    Object.values(charts).forEach(otherChart => {
+                        if (otherChart !== chart) {
+                            const meta = otherChart.getDatasetMeta(0);
+                            const points = meta.data;
+                            const index = chart.tooltip.dataPoints[0].dataIndex;
+                            if (points[index]) {
+                                otherChart.tooltip.setActiveElements([{ datasetIndex: 0, index: index }], { x: points[index].x, y: points[index].y });
+                                otherChart.draw();
+                            }
+                        }
+                    });
+                }
+            }
+        };
+        Chart.register(syncPlugin);
+
         function setupChart(id, label, col, minZero = false) {
             const ctx = document.getElementById(id).getContext('2d');
             const grad = ctx.createLinearGradient(0, 0, 0, 300);
@@ -291,7 +337,11 @@ app.get("/", (req, res) => {
             return new Chart(ctx, {
                 type: 'line',
                 data: { labels: [], datasets: [{ label: label, data: [], borderColor: col, tension: 0.4, pointRadius: 0, borderWidth: 3, fill: true, backgroundColor: grad }]},
-                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: '#f8fafc', font: { weight: '700' } } } },
+                options: { 
+                    responsive: true, 
+                    maintainAspectRatio: false, 
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: { legend: { labels: { color: '#f8fafc', font: { weight: '700' } } }, tooltip: { enabled: true } },
                     scales: { x: { ticks: { font: { size: 10 } }, grid: { display: false } }, y: { beginAtZero: minZero, ticks: { font: { size: 10 } }, grid: { color: 'rgba(255,255,255,0.03)' } } }
                 }
             });
@@ -340,6 +390,12 @@ app.get("/", (req, res) => {
                 document.getElementById('r').innerText = d.rain.total;
                 document.getElementById('rr_main').innerText = 'Rate: ' + d.rain.rate + ' mm/h';
                 
+                // --- Condition Glow & Night Mode ---
+                document.body.classList.toggle('solar-low', d.solar.rad <= 0);
+                document.getElementById('card-wind').classList.toggle('glow-wind', d.wind.speed > 15);
+                document.getElementById('card-rain').classList.toggle('glow-rain', d.rain.rate > 0);
+                document.getElementById('card-atmo').classList.toggle('glow-uv', d.solar.uvi > 5);
+
                 const rStat = d.rain.rate > 0 ? {t:'Raining', c:'#38bdf8', b:'rgba(56,189,248,0.1)'} : {t:'Dry', c:'#64748b', b:'rgba(255,255,255,0.05)'};
                 document.getElementById('rain_status').innerText = rStat.t;
                 document.getElementById('rain_status').style.color = rStat.c;
@@ -366,7 +422,7 @@ app.get("/", (req, res) => {
     </script>
 </body>
 </html>
-    `);
+    \`);
 });
 
 module.exports = app;
