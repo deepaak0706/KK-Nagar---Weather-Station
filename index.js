@@ -73,6 +73,7 @@ function calculateRealFeel(tempC, humidity) {
 
 async function syncWithEcowitt() {
     const now = Date.now();
+    // SERVER CACHE GATEKEEPER: 35 Seconds
     if (state.cachedData && (now - state.lastFetchTime < 35000)) return state.cachedData;
 
     try {
@@ -88,9 +89,8 @@ async function syncWithEcowitt() {
         // --- DAVIS-STYLE INSTANT RAIN RATE CALCULATION ---
         let instantRR = 0;
         if (state.todayHistory.length > 0) {
-            const oneMinAgo = now - 70000; // 70s lookback for 1-minute window
+            const oneMinAgo = now - 70000; 
             const pastRecord = state.todayHistory.find(h => new Date(h.time).getTime() >= oneMinAgo);
-            
             if (pastRecord && dailyRain > pastRecord.rainTotal) {
                 const rainDiff = dailyRain - pastRecord.rainTotal;
                 const timeDiffMin = (now - new Date(pastRecord.time).getTime()) / 60000;
@@ -111,78 +111,46 @@ async function syncWithEcowitt() {
         if (state.currentDate !== today) {
             state.currentDate = today;
             state.maxTemp = -999; state.maxTempTime = null;
-            state.minTemp = 999;  state.minTempTime = null;
+            state.minTemp = 999; state.minTempTime = null;
             state.maxWindSpeed = 0; state.maxGust = 0; state.maxRainRate = 0;
             state.todayHistory = [];
         }
 
         let changed = false;
-        if (tempC > state.maxTemp || state.maxTemp === -999) { 
-            state.maxTemp = tempC; 
-            state.maxTempTime = currentTimeStr;
-            changed = true; 
-        }
-        if (tempC < state.minTemp || state.minTemp === 999) { 
-            state.minTemp = tempC; 
-            state.minTempTime = currentTimeStr;
-            changed = true; 
-        }
+        if (tempC > state.maxTemp || state.maxTemp === -999) { state.maxTemp = tempC; state.maxTempTime = currentTimeStr; changed = true; }
+        if (tempC < state.minTemp || state.minTemp === 999) { state.minTemp = tempC; state.minTempTime = currentTimeStr; changed = true; }
         if (windKmh > state.maxWindSpeed) { state.maxWindSpeed = windKmh; changed = true; }
         if (gustKmh > state.maxGust) { state.maxGust = gustKmh; changed = true; }
-        
-        // Update Max Intensity using the Calculated Instant Rate
         if (instantRR > state.maxRainRate) { state.maxRainRate = instantRR; changed = true; }
         if (changed) saveToDisk();
 
-        // UPDATED TREND LOGIC: Pro-rated hourly trend
-        // FIXED TEMP RATE (true per-hour, no spikes)
-        // ✅ FINAL TREND (works even before 1 hour)
-        let trend = 0;
-
+        // TREND CALCULATIONS (Hourly Rate)
+        let tTrend = 0;
+        let hTrend = 0;
         if (state.todayHistory.length >= 2) {
             const first = state.todayHistory[0];
-            const last = state.todayHistory[state.todayHistory.length - 1];
-
-            const timeDiffHrs = (new Date(last.time) - new Date(first.time)) / 3600000;
-
-            if (timeDiffHrs > 0.02) { // ~1–2 minutes minimum
-                trend = parseFloat(((last.temp - first.temp) / timeDiffHrs).toFixed(1));
+            const timeDiffHrs = (now - new Date(first.time).getTime()) / 3600000;
+            if (timeDiffHrs > 0.02) {
+                tTrend = parseFloat(((tempC - first.temp) / timeDiffHrs).toFixed(1));
+                hTrend = parseFloat(((hum - first.hum) / timeDiffHrs).toFixed(1));
             }
         }
  
-        state.todayHistory.push({ 
-            time: new Date().toISOString(), 
-            temp: tempC, 
-            hum: hum, 
-            wind: windKmh, 
-            rain: instantRR, 
-            rainTotal: dailyRain,
-            solar: solar 
-        });
+        state.todayHistory.push({ time: new Date().toISOString(), temp: tempC, hum: hum, wind: windKmh, rain: instantRR, rainTotal: dailyRain, solar: solar });
         if (state.todayHistory.length > 400) state.todayHistory.shift();
 
         state.cachedData = {
-            temp: { 
-                current: tempC, 
-                max: state.maxTemp, 
-                maxTime: state.maxTempTime,
-                min: state.minTemp, 
-                minTime: state.minTempTime,
-                trend: trend, 
-                realFeel: realFeel 
-            },
-            atmo: { hum: hum, dew: dewC, press: (d.pressure.relative.value * 33.8639).toFixed(1) },
+            temp: { current: tempC, max: state.maxTemp, maxTime: state.maxTempTime, min: state.minTemp, minTime: state.minTempTime, trend: tTrend, realFeel: realFeel },
+            atmo: { hum: hum, hTrend: hTrend, dew: dewC, press: (d.pressure.relative.value * 33.8639).toFixed(1) },
             wind: { speed: windKmh, gust: gustKmh, maxS: state.maxWindSpeed, maxG: state.maxGust, card: getCard(d.wind.wind_direction.value), deg: d.wind.wind_direction.value },
             rain: { total: dailyRain, rate: instantRR, maxR: state.maxRainRate },
             solar: { rad: solar, uvi: uvi },
-            lastSync: new Date().toISOString(),
+            lastSync: d.time || new Date().toISOString(), // Use station response time for timestamp consistency
             history: state.todayHistory
         };
         state.lastFetchTime = now;
         return state.cachedData;
-    } catch (e) {
-        return state.cachedData || { error: "Update failed" };
-    }
+    } catch (e) { return state.cachedData || { error: "Update failed" }; }
 }
 
 app.get("/weather", async (req, res) => {
@@ -226,17 +194,8 @@ app.get("/", (req, res) => {
         .live-text { font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 800; color: #22c55e; letter-spacing: 1px; }
         .timestamp { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #64748b; }
 
-        .grid-system { 
-            display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); 
-            gap: var(--gap); width: 100%; margin-bottom: var(--gap); 
-        }
-
-        .card, .graph-card { 
-            background: var(--card); padding: 32px; border-radius: 32px; 
-            border: 1px solid var(--border); position: relative; width: 100%;
-            backdrop-filter: blur(12px); box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2);
-            transition: all 0.3s ease;
-        }
+        .grid-system { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: var(--gap); width: 100%; margin-bottom: var(--gap); }
+        .card, .graph-card { background: var(--card); padding: 32px; border-radius: 32px; border: 1px solid var(--border); position: relative; width: 100%; backdrop-filter: blur(12px); box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2); transition: all 0.3s ease; }
         .card:hover { transform: translateY(-4px); border-color: rgba(255, 255, 255, 0.2); }
 
         .label { color: #94a3b8; font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 12px; }
@@ -245,28 +204,18 @@ app.get("/", (req, res) => {
         .minor-line { font-size: 16px; font-weight: 700; margin: 6px 0 16px 0; display: flex; align-items: center; gap: 8px; }
         .trend-badge { font-size: 13px; font-weight: 700; margin-bottom: 20px; display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; background: rgba(255,255,255,0.05); border-radius: 10px; border: 1px solid rgba(255,255,255,0.05); }
 
-        .sub-box-4 { 
-            display: grid; grid-template-columns: 1fr 1fr; gap: 12px; 
-            padding-top: 20px; border-top: 1px solid rgba(255, 255, 255, 0.08); 
-        }
+        .sub-box-4 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding-top: 20px; border-top: 1px solid rgba(255, 255, 255, 0.08); }
         .badge { padding: 14px; border-radius: 20px; background: rgba(15, 23, 42, 0.4); display: flex; flex-direction: column; gap: 6px; }
         .badge-label { font-size: 10px; color: #64748b; text-transform: uppercase; font-weight: 800; }
         .badge-val { font-size: 15px; font-weight: 700; color: #f1f5f9; display: flex; align-items: center; gap: 4px; }
         .time-mark { font-size: 10px; font-weight: 700; color: #64748b; background: rgba(0,0,0,0.2); padding: 2px 6px; border-radius: 6px; margin-left: 4px; }
 
         .status-pill { padding: 6px 12px; border-radius: 8px; font-size: 11px; font-weight: 900; text-transform: uppercase; }
-
         .compass-ui { position: absolute; top: 30px; right: 30px; width: 54px; height: 54px; border: 2.5px solid rgba(255,255,255,0.05); border-radius: 50%; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.3); }
         #needle { width: 4px; height: 34px; background: linear-gradient(to bottom, var(--max-t) 50%, #fff 50%); clip-path: polygon(50% 0%, 100% 100%, 50% 85%, 0% 100%); transition: transform 1.5s cubic-bezier(0.34, 1.56, 0.64, 1); }
-
         .graph-card { height: 340px; padding: 25px 20px 20px 20px; }
 
-        @media (max-width: 768px) { 
-            body { padding: 20px 16px; } 
-            .header { flex-direction: column; align-items: flex-start; gap: 16px; }
-            .grid-system { grid-template-columns: 1fr; } 
-            .main-val { font-size: 42px; }
-        }
+        @media (max-width: 768px) { body { padding: 20px 16px; } .header { flex-direction: column; align-items: flex-start; gap: 16px; } .grid-system { grid-template-columns: 1fr; } .main-val { font-size: 42px; } }
     </style>
 </head>
 <body>
@@ -289,7 +238,10 @@ app.get("/", (req, res) => {
                 <div class="sub-box-4">
                     <div class="badge"><span class="badge-label">Today High</span><span id="mx" class="badge-val" style="color:var(--max-t)">--</span></div>
                     <div class="badge"><span class="badge-label">Today Low</span><span id="mn" class="badge-val" style="color:var(--min-t)">--</span></div>
-                    <div class="badge"><span class="badge-label">Humidity</span><span id="h" class="badge-val">--</span></div>
+                    <div class="badge">
+                        <div style="display:flex; justify-content:space-between; align-items:center; width:100%"><span class="badge-label">Humidity</span><span id="h_tr"></span></div>
+                        <span id="h" class="badge-val">--</span>
+                    </div>
                     <div class="badge"><span class="badge-label">Dew Point</span><span id="dp" class="badge-val">--</span></div>
                 </div>
             </div>
@@ -359,18 +311,22 @@ app.get("/", (req, res) => {
                 document.getElementById('t').innerText = d.temp.current;
                 document.getElementById('rf').innerText = d.temp.realFeel;
                 
-                const trendIcon = d.temp.trend > 0 ? '↗' : d.temp.trend < 0 ? '↘' : '→';
-                const trendCol = d.temp.trend > 0 ? 'var(--max-t)' : d.temp.trend < 0 ? '#22c55e' : '#94a3b8';
-                document.getElementById('tr').innerHTML = \`<span style="color:\${trendCol}">\${trendIcon} \${Math.abs(d.temp.trend)}°C/hr Trend</span>\`;
+                const tIcon = d.temp.trend > 0 ? '↗' : d.temp.trend < 0 ? '↘' : '→';
+                const tCol = d.temp.trend > 0 ? 'var(--max-t)' : d.temp.trend < 0 ? '#22c55e' : '#94a3b8';
+                document.getElementById('tr').innerHTML = \`<span style="color:\${tCol}">\${tIcon} \${Math.abs(d.temp.trend)}°C/hr Trend</span>\`;
 
-                // Displaying exact times for max/min temps without breaking layouts
-                const mxTimeHtml = d.temp.maxTime ? \`<span class="time-mark">\${d.temp.maxTime}</span>\` : '';
-                const mnTimeHtml = d.temp.minTime ? \`<span class="time-mark">\${d.temp.minTime}</span>\` : '';
-                
-                document.getElementById('mx').innerHTML = d.temp.max + '°C' + mxTimeHtml;
-                document.getElementById('mn').innerHTML = d.temp.min + '°C' + mnTimeHtml;
-                
+                // Temperature Timestamps
+                const mxT = d.temp.maxTime ? \`<span class="time-mark">\${d.temp.maxTime}</span>\` : '';
+                const mnT = d.temp.minTime ? \`<span class="time-mark">\${d.temp.minTime}</span>\` : '';
+                document.getElementById('mx').innerHTML = d.temp.max + '°C' + mxT;
+                document.getElementById('mn').innerHTML = d.temp.min + '°C' + mnT;
+
+                // Modernized Humidity Trend
+                const hIcon = d.atmo.hTrend > 0 ? '↑' : d.atmo.hTrend < 0 ? '↓' : '•';
+                const hCol = d.atmo.hTrend > 0 ? '#10b981' : d.atmo.hTrend < 0 ? '#fb7185' : '#94a3b8';
+                document.getElementById('h_tr').innerHTML = \`<span style="color:\${hCol}; font-weight:900">\${hIcon}</span>\`;
                 document.getElementById('h').innerText = d.atmo.hum + '%';
+
                 document.getElementById('dp').innerText = d.atmo.dew + '°C';
                 document.getElementById('w').innerText = d.wind.speed;
                 document.getElementById('wg').innerText = d.wind.card + ' | Gust ' + d.wind.gust;
@@ -388,9 +344,11 @@ app.get("/", (req, res) => {
                 document.getElementById('rain_status').style.color = rStat.c;
                 document.getElementById('rain_status').style.background = rStat.b;
 
-                document.getElementById('ts').innerText = new Date(d.lastSync).toLocaleTimeString('en-IN', { hour12: false });
+                // Consistent Timestamp
+                const syncDate = new Date(d.lastSync);
+                document.getElementById('ts').innerText = syncDate.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: false });
 
-                const labels = d.history.map(h => new Date(h.time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }));
+                const labels = d.history.map(h => new Date(h.time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: false }));
                 if (!charts.cT) {
                     charts.cT = setupChart('cT', 'Temp (°C)', '#38bdf8');
                     charts.cH = setupChart('cH', 'Humidity (%)', '#10b981', true);
@@ -401,12 +359,11 @@ app.get("/", (req, res) => {
                 charts.cH.data.labels = labels; charts.cH.data.datasets[0].data = d.history.map(h => h.hum); charts.cH.update('none');
                 charts.cW.data.labels = labels; charts.cW.data.datasets[0].data = d.history.map(h => h.wind); charts.cW.update('none');
                 charts.cR.data.labels = labels; charts.cR.data.datasets[0].data = d.history.map(h => h.rain); charts.cR.update('none');
-                
-                // Set Max Intensity to 0 if it is dry and hasn't rained yet
                 document.getElementById('mr').innerText = (d.rain.maxR || 0) + ' mm/h';
             } catch (e) {}
         }
-        setInterval(update, 30000); update();
+        // BROWSER REFRESH: 36 Seconds (Aligned to beat server cache)
+        setInterval(update, 36000); update();
     </script>
 </body>
 </html>
