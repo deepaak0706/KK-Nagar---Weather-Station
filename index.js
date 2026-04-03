@@ -119,28 +119,20 @@ async function syncWithEcowitt() {
 
         // UPDATED TREND LOGIC: Pro-rated hourly trend
         // FIXED TEMP RATE (true per-hour, no spikes)
+        // ✅ FINAL TREND (works even before 1 hour)
 let trend = 0;
+
 if (state.todayHistory.length >= 2) {
-    const oneHourAgo = now - 3600000;
+    const first = state.todayHistory[0];
+    const last = state.todayHistory[state.todayHistory.length - 1];
 
-    // pick closest reading to 1 hour ago
-    let baseline = state.todayHistory.reduce((prev, curr) => {
-        return Math.abs(new Date(curr.time).getTime() - oneHourAgo) <
-               Math.abs(new Date(prev.time).getTime() - oneHourAgo)
-            ? curr
-            : prev;
-    });
+    const timeDiffHrs = (new Date(last.time) - new Date(first.time)) / 3600000;
 
-    const timeDiffHrs = (now - new Date(baseline.time).getTime()) / 3600000;
-
-    if (timeDiffHrs > 0.25) { // at least 15 min gap
-        trend = parseFloat(((tempC - baseline.temp) / timeDiffHrs).toFixed(1));
-    } else {
-        trend = 0;
+    if (timeDiffHrs > 0.02) { // ~1–2 minutes minimum
+        trend = parseFloat(((last.temp - first.temp) / timeDiffHrs).toFixed(1));
     }
 }
-       
-
+ 
         state.todayHistory.push({ 
             time: new Date().toISOString(), 
             temp: tempC, 
