@@ -87,10 +87,8 @@ async function syncWithEcowitt() {
         // --- METEOROLOGICAL 1-HOUR TREND ---
         let trend = 0;
         if (state.todayHistory.length >= 60) {
-            // Compare current temp to approx 60 mins ago
             trend = parseFloat((tempC - state.todayHistory[state.todayHistory.length - 60].temp).toFixed(1));
         } else if (state.todayHistory.length > 2) {
-            // If recently restarted, calculate the hourly rate based on time elapsed
             const first = state.todayHistory[0];
             const hoursPassed = (now - new Date(first.time).getTime()) / 3600000;
             trend = parseFloat(((tempC - first.temp) / hoursPassed).toFixed(1));
@@ -125,80 +123,150 @@ app.get("/", (req, res) => {
     <title>KK Nagar Weather Station</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        :root { --bg: #06080e; --card: #111827; --accent: #0ea5e9; --max-t: #f87171; --min-t: #60a5fa; --wind: #fbbf24; --rain: #818cf8; }
-        body { margin:0; font-family: 'Inter', system-ui, sans-serif; background: var(--bg); color: #f1f5f9; padding: 20px; }
-        .header { text-align: center; margin-bottom: 25px; }
-        .header h1 { margin: 0; font-size: 20px; letter-spacing: 2px; font-weight: 900; }
-        .live-indicator { display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 8px; font-family: monospace; font-size: 18px; color: #64748b; }
-        .dot { width: 10px; height: 10px; background: #22c55e; border-radius: 50%; box-shadow: 0 0 15px #22c55e; animation: pulse 2s infinite; }
-        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
-        .readings-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 30px; }
-        .card { background: var(--card); padding: 22px; border-radius: 20px; border: 1px solid #1e293b; position: relative; overflow: hidden; }
-        .label { color: var(--accent); font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 5px; }
-        .main-val { font-size: 38px; font-weight: 900; margin: 2px 0; letter-spacing: -1.5px; }
-        .trend-line { font-size: 14px; font-weight: 600; margin-bottom: 15px; display: flex; align-items: center; gap: 6px; }
-        .sub-box { display: flex; flex-wrap: wrap; gap: 8px; padding-top: 15px; border-top: 1px solid #1e293b; }
-        .badge { padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: 700; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); }
-        .compass-ui { position: absolute; top: 15px; right: 15px; width: 60px; height: 60px; border: 2px solid #1e293b; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.2); }
-        .compass-ui::after { content: 'N'; position: absolute; top: -2px; font-size: 8px; font-weight: 900; color: var(--max-t); }
-        #needle { width: 4px; height: 35px; background: linear-gradient(to bottom, var(--max-t) 50%, #f1f5f9 50%); clip-path: polygon(50% 0%, 100% 100%, 0% 100%); transition: transform 1.5s cubic-bezier(0.4, 0, 0.2, 1); }
-        .graphs-title { font-size: 14px; font-weight: 800; color: #475569; margin-bottom: 20px; text-transform: uppercase; letter-spacing: 2px; text-align: center; border-bottom: 1px solid #1e293b; padding-bottom: 10px; }
-        .graphs-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(450px, 1fr)); gap: 20px; }
-        .graph-card { background: var(--card); padding: 15px; border-radius: 20px; height: 260px; border: 1px solid #1e293b; }
-        @media (max-width: 650px) { .readings-grid { grid-template-columns: 1fr; } .graphs-grid { grid-template-columns: 1fr; } }
+        :root { 
+            --bg: #030712; 
+            --card-bg: rgba(17, 24, 39, 0.7);
+            --accent: #38bdf8;
+            --max-t: #fb7185; 
+            --min-t: #60a5fa; 
+            --wind: #fbbf24; 
+            --rain: #818cf8;
+            --border: rgba(255, 255, 255, 0.08);
+        }
+
+        body { 
+            margin: 0; 
+            font-family: 'Inter', system-ui, sans-serif; 
+            background: radial-gradient(circle at top right, #1e1b4b, #030712); 
+            color: #f1f5f9; 
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .header { text-align: left; margin-bottom: 30px; padding: 0 10px; }
+        .header h1 { 
+            margin: 0; font-size: 24px; font-weight: 800; 
+            background: linear-gradient(to right, #fff, #94a3b8);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        }
+        .live-indicator { 
+            display: inline-flex; align-items: center; gap: 8px; 
+            background: rgba(255,255,255,0.05); padding: 5px 12px; 
+            border-radius: 20px; margin-top: 10px; font-size: 13px; font-weight: 600;
+        }
+        .dot { width: 8px; height: 8px; background: #22c55e; border-radius: 50%; box-shadow: 0 0 12px #22c55e; animation: pulse 2s infinite; }
+
+        .readings-grid { 
+            display: grid; 
+            grid-template-columns: 1.5fr 1fr 1fr; 
+            gap: 16px; 
+            margin-bottom: 30px; 
+        }
+
+        .card { 
+            background: var(--card-bg); 
+            backdrop-filter: blur(12px);
+            padding: 24px; 
+            border-radius: 24px; 
+            border: 1px solid var(--border); 
+            transition: transform 0.3s ease, border-color 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        .card:hover { border-color: rgba(56, 189, 248, 0.4); transform: translateY(-2px); }
+
+        .card.hero { grid-row: span 2; display: flex; flex-direction: column; justify-content: space-between; }
+
+        .label { color: #94a3b8; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; display: flex; align-items: center; gap: 8px; }
+        .main-val { font-size: 56px; font-weight: 900; margin: 15px 0; letter-spacing: -2px; }
+        .hero .main-val { font-size: 72px; }
+
+        .trend-line { font-size: 14px; font-weight: 600; padding: 8px 12px; background: rgba(0,0,0,0.2); border-radius: 12px; width: fit-content; }
+        
+        .sub-box { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 20px; border-top: 1px solid var(--border); padding-top: 15px; }
+        .badge { display: flex; flex-direction: column; font-size: 11px; color: #64748b; font-weight: 600; }
+        .badge span { font-size: 16px; color: #fff; margin-top: 4px; }
+
+        .compass-ui { position: absolute; top: 20px; right: 20px; width: 50px; height: 50px; border: 1.5px solid var(--border); border-radius: 50%; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.3); }
+        #needle { width: 3px; height: 30px; background: linear-gradient(to bottom, var(--max-t) 50%, #fff 50%); clip-path: polygon(50% 0%, 100% 100%, 0% 100%); transition: transform 1.5s cubic-bezier(0.17, 0.67, 0.83, 0.67); }
+
+        .graphs-title { font-size: 12px; font-weight: 800; color: #475569; margin: 40px 0 20px; text-transform: uppercase; letter-spacing: 3px; text-align: center; }
+        .graphs-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 16px; }
+        .graph-card { background: var(--card-bg); padding: 20px; border-radius: 24px; border: 1px solid var(--border); height: 250px; }
+
+        @keyframes pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.5; transform: scale(1.1); } }
+
+        @media (max-width: 1024px) { .readings-grid { grid-template-columns: 1fr 1fr; } .card.hero { grid-row: auto; grid-column: span 2; } }
+        @media (max-width: 650px) { .readings-grid { grid-template-columns: 1fr; } .card.hero { grid-column: auto; } .graphs-grid { grid-template-columns: 1fr; } }
     </style>
 </head>
 <body>
     <div class="header">
-        <h1>KK NAGAR WEATHER STATION LIVE</h1>
-        <div class="live-indicator"><div class="dot"></div> <span id="ts">00:00:00</span></div>
+        <h1>KK NAGAR LIVE STATION</h1>
+        <div class="live-indicator"><div class="dot"></div> <span id="ts">--:--:--</span></div>
     </div>
+
     <div class="readings-grid">
-        <div class="card">
-            <div class="label">Temperature</div>
-            <div id="t" class="main-val">--</div>
-            <div id="tr" class="trend-line">--</div>
+        <div class="card hero">
+            <div>
+                <div class="label">🌡️ Outside Temperature</div>
+                <div id="t" class="main-val">--°</div>
+                <div id="tr" class="trend-line">--</div>
+            </div>
             <div class="sub-box">
-                <div class="badge" style="color:var(--max-t)">Max Today: <span id="mx">--</span></div>
-                <div class="badge" style="color:var(--min-t)">Min Today: <span id="mn">--</span></div>
+                <div class="badge">Today's Max <span id="mx" style="color:var(--max-t)">--</span></div>
+                <div class="badge">Today's Min <span id="mn" style="color:var(--min-t)">--</span></div>
             </div>
         </div>
+
         <div class="card">
-            <div class="label">Humidity & Pressure</div>
-            <div id="h" class="main-val">--</div>
-            <div class="trend-line" style="color:#22c55e">● Stable Conditions</div>
-            <div class="sub-box">
-                <div class="badge" style="color:#94a3b8">Dew Point: <span id="dp">--</span></div>
-                <div class="badge" style="color:#94a3b8">Press: <span id="pr">--</span></div>
-            </div>
-        </div>
-        <div class="card">
-            <div class="label">Wind Conditions</div>
+            <div class="label">💨 Wind Speed</div>
             <div class="compass-ui"><div id="needle"></div></div>
             <div id="w" class="main-val">--</div>
-            <div id="wg" class="trend-line" style="color:var(--accent)">--</div>
+            <div id="wg" style="font-size: 13px; color: var(--accent); margin-bottom: 10px;">--</div>
             <div class="sub-box">
-                <div class="badge" style="color:var(--wind)">Max Speed: <span id="mw">--</span></div>
-                <div class="badge" style="color:var(--wind)">Peak Gust: <span id="mg">--</span></div>
+                <div class="badge">Max Speed <span id="mw">--</span></div>
+                <div class="badge">Peak Gust <span id="mg">--</span></div>
             </div>
         </div>
+
         <div class="card">
-            <div class="label">Rainfall (24h)</div>
+            <div class="label">🌧️ Total Rainfall</div>
             <div id="r" class="main-val">--</div>
-            <div id="rr" class="trend-line" style="color:var(--rain)">--</div>
+            <div id="rr" style="font-size: 13px; color: var(--rain); margin-bottom: 10px;">--</div>
             <div class="sub-box">
-                <div class="badge" style="color:var(--rain)">Peak Rate: <span id="mr">--</span></div>
-                <div class="badge" style="color:#94a3b8">Status: <span id="rs">--</span></div>
+                <div class="badge">Peak Rate <span id="mr">--</span></div>
+                <div class="badge">Condition <span id="rs">--</span></div>
+            </div>
+        </div>
+
+        <div class="card" style="grid-column: span 2;">
+            <div class="label">💧 Air & Pressure</div>
+            <div style="display: flex; gap: 40px; align-items: baseline; flex-wrap: wrap;">
+                <div>
+                    <div id="h" style="font-size: 42px; font-weight: 900; margin-top: 10px;">--</div>
+                    <div style="font-size: 12px; color: #22c55e;">Humidity %</div>
+                </div>
+                <div>
+                    <div id="pr" style="font-size: 32px; font-weight: 800; margin-top: 15px;">--</div>
+                    <div style="font-size: 12px; color: #94a3b8;">Pressure (hPa)</div>
+                </div>
+                <div>
+                    <div id="dp" style="font-size: 32px; font-weight: 800; margin-top: 15px;">--</div>
+                    <div style="font-size: 12px; color: #94a3b8;">Dew Point</div>
+                </div>
             </div>
         </div>
     </div>
-    <div class="graphs-title">Live Trend Analytics</div>
+
+    <div class="graphs-title">Trend Analytics</div>
     <div class="graphs-grid">
         <div class="graph-card"><canvas id="cT"></canvas></div>
         <div class="graph-card"><canvas id="cH"></canvas></div>
         <div class="graph-card"><canvas id="cW"></canvas></div>
         <div class="graph-card"><canvas id="cR"></canvas></div>
     </div>
+
     <script>
         let charts = {};
         function setupChart(id, label, col, minZero = false) {
@@ -215,35 +283,42 @@ app.get("/", (req, res) => {
                 }
             });
         }
+
         async function update() {
             try {
                 const res = await fetch('/weather?v=' + Date.now());
                 const d = await res.json();
                 if (d.error) return;
+
                 document.getElementById('t').innerText = d.temp.current + '°';
                 const symb = d.temp.trend > 0 ? '▲' : d.temp.trend < 0 ? '▼' : '●';
                 document.getElementById('tr').innerHTML = '<span>Trend: </span> <span style="color:' + (d.temp.trend >= 0 ? 'var(--max-t)' : '#22c55e') + '">' + symb + ' ' + Math.abs(d.temp.trend) + '°C/hr</span>';
                 document.getElementById('mx').innerText = d.temp.max + '°';
                 document.getElementById('mn').innerText = d.temp.min + '°';
+
                 document.getElementById('h').innerText = d.atmo.hum + '%';
                 document.getElementById('dp').innerText = d.atmo.dew + '°';
-                document.getElementById('pr').innerText = d.atmo.press + ' hPa';
+                document.getElementById('pr').innerText = d.atmo.press;
+
                 document.getElementById('w').innerText = d.wind.speed + ' km/h';
-                document.getElementById('wg').innerText = 'Direction: ' + d.wind.card + ' | Current Gust: ' + d.wind.gust + ' km/h';
+                document.getElementById('wg').innerText = 'Direction: ' + d.wind.card + ' | Gust: ' + d.wind.gust + ' km/h';
                 document.getElementById('mw').innerText = d.wind.maxS + ' km/h';
                 document.getElementById('mg').innerText = d.wind.maxG + ' km/h';
                 document.getElementById('needle').style.transform = 'rotate(' + d.wind.deg + 'deg)';
+
                 document.getElementById('r').innerText = d.rain.total + ' mm';
-                document.getElementById('rr').innerText = 'Current Intensity: ' + d.rain.rate + ' mm/h';
+                document.getElementById('rr').innerText = 'Intensity: ' + d.rain.rate + ' mm/h';
                 document.getElementById('mr').innerText = d.rain.maxR + ' mm/h';
                 document.getElementById('rs').innerText = d.rain.rate > 0 ? 'Raining' : 'Dry';
+
                 document.getElementById('ts').innerText = new Date(d.lastSync).toLocaleTimeString('en-IN', {hour12: false});
+
                 const lbls = d.history.map(h => new Date(h.time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }));
                 if (!charts.cT) {
-                    charts.cT = setupChart('cT', 'Temperature (°C)', '#0ea5e9', false);
-                    charts.cH = setupChart('cH', 'Humidity (%)', '#10b981', true);
-                    charts.cW = setupChart('cW', 'Wind Speed (km/h)', '#f59e0b', true);
-                    charts.cR = setupChart('cR', 'Rain Rate (mm/h)', '#6366f1', true);
+                    charts.cT = setupChart('cT', 'Temp (°C)', '#38bdf8', false);
+                    charts.cH = setupChart('cH', 'Hum (%)', '#10b981', true);
+                    charts.cW = setupChart('cW', 'Wind (km/h)', '#fbbf24', true);
+                    charts.cR = setupChart('cR', 'Rain (mm/h)', '#818cf8', true);
                 }
                 charts.cT.data.labels = lbls; charts.cT.data.datasets[0].data = d.history.map(h=>h.temp); charts.cT.update('none');
                 charts.cH.data.labels = lbls; charts.cH.data.datasets[0].data = d.history.map(h=>h.hum); charts.cH.update('none');
