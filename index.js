@@ -1,6 +1,7 @@
 const express = require("express");
 const fetch = require("node-fetch");
 const fs = require("fs");
+const { sql } = require('@vercel/postgres'); // Added Postgres support
 const app = express();
 
 const APPLICATION_KEY = process.env.APPLICATION_KEY;
@@ -22,6 +23,30 @@ let state = {
     lastFetchTime: 0,
     currentDate: new Date().toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' })
 };
+
+// --- DATABASE INITIALIZATION ---
+async function initDb() {
+    try {
+        await sql`
+            CREATE TABLE IF NOT EXISTS weather_history (
+                id SERIAL PRIMARY KEY,
+                time TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+                temp REAL,
+                hum REAL,
+                press REAL,
+                wind REAL,
+                gust REAL,
+                rain_rate REAL,
+                rain_total REAL,
+                solar REAL,
+                uvi REAL
+            );
+        `;
+    } catch (e) {
+        console.error("DB Init Error:", e);
+    }
+}
+initDb();
 
 if (fs.existsSync(STORAGE_FILE)) {
     try {
@@ -103,6 +128,16 @@ async function syncWithEcowitt() {
         const gustKmh = parseFloat((d.wind.wind_gust.value * 1.60934).toFixed(1));
         const solar = d.solar_and_uvi?.solar?.value || 0;
         const uvi = d.solar_and_uvi?.uvi?.value || 0;
+
+        // --- NEW: SAVE TO POSTGRES DATABASE ---
+        try {
+            await sql`
+                INSERT INTO weather_history (temp, hum, press, wind, gust, rain_rate, rain_total, solar, uvi)
+                VALUES (${tempC}, ${hum}, ${press}, ${windKmh}, ${gustKmh}, ${instantRR}, ${dailyRain}, ${solar}, ${uvi});
+            `;
+        } catch (dbErr) {
+            console.error("Data Save Error:", dbErr);
+        }
 
         const today = new Date().toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' });
         const currentTimeStr = new Date(now).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' });
