@@ -7,9 +7,6 @@ const APPLICATION_KEY = process.env.APPLICATION_KEY;
 const API_KEY = process.env.API_KEY;
 const MAC = process.env.MAC;
 
-/**
- * DATA PERSISTENCE CONFIGURATION
- */
 const STORAGE_FILE = "/tmp/weather_stats.json";
 
 let state = {
@@ -24,7 +21,6 @@ let state = {
     currentDate: new Date().toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' })
 };
 
-// Initialize persistence
 if (fs.existsSync(STORAGE_FILE)) {
     try {
         const saved = JSON.parse(fs.readFileSync(STORAGE_FILE, 'utf-8'));
@@ -35,9 +31,7 @@ if (fs.existsSync(STORAGE_FILE)) {
             state.maxGust = saved.maxGust ?? 0;
             state.maxRainRate = saved.maxRainRate ?? 0;
         }
-    } catch (e) {
-        console.log("Persistence: Starting fresh.");
-    }
+    } catch (e) {}
 }
 
 function saveToDisk() {
@@ -61,9 +55,7 @@ const getCard = (a) => {
 
 async function syncWithEcowitt() {
     const now = Date.now();
-    if (state.cachedData && (now - state.lastFetchTime < 40000)) {
-        return state.cachedData;
-    }
+    if (state.cachedData && (now - state.lastFetchTime < 40000)) return state.cachedData;
 
     try {
         const url = `https://api.ecowitt.net/api/v3/device/real_time?application_key=${APPLICATION_KEY}&api_key=${API_KEY}&mac=${MAC}`;
@@ -153,15 +145,25 @@ app.get("/", (req, res) => {
             --border: #1e293b;
         }
 
+        * { box-sizing: border-box; }
+
         body { 
             margin: 0; 
             font-family: 'Inter', sans-serif; 
             background-color: var(--bg); 
             color: #f1f5f9; 
             padding: 20px; 
+            display: flex;
+            flex-direction: column;
+            align-items: center;
         }
 
-        .header { margin-bottom: 25px; }
+        .container {
+            width: 100%;
+            max-width: 1200px;
+        }
+
+        .header { margin-bottom: 25px; width: 100%; }
         .header h1 { margin: 0; font-size: 22px; font-weight: 800; color: #ffffff; }
 
         .live-container {
@@ -184,19 +186,21 @@ app.get("/", (req, res) => {
         .live-text { font-family: monospace; font-size: 11px; font-weight: 800; color: #22c55e; }
         .timestamp { font-family: monospace; font-size: 11px; color: #64748b; margin-left: 4px; }
 
-        .readings-grid { 
+        .readings-grid, .graphs-grid { 
             display: grid; 
             grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); 
             gap: 16px; 
-            margin-bottom: 30px; 
+            width: 100%;
+            margin-bottom: 16px; 
         }
 
-        .card { 
+        .card, .graph-card { 
             background-color: var(--card); 
             padding: 24px; 
             border-radius: 24px; 
             border: 1px solid var(--border); 
             position: relative; 
+            width: 100%;
         }
 
         .label { 
@@ -240,71 +244,76 @@ app.get("/", (req, res) => {
             clip-path: polygon(50% 0%, 100% 100%, 0% 100%); transition: transform 1.5s ease; 
         }
 
-        .graphs-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 16px; }
-        .graph-card { background-color: var(--card); padding: 15px; border-radius: 24px; height: 260px; border: 1px solid var(--border); }
+        .graph-card { 
+            height: 300px; 
+            padding: 20px 10px 10px 10px;
+        }
 
         @media (max-width: 650px) { 
-            body { padding: 15px; } .readings-grid { grid-template-columns: 1fr; } 
-            .graphs-grid { grid-template-columns: 1fr; } .graph-card { height: 220px; }
+            body { padding: 15px; } 
+            .readings-grid, .graphs-grid { grid-template-columns: 1fr; } 
+            .graph-card { height: 260px; }
         }
     </style>
 </head>
 <body>
-    <div class="header">
-        <h1>Kk Nagar Weather Station</h1>
-        <div class="live-container">
-            <div class="dot"></div><span class="live-text">LIVE</span><span class="timestamp" id="ts">--:--:--</span>
-        </div>
-    </div>
-
-    <div class="readings-grid">
-        <div class="card">
-            <div class="label">Temperature</div>
-            <div class="main-val"><span id="t">--</span><span class="unit">°C</span></div>
-            <div id="tr" class="trend-line">--</div>
-            <div class="sub-box">
-                <div class="badge"><span class="badge-label">High</span><span id="mx" class="badge-val" style="color:var(--max-t)">--</span></div>
-                <div class="badge"><span class="badge-label">Low</span><span id="mn" class="badge-val" style="color:var(--min-t)">--</span></div>
+    <div class="container">
+        <div class="header">
+            <h1>Kk Nagar Weather Station</h1>
+            <div class="live-container">
+                <div class="dot"></div><span class="live-text">LIVE</span><span class="timestamp" id="ts">--:--:--</span>
             </div>
         </div>
 
-        <div class="card">
-            <div class="label">Wind Speed</div>
-            <div class="compass-ui"><div id="needle"></div></div>
-            <div class="main-val"><span id="w">--</span><span class="unit">km/h</span></div>
-            <div id="wg" class="minor-line" style="color:var(--accent)">--</div>
-            <div class="sub-box">
-                <div class="badge"><span class="badge-label">Today Max</span><span id="mw" class="badge-val" style="color:var(--wind)">--</span></div>
-                <div class="badge"><span class="badge-label">Gust</span><span id="mg" class="badge-val" style="color:var(--wind)">--</span></div>
+        <div class="readings-grid">
+            <div class="card">
+                <div class="label">Temperature</div>
+                <div class="main-val"><span id="t">--</span><span class="unit">°C</span></div>
+                <div id="tr" class="trend-line">--</div>
+                <div class="sub-box">
+                    <div class="badge"><span class="badge-label">High</span><span id="mx" class="badge-val" style="color:var(--max-t)">--</span></div>
+                    <div class="badge"><span class="badge-label">Low</span><span id="mn" class="badge-val" style="color:var(--min-t)">--</span></div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="label">Wind Speed</div>
+                <div class="compass-ui"><div id="needle"></div></div>
+                <div class="main-val"><span id="w">--</span><span class="unit">km/h</span></div>
+                <div id="wg" class="minor-line" style="color:var(--accent)">--</div>
+                <div class="sub-box">
+                    <div class="badge"><span class="badge-label">Today Max</span><span id="mw" class="badge-val" style="color:var(--wind)">--</span></div>
+                    <div class="badge"><span class="badge-label">Gust</span><span id="mg" class="badge-val" style="color:var(--wind)">--</span></div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="label">Solar Radiation</div>
+                <div class="main-val"><span id="sol">--</span><span class="unit">W/m²</span></div>
+                <div class="minor-line" style="color:#fbbf24">UV Index: <span id="uv">--</span></div>
+                <div class="sub-box">
+                    <div class="badge"><span class="badge-label">Dew Point</span><span id="dp" class="badge-val">--</span></div>
+                    <div class="badge"><span class="badge-label">Humidity</span><span id="h" class="badge-val">--</span></div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="label">Precipitation</div>
+                <div class="main-val"><span id="r">--</span><span class="unit">mm</span></div>
+                <div class="minor-line" style="color:var(--rain)">Rate: <span id="rr_main">--</span> mm/h</div>
+                <div class="sub-box">
+                    <div class="badge"><span class="badge-label">Max Rate</span><span id="mr" class="badge-val" style="color:var(--rain)">--</span></div>
+                    <div class="badge"><span class="badge-label">Pressure</span><span id="pr" class="badge-val">--</span></div>
+                </div>
             </div>
         </div>
 
-        <div class="card">
-            <div class="label">Solar Radiation</div>
-            <div class="main-val"><span id="sol">--</span><span class="unit">W/m²</span></div>
-            <div class="minor-line" style="color:#fbbf24">UV Index: <span id="uv">--</span></div>
-            <div class="sub-box">
-                <div class="badge"><span class="badge-label">Dew Point</span><span id="dp" class="badge-val">--</span></div>
-                <div class="badge"><span class="badge-label">Humidity</span><span id="h" class="badge-val">--</span></div>
-            </div>
+        <div class="graphs-grid">
+            <div class="graph-card"><canvas id="cT"></canvas></div>
+            <div class="graph-card"><canvas id="cH"></canvas></div>
+            <div class="graph-card"><canvas id="cW"></canvas></div>
+            <div class="graph-card"><canvas id="cR"></canvas></div>
         </div>
-
-        <div class="card">
-            <div class="label">Precipitation</div>
-            <div class="main-val"><span id="r">--</span><span class="unit">mm</span></div>
-            <div class="minor-line" style="color:var(--rain)">Rate: <span id="rr_main">--</span> mm/h</div>
-            <div class="sub-box">
-                <div class="badge"><span class="badge-label">Max Rate</span><span id="mr" class="badge-val" style="color:var(--rain)">--</span></div>
-                <div class="badge"><span class="badge-label">Pressure</span><span id="pr" class="badge-val">--</span></div>
-            </div>
-        </div>
-    </div>
-
-    <div class="graphs-grid">
-        <div class="graph-card"><canvas id="cT"></canvas></div>
-        <div class="graph-card"><canvas id="cH"></canvas></div>
-        <div class="graph-card"><canvas id="cW"></canvas></div>
-        <div class="graph-card"><canvas id="cR"></canvas></div>
     </div>
 
     <script>
@@ -316,6 +325,7 @@ app.get("/", (req, res) => {
                 data: { labels: [], datasets: [{ label: label, data: [], borderColor: col, tension: 0.4, pointRadius: 0, borderWidth: 3, fill: true, backgroundColor: col + '15' }]},
                 options: { 
                     responsive: true, maintainAspectRatio: false, 
+                    layout: { padding: { left: 5, right: 5, top: 10, bottom: 0 } },
                     plugins: { legend: { display: true, labels: { color: '#94a3b8', font: { size: 11, weight: 'bold' } } } },
                     scales: { 
                         x: { ticks: { color: '#475569', font: { size: 10 }, autoSkip: true, maxTicksLimit: 6 }, grid: { display: false } }, 
