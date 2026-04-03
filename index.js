@@ -53,12 +53,10 @@ const getCard = (a) => {
     return directions[Math.round(a / 22.5) % 16];
 };
 
-// RealFeel (Heat Index) Calculation
 function calculateRealFeel(tempC, humidity) {
     const T = (tempC * 9/5) + 32;
     const R = humidity;
     let hi = 0.5 * (T + 61.0 + ((T - 68.0) * 1.2) + (R * 0.094));
-    
     if (hi > 79) {
         hi = -42.379 + 2.04901523 * T + 10.14333127 * R - 0.22475541 * T * R - 
              0.00683783 * T * T - 0.05481717 * R * R + 0.00122874 * T * T * R + 
@@ -161,6 +159,7 @@ app.get("/", (req, res) => {
         .container { width: 100%; max-width: 1200px; }
         .header { margin-bottom: 30px; display: flex; justify-content: space-between; align-items: flex-end; }
         .header h1 { margin: 0; font-size: 24px; font-weight: 900; letter-spacing: -1px; }
+        
         .live-container {
             display: inline-flex; align-items: center; gap: 8px;
             background: rgba(34, 197, 94, 0.1); padding: 6px 14px;
@@ -178,24 +177,30 @@ app.get("/", (req, res) => {
         .card, .graph-card { 
             background: var(--card); padding: 28px; border-radius: 28px; 
             border: 1px solid var(--border); position: relative; width: 100%;
-            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06);
+            transition: border-color 0.3s ease;
         }
+        .card:hover { border-color: #374151; }
+
         .label { color: #94a3b8; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 8px; }
         .main-val { font-size: 42px; font-weight: 900; margin: 4px 0; display: flex; align-items: baseline; letter-spacing: -1.5px; }
         .unit { font-size: 20px; font-weight: 600; color: #4b5563; margin-left: 6px; }
-        .minor-line { font-size: 15px; font-weight: 700; margin: 4px 0 15px 0; }
-        .trend-line { font-size: 12px; font-weight: 700; margin-bottom: 15px; display: flex; align-items: center; gap: 6px; }
+        .minor-line { font-size: 15px; font-weight: 700; margin: 4px 0 12px 0; display: flex; align-items: center; gap: 8px; }
+        .trend-line { font-size: 12px; font-weight: 700; margin-bottom: 18px; display: flex; align-items: center; gap: 6px; }
 
         .sub-box-4 { 
             display: grid; grid-template-columns: 1fr 1fr; gap: 8px; 
-            padding-top: 15px; border-top: 1px solid rgba(255, 255, 255, 0.05); 
+            padding-top: 18px; border-top: 1px solid rgba(255, 255, 255, 0.05); 
         }
-        .badge { padding: 10px; border-radius: 14px; background: rgba(255, 255, 255, 0.03); display: flex; flex-direction: column; gap: 2px; }
+        .badge { padding: 12px; border-radius: 16px; background: rgba(255, 255, 255, 0.03); display: flex; flex-direction: column; gap: 4px; }
         .badge-label { font-size: 9px; color: #6b7280; text-transform: uppercase; font-weight: 800; }
-        .badge-val { font-size: 13px; font-weight: 700; }
+        .badge-val { font-size: 14px; font-weight: 700; }
+
+        .status-pill {
+            padding: 4px 10px; border-radius: 6px; font-size: 10px; font-weight: 900; text-transform: uppercase;
+        }
 
         .compass-ui { position: absolute; top: 25px; right: 25px; width: 50px; height: 50px; border: 2px solid #374151; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.2); }
-        #needle { width: 3px; height: 32px; background: linear-gradient(to bottom, var(--max-t) 50%, #fff 50%); clip-path: polygon(50% 0%, 100% 100%, 0% 100%); transition: transform 1.5s ease; }
+        #needle { width: 3px; height: 32px; background: linear-gradient(to bottom, var(--max-t) 50%, #fff 50%); clip-path: polygon(50% 0%, 100% 100%, 0% 100%); transition: transform 1.5s cubic-bezier(0.4, 0, 0.2, 1); }
 
         .graph-card { height: 320px; padding: 25px 15px 15px 15px; }
 
@@ -212,7 +217,7 @@ app.get("/", (req, res) => {
             <div>
                 <h1>Kk Nagar Weather Station</h1>
                 <div class="live-container">
-                    <div class="dot"></div><span class="live-text">LIVE</span><span class="timestamp" id="ts">CONNECTING...</span>
+                    <div class="dot"></div><span class="live-text">LIVE</span><span class="timestamp" id="ts">SYNCING...</span>
                 </div>
             </div>
         </div>
@@ -224,10 +229,10 @@ app.get("/", (req, res) => {
                 <div class="minor-line" style="color:var(--accent)">RealFeel: <span id="rf">--</span>°C</div>
                 <div id="tr" class="trend-line">--</div>
                 <div class="sub-box-4">
+                    <div class="badge"><span class="badge-label">Today High</span><span id="mx" class="badge-val" style="color:var(--max-t)">--</span></div>
+                    <div class="badge"><span class="badge-label">Today Low</span><span id="mn" class="badge-val" style="color:var(--min-t)">--</span></div>
                     <div class="badge"><span class="badge-label">Humidity</span><span id="h" class="badge-val">--</span></div>
                     <div class="badge"><span class="badge-label">Dew Point</span><span id="dp" class="badge-val">--</span></div>
-                    <div class="badge"><span class="badge-label">High</span><span id="mx" class="badge-val" style="color:var(--max-t)">--</span></div>
-                    <div class="badge"><span class="badge-label">Low</span><span id="mn" class="badge-val" style="color:var(--min-t)">--</span></div>
                 </div>
             </div>
 
@@ -236,27 +241,30 @@ app.get("/", (req, res) => {
                 <div class="compass-ui"><div id="needle"></div></div>
                 <div class="main-val"><span id="w">--</span><span class="unit">km/h</span></div>
                 <div id="wg" class="minor-line" style="color:var(--wind)">--</div>
-                <div class="sub-box-4" style="grid-template-columns: 1fr 1fr;">
+                <div class="sub-box-4">
                     <div class="badge"><span class="badge-label">Daily Peak</span><span id="mw" class="badge-val">--</span></div>
                     <div class="badge"><span class="badge-label">Max Gust</span><span id="mg" class="badge-val">--</span></div>
                 </div>
             </div>
 
             <div class="card">
-                <div class="label">Solar Intensity</div>
+                <div class="label">Atmospheric</div>
                 <div class="main-val"><span id="sol">--</span><span class="unit">W/m²</span></div>
                 <div class="minor-line" style="color:#fbbf24">UV Index: <span id="uv">--</span></div>
                 <div class="sub-box-4" style="grid-template-columns: 1fr;">
-                    <div class="badge"><span class="badge-label">Pressure</span><span id="pr" class="badge-val">--</span></div>
+                    <div class="badge"><span class="badge-label">Barometer</span><span id="pr" class="badge-val">--</span></div>
                 </div>
             </div>
 
             <div class="card">
                 <div class="label">Precipitation</div>
                 <div class="main-val"><span id="r">--</span><span class="unit">mm</span></div>
-                <div class="minor-line" style="color:var(--rain)">Current Rate: <span id="rr_main">--</span> mm/h</div>
+                <div class="minor-line">
+                    <span id="rr_main" style="color:var(--rain)">Rate: -- mm/h</span>
+                    <span id="rain_status" class="status-pill">--</span>
+                </div>
                 <div class="sub-box-4" style="grid-template-columns: 1fr;">
-                    <div class="badge"><span class="badge-label">Peak Rain Rate Today</span><span id="mr" class="badge-val" style="color:var(--rain)">--</span></div>
+                    <div class="badge"><span class="badge-label">Daily Max Intensity</span><span id="mr" class="badge-val" style="color:var(--rain)">--</span></div>
                 </div>
             </div>
         </div>
@@ -287,6 +295,14 @@ app.get("/", (req, res) => {
             });
         }
 
+        function getRainStatus(rate) {
+            if (rate <= 0) return { text: 'Dry', bg: 'rgba(255,255,255,0.05)', color: '#94a3b8' };
+            if (rate < 2.5) return { text: 'Light Rain', bg: 'rgba(56,189,248,0.1)', color: '#38bdf8' };
+            if (rate < 7.6) return { text: 'Moderate', bg: 'rgba(129,140,248,0.15)', color: '#818cf8' };
+            if (rate < 50) return { text: 'Heavy Rain', bg: 'rgba(248,113,113,0.15)', color: '#f87171' };
+            return { text: 'Flood Warning', bg: '#f87171', color: '#fff' };
+        }
+
         async function update() {
             try {
                 const res = await fetch('/weather?v=' + Date.now());
@@ -295,8 +311,11 @@ app.get("/", (req, res) => {
 
                 document.getElementById('t').innerText = d.temp.current;
                 document.getElementById('rf').innerText = d.temp.realFeel;
-                const trendIcon = d.temp.trend > 0 ? '▲' : d.temp.trend < 0 ? '▼' : '●';
-                document.getElementById('tr').innerHTML = \`<span style="color:\${d.temp.trend >= 0 ? 'var(--max-t)' : '#22c55e'}">\${trendIcon} \${Math.abs(d.temp.trend)}°C/hr Trend</span>\`;
+                
+                // Enhanced Trend Arrows
+                const trendIcon = d.temp.trend > 0 ? '↗' : d.temp.trend < 0 ? '↘' : '→';
+                document.getElementById('tr').innerHTML = \`<span style="color:\${d.temp.trend > 0 ? 'var(--max-t)' : d.temp.trend < 0 ? '#22c55e' : '#94a3b8'}">\${trendIcon} \${Math.abs(d.temp.trend)}°C/hr Trend</span>\`;
+                
                 document.getElementById('mx').innerText = d.temp.max + '°C';
                 document.getElementById('mn').innerText = d.temp.min + '°C';
                 document.getElementById('h').innerText = d.atmo.hum + '%';
@@ -313,7 +332,14 @@ app.get("/", (req, res) => {
                 document.getElementById('pr').innerText = Math.round(d.atmo.press) + ' hPa';
 
                 document.getElementById('r').innerText = d.rain.total;
-                document.getElementById('rr_main').innerText = d.rain.rate;
+                document.getElementById('rr_main').innerText = 'Rate: ' + d.rain.rate + ' mm/h';
+                
+                const rStat = getRainStatus(d.rain.rate);
+                const rPill = document.getElementById('rain_status');
+                rPill.innerText = rStat.text;
+                rPill.style.background = rStat.bg;
+                rPill.style.color = rStat.color;
+                
                 document.getElementById('mr').innerText = d.rain.maxR + ' mm/h';
 
                 document.getElementById('ts').innerText = new Date(d.lastSync).toLocaleTimeString('en-IN', { hour12: false });
