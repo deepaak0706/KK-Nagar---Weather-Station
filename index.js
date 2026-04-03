@@ -118,15 +118,28 @@ async function syncWithEcowitt() {
         if (changed) saveToDisk();
 
         // UPDATED TREND LOGIC: Pro-rated hourly trend
-        let trend = 0;
-        if (state.todayHistory.length >= 2) {
-            const oneHourAgo = now - 3600000;
-            let baseline = state.todayHistory.find(h => new Date(h.time).getTime() >= oneHourAgo) || state.todayHistory[0];
-            const timeDiffHrs = (now - new Date(baseline.time).getTime()) / 3600000;
-            if (timeDiffHrs > 0.083) { // 5 min minimum for calculation
-                trend = parseFloat(((tempC - baseline.temp) / timeDiffHrs).toFixed(1));
-            }
-        }
+        // FIXED TEMP RATE (true per-hour, no spikes)
+let trend = 0;
+if (state.todayHistory.length >= 2) {
+    const oneHourAgo = now - 3600000;
+
+    // pick closest reading to 1 hour ago
+    let baseline = state.todayHistory.reduce((prev, curr) => {
+        return Math.abs(new Date(curr.time).getTime() - oneHourAgo) <
+               Math.abs(new Date(prev.time).getTime() - oneHourAgo)
+            ? curr
+            : prev;
+    });
+
+    const timeDiffHrs = (now - new Date(baseline.time).getTime()) / 3600000;
+
+    if (timeDiffHrs > 0.25) { // at least 15 min gap
+        trend = parseFloat(((tempC - baseline.temp) / timeDiffHrs).toFixed(1));
+    } else {
+        trend = 0;
+    }
+}
+       
 
         state.todayHistory.push({ 
             time: new Date().toISOString(), 
@@ -343,7 +356,7 @@ app.get("/", (req, res) => {
                 document.getElementById('needle').style.transform = \`rotate(\${d.wind.deg}deg)\`;
                 document.getElementById('sol').innerText = d.solar.rad + ' W/m²';
                 document.getElementById('uv').innerText = d.solar.uvi;
-                document.getElementById('pr').innerText = Math.round(d.atmo.press);
+                document.getElementById('pr').innerText = parseFloat(d.atmo.press).toFixed(1);
                 document.getElementById('r').innerText = d.rain.total;
                 document.getElementById('rr_main').innerText = 'Rate: ' + d.rain.rate + ' mm/h';
                 
