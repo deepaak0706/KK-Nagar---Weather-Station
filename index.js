@@ -163,7 +163,7 @@ app.get("/", (req, res) => {
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>Kk Nagar Station</title>
+    <title>Kk Nagar Weather Hub</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         :root { 
@@ -174,7 +174,7 @@ app.get("/", (req, res) => {
         }
         * { box-sizing: border-box; -webkit-font-smoothing: antialiased; }
         body { 
-            margin: 0; font-family: 'Inter', system-ui, -apple-system, sans-serif; 
+            margin: 0; font-family: 'Inter', system-ui, sans-serif; 
             background: #020617; color: #f8fafc; padding: 32px 24px; min-height: 100vh;
             display: flex; flex-direction: column; align-items: center;
         }
@@ -197,8 +197,8 @@ app.get("/", (req, res) => {
             padding: 32px; backdrop-filter: blur(16px); position: relative;
         }
 
-        .label { color: #94a3b8; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 12px; }
-        .main-val { font-size: 52px; font-weight: 900; margin: 4px 0; display: flex; align-items: baseline; letter-spacing: -2px; transition: all 0.4s ease; }
+        .label { color: #94a3b8; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+        .main-val { font-size: 52px; font-weight: 900; margin: 4px 0; display: flex; align-items: baseline; letter-spacing: -2px; }
         .unit { font-size: 22px; font-weight: 600; color: #64748b; margin-left: 6px; }
         .minor-line { font-size: 15px; font-weight: 700; margin-top: 8px; display: flex; align-items: center; gap: 8px; }
 
@@ -212,10 +212,6 @@ app.get("/", (req, res) => {
         #needle { width: 4px; height: 34px; background: linear-gradient(to bottom, var(--max-t) 50%, #fff 50%); clip-path: polygon(50% 0%, 100% 100%, 50% 85%, 0% 100%); transition: transform 1.5s ease-out; }
         
         .graph-card { height: 340px; padding: 25px 20px; }
-        
-        /* Glow Effects */
-        .glow-wind { box-shadow: 0 0 30px rgba(251, 191, 36, 0.1); border-color: rgba(251, 191, 36, 0.3); }
-        .glow-rain { box-shadow: 0 0 30px rgba(129, 140, 248, 0.15); border-color: rgba(129, 140, 248, 0.4); }
     </style>
 </head>
 <body>
@@ -233,7 +229,10 @@ app.get("/", (req, res) => {
                 <div class="sub-box-4">
                     <div class="badge"><span class="badge-label">Today High</span><span id="mx" class="badge-val" style="color:var(--max-t)">--</span></div>
                     <div class="badge"><span class="badge-label">Today Low</span><span id="mn" class="badge-val" style="color:var(--min-t)">--</span></div>
-                    <div class="badge"><span class="badge-label">Humidity</span><span id="h" class="badge-val">--</span></div>
+                    <div class="badge">
+                        <div style="display:flex; align-items:center; gap:6px"><span class="badge-label">Humidity</span><span id="h_tr"></span></div>
+                        <span id="h" class="badge-val">--</span>
+                    </div>
                     <div class="badge"><span class="badge-label">Dew Point</span><span id="dp" class="badge-val">--</span></div>
                 </div>
             </div>
@@ -244,20 +243,26 @@ app.get("/", (req, res) => {
                 <div class="main-val"><span id="w">--</span><span class="unit">km/h</span></div>
                 <div id="wg" class="minor-line" style="color:var(--wind)">--</div>
                 <div class="sub-box-4">
-                    <div class="badge"><span class="badge-label">Max wind</span><span id="mw" class="badge-val">--</span></div>
-                    <div class="badge"><span class="badge-label">Max Gust</span><span id="mg" class="badge-val">--</span></div>
+                    <div class="badge"><span class="badge-label">Peak Wind</span><span id="mw" class="badge-val">--</span></div>
+                    <div class="badge"><span class="badge-label">Peak Gust</span><span id="mg" class="badge-val">--</span></div>
                     <div class="badge"><span class="badge-label">Solar Rad</span><span id="sol" class="badge-val">--</span></div>
                     <div class="badge"><span class="badge-label">UV Index</span><span id="uv" class="badge-val">--</span></div>
                 </div>
             </div>
 
             <div class="card" id="card-rain">
-                <div class="label">Precipitation</div>
-                <div class="main-val"><span id="r">--</span><span class="unit">mm</span></div>
-                <div class="minor-line"><span id="rr_main" style="color:var(--rain)">Rate: --</span><span id="rain_status" style="font-size:10px; margin-left:10px; padding:2px 6px; border-radius:4px; font-weight:800; background:rgba(255,255,255,0.05)">--</span></div>
+                <div class="label">Atmospheric <span id="p_tr"></span></div>
+                <div class="main-val"><span id="pr">--</span><span class="unit">hPa</span></div>
+                <div id="p_status" class="minor-line" style="color:#64748b; font-size:13px">Barometer Stable</div>
                 <div class="sub-box-4">
-                    <div class="badge"><span class="badge-label">Barometer</span><span id="pr" class="badge-val">--</span></div>
-                    <div class="badge"><span class="badge-label">Max Intensity</span><span id="mr" class="badge-val" style="color:var(--rain)">--</span></div>
+                    <div class="badge">
+                        <span class="badge-label">Rain Total</span>
+                        <span id="r" class="badge-val" style="color:var(--rain)">--</span>
+                    </div>
+                    <div class="badge">
+                        <span class="badge-label">Current Rate</span>
+                        <span id="rr_main" class="badge-val" style="color:var(--rain)">--</span>
+                    </div>
                 </div>
             </div>
         </div>
@@ -273,7 +278,6 @@ app.get("/", (req, res) => {
     <script>
         let charts = {};
         
-        // SYNC PLUGIN
         const syncPlugin = {
             id: 'syncPlugin',
             afterDraw: (chart) => {
@@ -288,9 +292,8 @@ app.get("/", (req, res) => {
                     Object.values(charts).forEach(o => {
                         if (o !== chart) {
                             const idx = chart.tooltip.dataPoints[0].index;
-                            const meta = o.getDatasetMeta(0);
-                            if (meta.data[idx]) {
-                                o.tooltip.setActiveElements([{ datasetIndex: 0, index: idx }], { x: meta.data[idx].x, y: meta.data[idx].y });
+                            if (o.getDatasetMeta(0).data[idx]) {
+                                o.tooltip.setActiveElements([{ datasetIndex: 0, index: idx }], { x: o.getDatasetMeta(0).data[idx].x, y: o.getDatasetMeta(0).data[idx].y });
                                 o.draw();
                             }
                         }
@@ -324,29 +327,38 @@ app.get("/", (req, res) => {
                 
                 document.getElementById('t').innerText = d.temp.current;
                 document.getElementById('rf').innerText = d.temp.realFeel;
-                document.getElementById('mx').innerHTML = d.temp.max + '°' + (d.temp.maxTime ? '<span class="time-mark">'+d.temp.maxTime+'</span>' : '');
-                document.getElementById('mn').innerHTML = d.temp.min + '°' + (d.temp.minTime ? '<span class="time-mark">'+d.temp.minTime+'</span>' : '');
+                
+                // High/Low Typography fix
+                const mxT = d.temp.maxTime ? '<span class="time-mark">'+d.temp.maxTime+'</span>' : '';
+                const mnT = d.temp.minTime ? '<span class="time-mark">'+d.temp.minTime+'</span>' : '';
+                document.getElementById('mx').innerHTML = d.temp.max + '°' + mxT;
+                document.getElementById('mn').innerHTML = d.temp.min + '°' + mnT;
+                
+                // Humidity Trend
+                const hT = d.atmo.hTrend > 0 ? {i:'▲',c:'#10b981'} : d.atmo.hTrend < 0 ? {i:'▼',c:'#fb7185'} : {i:'●',c:'#475569'};
+                document.getElementById('h_tr').innerHTML = '<span style="color:'+hT.c+'; font-size:10px">'+hT.i+'</span>';
                 document.getElementById('h').innerText = d.atmo.hum + '%';
                 document.getElementById('dp').innerText = d.atmo.dew + '°C';
+                
+                // Wind
                 document.getElementById('w').innerText = d.wind.speed;
                 document.getElementById('wg').innerText = d.wind.card + ' | Gust ' + d.wind.gust;
                 document.getElementById('mw').innerText = d.wind.maxS + ' km/h';
                 document.getElementById('mg').innerText = d.wind.maxG + ' km/h';
-                document.getElementById('pr').innerText = d.atmo.press + ' hPa';
+                document.getElementById('needle').style.transform = 'rotate('+d.wind.deg+'deg)';
                 document.getElementById('sol').innerText = d.solar.rad + ' W';
                 document.getElementById('uv').innerText = d.solar.uvi;
-                document.getElementById('r').innerText = d.rain.total;
-                document.getElementById('rr_main').innerText = 'Rate: ' + d.rain.rate + ' mm/h';
-                document.getElementById('mr').innerText = d.rain.maxR + ' mm/h';
-                
-                document.getElementById('needle').style.transform = 'rotate('+d.wind.deg+'deg)';
-                document.body.classList.toggle('solar-low', d.solar.rad <= 0);
-                document.getElementById('card-wind').classList.toggle('glow-wind', d.wind.speed > 15);
-                document.getElementById('card-rain').classList.toggle('glow-rain', d.rain.rate > 0);
 
-                const rStat = d.rain.rate > 0 ? {t:'RAINING', c:'#38bdf8'} : {t:'STABLE', c:'#64748b'};
-                document.getElementById('rain_status').innerText = rStat.t;
-                document.getElementById('rain_status').style.color = rStat.c;
+                // Barometer Trend
+                const pT = d.atmo.pTrend > 0 ? {i:'▲',c:'#10b981',s:'Rising Pressure'} : d.atmo.pTrend < 0 ? {i:'▼',c:'#fb7185',s:'Falling Pressure'} : {i:'●',c:'#475569',s:'Stable Barometer'};
+                document.getElementById('p_tr').innerHTML = '<span style="color:'+pT.c+'; font-size:10px">'+pT.i+'</span>';
+                document.getElementById('pr').innerText = d.atmo.press;
+                document.getElementById('p_status').innerText = pT.s;
+                document.getElementById('p_status').style.color = pT.c;
+
+                // Rain
+                document.getElementById('r').innerText = d.rain.total + ' mm';
+                document.getElementById('rr_main').innerText = d.rain.rate + ' mm/h';
 
                 const syncDate = new Date(d.lastSync);
                 document.getElementById('ts').innerText = syncDate.toLocaleTimeString('en-IN', { hour12: false });
