@@ -32,7 +32,7 @@ async function syncWithEcowitt() {
     const now = Date.now();
     const today = new Date().toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' });
 
-    // 1. RECOVERY: Forced IST Conversion in SQL
+    // 1. RECOVERY: Forced IST Conversion for Highs/Lows
     if (state.maxTemp === -999 || state.currentDate !== today) {
         try {
             const recovery = await pool.query(`
@@ -48,7 +48,7 @@ async function syncWithEcowitt() {
                     MAX(rain_rate_in) as max_rr, 
                     TO_CHAR(MAX(time AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Kolkata') FILTER (WHERE rain_rate_in = (SELECT MAX(rain_rate_in) FROM weather_history WHERE time >= CURRENT_DATE)), 'HH24:MI:SS') as max_rr_t
                 FROM weather_history 
-                WHERE time >= CURRENT_DATE AT TIME ZONE 'Asia/Kolkata'
+                WHERE time >= (CURRENT_DATE AT TIME ZONE 'Asia/Kolkata')
             `);
             if (recovery.rows[0] && recovery.rows[0].max_tf !== null) {
                 const r = recovery.rows[0];
@@ -83,7 +83,6 @@ async function syncWithEcowitt() {
             state.lastRainTotalTime = now;
         } else if ((now - state.lastRainTotalTime) > 15 * 60000) { instantRR = 0; }
 
-        // LIVE IST TIME
         const currentTimeIST = new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' });
 
         if (tempC > state.maxTemp || state.maxTemp === -999) { state.maxTemp = tempC; state.maxTempTime = currentTimeIST; }
@@ -99,11 +98,10 @@ async function syncWithEcowitt() {
             state.lastDbWrite = now;
         }
 
-        // HISTORY: Convert UTC column to IST inside the query
+        // 2. GRAPH HISTORY: Conversion to IST for X-Axis
         const historyRes = await pool.query(`SELECT (time AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Kolkata') as ist_time, temp_f, humidity, wind_speed_mph, rain_rate_in, press_rel FROM weather_history WHERE time > NOW() - INTERVAL '24 hours' ORDER BY time ASC`);
-        
         const history = historyRes.rows.map(r => ({
-            time: r.ist_time, // This is now a Date object in IST
+            time: r.ist_time, 
             temp: parseFloat(((r.temp_f - 32) * 5 / 9).toFixed(1)),
             hum: r.humidity, press: r.press_rel || press,
             wind: parseFloat((r.wind_speed_mph * 1.60934).toFixed(1)),
@@ -235,10 +233,13 @@ app.get("/", (req, res) => {
                 options: {
                     responsive: true, maintainAspectRatio: false,
                     scales: {
-                        x: { ticks: { color: '#64748b', font: { size: 10 } }, grid: { display: false } },
+                        x: { 
+                            ticks: { color: '#64748b', font: { size: 10 }, maxRotation: 45, minRotation: 45 }, 
+                            grid: { display: false } 
+                        },
                         y: { min: minVal, ticks: { color: '#64748b', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,0.05)' } }
                     },
-                    plugins: { legend: { labels: { color: '#94a3b8' } } }
+                    plugins: { legend: { labels: { color: '#94a3b8', font: { weight: 'bold' } } } }
                 }
             });
         }
@@ -247,6 +248,8 @@ app.get("/", (req, res) => {
             try {
                 const res = await fetch('/weather?v=' + Date.now());
                 const d = await res.json();
+                
+                // Update UI elements
                 document.getElementById('t').innerText = d.temp.current;
                 document.getElementById('tr').innerHTML = (d.temp.trend > 0 ? '▲' : '▼') + ' ' + Math.abs(d.temp.trend) + '°C/hr';
                 document.getElementById('mx').innerHTML = d.temp.max + '°C' + (d.temp.maxTime ? '<span class="time-mark">'+d.temp.maxTime+'</span>' : '');
@@ -267,18 +270,21 @@ app.get("/", (req, res) => {
                 document.getElementById('r').innerText = d.rain.total;
                 document.getElementById('rr_main').innerText = 'Rate: ' + d.rain.rate + ' mm/h';
                 document.getElementById('mr').innerHTML = d.rain.maxR + ' mm/h' + (d.rain.maxRTime ? '<span class="time-mark">'+d.rain.maxRTime+'</span>' : '');
-                document.getElementById('ts').innerText = new Date(d.lastSync).toLocaleTimeString('en-IN', { hour12: false, timeZone: 'Asia/Kolkata' });
+                
+                // Live Dashboard Clock in IST
+                document.getElementById('ts').innerText = new Date().toLocaleTimeString('en-IN', { hour12: false, timeZone: 'Asia/Kolkata' });
 
+                // Update Graphs with IST labels
                 const labels = d.history.map(h => {
                     const time = new Date(h.time);
                     return time.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: false });
                 });
 
                 if (!charts.cT) {
-                    charts.cT = createChart('cT', 'Temp (°C)', '#38bdf8');
-                    charts.cH = createChart('cH', 'Hum (%)', '#10b981', 0);
-                    charts.cW = createChart('cW', 'Wind (km/h)', '#fbbf24', 0);
-                    charts.cR = createChart('cR', 'Rain (mm/h)', '#818cf8', 0);
+                    charts.cT = createChart('cT', 'Temperature (°C)', '#38bdf8');
+                    charts.cH = createChart('cH', 'Humidity (%)', '#10b981', 0);
+                    charts.cW = createChart('cW', 'Wind Speed (km/h)', '#fbbf24', 0);
+                    charts.cR = createChart('cR', 'Rain Rate (mm/h)', '#818cf8', 0);
                 }
                 charts.cT.data.labels = labels; charts.cT.data.datasets[0].data = d.history.map(h => h.temp); charts.cT.update();
                 charts.cH.data.labels = labels; charts.cH.data.datasets[0].data = d.history.map(h => h.hum); charts.cH.update();
