@@ -4,6 +4,6 @@
   "main": "index.js",
   "dependencies": {
     "pg": "^8.11.0",
-    "dotenv": "^16.0.0"
+    "node-fetch": "^2.6.7"
   }
 }
