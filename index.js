@@ -55,9 +55,9 @@ async function syncWithEcowitt() {
         const d = json.data;
 
         const tempC = parseFloat(((d.outdoor.temperature.value - 32) * 5 / 9).toFixed(1));
-        const hum = d.outdoor.humidity.value;
+        const hum = parseInt(d.outdoor.humidity.value);
         const press = parseFloat((d.pressure.relative.value * 33.8639).toFixed(1));
-        const dailyRain = parseFloat((d.rainfall.daily.value * 25.4).toFixed(1));
+        const dailyRain = parseFloat(((d.rain?.daily?.value || d.rainfall?.daily?.value || 0) * 25.4).toFixed(1));
         const windKmh = parseFloat((d.wind.wind_speed.value * 1.60934).toFixed(1));
         const gustKmh = parseFloat((d.wind.wind_gust.value * 1.60934).toFixed(1));
         const solar = d.solar_and_uvi?.solar?.value || 0;
@@ -85,10 +85,9 @@ async function syncWithEcowitt() {
         if (gustKmh > state.maxGust) state.maxGust = gustKmh;
         if (instantRR > state.maxRainRate) state.maxRainRate = instantRR;
 
-        // Permanent Background Sync to DB (Won't crash the UI if DB fails)
         pool.query(`INSERT INTO weather_history (temp_f, humidity, wind_speed_mph, wind_gust_mph, rain_rate_in, daily_rain_in, solar_radiation, press_rel) 
                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`, 
-                    [d.outdoor.temperature.value, hum, d.wind.wind_speed.value, d.wind.wind_gust.value, instantRR, dailyRain, solar, press]).catch(e => console.error("DB Insert Error", e));
+                    [d.outdoor.temperature.value, hum, d.wind.wind_speed.value, d.wind.wind_gust.value, instantRR, dailyRain, solar, press]).catch(e => console.error("DB Insert", e));
 
         const historyRes = await pool.query(`SELECT time, temp_f, humidity as hum, wind_speed_mph as wind, rain_rate_in as rain, press_rel as press 
                                              FROM weather_history WHERE time > NOW() - INTERVAL '24 hours' ORDER BY time ASC`);
@@ -177,12 +176,25 @@ app.get("/", (req, res) => {
             backdrop-filter: blur(24px); box-shadow: 0 24px 40px -10px rgba(0, 0, 0, 0.4); 
             animation: fade-in-up 0.6s ease-out forwards; opacity: 0; transition: transform 0.3s ease;
         }
-        .card:nth-child(1) { animation-delay: 0.1s; } .card:nth-child(2) { animation-delay: 0.2s; }
         .card:hover { transform: translateY(-4px); }
         .label { color: #94a3b8; font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: 2px; }
         .main-val { font-size: 56px; font-weight: 900; margin: 4px 0; display: flex; align-items: baseline; letter-spacing: -2px; }
         .unit { font-size: 22px; font-weight: 600; color: #64748b; margin-left: 8px; }
-        .trend-badge { font-size: 13px; font-weight: 800; margin-bottom: 24px; display: inline-flex; align-items: center; gap: 8px; padding: 6px 14px; background: rgba(255,255,255,0.06); border-radius: 12px; }
+        
+        /* MODERN TREND BADGE */
+        .trend-pill { 
+            font-size: 12px; font-weight: 900; margin-bottom: 24px; 
+            display: inline-flex; align-items: center; gap: 6px; 
+            padding: 6px 14px; border-radius: 100px;
+            background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
+        }
+        .trend-up { color: #f87171; background: rgba(248, 113, 113, 0.1); border-color: rgba(248, 113, 113, 0.2); }
+        .trend-down { color: #38bdf8; background: rgba(56, 189, 248, 0.1); border-color: rgba(56, 189, 248, 0.2); }
+        .indicator-small { font-size: 11px; font-weight: 800; padding: 4px 10px; border-radius: 6px; margin-top: 8px; display: inline-block; }
+        .inc { background: rgba(248, 113, 113, 0.15); color: #f87171; }
+        .dec { background: rgba(56, 189, 248, 0.15); color: #38bdf8; }
+        .neu { background: rgba(255,255,255,0.05); color: #94a3b8; }
+
         .sub-box-4 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding-top: 24px; border-top: 1px solid rgba(255, 255, 255, 0.08); }
         .badge { padding: 16px; border-radius: 20px; background: rgba(0, 0, 0, 0.2); display: flex; flex-direction: column; gap: 8px; border: 1px solid rgba(255,255,255,0.03); }
         .badge-label { font-size: 11px; color: #64748b; font-weight: 800; }
@@ -206,49 +218,52 @@ app.get("/", (req, res) => {
             </div>
         </div>
         <div class="grid-system">
-            <div class="card" id="card-temp">
+            <div class="card" id="card-temp" style="opacity:1">
                 <div class="label">Temperature</div>
                 <div class="main-val"><span id="t">--</span><span class="unit">°C</span></div>
-                <div style="color:var(--accent); font-weight:600; margin-bottom:10px">RealFeel: <span id="rf">--</span>°C</div>
-                <div class="trend-badge" id="tr">--</div>
+                <div style="color:var(--accent); font-weight:600; margin-bottom:12px; font-size:14px">RealFeel: <span id="rf">--</span>°C</div>
+                <div id="tr_pill" class="trend-pill">--</div>
                 <div class="sub-box-4">
                     <div class="badge"><span class="badge-label">Today High</span><span id="mx" class="badge-val" style="color:var(--max-t)">--</span></div>
                     <div class="badge"><span class="badge-label">Today Low</span><span id="mn" class="badge-val" style="color:var(--min-t)">--</span></div>
-                    <div class="badge"><span class="badge-label">Humidity</span><span id="h" class="badge-val">--</span></div>
+                    <div class="badge">
+                        <span class="badge-label">Humidity</span><span id="h" class="badge-val">--</span>
+                        <span id="h_ind" class="indicator-small">--</span>
+                    </div>
                     <div class="badge"><span class="badge-label">Dew Point</span><span id="dp" class="badge-val">--</span></div>
                 </div>
             </div>
-            <div class="card" id="card-wind">
+            <div class="card" id="card-wind" style="opacity:1">
                 <div class="label">Wind Dynamics</div>
                 <div class="compass-ui"><div id="needle"></div></div>
                 <div class="main-val"><span id="w">--</span><span class="unit">km/h</span></div>
-                <div id="wg" style="color:var(--wind); font-weight:600">--</div>
-                <div class="sub-box-4">
+                <div id="wg" style="color:var(--wind); font-weight:600; font-size:14px">--</div>
+                <div class="sub-box-4" style="margin-top:28px">
                     <div class="badge"><span class="badge-label">Max wind</span><span id="mw" class="badge-val">--</span></div>
                     <div class="badge"><span class="badge-label">Max Gust</span><span id="mg" class="badge-val">--</span></div>
                 </div>
             </div>
-            <div class="card">
+            <div class="card" style="opacity:1">
                 <div class="label">Atmospheric</div>
                 <div class="main-val"><span id="pr">--</span><span class="unit">hPa</span></div>
-                <div id="p_status" style="color:#64748b; font-size:14px; margin-bottom:15px">Barometer Stable</div>
+                <div id="p_ind" class="indicator-small" style="margin-bottom:15px">--</div>
                 <div class="sub-box-4">
                     <div class="badge"><span class="badge-label">Solar Rad</span><span id="sol" class="badge-val">--</span></div>
                     <div class="badge"><span class="badge-label">UV Index</span><span id="uv" class="badge-val" style="color:#fbbf24">--</span></div>
                 </div>
             </div>
-            <div class="card" id="card-rain">
+            <div class="card" id="card-rain" style="opacity:1">
                 <div class="label">Precipitation</div>
                 <div class="main-val"><span id="r">--</span><span class="unit">mm</span></div>
-                <div id="rr_main" style="color:var(--rain); font-weight:600">Rate: -- mm/h</div>
+                <div id="rr_main" style="color:var(--rain); font-weight:600; font-size:14px; margin-bottom:12px">Rate: -- mm/h</div>
                 <div class="sub-box-4" style="grid-template-columns: 1fr;"><div class="badge"><span class="badge-label">Max Intensity</span><span id="mr" class="badge-val" style="color:var(--rain)">--</span></div></div>
             </div>
         </div>
         <div class="grid-system">
-            <div class="graph-card"><canvas id="cT"></canvas></div>
-            <div class="graph-card"><canvas id="cH"></canvas></div>
-            <div class="graph-card"><canvas id="cW"></canvas></div>
-            <div class="graph-card"><canvas id="cR"></canvas></div>
+            <div class="graph-card" style="opacity:1"><canvas id="cT"></canvas></div>
+            <div class="graph-card" style="opacity:1"><canvas id="cH"></canvas></div>
+            <div class="graph-card" style="opacity:1"><canvas id="cW"></canvas></div>
+            <div class="graph-card" style="opacity:1"><canvas id="cR"></canvas></div>
         </div>
     </div>
     <script>
@@ -260,8 +275,8 @@ app.get("/", (req, res) => {
                 data: { labels: [], datasets: [{ label: label, data: [], borderColor: col, tension: 0.4, pointRadius: 0, fill: true, backgroundColor: col + '22' }]},
                 options: { 
                     responsive: true, maintainAspectRatio: false, 
-                    plugins: { legend: { labels: { color: '#f8fafc' } } },
-                    scales: { x: { ticks: { color: '#94a3b8' } }, y: { beginAtZero: minZero, ticks: { color: '#94a3b8' } } }
+                    plugins: { legend: { labels: { color: '#f8fafc', font: { family: 'Outfit', weight: '600' } } } },
+                    scales: { x: { ticks: { color: '#64748b' }, grid: { display: false } }, y: { beginAtZero: minZero, ticks: { color: '#64748b' }, grid: { color: 'rgba(255,255,255,0.05)' } } }
                 }
             });
         }
@@ -270,20 +285,39 @@ app.get("/", (req, res) => {
             try {
                 const res = await fetch('/weather');
                 const d = await res.json();
+                
+                // Temp & Trend
                 document.getElementById('t').innerText = d.temp.current;
                 document.getElementById('rf').innerText = d.temp.realFeel;
-                document.getElementById('tr').innerText = (d.temp.trend > 0 ? '↗ ' : '↘ ') + Math.abs(d.temp.trend) + '°C/hr Trend';
-                document.getElementById('mx').innerHTML = d.temp.max + '°C <span class="time-mark">'+d.temp.maxTime+'</span>';
-                document.getElementById('mn').innerHTML = d.temp.min + '°C <span class="time-mark">'+d.temp.minTime+'</span>';
+                const tp = document.getElementById('tr_pill');
+                tp.innerText = (d.temp.trend > 0 ? '↑ ' : '↓ ') + Math.abs(d.temp.trend).toFixed(1) + '°C/hr Trend';
+                tp.className = 'trend-pill ' + (d.temp.trend > 0 ? 'trend-up' : 'trend-down');
+                
+                document.getElementById('mx').innerHTML = d.temp.max + '° <span class="time-mark">'+d.temp.maxTime+'</span>';
+                document.getElementById('mn').innerHTML = d.temp.min + '° <span class="time-mark">'+d.temp.minTime+'</span>';
+                
+                // Humidity & Trend
                 document.getElementById('h').innerText = d.atmo.hum + '%';
+                const hInd = document.getElementById('h_ind');
+                if(d.atmo.hTrend > 0.5) { hInd.innerText = 'Increasing'; hInd.className = 'indicator-small inc'; }
+                else if(d.atmo.hTrend < -0.5) { hInd.innerText = 'Decreasing'; hInd.className = 'indicator-small dec'; }
+                else { hInd.innerText = 'Stable'; hInd.className = 'indicator-small neu'; }
+
                 document.getElementById('dp').innerText = d.atmo.dew + '°C';
-                document.getElementById('pr').innerText = d.atmo.press;
-                document.getElementById('p_status').innerText = d.atmo.pTrend > 0 ? 'Rising Pressure' : 'Falling Pressure';
+                
+                // Pressure & Trend
+                document.getElementById('pr').innerText = Math.round(d.atmo.press);
+                const pInd = document.getElementById('p_ind');
+                if(d.atmo.pTrend > 0.1) { pInd.innerText = 'High Pressure Rising'; pInd.className = 'indicator-small inc'; }
+                else if(d.atmo.pTrend < -0.1) { pInd.innerText = 'Low Pressure Falling'; pInd.className = 'indicator-small dec'; }
+                else { pInd.innerText = 'Barometer Stable'; pInd.className = 'indicator-small neu'; }
+
                 document.getElementById('w').innerText = d.wind.speed;
                 document.getElementById('wg').innerText = d.wind.card + ' | Gust ' + d.wind.gust;
                 document.getElementById('mw').innerText = d.wind.maxS + ' km/h';
                 document.getElementById('mg').innerText = d.wind.maxG + ' km/h';
                 document.getElementById('needle').style.transform = 'rotate('+d.wind.deg+'deg)';
+                
                 document.getElementById('sol').innerText = d.solar.rad + ' W/m²';
                 document.getElementById('uv').innerText = d.solar.uvi;
                 document.getElementById('r').innerText = d.rain.total;
@@ -292,7 +326,7 @@ app.get("/", (req, res) => {
                 document.getElementById('ts').innerText = new Date(d.lastSync).toLocaleTimeString('en-IN', { hour12: false });
                 
                 document.body.classList.toggle('solar-low', d.solar.rad <= 0);
-                document.getElementById('card-wind').classList.toggle('glow-wind', d.wind.speed > 10);
+                document.getElementById('card-wind').classList.toggle('glow-wind', d.wind.speed > 12);
                 document.getElementById('card-rain').classList.toggle('glow-rain', d.rain.rate > 0);
 
                 const labels = d.history.map(h => new Date(h.time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: false }));
@@ -316,4 +350,4 @@ app.get("/", (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log("Server running on port", PORT));
+app.listen(PORT, () => console.log("Station ready on port", PORT));
