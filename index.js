@@ -274,13 +274,13 @@ app.get("/", (req, res) => {
                 <div class="main-val"><span id="w">--</span><span class="unit">km/h</span></div>
                 <div id="wg" class="minor-line" style="color:var(--wind)">--</div>
                 <div class="sub-box-4">
-                    <div class="badge"><span class="badge-label">Daily Peak</span><span id="mw" class="badge-val">--</span></div>
+                    <div class="badge"><span class="badge-label">Max wind</span><span id="mw" class="badge-val">--</span></div>
                     <div class="badge"><span class="badge-label">Max Gust</span><span id="mg" class="badge-val">--</span></div>
                 </div>
             </div>
 
             <div class="card">
-                <div class="label">Atmospheric</div>
+                <div class="label">Atmospheric Conditions</div>
                 <div class="main-val"><span id="pr">--</span><span class="unit">hPa</span></div>
                 <div class="minor-line" style="color:#64748b">Stable Barometer</div>
                 <div class="sub-box-4">
