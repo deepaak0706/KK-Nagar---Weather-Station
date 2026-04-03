@@ -1,12 +1,18 @@
-const http = require('http');
+const express = require("express");
+const fetch = require("node-fetch");
 const { Pool } = require('pg');
+const app = express();
 
 // 1. DATABASE CONFIGURATION
 const pool = new Pool({
   connectionString: process.env.POSTGRES_URL + "?sslmode=require",
 });
 
-// 2. STATE MANAGEMENT (Preserved from your original logic)
+// 2. CONFIGURATION & STATE
+const APPLICATION_KEY = process.env.APPLICATION_KEY;
+const API_KEY = process.env.API_KEY;
+const MAC = process.env.MAC;
+
 let state = {
     cachedData: null,
     maxTemp: -999,
@@ -22,7 +28,7 @@ let state = {
     currentDate: new Date().toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' })
 };
 
-// --- Helper Functions (Preserved) ---
+// --- Helper Functions ---
 const getCard = (a) => {
     const directions = ["N","NNE","NE","ENE","E","ESE","SE","SSE","S","SSW","SW","WSW","W","WNW","NW","NNW"];
     return directions[Math.round(a / 22.5) % 16];
@@ -40,10 +46,14 @@ function calculateRealFeel(tempC, humidity) {
     return parseFloat(((hi - 32) * 5 / 9).toFixed(1));
 }
 
-// 3. CORE SYNC & DATABASE LOGIC
-async function syncAndLog() {
+// 3. CORE LOGIC (Sync + DB)
+async function syncWithEcowitt() {
+    const now = Date.now();
+    // Cache for 35 seconds to avoid API spamming
+    if (state.cachedData && (now - state.lastFetchTime < 35000)) return state.cachedData;
+
     try {
-        const url = `https://api.ecowitt.net/api/v3/device/real_time?application_key=${process.env.ECOWITT_APP_KEY}&api_key=${process.env.ECOWITT_API_KEY}&mac=${process.env.STATION_MAC}`;
+        const url = `https://api.ecowitt.net/api/v3/device/real_time?application_key=${APPLICATION_KEY}&api_key=${API_KEY}&mac=${MAC}`;
         const response = await fetch(url);
         const json = await response.json();
         const d = json.data;
@@ -52,84 +62,108 @@ async function syncAndLog() {
         const tempC = parseFloat(((d.outdoor.temperature.value - 32) * 5 / 9).toFixed(1));
         const hum = d.outdoor.humidity.value;
         const press = parseFloat((d.pressure.relative.value * 33.8639).toFixed(1));
-        const dailyRainMM = parseFloat((d.rain.daily.value * 25.4).toFixed(1));
+        const dailyRainMM = parseFloat((d.rainfall.daily.value * 25.4).toFixed(1));
         const windKmh = parseFloat((d.wind.wind_speed.value * 1.60934).toFixed(1));
         const gustKmh = parseFloat((d.wind.wind_gust.value * 1.60934).toFixed(1));
+        const solar = d.solar_and_uvi?.solar?.value || 0;
+        const uvi = d.solar_and_uvi?.uvi?.value || 0;
 
         // Davis-Style Instant Rain Rate Logic
         let instantRR = 0;
-        const now = Date.now();
         if (dailyRainMM > state.lastRainfall) {
             const timeDiffMin = (now - state.lastRainTime) / 60000;
-            instantRR = parseFloat(((0.254 / timeDiffMin) * 60).toFixed(1)); // 0.254mm per tip
+            if (timeDiffMin > 0) {
+                instantRR = parseFloat(((0.254 / timeDiffMin) * 60).toFixed(1)); 
+            }
             state.lastRainfall = dailyRainMM;
             state.lastRainTime = now;
         } else if ((now - state.lastRainTime) > 15 * 60000) {
             instantRR = 0;
         }
 
-        // Handle Midnight Reset
+        // Handle Date/High-Low Resets
         const today = new Date().toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' });
+        const currentTimeStr = new Date(now).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' });
+
         if (state.currentDate !== today) {
             state.currentDate = today;
             state.maxTemp = -999; state.minTemp = 999;
             state.maxWindSpeed = 0; state.maxGust = 0; state.maxRainRate = 0;
         }
 
-        // High/Low Tracking
-        const timeStr = new Date().toLocaleTimeString('en-IN', { hour12: false, timeZone: 'Asia/Kolkata' });
-        if (tempC > state.maxTemp) { state.maxTemp = tempC; state.maxTempTime = timeStr; }
-        if (tempC < state.minTemp) { state.minTemp = tempC; state.minTempTime = timeStr; }
+        if (tempC > state.maxTemp || state.maxTemp === -999) { state.maxTemp = tempC; state.maxTempTime = currentTimeStr; }
+        if (tempC < state.minTemp || state.minTemp === 999) { state.minTemp = tempC; state.minTempTime = currentTimeStr; }
         if (windKmh > state.maxWindSpeed) state.maxWindSpeed = windKmh;
         if (gustKmh > state.maxGust) state.maxGust = gustKmh;
         if (instantRR > state.maxRainRate) state.maxRainRate = instantRR;
 
-        // SAVE TO DATABASE
+        // SAVE TO DATABASE (Neon)
         await pool.query(`
-            INSERT INTO weather_history (
-                temp_f, humidity, wind_speed_mph, wind_gust_mph, 
-                rain_rate_in, daily_rain_in, solar_radiation
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-            [d.outdoor.temperature.value, hum, d.wind.wind_speed.value, d.wind.wind_gust.value, instantRR, dailyRainMM, d.solar_and_uv.solar.value]
+            INSERT INTO weather_history (temp_f, humidity, wind_speed_mph, wind_gust_mph, rain_rate_in, daily_rain_in, solar_radiation)
+            VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+            [d.outdoor.temperature.value, hum, d.wind.wind_speed.value, d.wind.wind_gust.value, instantRR, dailyRainMM, solar]
         );
 
-        // Fetch History from DB for Graphs (Last 24 Hours)
+        // Fetch Last 24 Hours History for Charts
         const historyRes = await pool.query(`
-            SELECT to_char(time AT TIME ZONE 'Asia/Kolkata', 'HH24:MI') as label, 
-            temp_f as temp, humidity as hum, wind_speed_mph as wind, rain_rate_in as rain, time
-            FROM weather_history WHERE time > NOW() - INTERVAL '24 hours' ORDER BY time ASC
-        `);
+            SELECT time, temp_f, humidity as hum, wind_speed_mph as wind, rain_rate_in as rain, daily_rain_in as "rainTotal", solar_radiation as solar, press_rel as press
+            FROM (
+                SELECT time, temp_f, humidity, wind_speed_mph, rain_rate_in, daily_rain_in, solar_radiation, 
+                       (SELECT (d.pressure.relative.value * 33.8639)) as press_rel 
+                FROM weather_history 
+                WHERE time > NOW() - INTERVAL '24 hours' 
+                ORDER BY time ASC
+            ) sub`);
 
-        // Update Global Cache
+        const formattedHistory = historyRes.rows.map(r => ({
+            time: r.time,
+            temp: parseFloat(((r.temp_f - 32) * 5/9).toFixed(1)),
+            hum: r.hum,
+            press: r.press || press,
+            wind: parseFloat((r.wind * 1.60934).toFixed(1)),
+            rain: r.rain,
+            rainTotal: r.rainTotal,
+            solar: r.solar
+        }));
+
+        // Trends Logic
+        let tTrend = 0, hTrend = 0, pTrend = 0;
+        if (formattedHistory.length >= 2) {
+            const first = formattedHistory[0];
+            const timeDiffHrs = (now - new Date(first.time).getTime()) / 3600000;
+            if (timeDiffHrs > 0.1) {
+                tTrend = parseFloat(((tempC - first.temp) / timeDiffHrs).toFixed(1));
+                hTrend = parseFloat(((hum - first.hum) / timeDiffHrs).toFixed(1));
+                pTrend = parseFloat(((press - first.press) / timeDiffHrs).toFixed(1));
+            }
+        }
+
         state.cachedData = {
-            temp: { current: tempC, max: state.maxTemp, maxTime: state.maxTempTime, min: state.minTemp, minTime: state.minTempTime, realFeel: calculateRealFeel(tempC, hum) },
-            atmo: { hum: hum, press: press, dew: parseFloat(((d.outdoor.dew_point.value - 32) * 5 / 9).toFixed(1)) },
+            temp: { current: tempC, max: state.maxTemp, maxTime: state.maxTempTime, min: state.minTemp, minTime: state.minTempTime, trend: tTrend, realFeel: calculateRealFeel(tempC, hum) },
+            atmo: { hum: hum, hTrend: hTrend, press: press, pTrend: pTrend, dew: parseFloat(((d.outdoor.dew_point.value - 32) * 5 / 9).toFixed(1)) },
             wind: { speed: windKmh, gust: gustKmh, maxS: state.maxWindSpeed, maxG: state.maxGust, card: getCard(d.wind.wind_direction.value), deg: d.wind.wind_direction.value },
             rain: { total: dailyRainMM, rate: instantRR, maxR: state.maxRainRate },
-            solar: { rad: d.solar_and_uv.solar.value, uvi: d.solar_and_uv.uv.value },
+            solar: { rad: solar, uvi: uvi },
             lastSync: new Date().toISOString(),
-            history: historyRes.rows.map(r => ({ ...r, temp: parseFloat(((r.temp - 32) * 5/9).toFixed(1)) }))
+            history: formattedHistory
         };
+        state.lastFetchTime = now;
+        return state.cachedData;
 
-        return state.cachedData;
     } catch (e) {
-        console.error(e);
-        return state.cachedData;
+        console.error("Sync Error:", e);
+        return state.cachedData || { error: "Failed to fetch" };
     }
 }
 
-// 4. SERVER ROUTING
-const server = http.createServer(async (req, res) => {
-    // CRON TRIGGER
-    if (req.url === '/weather') {
-        const data = await syncAndLog();
-        res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
-        return res.end(JSON.stringify(data));
-    }
+// 4. ROUTES
+app.get("/weather", async (req, res) => {
+    res.setHeader('Cache-Control', 'no-store');
+    res.json(await syncWithEcowitt());
+});
 
-    // DASHBOARD HTML (Your Original UI)
-    res.writeHead(200, { 'Content-Type': 'text/html' });
-    res.end(`
+app.get("/", (req, res) => {
+    res.send(`
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -154,6 +188,7 @@ const server = http.createServer(async (req, res) => {
             background-size: 400% 400%; animation: gradient-pan 20s ease infinite;
             color: #f8fafc; padding: 32px 24px; display: flex; flex-direction: column; align-items: center; min-height: 100vh;
         }
+        body.solar-low { background: #000; color: #cbd5e1; animation: none; }
         .container { width: 100%; max-width: 1200px; z-index: 1; position: relative; }
         .header { margin-bottom: 40px; display: flex; justify-content: space-between; align-items: center; width: 100%; }
         .header h1 { margin: 0; font-size: 32px; font-weight: 900; letter-spacing: -1px; }
@@ -167,19 +202,24 @@ const server = http.createServer(async (req, res) => {
         .card, .graph-card { 
             background: var(--card); padding: 32px; border-radius: 28px; border: 1px solid var(--border); 
             backdrop-filter: blur(24px); box-shadow: 0 24px 40px -10px rgba(0, 0, 0, 0.4); 
-            animation: fade-in-up 0.6s ease-out forwards; opacity: 0;
+            animation: fade-in-up 0.6s ease-out forwards; opacity: 0; transition: transform 0.3s ease;
         }
         .card:nth-child(1) { animation-delay: 0.1s; } .card:nth-child(2) { animation-delay: 0.2s; }
+        .card:hover { transform: translateY(-4px); }
         .label { color: #94a3b8; font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: 2px; }
         .main-val { font-size: 56px; font-weight: 900; margin: 4px 0; display: flex; align-items: baseline; letter-spacing: -2px; }
         .unit { font-size: 22px; font-weight: 600; color: #64748b; margin-left: 8px; }
+        .trend-badge { font-size: 13px; font-weight: 800; margin-bottom: 24px; display: inline-flex; align-items: center; gap: 8px; padding: 6px 14px; background: rgba(255,255,255,0.06); border-radius: 12px; }
         .sub-box-4 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding-top: 24px; border-top: 1px solid rgba(255, 255, 255, 0.08); }
         .badge { padding: 16px; border-radius: 20px; background: rgba(0, 0, 0, 0.2); display: flex; flex-direction: column; gap: 8px; border: 1px solid rgba(255,255,255,0.03); }
         .badge-label { font-size: 11px; color: #64748b; font-weight: 800; }
         .badge-val { font-size: 16px; font-weight: 700; color: #f1f5f9; }
+        .time-mark { font-size: 10px; font-weight: 800; color: #94a3b8; background: rgba(255,255,255,0.08); padding: 2px 6px; border-radius: 6px; margin-left: 4px; }
         .compass-ui { position: absolute; top: 32px; right: 32px; width: 60px; height: 60px; border: 2px solid rgba(255,255,255,0.1); border-radius: 50%; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.4); }
         #needle { width: 4px; height: 38px; background: linear-gradient(to bottom, var(--max-t) 50%, #e2e8f0 50%); clip-path: polygon(50% 0%, 100% 100%, 50% 85%, 0% 100%); transition: transform 1.5s cubic-bezier(0.34, 1.56, 0.64, 1); }
         .graph-card { height: 360px; }
+        .glow-wind { border-color: rgba(251, 191, 36, 0.4); box-shadow: 0 0 20px rgba(251, 191, 36, 0.1); }
+        .glow-rain { border-color: rgba(129, 140, 248, 0.4); box-shadow: 0 0 20px rgba(129, 140, 248, 0.1); }
     </style>
 </head>
 <body>
@@ -193,10 +233,11 @@ const server = http.createServer(async (req, res) => {
             </div>
         </div>
         <div class="grid-system">
-            <div class="card">
+            <div class="card" id="card-temp">
                 <div class="label">Temperature</div>
                 <div class="main-val"><span id="t">--</span><span class="unit">°C</span></div>
-                <div style="color:var(--accent); font-weight:600; margin-bottom:15px">RealFeel: <span id="rf">--</span>°C</div>
+                <div style="color:var(--accent); font-weight:600; margin-bottom:10px">RealFeel: <span id="rf">--</span>°C</div>
+                <div class="trend-badge" id="tr">--</div>
                 <div class="sub-box-4">
                     <div class="badge"><span class="badge-label">Today High</span><span id="mx" class="badge-val" style="color:var(--max-t)">--</span></div>
                     <div class="badge"><span class="badge-label">Today Low</span><span id="mn" class="badge-val" style="color:var(--min-t)">--</span></div>
@@ -204,7 +245,7 @@ const server = http.createServer(async (req, res) => {
                     <div class="badge"><span class="badge-label">Dew Point</span><span id="dp" class="badge-val">--</span></div>
                 </div>
             </div>
-            <div class="card">
+            <div class="card" id="card-wind">
                 <div class="label">Wind Dynamics</div>
                 <div class="compass-ui"><div id="needle"></div></div>
                 <div class="main-val"><span id="w">--</span><span class="unit">km/h</span></div>
@@ -217,12 +258,13 @@ const server = http.createServer(async (req, res) => {
             <div class="card">
                 <div class="label">Atmospheric</div>
                 <div class="main-val"><span id="pr">--</span><span class="unit">hPa</span></div>
+                <div id="p_status" style="color:#64748b; font-size:14px; margin-bottom:15px">Barometer Stable</div>
                 <div class="sub-box-4">
                     <div class="badge"><span class="badge-label">Solar Rad</span><span id="sol" class="badge-val">--</span></div>
                     <div class="badge"><span class="badge-label">UV Index</span><span id="uv" class="badge-val" style="color:#fbbf24">--</span></div>
                 </div>
             </div>
-            <div class="card">
+            <div class="card" id="card-rain">
                 <div class="label">Precipitation</div>
                 <div class="main-val"><span id="r">--</span><span class="unit">mm</span></div>
                 <div id="rr_main" style="color:var(--rain); font-weight:600">Rate: -- mm/h</div>
@@ -257,11 +299,13 @@ const server = http.createServer(async (req, res) => {
                 const d = await res.json();
                 document.getElementById('t').innerText = d.temp.current;
                 document.getElementById('rf').innerText = d.temp.realFeel;
-                document.getElementById('mx').innerText = d.temp.max + '°C';
-                document.getElementById('mn').innerText = d.temp.min + '°C';
+                document.getElementById('tr').innerText = (d.temp.trend > 0 ? '↗ ' : '↘ ') + Math.abs(d.temp.trend) + '°C/hr Trend';
+                document.getElementById('mx').innerHTML = d.temp.max + '°C <span class="time-mark">'+d.temp.maxTime+'</span>';
+                document.getElementById('mn').innerHTML = d.temp.min + '°C <span class="time-mark">'+d.temp.minTime+'</span>';
                 document.getElementById('h').innerText = d.atmo.hum + '%';
                 document.getElementById('dp').innerText = d.atmo.dew + '°C';
                 document.getElementById('pr').innerText = d.atmo.press;
+                document.getElementById('p_status').innerText = d.atmo.pTrend > 0 ? 'Rising Pressure' : 'Falling Pressure';
                 document.getElementById('w').innerText = d.wind.speed;
                 document.getElementById('wg').innerText = d.wind.card + ' | Gust ' + d.wind.gust;
                 document.getElementById('mw').innerText = d.wind.maxS + ' km/h';
@@ -273,8 +317,12 @@ const server = http.createServer(async (req, res) => {
                 document.getElementById('rr_main').innerText = 'Rate: ' + d.rain.rate + ' mm/h';
                 document.getElementById('mr').innerText = d.rain.maxR + ' mm/h';
                 document.getElementById('ts').innerText = new Date(d.lastSync).toLocaleTimeString('en-IN', { hour12: false });
+                
+                document.body.classList.toggle('solar-low', d.solar.rad <= 0);
+                document.getElementById('card-wind').classList.toggle('glow-wind', d.wind.speed > 10);
+                document.getElementById('card-rain').classList.toggle('glow-rain', d.rain.rate > 0);
 
-                const labels = d.history.map(h => h.label);
+                const labels = d.history.map(h => new Date(h.time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: false }));
                 if (!charts.cT) {
                     charts.cT = setupChart('cT', 'Temp (°C)', '#38bdf8');
                     charts.cH = setupChart('cH', 'Humidity (%)', '#10b981', true);
@@ -287,12 +335,12 @@ const server = http.createServer(async (req, res) => {
                 charts.cR.data.labels = labels; charts.cR.data.datasets[0].data = d.history.map(h => h.rain); charts.cR.update();
             } catch (e) {}
         }
-        setInterval(update, 45000); update();
+        setInterval(update, 40000); update();
     </script>
 </body>
 </html>
     `);
 });
 
-server.listen(process.env.PORT || 3000);
-
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log("Weather Station Live on Port", PORT));
