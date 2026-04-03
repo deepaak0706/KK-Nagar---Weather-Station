@@ -3,6 +3,7 @@ const fetch = require("node-fetch");
 const fs = require("fs");
 const app = express();
 
+// Configuration from Environment
 const APPLICATION_KEY = process.env.APPLICATION_KEY;
 const API_KEY = process.env.API_KEY;
 const MAC = process.env.MAC;
@@ -20,6 +21,7 @@ let state = {
     currentDate: new Date().toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' })
 };
 
+// --- DATA PERSISTENCE ---
 if (fs.existsSync(STORAGE_FILE)) {
     try {
         const saved = JSON.parse(fs.readFileSync(STORAGE_FILE, 'utf-8'));
@@ -30,7 +32,7 @@ if (fs.existsSync(STORAGE_FILE)) {
             state.maxGust = saved.maxGust ?? 0;
             state.maxRainRate = saved.maxRainRate ?? 0;
         }
-    } catch (e) {}
+    } catch (e) { console.error("Load Error", e); }
 }
 
 function saveToDisk() {
@@ -81,8 +83,8 @@ async function syncWithEcowitt() {
             }
         }
 
-        const windKmh = parseFloat((d.wind.wind_speed.value * 1.609).toFixed(1));
-        const gustKmh = parseFloat((d.wind.wind_gust.value * 1.609).toFixed(1));
+        const windKmh = parseFloat((d.wind.wind_speed.value * 1.60934).toFixed(1));
+        const gustKmh = parseFloat((d.wind.wind_gust.value * 1.60934).toFixed(1));
         const today = new Date().toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' });
 
         if (state.currentDate !== today) {
@@ -119,7 +121,7 @@ async function syncWithEcowitt() {
         };
         state.lastFetchTime = now;
         return state.cachedData;
-    } catch (e) { return state.cachedData || { error: "Failed" }; }
+    } catch (e) { return state.cachedData || { error: "Sync Error" }; }
 }
 
 app.get("/weather", async (req, res) => { res.json(await syncWithEcowitt()); });
@@ -131,16 +133,19 @@ app.get("/", (req, res) => {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>KK Nagar Weather</title>
+    <title>KK Nagar Weather Station</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         :root { --bg: #020617; --card: rgba(15, 23, 42, 0.7); --accent: #38bdf8; --border: rgba(255, 255, 255, 0.08); }
+        * { box-sizing: border-box; -webkit-font-smoothing: antialiased; }
         body { margin: 0; font-family: 'Inter', sans-serif; background: var(--bg); color: #f8fafc; padding: 15px; }
         .container { max-width: 1200px; margin: 0 auto; }
         
         .header { margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; }
         .header h1 { margin: 0; font-size: 22px; font-weight: 800; letter-spacing: -0.5px; }
-        .status { font-size: 11px; font-weight: 700; color: #22c55e; display: flex; align-items: center; gap: 6px; background: rgba(34, 197, 94, 0.1); padding: 4px 10px; border-radius: 20px; }
+        .status-container { display: flex; flex-direction: column; align-items: flex-end; }
+        .status { font-size: 11px; font-weight: 700; color: #22c55e; display: flex; align-items: center; gap: 6px; background: rgba(34, 197, 94, 0.1); padding: 4px 10px; border-radius: 20px; margin-bottom: 4px; }
+        .sync-time { font-size: 10px; color: #64748b; font-family: monospace; }
         .dot { width: 6px; height: 6px; background: #22c55e; border-radius: 50%; box-shadow: 0 0 8px #22c55e; }
 
         .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; margin-bottom: 12px; }
@@ -150,14 +155,14 @@ app.get("/", (req, res) => {
         .icon { width: 22px; height: 22px; stroke-width: 2.5; fill: none; }
         
         .label { color: #64748b; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; }
-        .main-val { font-size: 48px; font-weight: 900; letter-spacing: -2px; margin: 2px 0; }
+        .main-val { font-size: 48px; font-weight: 900; letter-spacing: -2px; margin: 2px 0; display: flex; align-items: baseline; }
         .unit { font-size: 16px; color: #475569; margin-left: 2px; }
         
         .trend-pill { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 800; background: rgba(255,255,255,0.05); margin-bottom: 10px; }
-        .realfeel-text { font-size: 12px; font-weight: 600; color: #94a3b8; margin-bottom: 12px; }
+        .rf-text { font-size: 12px; font-weight: 600; color: #94a3b8; margin-bottom: 12px; }
 
         .sub-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 12px; }
-        .badge { background: rgba(0,0,0,0.2); padding: 8px; border-radius: 12px; }
+        .badge { background: rgba(0,0,0,0.2); padding: 8px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.02); }
         .b-lbl { font-size: 8px; color: #475569; text-transform: uppercase; display: block; margin-bottom: 2px; }
         .b-val { font-size: 12px; font-weight: 700; }
 
@@ -165,14 +170,17 @@ app.get("/", (req, res) => {
         .graph-card { background: var(--card); border-radius: 24px; padding: 15px; border: 1px solid var(--border); height: 250px; }
         .graph-title { font-size: 10px; font-weight: 800; color: #64748b; text-transform: uppercase; margin-bottom: 10px; text-align: center; }
 
-        #compass-ui { width: 30px; height: 30px; transition: transform 0.5s ease; }
+        #compass-ui { width: 30px; height: 30px; transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1); }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
             <h1>KK Nagar Weather Station</h1>
-            <div class="status"><div class="dot"></div> LIVE</div>
+            <div class="status-container">
+                <div class="status"><div class="dot"></div> LIVE</div>
+                <div class="sync-time">Updated: <span id="ts">--:--:--</span></div>
+            </div>
         </div>
 
         <div class="grid">
@@ -183,7 +191,7 @@ app.get("/", (req, res) => {
                 </div>
                 <div class="main-val"><span id="t">--</span><span class="unit">°C</span></div>
                 <div class="trend-pill" id="tr_pill">--</div>
-                <div class="realfeel-text">RealFeel: <span id="rf">--</span>°</div>
+                <div class="rf-text">RealFeel: <span id="rf">--</span>°</div>
                 <div class="sub-grid">
                     <div class="badge"><span class="b-lbl">High/Low</span><span class="b-val" id="hl">--</span></div>
                     <div class="badge"><span class="b-lbl">Humidity</span><span class="b-val" id="h">--</span></div>
@@ -199,6 +207,7 @@ app.get("/", (req, res) => {
                 </div>
                 <div class="main-val"><span id="w">--</span><span class="unit">km/h</span></div>
                 <div class="trend-pill" id="wg" style="color:#f59e0b">--</div>
+                <div class="rf-text" style="color:transparent">.</div>
                 <div class="sub-grid">
                     <div class="badge"><span class="b-lbl">Peak Speed</span><span class="b-val" id="mw">--</span></div>
                     <div class="badge"><span class="b-lbl">Max Gust</span><span class="b-val" id="mg">--</span></div>
@@ -212,6 +221,7 @@ app.get("/", (req, res) => {
                 </div>
                 <div class="main-val"><span id="r">--</span><span class="unit">mm</span></div>
                 <div class="trend-pill" id="rr" style="color:#6366f1">Rate: 0.0 mm/h</div>
+                <div class="rf-text" style="color:transparent">.</div>
                 <div class="sub-grid">
                     <div class="badge"><span class="b-lbl">Max Rate</span><span class="b-val" id="mr">--</span></div>
                     <div class="badge"><span class="b-lbl">Status</span><span class="b-val" id="rst">Dry</span></div>
@@ -225,9 +235,10 @@ app.get("/", (req, res) => {
                 </div>
                 <div class="main-val"><span id="uvi">--</span><span class="unit">UVI</span></div>
                 <div class="trend-pill" style="color:#facc15">Index Level</div>
+                <div class="rf-text" style="color:transparent">.</div>
                 <div class="sub-grid">
                     <div class="badge"><span class="b-lbl">Radiation</span><span class="b-val" id="sol">--</span></div>
-                    <div class="badge"><span class="b-lbl">Sync Time</span><span class="b-val" id="ts">--</span></div>
+                    <div class="badge"><span class="b-lbl">Rel Pressure</span><span class="b-val" id="pt">--</span></div>
                 </div>
             </div>
         </div>
@@ -251,41 +262,48 @@ app.get("/", (req, res) => {
         }
 
         async function update() {
-            const res = await fetch('/weather?v=' + Date.now());
-            const d = await res.json();
-            document.getElementById('t').innerText = d.temp.current;
-            document.getElementById('rf').innerText = d.temp.realFeel;
-            document.getElementById('hl').innerText = d.temp.max + '°/' + d.temp.min + '°';
-            
-            const trPill = document.getElementById('tr_pill');
-            trPill.innerHTML = (d.temp.trend >= 0 ? '↗ ' : '↘ ') + Math.abs(d.temp.trend) + '°/hr';
-            trPill.style.color = d.temp.trend >= 0 ? '#f43f5e' : '#38bdf8';
+            try {
+                const res = await fetch('/weather?v=' + Date.now());
+                const d = await res.json();
+                
+                document.getElementById('t').innerText = d.temp.current;
+                document.getElementById('rf').innerText = d.temp.realFeel;
+                document.getElementById('hl').innerText = d.temp.max + '° / ' + d.temp.min + '°';
+                
+                const trPill = document.getElementById('tr_pill');
+                trPill.innerHTML = (d.temp.trend >= 0 ? '↗ ' : '↘ ') + Math.abs(d.temp.trend) + '°/hr';
+                trPill.style.color = d.temp.trend >= 0 ? '#f43f5e' : '#38bdf8';
 
-            document.getElementById('h').innerText = d.atmo.hum + '%';
-            document.getElementById('dp').innerText = d.atmo.dew + '°';
-            document.getElementById('pr').innerText = d.atmo.press;
-            document.getElementById('w').innerText = d.wind.speed;
-            document.getElementById('wg').innerText = d.wind.card + ' • GUST ' + d.wind.gust;
-            document.getElementById('mw').innerText = d.wind.maxS + ' km/h';
-            document.getElementById('mg').innerText = d.wind.maxG + ' km/h';
-            document.getElementById('r').innerText = d.rain.total;
-            document.getElementById('rr').innerText = 'Rate: ' + d.rain.rate + ' mm/h';
-            document.getElementById('mr').innerText = d.rain.maxR + ' mm/h';
-            document.getElementById('rst').innerText = d.rain.rate > 0 ? 'Raining' : 'Dry';
-            document.getElementById('sol').innerText = d.solar.rad + ' W';
-            document.getElementById('uvi').innerText = d.solar.uvi;
-            document.getElementById('ts').innerText = new Date(d.lastSync).toLocaleTimeString('en-IN', { hour12: false });
-            document.getElementById('compass-ui').style.transform = 'rotate(' + d.wind.deg + 'deg)';
+                document.getElementById('h').innerText = d.atmo.hum + '%';
+                document.getElementById('dp').innerText = d.atmo.dew + '°';
+                document.getElementById('pr').innerText = d.atmo.press;
+                document.getElementById('pt').innerText = d.atmo.press + ' hPa';
 
-            if (!charts.cT) {
-                charts.cT = makeChart('cT', '#38bdf8'); charts.cH = makeChart('cH', '#10b981');
-                charts.cW = makeChart('cW', '#f59e0b'); charts.cR = makeChart('cR', '#6366f1');
-            }
-            const lbls = d.history.map(h => '');
-            charts.cT.data.labels = lbls; charts.cT.data.datasets[0].data = d.history.map(h => h.temp); charts.cT.update('none');
-            charts.cH.data.labels = lbls; charts.cH.data.datasets[0].data = d.history.map(h => h.hum); charts.cH.update('none');
-            charts.cW.data.labels = lbls; charts.cW.data.datasets[0].data = d.history.map(h => h.wind); charts.cW.update('none');
-            charts.cR.data.labels = lbls; charts.cR.data.datasets[0].data = d.history.map(h => h.rain); charts.cR.update('none');
+                document.getElementById('w').innerText = d.wind.speed;
+                document.getElementById('wg').innerText = d.wind.card + ' • GUST ' + d.wind.gust;
+                document.getElementById('mw').innerText = d.wind.maxS + ' km/h';
+                document.getElementById('mg').innerText = d.wind.maxG + ' km/h';
+                document.getElementById('compass-ui').style.transform = 'rotate(' + d.wind.deg + 'deg)';
+
+                document.getElementById('r').innerText = d.rain.total;
+                document.getElementById('rr').innerText = 'Rate: ' + d.rain.rate + ' mm/h';
+                document.getElementById('mr').innerText = d.rain.maxR + ' mm/h';
+                document.getElementById('rst').innerText = d.rain.rate > 0 ? 'Raining' : 'Dry';
+
+                document.getElementById('sol').innerText = d.solar.rad + ' W/m²';
+                document.getElementById('uvi').innerText = d.solar.uvi;
+                document.getElementById('ts').innerText = new Date(d.lastSync).toLocaleTimeString('en-IN', { hour12: false });
+
+                if (!charts.cT) {
+                    charts.cT = makeChart('cT', '#38bdf8'); charts.cH = makeChart('cH', '#10b981');
+                    charts.cW = makeChart('cW', '#f59e0b'); charts.cR = makeChart('cR', '#6366f1');
+                }
+                const lbls = d.history.map(h => '');
+                charts.cT.data.labels = lbls; charts.cT.data.datasets[0].data = d.history.map(h => h.temp); charts.cT.update('none');
+                charts.cH.data.labels = lbls; charts.cH.data.datasets[0].data = d.history.map(h => h.hum); charts.cH.update('none');
+                charts.cW.data.labels = lbls; charts.cW.data.datasets[0].data = d.history.map(h => h.wind); charts.cW.update('none');
+                charts.cR.data.labels = lbls; charts.cR.data.datasets[0].data = d.history.map(h => h.rain); charts.cR.update('none');
+            } catch (e) { console.error("UI Error", e); }
         }
         setInterval(update, 30000); update();
     </script>
