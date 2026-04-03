@@ -21,6 +21,7 @@ let state = {
     currentDate: new Date().toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' })
 };
 
+// ... [Keep existing fs.existsSync and saveToDisk functions] ...
 if (fs.existsSync(STORAGE_FILE)) {
     try {
         const saved = JSON.parse(fs.readFileSync(STORAGE_FILE, 'utf-8'));
@@ -58,9 +59,7 @@ function calculateRealFeel(tempC, humidity) {
     const R = humidity;
     let hi = 0.5 * (T + 61.0 + ((T - 68.0) * 1.2) + (R * 0.094));
     if (hi > 79) {
-        hi = -42.379 + 2.04901523 * T + 10.14333127 * R - 0.22475541 * T * R - 
-             0.00683783 * T * T - 0.05481717 * R * R + 0.00122874 * T * T * R + 
-             0.00085282 * T * R * R - 0.00000199 * T * T * R * R;
+        hi = -42.379 + 2.04901523 * T + 10.14333127 * R - 0.22475541 * T * R - 0.00683783 * T * T - 0.05481717 * R * R + 0.00122874 * T * T * R + 0.00085282 * T * R * R - 0.00000199 * T * T * R * R;
     }
     return parseFloat(((hi - 32) * 5 / 9).toFixed(1));
 }
@@ -78,17 +77,23 @@ async function syncWithEcowitt() {
         const tempC = parseFloat(((d.outdoor.temperature.value - 32) * 5 / 9).toFixed(1));
         const hum = d.outdoor.humidity.value;
         const dailyRain = parseFloat((d.rainfall.daily.value * 25.4).toFixed(1));
+        const pressure = parseFloat((d.pressure.relative.value * 33.8639).toFixed(1));
         
-        // --- DAVIS-STYLE INSTANT RAIN RATE CALCULATION ---
+        // --- IMPROVED DAVIS-STYLE RAIN LOGIC ---
         let instantRR = 0;
         if (state.todayHistory.length > 0) {
-            const oneMinAgo = now - 70000; // 70s lookback for 1-minute window
+            const oneMinAgo = now - 75000; 
             const pastRecord = state.todayHistory.find(h => new Date(h.time).getTime() >= oneMinAgo);
             
             if (pastRecord && dailyRain > pastRecord.rainTotal) {
                 const rainDiff = dailyRain - pastRecord.rainTotal;
                 const timeDiffMin = (now - new Date(pastRecord.time).getTime()) / 60000;
                 instantRR = parseFloat(((rainDiff / timeDiffMin) * 60).toFixed(1));
+            } else {
+                // If no rain in the last 2.5 minutes, force rate to 0
+                const lastRainCheck = now - 150000;
+                const recentRain = state.todayHistory.some(h => h.rain > 0 && new Date(h.time).getTime() >= lastRainCheck);
+                if (!recentRain) instantRR = 0;
             }
         }
 
@@ -96,8 +101,6 @@ async function syncWithEcowitt() {
         const realFeel = calculateRealFeel(tempC, hum);
         const windKmh = parseFloat((d.wind.wind_speed.value * 1.60934).toFixed(1));
         const gustKmh = parseFloat((d.wind.wind_gust.value * 1.60934).toFixed(1));
-        const solar = d.solar_and_uvi?.solar?.value || 0;
-        const uvi = d.solar_and_uvi?.uvi?.value || 0;
 
         const today = new Date().toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' });
         if (state.currentDate !== today) {
@@ -112,52 +115,45 @@ async function syncWithEcowitt() {
         if (tempC < state.minTemp || state.minTemp === 999) { state.minTemp = tempC; changed = true; }
         if (windKmh > state.maxWindSpeed) { state.maxWindSpeed = windKmh; changed = true; }
         if (gustKmh > state.maxGust) { state.maxGust = gustKmh; changed = true; }
-        
-        // Update Max Intensity using the Calculated Instant Rate
         if (instantRR > state.maxRainRate) { state.maxRainRate = instantRR; changed = true; }
         if (changed) saveToDisk();
 
-        // UPDATED TREND LOGIC: Pro-rated hourly trend
-        // FIXED TEMP RATE (true per-hour, no spikes)
-        // ✅ FINAL TREND (works even before 1 hour)
-let trend = 0;
+        // --- TRENDS ---
+        let tTrend = 0;
+        let pTrend = "Stable";
+        if (state.todayHistory.length >= 2) {
+            const first = state.todayHistory[0];
+            const last = state.todayHistory[state.todayHistory.length - 1];
+            const timeDiffHrs = (new Date(last.time) - new Date(first.time)) / 3600000;
+            if (timeDiffHrs > 0.02) tTrend = parseFloat(((last.temp - first.temp) / timeDiffHrs).toFixed(1));
 
-if (state.todayHistory.length >= 2) {
-    const first = state.todayHistory[0];
-    const last = state.todayHistory[state.todayHistory.length - 1];
+            // Pressure Trend (3-hour window simulation)
+            const threeHrsAgo = now - 10800000;
+            const pBase = state.todayHistory.find(h => new Date(h.time).getTime() >= threeHrsAgo);
+            if (pBase) {
+                const pDiff = pressure - pBase.press;
+                pTrend = pDiff >= 1 ? "Rising" : pDiff <= -1 ? "Falling" : "Stable";
+            }
+        }
 
-    const timeDiffHrs = (new Date(last.time) - new Date(first.time)) / 3600000;
-
-    if (timeDiffHrs > 0.02) { // ~1–2 minutes minimum
-        trend = parseFloat(((last.temp - first.temp) / timeDiffHrs).toFixed(1));
-    }
-}
- 
         state.todayHistory.push({ 
-            time: new Date().toISOString(), 
-            temp: tempC, 
-            hum: hum, 
-            wind: windKmh, 
-            rain: instantRR, 
-            rainTotal: dailyRain,
-            solar: solar 
+            time: new Date().toISOString(), temp: tempC, hum: hum, wind: windKmh, 
+            rain: instantRR, rainTotal: dailyRain, press: pressure, solar: d.solar_and_uvi?.solar?.value || 0 
         });
-        if (state.todayHistory.length > 400) state.todayHistory.shift();
+        if (state.todayHistory.length > 480) state.todayHistory.shift();
 
         state.cachedData = {
-            temp: { current: tempC, max: state.maxTemp, min: state.minTemp, trend: trend, realFeel: realFeel },
-            atmo: { hum: hum, dew: dewC, press: (d.pressure.relative.value * 33.8639).toFixed(1) },
+            temp: { current: tempC, max: state.maxTemp, min: state.minTemp, trend: tTrend, realFeel: realFeel },
+            atmo: { hum: hum, dew: dewC, press: pressure, pTrend: pTrend },
             wind: { speed: windKmh, gust: gustKmh, maxS: state.maxWindSpeed, maxG: state.maxGust, card: getCard(d.wind.wind_direction.value), deg: d.wind.wind_direction.value },
             rain: { total: dailyRain, rate: instantRR, maxR: state.maxRainRate },
-            solar: { rad: solar, uvi: uvi },
+            solar: { rad: d.solar_and_uvi?.solar?.value || 0, uvi: d.solar_and_uvi?.uvi?.value || 0 },
             lastSync: new Date().toISOString(),
             history: state.todayHistory
         };
         state.lastFetchTime = now;
         return state.cachedData;
-    } catch (e) {
-        return state.cachedData || { error: "Update failed" };
-    }
+    } catch (e) { return state.cachedData || { error: "Update failed" }; }
 }
 
 app.get("/weather", async (req, res) => {
@@ -258,7 +254,7 @@ app.get("/", (req, res) => {
             <div class="card">
                 <div class="label">Temperature</div>
                 <div class="main-val"><span id="t">--</span><span class="unit">°C</span></div>
-                <div class="minor-line" style="color:var(--accent)">RealFeel: <span id="rf">--</span>°C</div>
+                <div class="minor-line" style="color:var(--accent)"><span id="rf_desc">Feels Like</span>: <span id="rf">--</span>°C</div>
                 <div class="trend-badge" id="tr">--</div>
                 <div class="sub-box-4">
                     <div class="badge"><span class="badge-label">Today High</span><span id="mx" class="badge-val" style="color:var(--max-t)">--</span></div>
@@ -282,7 +278,7 @@ app.get("/", (req, res) => {
             <div class="card">
                 <div class="label">Atmospheric</div>
                 <div class="main-val"><span id="pr">--</span><span class="unit">hPa</span></div>
-                <div class="minor-line" style="color:#64748b">Stable Barometer</div>
+                <div class="minor-line" id="p_desc" style="color:#64748b">Barometer Stable</div>
                 <div class="sub-box-4">
                     <div class="badge"><span class="badge-label">Solar Rad</span><span id="sol" class="badge-val">--</span></div>
                     <div class="badge"><span class="badge-label">UV Index</span><span id="uv" class="badge-val" style="color:#fbbf24">--</span></div>
@@ -297,7 +293,7 @@ app.get("/", (req, res) => {
                     <span id="rain_status" class="status-pill">--</span>
                 </div>
                 <div class="sub-box-4" style="grid-template-columns: 1fr;">
-                    <div class="badge"><span class="badge-label">Max Intensity</span><span id="mr" class="badge-val" style="color:var(--rain)">--</span></div>
+                    <div class="badge"><span class="badge-label">Daily Max Intensity</span><span id="mr" class="badge-val" style="color:var(--rain)">--</span></div>
                 </div>
             </div>
         </div>
@@ -348,9 +344,11 @@ app.get("/", (req, res) => {
                 document.getElementById('needle').style.transform = \`rotate(\${d.wind.deg}deg)\`;
                 document.getElementById('sol').innerText = d.solar.rad + ' W/m²';
                 document.getElementById('uv').innerText = d.solar.uvi;
-                document.getElementById('pr').innerText = parseFloat(d.atmo.press).toFixed(1);
+                document.getElementById('pr').innerText = d.atmo.press;
+                document.getElementById('p_desc').innerText = "Barometer " + d.atmo.pTrend;
+
                 document.getElementById('r').innerText = d.rain.total;
-                document.getElementById('rr_main').innerText = 'Rate: ' + d.rain.rate + ' mm/h';
+                document.getElementById('rr_main').innerText = 'Rate: ' + (d.rain.rate || 0) + ' mm/h';
                 
                 const rStat = d.rain.rate > 0 ? {t:'Raining', c:'#38bdf8', b:'rgba(56,189,248,0.1)'} : {t:'Dry', c:'#64748b', b:'rgba(255,255,255,0.05)'};
                 document.getElementById('rain_status').innerText = rStat.t;
@@ -371,7 +369,6 @@ app.get("/", (req, res) => {
                 charts.cW.data.labels = labels; charts.cW.data.datasets[0].data = d.history.map(h => h.wind); charts.cW.update('none');
                 charts.cR.data.labels = labels; charts.cR.data.datasets[0].data = d.history.map(h => h.rain); charts.cR.update('none');
                 
-                // Set Max Intensity to 0 if it is dry and hasn't rained yet
                 document.getElementById('mr').innerText = (d.rain.maxR || 0) + ' mm/h';
             } catch (e) {}
         }
