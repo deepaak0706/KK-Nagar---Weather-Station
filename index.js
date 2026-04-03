@@ -32,21 +32,21 @@ async function syncWithEcowitt() {
     const now = Date.now();
     const today = new Date().toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' });
 
-    // 1. RECOVERY: Forced IST Conversion for Highs/Lows
+    // 1. RECOVERY: Forced IST logic for Highs/Lows
     if (state.maxTemp === -999 || state.currentDate !== today) {
         try {
             const recovery = await pool.query(`
                 SELECT 
                     MAX(temp_f) as max_tf, 
-                    TO_CHAR(MAX(time AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Kolkata') FILTER (WHERE temp_f = (SELECT MAX(temp_f) FROM weather_history WHERE time >= CURRENT_DATE)), 'HH24:MI:SS') as max_tf_t,
+                    TO_CHAR(MAX(time AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Kolkata') FILTER (WHERE temp_f = (SELECT MAX(temp_f) FROM weather_history WHERE time >= (CURRENT_DATE AT TIME ZONE 'Asia/Kolkata'))), 'HH24:MI:SS') as max_tf_t,
                     MIN(temp_f) as min_tf, 
-                    TO_CHAR(MAX(time AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Kolkata') FILTER (WHERE temp_f = (SELECT MIN(temp_f) FROM weather_history WHERE time >= CURRENT_DATE)), 'HH24:MI:SS') as min_tf_t,
+                    TO_CHAR(MAX(time AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Kolkata') FILTER (WHERE temp_f = (SELECT MIN(temp_f) FROM weather_history WHERE time >= (CURRENT_DATE AT TIME ZONE 'Asia/Kolkata'))), 'HH24:MI:SS') as min_tf_t,
                     MAX(wind_speed_mph) as max_ws, 
-                    TO_CHAR(MAX(time AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Kolkata') FILTER (WHERE wind_speed_mph = (SELECT MAX(wind_speed_mph) FROM weather_history WHERE time >= CURRENT_DATE)), 'HH24:MI:SS') as max_ws_t,
+                    TO_CHAR(MAX(time AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Kolkata') FILTER (WHERE wind_speed_mph = (SELECT MAX(wind_speed_mph) FROM weather_history WHERE time >= (CURRENT_DATE AT TIME ZONE 'Asia/Kolkata'))), 'HH24:MI:SS') as max_ws_t,
                     MAX(wind_gust_mph) as max_wg, 
-                    TO_CHAR(MAX(time AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Kolkata') FILTER (WHERE wind_gust_mph = (SELECT MAX(wind_gust_mph) FROM weather_history WHERE time >= CURRENT_DATE)), 'HH24:MI:SS') as max_wg_t,
+                    TO_CHAR(MAX(time AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Kolkata') FILTER (WHERE wind_gust_mph = (SELECT MAX(wind_gust_mph) FROM weather_history WHERE time >= (CURRENT_DATE AT TIME ZONE 'Asia/Kolkata'))), 'HH24:MI:SS') as max_wg_t,
                     MAX(rain_rate_in) as max_rr, 
-                    TO_CHAR(MAX(time AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Kolkata') FILTER (WHERE rain_rate_in = (SELECT MAX(rain_rate_in) FROM weather_history WHERE time >= CURRENT_DATE)), 'HH24:MI:SS') as max_rr_t
+                    TO_CHAR(MAX(time AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Kolkata') FILTER (WHERE rain_rate_in = (SELECT MAX(rain_rate_in) FROM weather_history WHERE time >= (CURRENT_DATE AT TIME ZONE 'Asia/Kolkata'))), 'HH24:MI:SS') as max_rr_t
                 FROM weather_history 
                 WHERE time >= (CURRENT_DATE AT TIME ZONE 'Asia/Kolkata')
             `);
@@ -75,6 +75,7 @@ async function syncWithEcowitt() {
         const press = parseFloat((d.pressure.relative.value * 33.8639).toFixed(1));
         const dailyRain = parseFloat((d.rainfall.daily.value * 25.4).toFixed(1));
         
+        // Instant Rain Rate Logic
         let instantRR = 0;
         if (dailyRain > state.lastRainfall) {
             const timeDiffMin = (now - state.lastRainTotalTime) / 60000;
@@ -98,7 +99,7 @@ async function syncWithEcowitt() {
             state.lastDbWrite = now;
         }
 
-        // 2. GRAPH HISTORY: Conversion to IST for X-Axis
+        // 2. GRAPH HISTORY: Conversion to IST
         const historyRes = await pool.query(`SELECT (time AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Kolkata') as ist_time, temp_f, humidity, wind_speed_mph, rain_rate_in, press_rel FROM weather_history WHERE time > NOW() - INTERVAL '24 hours' ORDER BY time ASC`);
         const history = historyRes.rows.map(r => ({
             time: r.ist_time, 
@@ -249,7 +250,6 @@ app.get("/", (req, res) => {
                 const res = await fetch('/weather?v=' + Date.now());
                 const d = await res.json();
                 
-                // Update UI elements
                 document.getElementById('t').innerText = d.temp.current;
                 document.getElementById('tr').innerHTML = (d.temp.trend > 0 ? '▲' : '▼') + ' ' + Math.abs(d.temp.trend) + '°C/hr';
                 document.getElementById('mx').innerHTML = d.temp.max + '°C' + (d.temp.maxTime ? '<span class="time-mark">'+d.temp.maxTime+'</span>' : '');
@@ -271,10 +271,9 @@ app.get("/", (req, res) => {
                 document.getElementById('rr_main').innerText = 'Rate: ' + d.rain.rate + ' mm/h';
                 document.getElementById('mr').innerHTML = d.rain.maxR + ' mm/h' + (d.rain.maxRTime ? '<span class="time-mark">'+d.rain.maxRTime+'</span>' : '');
                 
-                // Live Dashboard Clock in IST
+                // Dashboard Clock
                 document.getElementById('ts').innerText = new Date().toLocaleTimeString('en-IN', { hour12: false, timeZone: 'Asia/Kolkata' });
 
-                // Update Graphs with IST labels
                 const labels = d.history.map(h => {
                     const time = new Date(h.time);
                     return time.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: false });
