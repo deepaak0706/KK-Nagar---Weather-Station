@@ -1,6 +1,6 @@
 const express = require("express");
 const fetch = require("node-fetch");
-const { Pool } = require('pg'); // Added DB Support
+const { Pool } = require('pg');
 const app = express();
 
 const pool = new Pool({
@@ -11,36 +11,69 @@ const APPLICATION_KEY = process.env.APPLICATION_KEY;
 const API_KEY = process.env.API_KEY;
 const MAC = process.env.MAC;
 
-// Daily stats are now handled by the state and synced to DB
 let state = {
     cachedData: null,
-    maxTemp: -999,
-    maxTempTime: null,
-    minTemp: 999,
-    minTempTime: null,
-    maxWindSpeed: 0,
-    maxGust: 0,
-    maxRainRate: 0,
     lastFetchTime: 0,
-    lastDbWrite: 0, 
+    lastDbWrite: 0,
     lastRainfall: 0,
     lastRainTime: Date.now(),
+    dailyLoaded: false,
     currentDate: new Date().toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' })
 };
 
+// ✅ LOAD DAILY STATS FROM DB
+async function loadDailyStats(today) {
+    const res = await pool.query(`SELECT * FROM daily_stats WHERE date = $1 LIMIT 1`, [today]);
+
+    if (res.rows.length > 0) {
+        state.maxTemp = res.rows[0].max_temp;
+        state.maxTempTime = res.rows[0].max_temp_time;
+        state.minTemp = res.rows[0].min_temp;
+        state.minTempTime = res.rows[0].min_temp_time;
+        state.maxWindSpeed = res.rows[0].max_wind;
+        state.maxGust = res.rows[0].max_gust;
+        state.maxRainRate = res.rows[0].max_rain_rate;
+    } else {
+        await pool.query(`INSERT INTO daily_stats(date, max_temp, min_temp, max_wind, max_gust, max_rain_rate)
+                          VALUES ($1, -999, 999, 0, 0, 0)`, [today]);
+
+        state.maxTemp = -999;
+        state.minTemp = 999;
+        state.maxWindSpeed = 0;
+        state.maxGust = 0;
+        state.maxRainRate = 0;
+    }
+
+    state.dailyLoaded = true;
+}
+
+// ✅ SAVE DAILY STATS
+async function saveDailyStats(today) {
+    await pool.query(`
+        UPDATE daily_stats
+        SET max_temp=$1, max_temp_time=$2,
+            min_temp=$3, min_temp_time=$4,
+            max_wind=$5, max_gust=$6, max_rain_rate=$7
+        WHERE date=$8
+    `, [
+        state.maxTemp, state.maxTempTime,
+        state.minTemp, state.minTempTime,
+        state.maxWindSpeed, state.maxGust, state.maxRainRate,
+        today
+    ]);
+}
+
 const getCard = (a) => {
-    const directions = ["N","NNE","NE","ENE","E","ESE","SE","SSE","S","SSW","SW","WSW","W","WNW","NW","NNW"];
-    return directions[Math.round(a / 22.5) % 16];
+    const d = ["N","NNE","NE","ENE","E","ESE","SE","SSE","S","SSW","SW","WSW","W","WNW","NW","NNW"];
+    return d[Math.round(a / 22.5) % 16];
 };
 
 function calculateRealFeel(tempC, humidity) {
     const T = (tempC * 9/5) + 32;
     const R = humidity;
-    let hi = 0.5 * (T + 61.0 + ((T - 68.0) * 1.2) + (R * 0.094));
+    let hi = 0.5 * (T + 61 + ((T - 68) * 1.2) + (R * 0.094));
     if (hi > 79) {
-        hi = -42.379 + 2.04901523 * T + 10.14333127 * R - 0.22475541 * T * R - 
-             0.00683783 * T * T - 0.05481717 * R * R + 0.00122874 * T * T * R + 
-             0.00085282 * T * R * R - 0.00000199 * T * T * R * R;
+        hi = -42.379 + 2.04901523 * T + 10.14333127 * R - 0.22475541 * T * R;
     }
     return parseFloat(((hi - 32) * 5 / 9).toFixed(1));
 }
@@ -55,91 +88,93 @@ async function syncWithEcowitt() {
         const json = await response.json();
         const d = json.data;
 
-        const tempC = parseFloat(((d.outdoor.temperature.value - 32) * 5 / 9).toFixed(1));
+        const tempC = ((d.outdoor.temperature.value - 32) * 5 / 9).toFixed(1);
         const hum = d.outdoor.humidity.value;
-        const press = parseFloat((d.pressure.relative.value * 33.8639).toFixed(1));
-        const dailyRain = parseFloat((d.rainfall.daily.value * 25.4).toFixed(1));
-        
-        // Rain Rate Calculation (Davis Style logic)
+        const press = (d.pressure.relative.value * 33.8639).toFixed(1);
+        const dailyRain = (d.rainfall.daily.value * 25.4).toFixed(1);
+
         let instantRR = 0;
         if (dailyRain > state.lastRainfall) {
-            const timeDiffMin = (now - state.lastRainTime) / 60000;
-            if (timeDiffMin > 0) instantRR = parseFloat(((0.254 / timeDiffMin) * 60).toFixed(1));
+            const diff = (now - state.lastRainTime) / 60000;
+            if (diff > 0) instantRR = ((0.254 / diff) * 60).toFixed(1);
             state.lastRainfall = dailyRain;
             state.lastRainTime = now;
-        } else if ((now - state.lastRainTime) > 15 * 60000) { instantRR = 0; }
-
-        const dewC = parseFloat(((d.outdoor.dew_point.value - 32) * 5 / 9).toFixed(1));
-        const realFeel = calculateRealFeel(tempC, hum);
-        const windKmh = parseFloat((d.wind.wind_speed.value * 1.60934).toFixed(1));
-        const gustKmh = parseFloat((d.wind.wind_gust.value * 1.60934).toFixed(1));
-        const solar = d.solar_and_uvi?.solar?.value || 0;
-        const uvi = d.solar_and_uvi?.uvi?.value || 0;
-
-        const today = new Date().toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' });
-        const currentTimeStr = new Date(now).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' });
-
-        if (state.currentDate !== today) {
-            state.currentDate = today;
-            state.maxTemp = -999; state.maxTempTime = null; state.minTemp = 999; state.minTempTime = null;
-            state.maxWindSpeed = 0; state.maxGust = 0; state.maxRainRate = 0;
         }
 
-        if (tempC > state.maxTemp || state.maxTemp === -999) { state.maxTemp = tempC; state.maxTempTime = currentTimeStr; }
-        if (tempC < state.minTemp || state.minTemp === 999) { state.minTemp = tempC; state.minTempTime = currentTimeStr; }
+        const windKmh = (d.wind.wind_speed.value * 1.60934).toFixed(1);
+        const gustKmh = (d.wind.wind_gust.value * 1.60934).toFixed(1);
+
+        const today = new Date().toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' });
+        const timeStr = new Date(now).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' });
+
+        // ✅ RESET + LOAD FROM DB
+        if (state.currentDate !== today || !state.dailyLoaded) {
+            state.currentDate = today;
+            await loadDailyStats(today);
+        }
+
+        // ✅ UPDATE DAILY VALUES
+        if (tempC > state.maxTemp) { state.maxTemp = tempC; state.maxTempTime = timeStr; }
+        if (tempC < state.minTemp) { state.minTemp = tempC; state.minTempTime = timeStr; }
         if (windKmh > state.maxWindSpeed) state.maxWindSpeed = windKmh;
         if (gustKmh > state.maxGust) state.maxGust = gustKmh;
         if (instantRR > state.maxRainRate) state.maxRainRate = instantRR;
 
-        // DB Write every 2 mins to keep graphs smooth
-        if (now - state.lastDbWrite > 120000) {
-            await pool.query(`INSERT INTO weather_history (temp_f, humidity, wind_speed_mph, wind_gust_mph, rain_rate_in, daily_rain_in, solar_radiation, press_rel) 
-                        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`, 
-                        [d.outdoor.temperature.value, hum, d.wind.wind_speed.value, d.wind.wind_gust.value, instantRR, dailyRain, solar, press]);
+        // ✅ SAVE DAILY STATS
+        await saveDailyStats(today);
+
+        // ✅ STORE HISTORY EVERY 5 MIN
+        if (now - state.lastDbWrite > 300000) {
+            await pool.query(`INSERT INTO weather_history (temp_f, humidity, wind_speed_mph, wind_gust_mph, rain_rate_in, daily_rain_in, solar_radiation, press_rel)
+                              VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
+                [d.outdoor.temperature.value, hum, d.wind.wind_speed.value, d.wind.wind_gust.value, instantRR, dailyRain, d.solar_and_uvi?.solar?.value || 0, press]
+            );
             state.lastDbWrite = now;
         }
 
-        // Fetch 24h history for your charts
-        const historyRes = await pool.query(`SELECT time, temp_f, humidity as hum, wind_speed_mph as wind, rain_rate_in as rain, press_rel as press 
-                                             FROM weather_history WHERE time > NOW() - INTERVAL '24 hours' ORDER BY time ASC`);
+        // ✅ TODAY ONLY GRAPH (FIX MIDNIGHT ISSUE)
+        const historyRes = await pool.query(`
+            SELECT time, temp_f, humidity as hum, wind_speed_mph as wind, rain_rate_in as rain, press_rel as press
+            FROM weather_history
+            WHERE DATE(time AT TIME ZONE 'Asia/Kolkata') = CURRENT_DATE
+            ORDER BY time ASC
+        `);
 
         const history = historyRes.rows.map(r => ({
             time: r.time,
-            temp: parseFloat(((r.temp_f - 32) * 5 / 9).toFixed(1)),
-            hum: r.hum, press: r.press || press,
-            wind: parseFloat((r.wind * 1.60934).toFixed(1)),
-            rain: r.rain
+            temp: ((r.temp_f - 32) * 5 / 9).toFixed(1),
+            hum: r.hum,
+            wind: (r.wind * 1.60934).toFixed(1),
+            rain: r.rain,
+            press: r.press
         }));
 
-        let tTrend = 0, hTrend = 0, pTrend = 0;
-        if (history.length >= 2) {
-            const first = history[0];
-            const timeDiffHrs = (now - new Date(first.time).getTime()) / 3600000;
-            if (timeDiffHrs > 0.05) {
-                tTrend = parseFloat(((tempC - first.temp) / timeDiffHrs).toFixed(1));
-                hTrend = parseFloat(((hum - first.hum) / timeDiffHrs).toFixed(1));
-                pTrend = parseFloat(((press - first.press) / timeDiffHrs).toFixed(1));
-            }
-        }
-
         state.cachedData = {
-            temp: { current: tempC, max: state.maxTemp, maxTime: state.maxTempTime, min: state.minTemp, minTime: state.minTempTime, trend: tTrend, realFeel: realFeel },
-            atmo: { hum: hum, hTrend: hTrend, press: press, pTrend: pTrend, dew: dewC },
+            temp: { current: tempC, max: state.maxTemp, maxTime: state.maxTempTime, min: state.minTemp, minTime: state.minTempTime, realFeel: calculateRealFeel(tempC, hum) },
+            atmo: { hum, press },
             wind: { speed: windKmh, gust: gustKmh, maxS: state.maxWindSpeed, maxG: state.maxGust, card: getCard(d.wind.wind_direction.value), deg: d.wind.wind_direction.value },
             rain: { total: dailyRain, rate: instantRR, maxR: state.maxRainRate },
-            solar: { rad: solar, uvi: uvi },
-            lastSync: d.time || new Date().toISOString(),
-            history: history
+            solar: { rad: d.solar_and_uvi?.solar?.value || 0, uvi: d.solar_and_uvi?.uvi?.value || 0 },
+            lastSync: d.time,
+            history
         };
+
         state.lastFetchTime = now;
         return state.cachedData;
-    } catch (e) { return state.cachedData || { error: "Update failed" }; }
+
+    } catch (e) {
+        return state.cachedData || { error: "Update failed" };
+    }
 }
 
 app.get("/weather", async (req, res) => {
     res.setHeader('Cache-Control', 'no-store');
     res.json(await syncWithEcowitt());
 });
+
+app.get("/", (req, res) => {
+    res.send(`
+
 
 app.get("/", (req, res) => {
     res.send(`
