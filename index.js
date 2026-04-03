@@ -77,11 +77,23 @@ async function syncWithEcowitt() {
 
         const tempC = parseFloat(((d.outdoor.temperature.value - 32) * 5 / 9).toFixed(1));
         const hum = d.outdoor.humidity.value;
+        const dailyRain = parseFloat((d.rainfall.daily.value * 25.4).toFixed(1));
+        
+        // --- DAVIS-STYLE INSTANT RAIN RATE CALCULATION ---
+        let instantRR = 0;
+        if (state.todayHistory.length > 0) {
+            const oneMinAgo = now - 70000; // 70s lookback for 1-minute window
+            const pastRecord = state.todayHistory.find(h => new Date(h.time).getTime() >= oneMinAgo);
+            
+            if (pastRecord && dailyRain > pastRecord.rainTotal) {
+                const rainDiff = dailyRain - pastRecord.rainTotal;
+                const timeDiffMin = (now - new Date(pastRecord.time).getTime()) / 60000;
+                instantRR = parseFloat(((rainDiff / timeDiffMin) * 60).toFixed(1));
+            }
+        }
+
         const dewC = parseFloat(((d.outdoor.dew_point.value - 32) * 5 / 9).toFixed(1));
         const realFeel = calculateRealFeel(tempC, hum);
-        
-        const rainRate = parseFloat((d.rainfall.rain_rate.value * 25.4).toFixed(1));
-        const dailyRain = parseFloat((d.rainfall.daily.value * 25.4).toFixed(1));
         const windKmh = parseFloat((d.wind.wind_speed.value * 1.60934).toFixed(1));
         const gustKmh = parseFloat((d.wind.wind_gust.value * 1.60934).toFixed(1));
         const solar = d.solar_and_uvi?.solar?.value || 0;
@@ -100,25 +112,30 @@ async function syncWithEcowitt() {
         if (tempC < state.minTemp || state.minTemp === 999) { state.minTemp = tempC; changed = true; }
         if (windKmh > state.maxWindSpeed) { state.maxWindSpeed = windKmh; changed = true; }
         if (gustKmh > state.maxGust) { state.maxGust = gustKmh; changed = true; }
-        if (rainRate > state.maxRainRate) { state.maxRainRate = rainRate; changed = true; }
+        
+        // Update Max Intensity using the Calculated Instant Rate
+        if (instantRR > state.maxRainRate) { state.maxRainRate = instantRR; changed = true; }
         if (changed) saveToDisk();
 
-        // UPDATED TREND LOGIC: Calculates pro-rated hourly trend (based on 1 hour window)
+        // UPDATED TREND LOGIC: Pro-rated hourly trend
         let trend = 0;
         if (state.todayHistory.length >= 2) {
             const oneHourAgo = now - 3600000;
-            // Find the oldest record within the last hour, or the very first record if < 1 hour exists
             let baseline = state.todayHistory.find(h => new Date(h.time).getTime() >= oneHourAgo) || state.todayHistory[0];
-            
             const timeDiffHrs = (now - new Date(baseline.time).getTime()) / 3600000;
-            if (timeDiffHrs > 0.083) { // Only calculate if we have at least 5 minutes of data
+            if (timeDiffHrs > 0.083) { // 5 min minimum for calculation
                 trend = parseFloat(((tempC - baseline.temp) / timeDiffHrs).toFixed(1));
             }
         }
 
         state.todayHistory.push({ 
-            time: new Date().toISOString(), temp: tempC, hum: hum, 
-            wind: windKmh, rain: rainRate, solar: solar 
+            time: new Date().toISOString(), 
+            temp: tempC, 
+            hum: hum, 
+            wind: windKmh, 
+            rain: instantRR, 
+            rainTotal: dailyRain,
+            solar: solar 
         });
         if (state.todayHistory.length > 400) state.todayHistory.shift();
 
@@ -126,7 +143,7 @@ async function syncWithEcowitt() {
             temp: { current: tempC, max: state.maxTemp, min: state.minTemp, trend: trend, realFeel: realFeel },
             atmo: { hum: hum, dew: dewC, press: (d.pressure.relative.value * 33.8639).toFixed(1) },
             wind: { speed: windKmh, gust: gustKmh, maxS: state.maxWindSpeed, maxG: state.maxGust, card: getCard(d.wind.wind_direction.value), deg: d.wind.wind_direction.value },
-            rain: { total: dailyRain, rate: rainRate, maxR: state.maxRainRate },
+            rain: { total: dailyRain, rate: instantRR, maxR: state.maxRainRate },
             solar: { rad: solar, uvi: uvi },
             lastSync: new Date().toISOString(),
             history: state.todayHistory
@@ -313,7 +330,6 @@ app.get("/", (req, res) => {
                 
                 const trendIcon = d.temp.trend > 0 ? '↗' : d.temp.trend < 0 ? '↘' : '→';
                 const trendCol = d.temp.trend > 0 ? 'var(--max-t)' : d.temp.trend < 0 ? '#22c55e' : '#94a3b8';
-                // Value is now shown as an hourly rate (°C/hr)
                 document.getElementById('tr').innerHTML = \`<span style="color:\${trendCol}">\${trendIcon} \${Math.abs(d.temp.trend)}°C/hr Trend</span>\`;
 
                 document.getElementById('mx').innerText = d.temp.max + '°C';
@@ -349,6 +365,9 @@ app.get("/", (req, res) => {
                 charts.cH.data.labels = labels; charts.cH.data.datasets[0].data = d.history.map(h => h.hum); charts.cH.update('none');
                 charts.cW.data.labels = labels; charts.cW.data.datasets[0].data = d.history.map(h => h.wind); charts.cW.update('none');
                 charts.cR.data.labels = labels; charts.cR.data.datasets[0].data = d.history.map(h => h.rain); charts.cR.update('none');
+                
+                // Set Max Intensity to 0 if it is dry and hasn't rained yet
+                document.getElementById('mr').innerText = (d.rain.maxR || 0) + ' mm/h';
             } catch (e) {}
         }
         setInterval(update, 30000); update();
