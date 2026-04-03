@@ -1,6 +1,6 @@
 const express = require("express");
 const fetch = require("node-fetch");
-const { Pool } = require('pg'); // Added DB Support
+const { Pool } = require('pg'); 
 const app = express();
 
 const pool = new Pool({
@@ -11,20 +11,13 @@ const APPLICATION_KEY = process.env.APPLICATION_KEY;
 const API_KEY = process.env.API_KEY;
 const MAC = process.env.MAC;
 
-// Daily stats are now handled by the state and synced to DB
 let state = {
     cachedData: null,
-    maxTemp: -999,
-    maxTempTime: null,
-    minTemp: 999,
-    minTempTime: null,
-    maxWindSpeed: 0,
-    maxGust: 0,
-    maxRainRate: 0,
-    lastFetchTime: 0,
-    lastDbWrite: 0, 
-    lastRainfall: 0,
-    lastRainTime: Date.now(),
+    maxTemp: -999, maxTempTime: null,
+    minTemp: 999, minTempTime: null,
+    maxWindSpeed: 0, maxGust: 0, maxRainRate: 0,
+    lastFetchTime: 0, lastDbWrite: 0, 
+    lastRainfall: 0, lastRainTime: Date.now(),
     currentDate: new Date().toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' })
 };
 
@@ -47,7 +40,8 @@ function calculateRealFeel(tempC, humidity) {
 
 async function syncWithEcowitt() {
     const now = Date.now();
-    if (state.cachedData && (now - state.lastFetchTime < 35000)) return state.cachedData;
+    // FIX 1: Lowered backend cache to 15s to prevent race conditions with the frontend poll
+    if (state.cachedData && (now - state.lastFetchTime < 15000)) return state.cachedData;
 
     try {
         const url = `https://api.ecowitt.net/api/v3/device/real_time?application_key=${APPLICATION_KEY}&api_key=${API_KEY}&mac=${MAC}`;
@@ -91,7 +85,6 @@ async function syncWithEcowitt() {
         if (gustKmh > state.maxGust) state.maxGust = gustKmh;
         if (instantRR > state.maxRainRate) state.maxRainRate = instantRR;
 
-        // DB Write every 2 mins to keep graphs smooth
         if (now - state.lastDbWrite > 120000) {
             await pool.query(`INSERT INTO weather_history (temp_f, humidity, wind_speed_mph, wind_gust_mph, rain_rate_in, daily_rain_in, solar_radiation, press_rel) 
                         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`, 
@@ -99,17 +92,26 @@ async function syncWithEcowitt() {
             state.lastDbWrite = now;
         }
 
-        // Fetch 24h history for your charts
-        const historyRes = await pool.query(`SELECT time, temp_f, humidity as hum, wind_speed_mph as wind, rain_rate_in as rain, press_rel as press 
-                                             FROM weather_history WHERE time > NOW() - INTERVAL '24 hours' ORDER BY time ASC`);
+        // FIX 2: Explicitly format time as IST to prevent graph shifting issues
+        const historyRes = await pool.query(`
+            SELECT (time AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Kolkata') as ist_time, 
+            temp_f, humidity as hum, wind_speed_mph as wind, rain_rate_in as rain, press_rel as press 
+            FROM weather_history WHERE time > NOW() - INTERVAL '24 hours' ORDER BY time ASC
+        `);
 
         const history = historyRes.rows.map(r => ({
-            time: r.time,
+            time: r.ist_time,
             temp: parseFloat(((r.temp_f - 32) * 5 / 9).toFixed(1)),
             hum: r.hum, press: r.press || press,
             wind: parseFloat((r.wind * 1.60934).toFixed(1)),
-            rain: r.rain
+            rain: parseFloat(r.rain || 0)
         }));
+
+        // FIX 3: Push the exact current live tick to the array so the graph updates instantly without needing a DB refresh
+        history.push({
+            time: new Date().toISOString(),
+            temp: tempC, hum: hum, press: press, wind: windKmh, rain: instantRR
+        });
 
         let tTrend = 0, hTrend = 0, pTrend = 0;
         if (history.length >= 2) {
@@ -433,23 +435,34 @@ app.get("/", (req, res) => {
                 document.getElementById('rain_status').innerText = rStat.t;
                 document.getElementById('rain_status').style.color = rStat.c;
                 document.getElementById('rain_status').style.background = rStat.b;
+                
                 const syncDate = new Date(d.lastSync);
                 document.getElementById('ts').innerText = syncDate.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+                
+                // Format history timestamps safely
                 const labels = d.history.map(h => new Date(h.time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: false }));
+                
                 if (!charts.cT) {
                     charts.cT = setupChart('cT', 'Temp (°C)', '#38bdf8');
                     charts.cH = setupChart('cH', 'Humidity (%)', '#10b981', true);
                     charts.cW = setupChart('cW', 'Wind (km/h)', '#fbbf24', true);
                     charts.cR = setupChart('cR', 'Rain (mm/h)', '#818cf8', true);
                 }
+                
                 charts.cT.data.labels = labels; charts.cT.data.datasets[0].data = d.history.map(h => h.temp); charts.cT.update('none');
                 charts.cH.data.labels = labels; charts.cH.data.datasets[0].data = d.history.map(h => h.hum); charts.cH.update('none');
                 charts.cW.data.labels = labels; charts.cW.data.datasets[0].data = d.history.map(h => h.wind); charts.cW.update('none');
                 charts.cR.data.labels = labels; charts.cR.data.datasets[0].data = d.history.map(h => h.rain); charts.cR.update('none');
+                
                 document.getElementById('mr').innerText = (d.rain.maxR || 0) + ' mm/h';
-            } catch (e) {}
+            } catch (e) {
+                console.error("Fetch error: ", e);
+            }
         }
-        setInterval(update, 36000); update();
+        
+        // FIX 4: Changed frontend interval to 30s so it doesn't collide with the backend cache
+        setInterval(update, 30000); 
+        update();
     </script>
 </body>
 </html>
