@@ -13,7 +13,9 @@ let state = {
     cachedData: null,
     todayHistory: [],
     maxTemp: -999,
+    maxTempTime: null,
     minTemp: 999,
+    minTempTime: null,
     maxWindSpeed: 0,
     maxGust: 0,
     maxRainRate: 0,
@@ -26,7 +28,9 @@ if (fs.existsSync(STORAGE_FILE)) {
         const saved = JSON.parse(fs.readFileSync(STORAGE_FILE, 'utf-8'));
         if (saved.currentDate === state.currentDate) {
             state.maxTemp = saved.maxTemp ?? -999;
+            state.maxTempTime = saved.maxTempTime ?? null;
             state.minTemp = saved.minTemp ?? 999;
+            state.minTempTime = saved.minTempTime ?? null;
             state.maxWindSpeed = saved.maxWindSpeed ?? 0;
             state.maxGust = saved.maxGust ?? 0;
             state.maxRainRate = saved.maxRainRate ?? 0;
@@ -39,7 +43,9 @@ function saveToDisk() {
         const data = {
             currentDate: state.currentDate,
             maxTemp: state.maxTemp,
+            maxTempTime: state.maxTempTime,
             minTemp: state.minTemp,
+            minTempTime: state.minTempTime,
             maxWindSpeed: state.maxWindSpeed,
             maxGust: state.maxGust,
             maxRainRate: state.maxRainRate
@@ -100,16 +106,27 @@ async function syncWithEcowitt() {
         const uvi = d.solar_and_uvi?.uvi?.value || 0;
 
         const today = new Date().toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' });
+        const currentTimeStr = new Date(now).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' });
+
         if (state.currentDate !== today) {
             state.currentDate = today;
-            state.maxTemp = -999; state.minTemp = 999;
+            state.maxTemp = -999; state.maxTempTime = null;
+            state.minTemp = 999;  state.minTempTime = null;
             state.maxWindSpeed = 0; state.maxGust = 0; state.maxRainRate = 0;
             state.todayHistory = [];
         }
 
         let changed = false;
-        if (tempC > state.maxTemp || state.maxTemp === -999) { state.maxTemp = tempC; changed = true; }
-        if (tempC < state.minTemp || state.minTemp === 999) { state.minTemp = tempC; changed = true; }
+        if (tempC > state.maxTemp || state.maxTemp === -999) { 
+            state.maxTemp = tempC; 
+            state.maxTempTime = currentTimeStr;
+            changed = true; 
+        }
+        if (tempC < state.minTemp || state.minTemp === 999) { 
+            state.minTemp = tempC; 
+            state.minTempTime = currentTimeStr;
+            changed = true; 
+        }
         if (windKmh > state.maxWindSpeed) { state.maxWindSpeed = windKmh; changed = true; }
         if (gustKmh > state.maxGust) { state.maxGust = gustKmh; changed = true; }
         
@@ -120,18 +137,18 @@ async function syncWithEcowitt() {
         // UPDATED TREND LOGIC: Pro-rated hourly trend
         // FIXED TEMP RATE (true per-hour, no spikes)
         // ✅ FINAL TREND (works even before 1 hour)
-let trend = 0;
+        let trend = 0;
 
-if (state.todayHistory.length >= 2) {
-    const first = state.todayHistory[0];
-    const last = state.todayHistory[state.todayHistory.length - 1];
+        if (state.todayHistory.length >= 2) {
+            const first = state.todayHistory[0];
+            const last = state.todayHistory[state.todayHistory.length - 1];
 
-    const timeDiffHrs = (new Date(last.time) - new Date(first.time)) / 3600000;
+            const timeDiffHrs = (new Date(last.time) - new Date(first.time)) / 3600000;
 
-    if (timeDiffHrs > 0.02) { // ~1–2 minutes minimum
-        trend = parseFloat(((last.temp - first.temp) / timeDiffHrs).toFixed(1));
-    }
-}
+            if (timeDiffHrs > 0.02) { // ~1–2 minutes minimum
+                trend = parseFloat(((last.temp - first.temp) / timeDiffHrs).toFixed(1));
+            }
+        }
  
         state.todayHistory.push({ 
             time: new Date().toISOString(), 
@@ -145,7 +162,15 @@ if (state.todayHistory.length >= 2) {
         if (state.todayHistory.length > 400) state.todayHistory.shift();
 
         state.cachedData = {
-            temp: { current: tempC, max: state.maxTemp, min: state.minTemp, trend: trend, realFeel: realFeel },
+            temp: { 
+                current: tempC, 
+                max: state.maxTemp, 
+                maxTime: state.maxTempTime,
+                min: state.minTemp, 
+                minTime: state.minTempTime,
+                trend: trend, 
+                realFeel: realFeel 
+            },
             atmo: { hum: hum, dew: dewC, press: (d.pressure.relative.value * 33.8639).toFixed(1) },
             wind: { speed: windKmh, gust: gustKmh, maxS: state.maxWindSpeed, maxG: state.maxGust, card: getCard(d.wind.wind_direction.value), deg: d.wind.wind_direction.value },
             rain: { total: dailyRain, rate: instantRR, maxR: state.maxRainRate },
@@ -226,7 +251,8 @@ app.get("/", (req, res) => {
         }
         .badge { padding: 14px; border-radius: 20px; background: rgba(15, 23, 42, 0.4); display: flex; flex-direction: column; gap: 6px; }
         .badge-label { font-size: 10px; color: #64748b; text-transform: uppercase; font-weight: 800; }
-        .badge-val { font-size: 15px; font-weight: 700; color: #f1f5f9; }
+        .badge-val { font-size: 15px; font-weight: 700; color: #f1f5f9; display: flex; align-items: center; gap: 4px; }
+        .time-mark { font-size: 10px; font-weight: 700; color: #64748b; background: rgba(0,0,0,0.2); padding: 2px 6px; border-radius: 6px; margin-left: 4px; }
 
         .status-pill { padding: 6px 12px; border-radius: 8px; font-size: 11px; font-weight: 900; text-transform: uppercase; }
 
@@ -337,8 +363,13 @@ app.get("/", (req, res) => {
                 const trendCol = d.temp.trend > 0 ? 'var(--max-t)' : d.temp.trend < 0 ? '#22c55e' : '#94a3b8';
                 document.getElementById('tr').innerHTML = \`<span style="color:\${trendCol}">\${trendIcon} \${Math.abs(d.temp.trend)}°C/hr Trend</span>\`;
 
-                document.getElementById('mx').innerText = d.temp.max + '°C';
-                document.getElementById('mn').innerText = d.temp.min + '°C';
+                // Displaying exact times for max/min temps without breaking layouts
+                const mxTimeHtml = d.temp.maxTime ? \`<span class="time-mark">\${d.temp.maxTime}</span>\` : '';
+                const mnTimeHtml = d.temp.minTime ? \`<span class="time-mark">\${d.temp.minTime}</span>\` : '';
+                
+                document.getElementById('mx').innerHTML = d.temp.max + '°C' + mxTimeHtml;
+                document.getElementById('mn').innerHTML = d.temp.min + '°C' + mnTimeHtml;
+                
                 document.getElementById('h').innerText = d.atmo.hum + '%';
                 document.getElementById('dp').innerText = d.atmo.dew + '°C';
                 document.getElementById('w').innerText = d.wind.speed;
