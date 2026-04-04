@@ -52,7 +52,7 @@ async function syncWithEcowitt(forceWrite = false) {
         const liveRainYearly = parseFloat((d.rainfall.yearly.value * 25.4).toFixed(1));
         const liveRainRate = parseFloat(((d.rainfall.rain_rate?.value || 0) * 25.4).toFixed(1));
 
-        // --- 1. MIDNIGHT IST RESET & ARCHIVE (UPDATED TO PREVENT DATA LOSS) ---
+        // --- 1. MIDNIGHT IST RESET & ARCHIVE ---
         const todayIST = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
         const dateCheck = await pool.query(`SELECT time FROM weather_history ORDER BY time ASC LIMIT 1`);
         
@@ -61,16 +61,10 @@ async function syncWithEcowitt(forceWrite = false) {
             if (oldestDate !== todayIST) {
                 await pool.query(`
                     INSERT INTO daily_max_records (record_date, max_temp_c, min_temp_c, max_wind_kmh, total_rain_mm)
-                    SELECT $1, 
-                           MAX((temp_f - 32) * 5/9), 
-                           MIN((temp_f - 32) * 5/9), 
-                           MAX(wind_speed_mph * 1.60934), 
-                           MAX(daily_rain_in * 25.4)
+                    SELECT $1, MAX((temp_f - 32) * 5/9), MIN((temp_f - 32) * 5/9), MAX(wind_speed_mph * 1.60934), MAX(daily_rain_in * 25.4)
                     FROM weather_history
                     WHERE (time AT TIME ZONE 'Asia/Kolkata')::date = $1::date;
                 `, [oldestDate]);
-                
-                // Fixed: Specifically delete rows before today's IST midnight, leaving today's records safe
                 await pool.query(`DELETE FROM weather_history WHERE time < (CURRENT_DATE AT TIME ZONE 'Asia/Kolkata');`);
             }
         }
@@ -117,10 +111,11 @@ async function syncWithEcowitt(forceWrite = false) {
                 const r_gust = parseFloat((r.wind_gust_mph * 1.60934).toFixed(1));
                 const r_rain_rate = parseFloat((r.rain_rate_in * 25.4).toFixed(1));
 
-                if (r_temp >= mx_t) { mx_t = r_temp; mx_t_time = r_time; }
-                if (r_temp <= mn_t || mn_t === 999) { mn_t = r_temp; mn_t_time = r_time; }
-                if (r_wind >= mx_w) { mx_w = r_wind; mx_w_t = r_time; }
-                if (r_gust >= mx_g) { mx_g = r_gust; mx_g_t = r_time; } // Fixed Max Gust Timestamp
+                // Updated logic: Use strictly > or < to keep the OLDEST timestamp during ties
+                if (r_temp > mx_t) { mx_t = r_temp; mx_t_time = r_time; }
+                if (r_temp < mn_t || mn_t === 999) { mn_t = r_temp; mn_t_time = r_time; }
+                if (r_wind > mx_w) { mx_w = r_wind; mx_w_t = r_time; }
+                if (r_gust > mx_g) { mx_g = r_gust; mx_g_t = r_time; }
                 if (r_rain_rate > mx_r) { mx_r = r_rain_rate; mx_r_t = r_time; }
                 
                 graphHistory.push({ time: r.time, temp: r_temp, hum: r.humidity, wind: r_wind, rain: parseFloat((r.daily_rain_in * 25.4).toFixed(1)) });
@@ -129,6 +124,8 @@ async function syncWithEcowitt(forceWrite = false) {
 
         // --- 5. LIVE SYNC FALLBACK ---
         const liveTime = new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' });
+        
+        // Keep the existing record timestamp if live value is just a tie
         if (mx_t === -999 || liveTemp > mx_t) { mx_t = liveTemp; mx_t_time = liveTime; }
         if (mn_t === 999 || liveTemp < mn_t) { mn_t = liveTemp; mn_t_time = liveTime; }
         if (liveWind > mx_w) { mx_w = liveWind; mx_w_t = "Live"; }
