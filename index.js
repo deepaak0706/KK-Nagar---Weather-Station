@@ -35,6 +35,14 @@ function calculateRealFeel(tempC, humidity) {
     return parseFloat(((hi - 32) * 5 / 9).toFixed(1));
 }
 
+// Accurate Dew Point Calculation (Magnus-Tetens)
+function calculateDewPoint(tempC, humidity) {
+    const a = 17.27;
+    const b = 237.7;
+    const alpha = ((a * tempC) / (b + tempC)) + Math.log(humidity / 100.0);
+    return parseFloat(((b * alpha) / (a - alpha)).toFixed(1));
+}
+
 async function syncWithEcowitt(forceWrite = false) {
     const now = Date.now();
     
@@ -46,16 +54,17 @@ async function syncWithEcowitt(forceWrite = false) {
         const url = `https://api.ecowitt.net/api/v3/device/real_time?application_key=${APPLICATION_KEY}&api_key=${API_KEY}&mac=${MAC}`;
         const response = await fetch(url);
         const json = await response.json();
-        if (!json.data) throw new Error("No data from Ecowitt");
+        if (!json || !json.data) throw new Error("No data from Ecowitt");
         const d = json.data;
 
-        // 1. Current Live Values
+        // 1. Current Live Values (Converted to Metric)
         const liveTemp = parseFloat(((d.outdoor.temperature.value - 32) * 5 / 9).toFixed(1));
         const liveHum = d.outdoor.humidity.value || 0;
         const livePress = parseFloat((d.pressure.relative.value * 33.8639).toFixed(1));
         const liveWind = parseFloat((d.wind.wind_speed.value * 1.60934).toFixed(1));
         const liveGust = parseFloat((d.wind.wind_gust.value * 1.60934).toFixed(1));
         const liveRainRate = parseFloat(((d.rainfall.rain_rate?.value || 0) * 25.4).toFixed(1));
+        const currentDewPoint = calculateDewPoint(liveTemp, liveHum);
 
         // 2. Database Write (Every 2 mins)
         if (forceWrite || (now - state.lastDbWrite > 120000)) {
@@ -65,15 +74,15 @@ async function syncWithEcowitt(forceWrite = false) {
             state.lastDbWrite = now;
         }
 
-        // 3. Persistent Today-Only Logic (Resets at Midnight IST)
+        // 3. Persistent Today-Only Logic (DB values for the 24h day)
         const historyRes = await pool.query(`
             SELECT * FROM weather_history 
             WHERE time >= (CURRENT_DATE AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Kolkata') 
             ORDER BY time ASC
         `);
         
-        let mx_t = -999, mn_t = 999, mx_t_time = "", mn_t_time = "";
-        let mx_w = 0, mx_w_t = "", mx_g = 0, mx_g_t = "", mx_r = 0;
+        let mx_t = -999, mn_t = 999, mx_t_time = "--:--";
+        let mx_w = 0, mx_w_t = "--:--", mx_g = 0, mx_g_t = "--:--", mx_r = 0;
         let tTrend = 0, hTrend = 0, pTrend = 0;
         let graphHistory = [];
 
@@ -107,7 +116,7 @@ async function syncWithEcowitt(forceWrite = false) {
 
         state.cachedData = {
             temp: { current: liveTemp, max: mx_t, maxTime: mx_t_time, min: mn_t, minTime: mn_t_time, trend: tTrend, realFeel: calculateRealFeel(liveTemp, liveHum) },
-            atmo: { hum: liveHum, press: livePress, dew: parseFloat(((d.outdoor.dew_point?.value || d.outdoor.temperature.value - 32) * 5 / 9).toFixed(1)), hTrend: hTrend, pTrend: pTrend },
+            atmo: { hum: liveHum, press: livePress, dew: currentDewPoint, hTrend: hTrend, pTrend: pTrend },
             wind: { speed: liveWind, gust: liveGust, maxS: mx_w, maxSTime: mx_w_t, maxG: mx_g, maxGTime: mx_g_t, deg: d.wind.wind_direction.value, card: getCard(d.wind.wind_direction.value) },
             rain: { total: parseFloat((d.rainfall.daily.value * 25.4).toFixed(1)), rate: liveRainRate, maxR: mx_r },
             solar: { rad: d.solar_and_uvi?.solar?.value || 0, uvi: d.solar_and_uvi?.uvi?.value || 0 },
@@ -143,8 +152,6 @@ app.get("/", (req, res) => {
             --rain: #818cf8; --border: rgba(255, 255, 255, 0.08); --gap: 24px;
         }
         * { box-sizing: border-box; -webkit-font-smoothing: antialiased; }
-        @keyframes gradient-pan { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
-        @keyframes fade-in-up { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
         
         body { 
             margin: 0; font-family: 'Outfit', sans-serif; 
@@ -152,6 +159,8 @@ app.get("/", (req, res) => {
             background-size: 400% 400%; animation: gradient-pan 20s ease infinite;
             color: #f8fafc; padding: 32px 24px; display: flex; flex-direction: column; align-items: center; min-height: 100vh;
         }
+
+        @keyframes gradient-pan { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
         
         .container { width: 100%; max-width: 1200px; z-index: 1; }
         
@@ -172,7 +181,6 @@ app.get("/", (req, res) => {
             background: var(--card); padding: 32px; border-radius: 28px; 
             border: 1px solid var(--border); backdrop-filter: blur(24px); 
             box-shadow: 0 24px 40px -10px rgba(0, 0, 0, 0.4);
-            animation: fade-in-up 0.6s ease-out forwards; opacity: 0;
             position: relative;
         }
         
@@ -215,7 +223,7 @@ app.get("/", (req, res) => {
         </div>
 
         <div class="grid-system">
-            <div class="card" style="opacity:1">
+            <div class="card">
                 <div class="label">Temperature</div>
                 <div class="main-val"><span id="t">--</span><span class="unit">°C</span></div>
                 <div id="tr" class="trend-badge">--</div>
@@ -227,7 +235,7 @@ app.get("/", (req, res) => {
                 </div>
             </div>
 
-            <div class="card" style="opacity:1">
+            <div class="card">
                 <div class="label">Wind Dynamics</div>
                 <div id="needle"></div>
                 <div class="main-val"><span id="w">--</span><span class="unit">km/h</span></div>
@@ -238,7 +246,7 @@ app.get("/", (req, res) => {
                 </div>
             </div>
 
-            <div class="card" style="opacity:1">
+            <div class="card">
                 <div class="label">Atmospheric</div>
                 <div class="main-val"><span id="pr">--</span><span class="unit">hPa</span></div>
                 <div class="trend-badge">Pressure Trend <span id="p_tr" style="margin-left:8px">--</span></div>
@@ -250,8 +258,8 @@ app.get("/", (req, res) => {
         </div>
 
         <div class="grid-system">
-            <div class="graph-card" style="opacity:1"><canvas id="cT"></canvas></div>
-            <div class="graph-card" style="opacity:1"><canvas id="cW"></canvas></div>
+            <div class="graph-card"><canvas id="cT"></canvas></div>
+            <div class="graph-card"><canvas id="cW"></canvas></div>
         </div>
     </div>
 
@@ -274,24 +282,26 @@ app.get("/", (req, res) => {
                 const res = await fetch('/weather?v=' + Date.now());
                 const d = await res.json();
                 
+                // Temp Updates
                 document.getElementById('t').innerText = d.temp.current;
                 document.getElementById('tr').innerHTML = getTrendSVG(d.temp.trend);
                 document.getElementById('rf').innerText = d.temp.realFeel + '°';
                 document.getElementById('dp').innerText = d.atmo.dew + '°';
-                
                 document.getElementById('mx').innerHTML = d.temp.max + '° <span class="time-mark">' + d.temp.maxTime + '</span>';
                 document.getElementById('mn').innerHTML = d.temp.min + '° <span class="time-mark">' + d.temp.minTime + '</span>';
                 
+                // Wind Updates
                 document.getElementById('w').innerText = d.wind.speed;
-                document.getElementById('wg').innerText = d.wind.card + ' | Gust ' + d.wind.gust;
+                document.getElementById('wg').innerText = d.wind.card + ' | Gust ' + d.wind.gust + ' km/h';
                 document.getElementById('mw').innerHTML = d.wind.maxS + ' <span class="time-mark">' + d.wind.maxSTime + '</span>';
                 document.getElementById('mg').innerHTML = d.wind.maxG + ' <span class="time-mark">' + d.wind.maxGTime + '</span>';
                 document.getElementById('needle').style.transform = 'rotate(' + d.wind.deg + 'deg)';
                 
+                // Atmospheric Updates
                 document.getElementById('pr').innerText = d.atmo.press;
-                document.getElementById('p_tr').innerText = (d.atmo.pTrend > 0 ? '+' : '') + d.atmo.pTrend;
+                document.getElementById('p_tr').innerText = (d.atmo.pTrend > 0 ? '+' : '') + d.atmo.pTrend + ' hPa';
                 document.getElementById('h').innerText = d.atmo.hum + '%';
-                document.getElementById('sol').innerText = d.solar.rad + ' W';
+                document.getElementById('sol').innerText = d.solar.rad + ' W/m²';
                 
                 document.getElementById('ts').innerText = new Date(d.lastSync).toLocaleTimeString('en-IN');
 
@@ -302,23 +312,23 @@ app.get("/", (req, res) => {
                     charts.cT = new Chart(ctxT, {
                         type: 'line',
                         data: { labels: labels, datasets: [{ label: 'Temperature', data: d.history.map(h => h.temp), borderColor: '#38bdf8', tension: 0.4, fill: true, backgroundColor: 'rgba(56,189,248,0.1)', pointRadius: 0 }] },
-                        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+                        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: false } } }
                     });
 
                     const ctxW = document.getElementById('cW').getContext('2d');
                     charts.cW = new Chart(ctxW, {
                         type: 'line',
                         data: { labels: labels, datasets: [{ label: 'Wind Speed', data: d.history.map(h => h.wind), borderColor: '#fbbf24', tension: 0.4, pointRadius: 0 }] },
-                        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+                        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
                     });
                 } else {
                     charts.cT.data.labels = labels; charts.cT.data.datasets[0].data = d.history.map(h => h.temp); charts.cT.update();
                     charts.cW.data.labels = labels; charts.cW.data.datasets[0].data = d.history.map(h => h.wind); charts.cW.update();
                 }
-            } catch (e) { console.error(e); }
+            } catch (e) { console.error("Update Error:", e); }
         }
 
-        setInterval(update, 35000);
+        setInterval(update, 45000);
         update();
     </script>
 </body>
