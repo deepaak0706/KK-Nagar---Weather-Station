@@ -154,7 +154,11 @@ app.get("/", (req, res) => {
         @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
         
         .grid-system { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 24px; }
-        .card { background: var(--card); padding: 32px; border-radius: 36px; border: 1px solid var(--border); backdrop-filter: blur(15px); box-shadow: var(--glow); position: relative; }
+        .card { background: var(--card); padding: 32px; border-radius: 36px; border: 1px solid var(--border); backdrop-filter: blur(15px); box-shadow: var(--glow); position: relative; overflow: hidden; }
+
+        /* Wind Particle Canvas Styling */
+        #windCanvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; pointer-events: none; }
+        .card > *:not(canvas) { position: relative; z-index: 2; }
 
         .label { color: var(--accent); font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 2.5px; margin-bottom: 8px; }
         .main-val { font-size: 64px; font-weight: 900; margin: 2px 0; letter-spacing: -3px; display: flex; align-items: baseline; }
@@ -173,25 +177,8 @@ app.get("/", (req, res) => {
         #needle { width: 3px; height: 38px; background: linear-gradient(to bottom, #ef4444 50%, var(--muted) 50%); clip-path: polygon(50% 0%, 100% 100%, 50% 85%, 0% 100%); transition: transform 2s cubic-bezier(0.1, 0.9, 0.2, 1); }
 
         .graphs-wrapper { display: grid; grid-template-columns: repeat(auto-fit, minmax(450px, 1fr)); gap: 24px; margin-top: 24px; }
-        .graph-card { 
-    background: var(--card); 
-    padding: 28px; /* Slightly more padding for the header */
-    border-radius: 36px; 
-    border: 1px solid var(--border); 
-    height: 380px; /* Increased height slightly to accommodate the title */
-    box-shadow: var(--glow); 
-    display: flex;
-    flex-direction: column;
-    overflow: hidden; 
-}
-
-/* Ensure the canvas fills the remaining space below the title */
-.graph-card canvas {
-    flex-grow: 1;
-    width: 100% !important;
-    height: 100% !important;
-}
-
+        .graph-card { background: var(--card); padding: 28px; border-radius: 36px; border: 1px solid var(--border); height: 380px; box-shadow: var(--glow); display: flex; flex-direction: column; overflow: hidden; }
+        .graph-card canvas { flex-grow: 1; width: 100% !important; height: 100% !important; }
 
         .trend-up { color: #f43f5e; } .trend-down { color: #0ea5e9; }
         .time-mark { font-size: 10px; color: var(--muted); font-weight: 600; margin-left: 4px; background: rgba(0,0,0,0.04); padding: 2px 6px; border-radius: 6px; }
@@ -231,6 +218,7 @@ app.get("/", (req, res) => {
             </div>
 
             <div class="card">
+                <canvas id="windCanvas"></canvas>
                 <div class="label">Wind Dynamics</div>
                 <div class="compass-ui"><div id="needle"></div></div>
                 <div class="main-val">
@@ -268,29 +256,22 @@ app.get("/", (req, res) => {
         </div>
 
         <div class="graphs-wrapper">
-    <div class="graph-card">
-        <div class="label" style="margin-bottom: 12px;">Temperature Trend</div>
-        <canvas id="cT"></canvas>
+            <div class="graph-card"><div class="label" style="margin-bottom: 12px;">Temperature Trend</div><canvas id="cT"></canvas></div>
+            <div class="graph-card"><div class="label" style="margin-bottom: 12px;">Humidity Levels</div><canvas id="cH"></canvas></div>
+            <div class="graph-card"><div class="label" style="margin-bottom: 12px;">Wind Velocity</div><canvas id="cW"></canvas></div>
+            <div class="graph-card"><div class="label" style="margin-bottom: 12px;">Precipitation</div><canvas id="cR"></canvas></div>
+        </div>
     </div>
-    <div class="graph-card">
-        <div class="label" style="margin-bottom: 12px;">Humidity Levels</div>
-        <canvas id="cH"></canvas>
-    </div>
-    <div class="graph-card">
-        <div class="label" style="margin-bottom: 12px;">Wind Velocity</div>
-        <canvas id="cW"></canvas>
-    </div>
-    <div class="graph-card">
-        <div class="label" style="margin-bottom: 12px;">Precipitation</div>
-        <canvas id="cR"></canvas>
-    </div>
-</div>
-
 
 
     <script>
         let currentMode = localStorage.getItem('weatherMode') || 'auto';
         let charts = {};
+        
+        // --- Wind Engine Vars ---
+        let liveWindSpeed = 0, liveWindDeg = 0, particles = [];
+        const wCanvas = document.getElementById('windCanvas');
+        const ctxW = wCanvas.getContext('2d');
 
         // Vertical Line Plugin Registration
         Chart.register({
@@ -351,8 +332,6 @@ app.get("/", (req, res) => {
         function setupChart(id, label, color, minVal = null) {
             const canvas = document.getElementById(id);
             const ctx = canvas.getContext('2d');
-            
-            // Modern Neon Gradient
             const gradient = ctx.createLinearGradient(0, 0, 0, 300);
             gradient.addColorStop(0, color + '40'); 
             gradient.addColorStop(1, color + '00');
@@ -440,6 +419,10 @@ app.get("/", (req, res) => {
                 document.getElementById('mg').innerHTML = d.wind.maxG + ' km/h <span class="time-mark">' + d.wind.maxGTime + '</span>';
                 document.getElementById('needle').style.transform = 'rotate(' + d.wind.deg + 'deg)';
                 
+                // --- Update Wind Engine Variables ---
+                liveWindSpeed = d.wind.speed;
+                liveWindDeg = d.wind.deg;
+
                 document.getElementById('r_tot').innerText = d.rain.total; 
                 document.getElementById('r_rate').innerText = d.rain.rate;
                 document.getElementById('r_week').innerText = d.rain.weekly + ' mm'; 
@@ -472,7 +455,30 @@ app.get("/", (req, res) => {
             } catch (e) { console.error(e); }
         }
 
+        // --- Wind Animation Core ---
+        for(let i=0; i<80; i++) { particles.push({ x: Math.random() * 600, y: Math.random() * 400, l: Math.random() * 10 + 5 }); }
+        function animateWind() {
+            if (wCanvas.width !== wCanvas.offsetWidth) { wCanvas.width = wCanvas.offsetWidth; wCanvas.height = wCanvas.offsetHeight; }
+            ctxW.clearRect(0, 0, wCanvas.width, wCanvas.height);
+            const rad = (liveWindDeg - 90) * (Math.PI / 180);
+            const speed = Math.max(1.5, liveWindSpeed * 0.8);
+            const dx = Math.cos(rad) * speed, dy = Math.sin(rad) * speed;
+            ctxW.strokeStyle = document.body.classList.contains('is-night') ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.3)';
+            ctxW.lineWidth = 1;
+            ctxW.beginPath();
+            particles.forEach(p => {
+                p.x += dx; p.y += dy;
+                if (p.x > wCanvas.width) p.x = 0; else if (p.x < 0) p.x = wCanvas.width;
+                if (p.y > wCanvas.height) p.y = 0; else if (p.y < 0) p.y = wCanvas.height;
+                ctxW.moveTo(p.x, p.y);
+                ctxW.lineTo(p.x - dx * p.l, p.y - dy * p.l);
+            });
+            ctxW.stroke();
+            requestAnimationFrame(animateWind);
+        }
+
         applyTheme();
+        animateWind();
         setInterval(update, 45000); 
         update();
     </script>
