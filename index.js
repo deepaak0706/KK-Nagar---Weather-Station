@@ -64,16 +64,19 @@ async function syncWithEcowitt(forceWrite = false) {
         }
 
         const historyRes = await pool.query(`SELECT * FROM weather_history WHERE time >= (CURRENT_DATE AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Kolkata') ORDER BY time ASC`);
-        const oneHourAgoRes = await pool.query(`SELECT temp_f FROM weather_history WHERE time >= NOW() - INTERVAL '1 hour' ORDER BY time ASC LIMIT 1`);
+        const oneHourAgoRes = await pool.query(`SELECT temp_f, humidity FROM weather_history WHERE time >= NOW() - INTERVAL '1 hour' ORDER BY time ASC LIMIT 1`);
         
-        let mx_t = -999, mn_t = 999, mx_t_time = "--:--", mn_t_time = "--:--", mx_w = 0, mx_w_t = "--:--", mx_g = 0, mx_g_t = "--:--", mx_r = 0, mx_r_t = "--:--", pTrend = 0, tRate = 0;
+        let mx_t = -999, mn_t = 999, mx_t_time = "--:--", mn_t_time = "--:--", mx_w = 0, mx_w_t = "--:--", mx_g = 0, mx_g_t = "--:--", mx_r = 0, mx_r_t = "--:--", pTrend = 0, tRate = 0, hTrend = 0;
         let graphHistory = [];
 
         if (historyRes.rows.length > 0) {
             const lastRow = historyRes.rows[historyRes.rows.length - 1];
             pTrend = parseFloat((livePress - (lastRow.press_rel || livePress)).toFixed(1));
             const baseTempF = oneHourAgoRes.rows.length > 0 ? oneHourAgoRes.rows[0].temp_f : (historyRes.rows[0].temp_f || d.outdoor.temperature.value);
+            const baseHum = oneHourAgoRes.rows.length > 0 ? oneHourAgoRes.rows[0].humidity : (historyRes.rows[0].humidity || liveHum);
+            
             tRate = parseFloat((liveTemp - parseFloat(((baseTempF - 32) * 5 / 9).toFixed(1))).toFixed(1));
+            hTrend = liveHum - baseHum;
 
             historyRes.rows.forEach(r => {
                 const r_time = new Date(r.time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' });
@@ -93,7 +96,7 @@ async function syncWithEcowitt(forceWrite = false) {
 
         state.cachedData = {
             temp: { current: liveTemp, dew: liveDew, max: mx_t, maxTime: mx_t_time, min: mn_t, minTime: mn_t_time, realFeel: calculateRealFeel(liveTemp, liveHum), rate: tRate },
-            atmo: { hum: liveHum, press: livePress, pTrend, sol: d.solar_and_uvi?.solar?.value || 0, uv: d.solar_and_uvi?.uvi?.value || 0 },
+            atmo: { hum: liveHum, hTrend: hTrend, press: livePress, pTrend, sol: d.solar_and_uvi?.solar?.value || 0, uv: d.solar_and_uvi?.uvi?.value || 0 },
             wind: { speed: liveWind, gust: liveGust, maxS: mx_w, maxSTime: mx_w_t, maxG: mx_g, maxGTime: mx_g_t, deg: d.wind.wind_direction.value, card: getCard(d.wind.wind_direction.value) },
             rain: { total: liveRain24h, weekly: liveRainWeekly, monthly: liveRainMonthly, yearly: liveRainYearly, rate: liveRainRate, maxR: mx_r, maxRTime: mx_r_t },
             history: graphHistory,
@@ -136,7 +139,6 @@ app.get("/", (req, res) => {
 
         .header-actions { display: flex; align-items: center; gap: 16px; }
         
-        /* Toggle Styling */
         .theme-toggle {
             background: var(--card); border: 1px solid var(--border); padding: 4px; border-radius: 12px;
             display: flex; gap: 4px; box-shadow: var(--glow); cursor: pointer;
@@ -203,8 +205,9 @@ app.get("/", (req, res) => {
                 <div class="sub-box-4">
                     <div class="badge"><span class="badge-label">Today High</span><span id="mx" class="badge-val" style="color:#ef4444">--</span></div>
                     <div class="badge"><span class="badge-label">Today Low</span><span id="mn" class="badge-val" style="color:#0ea5e9">--</span></div>
-                    <div class="badge"><span class="badge-label">RealFeel</span><span id="rf" class="badge-val">--</span></div>
-                    <div class="badge"><span class="badge-label">Humidity / Dew</span><span id="h_dew" class="badge-val">--</span></div>
+                    <div class="badge"><span class="badge-label">Humidity</span><span id="h_val" class="badge-val">--</span></div>
+                    <div class="badge"><span class="badge-label">Dew Point</span><span id="d_val" class="badge-val">--</span></div>
+                    <div class="badge" style="grid-column: span 2;"><span class="badge-label">Feels Like</span><span id="rf" class="badge-val">--</span></div>
                 </div>
             </div>
 
@@ -292,7 +295,7 @@ app.get("/", (req, res) => {
         }
 
         let charts = {};
-        function setupChart(id, label, color) {
+        function setupChart(id, label, color, minVal = null) {
             const ctx = document.getElementById(id);
             return new Chart(ctx, { 
                 type: 'line', 
@@ -300,7 +303,11 @@ app.get("/", (req, res) => {
                 options: { 
                     animation: false, responsive: true, maintainAspectRatio: false, 
                     scales: { 
-                        y: { grid: { color: 'rgba(0,0,0,0.03)' }, ticks: { font: { family: 'Outfit' } } }, 
+                        y: { 
+                            grid: { color: 'rgba(0,0,0,0.03)' }, 
+                            ticks: { font: { family: 'Outfit' } },
+                            min: minVal // Fixed negative rain scale
+                        }, 
                         x: { grid: { display: false }, ticks: { font: { family: 'Outfit' } } } 
                     } 
                 } 
@@ -313,13 +320,19 @@ app.get("/", (req, res) => {
                 const d = await res.json(); 
                 if (!d || d.error) return;
                 
+                // Temp Card - Individual Badges
                 document.getElementById('t').innerText = d.temp.current;
                 document.getElementById('tTrendBox').innerHTML = d.temp.rate > 0 ? '<span class="trend-up">▲</span> +' + d.temp.rate + '°C /hr' : d.temp.rate < 0 ? '<span class="trend-down">▼</span> ' + d.temp.rate + '°C /hr' : '● Steady';
                 document.getElementById('mx').innerHTML = d.temp.max + '°C <span class="time-mark">' + d.temp.maxTime + '</span>';
                 document.getElementById('mn').innerHTML = d.temp.min + '°C <span class="time-mark">' + d.temp.minTime + '</span>';
-                document.getElementById('rf').innerText = d.temp.realFeel + '°'; 
-                document.getElementById('h_dew').innerText = d.atmo.hum + '% / ' + d.temp.dew + '°';
+                document.getElementById('rf').innerText = d.temp.realFeel + '°C'; 
                 
+                // Humidity with Trend Pulsing Indicator
+                const hIcon = d.atmo.hTrend > 0 ? '<span style="color:#10b981">▲</span>' : d.atmo.hTrend < 0 ? '<span style="color:#f43f5e">▼</span>' : '<span style="opacity:0.4">●</span>';
+                document.getElementById('h_val').innerHTML = d.atmo.hum + '% ' + hIcon;
+                document.getElementById('d_val').innerText = d.temp.dew + '°C';
+                
+                // Wind
                 document.getElementById('w').innerText = d.wind.speed; 
                 document.getElementById('wd_bracket').innerText = '(' + d.wind.card + ')';
                 document.getElementById('wg').innerText = d.wind.gust + ' km/h';
@@ -327,6 +340,7 @@ app.get("/", (req, res) => {
                 document.getElementById('mg').innerHTML = d.wind.maxG + ' km/h <span class="time-mark">' + d.wind.maxGTime + '</span>';
                 document.getElementById('needle').style.transform = 'rotate(' + d.wind.deg + 'deg)';
                 
+                // Rain
                 document.getElementById('r_tot').innerText = d.rain.total; 
                 document.getElementById('r_rate').innerText = d.rain.rate;
                 document.getElementById('r_week').innerText = d.rain.weekly + ' mm'; 
@@ -334,6 +348,7 @@ app.get("/", (req, res) => {
                 document.getElementById('r_year').innerText = d.rain.yearly + ' mm';
                 document.getElementById('mr').innerHTML = d.rain.maxR > 0 ? d.rain.maxR + ' mm/h <span class="time-mark">' + d.rain.maxRTime + '</span>' : '0';
                 
+                // Pressure & Others
                 document.getElementById('pr').innerText = d.atmo.press;
                 const pIcon = document.getElementById('pIcon');
                 if (d.atmo.pTrend > 0) pIcon.innerHTML = '<span class="trend-up">▲</span>';
@@ -346,8 +361,10 @@ app.get("/", (req, res) => {
 
                 const labels = d.history.map(h => new Date(h.time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: false }));
                 if(!charts.cT) { 
-                    charts.cT = setupChart('cT', 'Temp °C', '#ef4444'); charts.cH = setupChart('cH', 'Humidity %', '#10b981'); 
-                    charts.cW = setupChart('cW', 'Wind km/h', '#f59e0b'); charts.cR = setupChart('cR', 'Rain mm', '#3b82f6'); 
+                    charts.cT = setupChart('cT', 'Temp °C', '#ef4444'); 
+                    charts.cH = setupChart('cH', 'Humidity %', '#10b981'); 
+                    charts.cW = setupChart('cW', 'Wind km/h', '#f59e0b'); 
+                    charts.cR = setupChart('cR', 'Rain mm', '#3b82f6', 0); // Enforced 0 minimum for rain
                     applyTheme(); 
                 }
                 charts.cT.data.labels = labels; charts.cT.data.datasets[0].data = d.history.map(h => h.temp); charts.cT.update('none');
