@@ -40,7 +40,7 @@ async function syncWithEcowitt(forceWrite = false) {
         const d = json.data;
 
         const liveTemp = parseFloat(((d.outdoor.temperature.value - 32) * 5 / 9).toFixed(1));
-        const liveDew = parseFloat(((d.outdoor.dew_point.value - 32) * 5 / 9).toFixed(1)); // Added Dew Point
+        const liveDew = parseFloat(((d.outdoor.dew_point.value - 32) * 5 / 9).toFixed(1));
         const liveHum = d.outdoor.humidity.value || 0;
         const livePress = parseFloat((d.pressure.relative.value * 33.8639).toFixed(1));
         const liveWind = parseFloat((d.wind.wind_speed.value * 1.60934).toFixed(1));
@@ -52,7 +52,6 @@ async function syncWithEcowitt(forceWrite = false) {
         const liveRainYearly = parseFloat((d.rainfall.yearly.value * 25.4).toFixed(1));
         const liveRainRate = parseFloat(((d.rainfall.rain_rate?.value || 0) * 25.4).toFixed(1));
 
-        // DB Write Check (2 Minutes)
         if (forceWrite || (now - state.lastDbWrite > 120000)) {
             try {
                 await pool.query(
@@ -119,223 +118,94 @@ app.get("/", (req, res) => {
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;700;900&display=swap" rel="stylesheet">
     <style>
+        /* Light Theme Vars (Pale Yellow / Grayish) */
         :root { 
-            --bg-grad: linear-gradient(135deg, #e0f2fe 0%, #f0f9ff 50%, #e0eafc 100%);
-            --card-bg: rgba(255, 255, 255, 0.65); 
-            --accent: #0ea5e9; 
-            --max-t: #e11d48; 
-            --min-t: #0284c7; 
-            --border-light: rgba(255, 255, 255, 1); 
-            --text-main: #0f172a;
-            --text-muted: #475569;
-            --shadow-soft: 0 12px 32px rgba(15, 23, 42, 0.06);
+            --bg: #f8f7f2; 
+            --card: rgba(255, 255, 255, 0.7); 
+            --border: rgba(0, 0, 0, 0.05);
+            --text: #1e293b;
+            --muted: #64748b;
+            --accent: #0284c7;
+            --glow: 0 10px 30px -10px rgba(0,0,0,0.05);
         }
-        
-        * { box-sizing: border-box; }
-        
+
+        /* Night Mode Logic */
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg: #020617;
+                --card: rgba(15, 23, 42, 0.6);
+                --border: rgba(255, 255, 255, 0.08);
+                --text: #f8fafc;
+                --muted: #94a3b8;
+                --accent: #38bdf8;
+                --glow: 0 10px 30px -10px rgba(0,0,0,0.5);
+            }
+        }
+
+        /* Hardcoded Night Logic for 6PM-6AM */
+        .night-theme {
+            --bg: #020617;
+            --card: rgba(15, 23, 42, 0.6);
+            --border: rgba(255, 255, 255, 0.08);
+            --text: #f8fafc;
+            --muted: #94a3b8;
+            --accent: #38bdf8;
+            --glow: 0 10px 30px -10px rgba(0,0,0,0.5);
+        }
+
         body { 
-            margin: 0; 
-            font-family: 'Outfit', sans-serif; 
-            background: var(--bg-grad);
-            color: var(--text-main); 
-            padding: 40px 24px; 
-            display: flex; 
-            flex-direction: column; 
-            align-items: center; 
-            min-height: 100vh;
+            margin: 0; font-family: 'Outfit', sans-serif; background: var(--bg); color: var(--text); 
+            padding: 40px 24px; transition: background 0.8s ease;
         }
 
-        .container { width: 100%; max-width: 1300px; }
+        .container { width: 100%; max-width: 1200px; margin: 0 auto; }
 
-        @keyframes fadeUp {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
+        .header { margin-bottom: 40px; display: flex; justify-content: space-between; align-items: center; }
+        .header h1 { font-size: 28px; font-weight: 900; margin: 0; letter-spacing: -1px; }
 
-        .header { 
-            margin-bottom: 48px; 
-            display: flex; 
-            justify-content: space-between; 
-            align-items: center; 
-            width: 100%; 
-            animation: fadeUp 0.6s ease-out both;
-        }
-        
-        .header h1 { 
-            font-size: 34px; 
-            font-weight: 900; 
-            margin: 0; 
-            color: #0f172a;
-            letter-spacing: -1px;
-        }
-        
         .status-bar { 
-            display: flex; 
-            align-items: center; 
-            gap: 12px; 
-            background: rgba(255, 255, 255, 0.8); 
-            padding: 10px 20px; 
-            border-radius: 100px; 
-            border: 1px solid var(--border-light); 
-            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            display: flex; align-items: center; gap: 12px; background: var(--card); padding: 8px 16px; 
+            border-radius: 100px; border: 1px solid var(--border); backdrop-filter: blur(10px);
         }
         
-        .live-dot { 
-            width: 10px; height: 10px; 
-            background: #10b981; 
-            border-radius: 50%; 
-            box-shadow: 0 0 10px rgba(16, 185, 129, 0.6); 
-            animation: blink 2s infinite cubic-bezier(0.4, 0, 0.6, 1); 
-        }
+        .live-dot { width: 8px; height: 8px; background: #10b981; border-radius: 50%; box-shadow: 0 0 8px #10b981; animation: blink 2s infinite; }
         @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
         
-        .timestamp { font-size: 14px; font-weight: 700; color: var(--text-muted); }
-        
-        .grid-system { 
-            display: grid; 
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); 
-            gap: 24px; 
-            margin-bottom: 32px; 
-        }
+        .grid-system { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 24px; }
         
         .card { 
-            background: var(--card-bg); 
-            padding: 32px; 
-            border-radius: 32px; 
-            border: 1px solid var(--border-light); 
-            backdrop-filter: blur(24px) saturate(150%); 
-            -webkit-backdrop-filter: blur(24px) saturate(150%);
-            position: relative; 
-            box-shadow: var(--shadow-soft);
-            transition: all 0.3s ease;
-            animation: fadeUp 0.6s ease-out both;
+            background: var(--card); padding: 32px; border-radius: 32px; border: 1px solid var(--border); 
+            backdrop-filter: blur(20px); box-shadow: var(--glow); position: relative;
         }
-        
-        .card:nth-child(1) { animation-delay: 0.1s; }
-        .card:nth-child(2) { animation-delay: 0.2s; }
-        .card:nth-child(3) { animation-delay: 0.3s; }
-        .card:nth-child(4) { animation-delay: 0.4s; }
 
-        .card:hover {
-            transform: translateY(-4px);
-            box-shadow: 0 20px 40px rgba(15, 23, 42, 0.08);
-            background: rgba(255, 255, 255, 0.85);
-        }
+        .label { color: var(--accent); font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 12px; }
         
-        .label { 
-            color: var(--accent); 
-            font-size: 14px; 
-            font-weight: 800; 
-            text-transform: uppercase; 
-            letter-spacing: 2px; 
-            margin-bottom: 12px; 
-        }
-        
-        .main-val { 
-            font-size: 64px; 
-            font-weight: 900; 
-            margin: 4px 0 12px 0; 
-            display: flex; 
-            align-items: baseline; 
-            letter-spacing: -3px; 
-            color: #0f172a;
-        }
-        
-        .unit { 
-            font-size: 24px; 
-            font-weight: 700; 
-            color: #64748b; 
-            margin-left: 8px; 
-            letter-spacing: normal;
-        }
-        
+        .main-val { font-size: 60px; font-weight: 900; margin: 4px 0; letter-spacing: -2px; display: flex; align-items: baseline; }
+        .unit { font-size: 20px; font-weight: 600; color: var(--muted); margin-left: 8px; letter-spacing: 0; }
+
         .sub-pill { 
-            font-size: 13px; 
-            font-weight: 700; 
-            padding: 6px 14px; 
-            border-radius: 12px; 
-            background: rgba(255,255,255,0.7); 
-            border: 1px solid var(--border-light);
-            display: inline-flex; 
-            align-items: center; 
-            gap: 6px; 
-            margin-bottom: 16px; 
-            color: #334155;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.02);
-        }
-        
-        .trend-up { color: var(--max-t); } 
-        .trend-down { color: var(--min-t); }
-        
-        .sub-box-4 { 
-            display: grid; 
-            grid-template-columns: 1fr 1fr; 
-            gap: 16px; 
-            padding-top: 24px; 
-            border-top: 1px solid rgba(0,0,0,0.06); 
-        }
-        
-        .badge { 
-            padding: 16px; 
-            border-radius: 20px; 
-            background: rgba(255, 255, 255, 0.5); 
-            border: 1px solid var(--border-light);
-            display: flex; 
-            flex-direction: column; 
-            gap: 6px; 
-            box-shadow: inset 0 2px 10px rgba(255,255,255,0.8);
-        }
-        
-        .badge-label { font-size: 11px; color: #64748b; text-transform: uppercase; font-weight: 800; letter-spacing: 1px; }
-        .badge-val { font-size: 18px; font-weight: 800; color: #1e293b; }
-        .time-mark { font-size: 10px; font-weight: 800; color: #64748b; background: rgba(0,0,0,0.04); padding: 3px 8px; border-radius: 6px; margin-left: 6px; }
-        
-        .compass-ui { 
-            position: absolute; 
-            top: 32px; right: 32px; 
-            width: 68px; height: 68px; 
-            border: 2px solid rgba(0,0,0,0.05); 
-            border-radius: 50%; 
-            display: flex; align-items: center; justify-content: center; 
-            background: rgba(255,255,255,0.4);
-            box-shadow: 0 4px 10px rgba(0,0,0,0.03);
-        }
-        .compass-ui span { position: absolute; font-size: 10px; font-weight: 900; color: rgba(0,0,0,0.3); }
-        .c-n { top: 4px; color: var(--max-t) !important; } .c-e { right: 4px; } .c-s { bottom: 4px; } .c-w { left: 4px; }
-        
-        #needle { 
-            width: 4px; height: 44px; 
-            background: linear-gradient(to bottom, var(--max-t) 50%, #94a3b8 50%); 
-            clip-path: polygon(50% 0%, 100% 100%, 50% 85%, 0% 100%); 
-            transition: transform 1.5s cubic-bezier(0.34, 1.56, 0.64, 1); 
-            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2));
+            font-size: 13px; font-weight: 700; padding: 6px 12px; border-radius: 12px; 
+            background: rgba(0,0,0,0.03); display: inline-flex; align-items: center; gap: 6px; margin-bottom: 20px; 
         }
 
-        .graphs-wrapper {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
-            gap: 24px;
-            width: 100%;
-        }
+        .sub-box-4 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding-top: 24px; border-top: 1px solid var(--border); }
         
-        .graph-card { 
-            background: var(--card-bg); 
-            padding: 24px; 
-            border-radius: 32px; 
-            border: 1px solid var(--border-light); 
-            backdrop-filter: blur(24px) saturate(150%); 
-            height: 380px; 
-            box-shadow: var(--shadow-soft);
-            animation: fadeUp 0.8s ease-out both;
-            animation-delay: 0.5s;
-        }
+        .badge { padding: 16px; border-radius: 20px; background: rgba(0, 0, 0, 0.03); display: flex; flex-direction: column; gap: 4px; }
+        .badge-label { font-size: 11px; color: var(--muted); text-transform: uppercase; font-weight: 800; }
+        .badge-val { font-size: 17px; font-weight: 700; }
 
-        @media (max-width: 768px) {
-            .header { flex-direction: column; gap: 16px; align-items: flex-start; }
-            .graphs-wrapper { grid-template-columns: 1fr; }
-            .main-val { font-size: 48px; }
-            .graph-card { height: 300px; }
-        }
+        .compass-ui { position: absolute; top: 32px; right: 32px; width: 64px; height: 64px; border: 2px solid var(--border); border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+        .compass-ui span { position: absolute; font-size: 9px; font-weight: 900; color: var(--muted); }
+        .c-n { top: 4px; color: #ef4444 !important; } .c-e { right: 4px; } .c-s { bottom: 4px; } .c-w { left: 4px; }
+        #needle { width: 4px; height: 40px; background: linear-gradient(to bottom, #ef4444 50%, var(--muted) 50%); clip-path: polygon(50% 0%, 100% 100%, 50% 85%, 0% 100%); transition: transform 1.5s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+
+        .graphs-wrapper { display: grid; grid-template-columns: repeat(auto-fit, minmax(450px, 1fr)); gap: 24px; margin-top: 24px; }
+        .graph-card { background: var(--card); padding: 24px; border-radius: 32px; border: 1px solid var(--border); height: 350px; box-shadow: var(--glow); }
+
+        .trend-up { color: #f43f5e; } .trend-down { color: #0ea5e9; }
+        .time-mark { font-size: 10px; color: var(--muted); background: rgba(0,0,0,0.05); padding: 2px 6px; border-radius: 6px; margin-left: 4px; }
+
+        @media (max-width: 768px) { .graphs-wrapper { grid-template-columns: 1fr; } }
     </style>
 </head>
 <body>
@@ -344,53 +214,50 @@ app.get("/", (req, res) => {
             <h1>KK Nagar Weather Hub</h1>
             <div class="status-bar">
                 <div class="live-dot"></div>
-                <div class="timestamp">LIVE SYSTEM SYNC: <span id="ts">--:--:--</span></div>
+                <div class="timestamp">SYNC: <span id="ts">--:--:--</span></div>
             </div>
         </div>
-        
+
         <div class="grid-system">
             <div class="card">
                 <div class="label">Temperature</div>
                 <div class="main-val"><span id="t">--</span><span class="unit">°C</span></div>
                 <div id="tTrendBox" class="sub-pill">--</div>
-                <div class="sub-box-4" style="grid-template-columns: repeat(2, 1fr);">
-                    <div class="badge"><span class="badge-label">Today High</span><span id="mx" class="badge-val" style="color:var(--max-t)">--</span></div>
-                    <div class="badge"><span class="badge-label">Today Low</span><span id="mn" class="badge-val" style="color:var(--min-t)">--</span></div>
+                <div class="sub-box-4">
+                    <div class="badge"><span class="badge-label">Today High</span><span id="mx" class="badge-val" style="color:#ef4444">--</span></div>
+                    <div class="badge"><span class="badge-label">Today Low</span><span id="mn" class="badge-val" style="color:#0ea5e9">--</span></div>
                     <div class="badge"><span class="badge-label">RealFeel</span><span id="rf" class="badge-val">--</span></div>
                     <div class="badge"><span class="badge-label">Humidity</span><span id="h" class="badge-val">--</span></div>
-                    <div class="badge" style="grid-column: span 2;"><span class="badge-label">Dew Point</span><span id="dp" class="badge-val" style="color:var(--accent)">--</span></div>
+                    <div class="badge" style="grid-column: span 2;"><span class="badge-label">Dew Point</span><span id="dp" class="badge-val">--</span></div>
                 </div>
             </div>
-            
+
             <div class="card">
                 <div class="label">Wind Dynamics</div>
                 <div class="compass-ui"><span class="c-n">N</span><span class="c-e">E</span><span class="c-s">S</span><span class="c-w">W</span><div id="needle"></div></div>
-                <div class="main-val"><span id="w">--</span><span id="wd_bracket" style="font-size:24px; color:#64748b; margin-left:12px; font-weight:700">(--)</span><span class="unit">km/h</span></div>
-                <div class="sub-pill">● Gusting <span id="wg" style="margin-left:4px; color: #1e293b;">--</span></div>
+                <div class="main-val"><span id="w">--</span><span id="wd_bracket" style="font-size:20px; color:var(--muted); margin-left:8px">(--)</span><span class="unit">km/h</span></div>
+                <div class="sub-pill">● Gusting <span id="wg" style="margin-left:4px">--</span></div>
                 <div class="sub-box-4">
                     <div class="badge"><span class="badge-label">Max Wind</span><span id="mw" class="badge-val">--</span></div>
                     <div class="badge"><span class="badge-label">Max Gust</span><span id="mg" class="badge-val">--</span></div>
                 </div>
             </div>
-            
+
             <div class="card">
-                <div class="label">Rainfall (24h)</div>
+                <div class="label">Rain (24h)</div>
                 <div class="main-val"><span id="r_tot">--</span><span class="unit">mm</span></div>
-                <div style="display:flex; gap:8px; flex-wrap: wrap;">
-                    <div class="sub-pill">● Rate: <span id="r_rate" style="margin-left:4px; color: #1e293b;">--</span> mm/h</div>
-                    <div class="sub-pill">● Max: <span id="mr" style="margin-left:4px; color: #1e293b;">--</span></div>
-                </div>
+                <div class="sub-pill">● Rate: <span id="r_rate">--</span> mm/h</div>
                 <div class="sub-box-4">
                     <div class="badge"><span class="badge-label">Weekly</span><span id="r_week" class="badge-val">--</span></div>
                     <div class="badge"><span class="badge-label">Monthly</span><span id="r_month" class="badge-val">--</span></div>
-                    <div class="badge" style="grid-column: span 2;"><span class="badge-label">Yearly Total</span><span id="r_year" class="badge-val">--</span></div>
+                    <div class="badge" style="grid-column: span 2;"><span class="badge-label">Max Rate Today</span><span id="mr" class="badge-val">--</span></div>
                 </div>
             </div>
-            
+
             <div class="card">
-                <div class="label">Atmospheric <span id="pIcon" style="margin-left:8px;"></span></div>
+                <div class="label">Atmospheric <span id="pIcon"></span></div>
                 <div class="main-val"><span id="pr">--</span><span class="unit">hPa</span></div>
-                <div class="sub-box-4" style="margin-top: auto;">
+                <div class="sub-box-4">
                     <div class="badge"><span class="badge-label">Solar Rad</span><span id="sol" class="badge-val">--</span></div>
                     <div class="badge"><span class="badge-label">UV Index</span><span id="uv" class="badge-val">--</span></div>
                 </div>
@@ -404,18 +271,45 @@ app.get("/", (req, res) => {
             <div class="graph-card"><canvas id="cR"></canvas></div>
         </div>
     </div>
-    
+
     <script>
+        function updateTheme() {
+            const hour = new Date().getHours();
+            const body = document.body;
+            // 6 PM (18) to 6 AM (6) is night
+            if (hour >= 18 || hour < 6) {
+                body.classList.add('night-theme');
+            } else {
+                body.classList.remove('night-theme');
+            }
+        }
+        updateTheme(); setInterval(updateTheme, 60000);
+
         let charts = {};
         function setupChart(id, label, color) {
-            const ctx = document.getElementById(id); if (!ctx) return null;
-            return new Chart(ctx, { type: 'line', data: { labels: [], datasets: [{ label: label, data: [], borderColor: color, backgroundColor: color+'22', fill: true, tension: 0.4, pointRadius: 0 }] }, options: { animation: false, responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, min: 0, ticks: { precision: 1 } } } } });
+            const ctx = document.getElementById(id);
+            const isNight = document.body.classList.contains('night-theme');
+            const gridColor = isNight ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)';
+            const textColor = isNight ? '#94a3b8' : '#64748b';
+
+            return new Chart(ctx, { 
+                type: 'line', 
+                data: { labels: [], datasets: [{ label: label, data: [], borderColor: color, backgroundColor: color+'22', fill: true, tension: 0.4, pointRadius: 0 }] }, 
+                options: { 
+                    animation: false, responsive: true, maintainAspectRatio: false, 
+                    plugins: { legend: { labels: { color: textColor, font: { family: 'Outfit', weight: 'bold' } } } },
+                    scales: { 
+                        y: { beginAtZero: true, min: 0, grid: { color: gridColor }, ticks: { color: textColor } },
+                        x: { grid: { display: false }, ticks: { color: textColor } }
+                    } 
+                } 
+            });
         }
+
         async function update() {
             try {
                 const res = await fetch('/weather?v=' + Date.now()); const d = await res.json(); if (!d || d.error) return;
                 
-                // Temp Mapping
                 document.getElementById('t').innerText = d.temp.current;
                 document.getElementById('dp').innerText = d.temp.dew + '°C';
                 document.getElementById('tTrendBox').innerHTML = d.temp.rate > 0 ? '<span class="trend-up">▲</span> +' + d.temp.rate + '°C /hr' : d.temp.rate < 0 ? '<span class="trend-down">▼</span> ' + d.temp.rate + '°C /hr' : '● Steady';
@@ -423,21 +317,17 @@ app.get("/", (req, res) => {
                 document.getElementById('mn').innerHTML = d.temp.min + '°C <span class="time-mark">' + d.temp.minTime + '</span>';
                 document.getElementById('rf').innerText = d.temp.realFeel + '°'; document.getElementById('h').innerText = d.atmo.hum + '%';
                 
-                // Wind Mapping
                 document.getElementById('w').innerText = d.wind.speed; document.getElementById('wd_bracket').innerText = '(' + d.wind.card + ')';
                 document.getElementById('wg').innerText = d.wind.gust + ' km/h';
                 document.getElementById('mw').innerHTML = d.wind.maxS + ' km/h <span class="time-mark">' + d.wind.maxSTime + '</span>';
                 document.getElementById('mg').innerHTML = d.wind.maxG + ' km/h <span class="time-mark">' + d.wind.maxGTime + '</span>';
                 document.getElementById('needle').style.transform = 'rotate(' + d.wind.deg + 'deg)';
                 
-                // Rain Mapping
                 document.getElementById('r_tot').innerText = d.rain.total; document.getElementById('r_rate').innerText = d.rain.rate;
                 document.getElementById('mr').innerHTML = d.rain.maxR > 0 ? d.rain.maxR + ' mm/h <span class="time-mark">' + d.rain.maxRTime + '</span>' : '0';
                 document.getElementById('r_week').innerText = d.rain.weekly + ' mm'; 
                 document.getElementById('r_month').innerText = d.rain.monthly + ' mm';
-                document.getElementById('r_year').innerText = d.rain.yearly + ' mm';
                 
-                // Barometer Trend Icon
                 document.getElementById('pr').innerText = d.atmo.press;
                 const pIcon = document.getElementById('pIcon');
                 if (d.atmo.pTrend > 0) pIcon.innerHTML = '<span class="trend-up" style="font-size:14px">▲</span>';
@@ -447,7 +337,6 @@ app.get("/", (req, res) => {
                 document.getElementById('sol').innerText = d.atmo.sol + ' W/m²'; document.getElementById('uv').innerText = d.atmo.uv;
                 document.getElementById('ts').innerText = new Date(d.lastSync).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 
-                // Automatic Graph Update Logic
                 const labels = d.history.map(h => new Date(h.time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' }));
                 if(!charts.cT) { 
                     charts.cT = setupChart('cT', 'Temperature (°C)', '#0ea5e9'); charts.cH = setupChart('cH', 'Humidity (%)', '#10b981'); 
