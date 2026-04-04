@@ -173,7 +173,25 @@ app.get("/", (req, res) => {
         #needle { width: 3px; height: 38px; background: linear-gradient(to bottom, #ef4444 50%, var(--muted) 50%); clip-path: polygon(50% 0%, 100% 100%, 50% 85%, 0% 100%); transition: transform 2s cubic-bezier(0.1, 0.9, 0.2, 1); }
 
         .graphs-wrapper { display: grid; grid-template-columns: repeat(auto-fit, minmax(450px, 1fr)); gap: 24px; margin-top: 24px; }
-        .graph-card { background: var(--card); padding: 24px; border-radius: 36px; border: 1px solid var(--border); height: 360px; box-shadow: var(--glow); overflow: hidden; }
+        .graph-card { 
+    background: var(--card); 
+    padding: 28px; /* Slightly more padding for the header */
+    border-radius: 36px; 
+    border: 1px solid var(--border); 
+    height: 380px; /* Increased height slightly to accommodate the title */
+    box-shadow: var(--glow); 
+    display: flex;
+    flex-direction: column;
+    overflow: hidden; 
+}
+
+/* Ensure the canvas fills the remaining space below the title */
+.graph-card canvas {
+    flex-grow: 1;
+    width: 100% !important;
+    height: 100% !important;
+}
+
 
         .trend-up { color: #f43f5e; } .trend-down { color: #0ea5e9; }
         .time-mark { font-size: 10px; color: var(--muted); font-weight: 600; margin-left: 4px; background: rgba(0,0,0,0.04); padding: 2px 6px; border-radius: 6px; }
@@ -250,12 +268,24 @@ app.get("/", (req, res) => {
         </div>
 
         <div class="graphs-wrapper">
-            <div class="graph-card"><canvas id="cT"></canvas></div>
-            <div class="graph-card"><canvas id="cH"></canvas></div>
-            <div class="graph-card"><canvas id="cW"></canvas></div>
-            <div class="graph-card"><canvas id="cR"></canvas></div>
-        </div>
+    <div class="graph-card">
+        <div class="label" style="margin-bottom: 12px;">Temperature Trend</div>
+        <canvas id="cT"></canvas>
     </div>
+    <div class="graph-card">
+        <div class="label" style="margin-bottom: 12px;">Humidity Levels</div>
+        <canvas id="cH"></canvas>
+    </div>
+    <div class="graph-card">
+        <div class="label" style="margin-bottom: 12px;">Wind Velocity</div>
+        <canvas id="cW"></canvas>
+    </div>
+    <div class="graph-card">
+        <div class="label" style="margin-bottom: 12px;">Precipitation</div>
+        <canvas id="cR"></canvas>
+    </div>
+</div>
+
 
 
     <script>
