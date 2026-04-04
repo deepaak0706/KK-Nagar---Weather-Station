@@ -122,8 +122,8 @@ app.get("/", (req, res) => {
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;700;900&display=swap" rel="stylesheet">
     <style>
         :root { 
-            --bg: #fdfcf7; --card: rgba(255, 255, 255, 0.85); --border: rgba(0, 0, 0, 0.04);
-            --text: #0f172a; --muted: #64748b; --accent: #0284c7; --glow: 0 10px 40px -10px rgba(0,0,0,0.04);
+            --bg: #f0f7ff; --card: rgba(255, 255, 255, 0.9); --border: rgba(0, 120, 255, 0.08);
+            --text: #0f172a; --muted: #64748b; --accent: #0284c7; --glow: 0 10px 40px -10px rgba(2,132,199,0.1);
         }
 
         body.is-night {
