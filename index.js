@@ -66,14 +66,14 @@ async function syncWithEcowitt(forceWrite = false) {
                 const r_time = new Date(r.time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' });
                 const r_temp = parseFloat(((r.temp_f - 32) * 5 / 9).toFixed(1));
                 const r_wind = parseFloat((r.wind_speed_mph * 1.60934).toFixed(1));
-                const r_gust = parseFloat((r.wind_gust_mph * 1.60934).toFixed(1)); // Added back
+                const r_gust = parseFloat((r.wind_gust_mph * 1.60934).toFixed(1));
                 const r_rain_daily = parseFloat((r.daily_rain_in * 25.4).toFixed(1));
                 const r_rain_rate = parseFloat((r.rain_rate_in * 25.4).toFixed(1));
 
                 if (r_temp >= mx_t) { mx_t = r_temp; mx_t_time = r_time; }
                 if (r_temp <= mn_t) { mn_t = r_temp; mn_t_time = r_time; }
                 if (r_wind >= mx_w) { mx_w = r_wind; mx_w_t = r_time; }
-                if (r_gust >= mx_g) { mx_g = r_gust; mx_g_t = r_time; } // Fixed comparison
+                if (r_gust >= mx_g) { mx_g = r_gust; mx_g_t = r_time; }
                 if (r_rain_rate > mx_r) { mx_r = r_rain_rate; mx_r_t = r_time; }
 
                 graphHistory.push({ time: r.time, temp: r_temp, hum: r.humidity, wind: r_wind, rain: r_rain_daily });
@@ -192,7 +192,6 @@ app.get("/", (req, res) => {
 
     <script>
         let charts = {};
-        let lastGraphUpdate = 0;
 
         function setupChart(id, label, color, type='line') {
             const ctx = document.getElementById(id);
@@ -204,11 +203,7 @@ app.get("/", (req, res) => {
                     responsive: true, 
                     maintainAspectRatio: false,
                     scales: {
-                        y: {
-                            beginAtZero: true,
-                            min: 0,
-                            ticks: { precision: 1 }
-                        }
+                        y: { beginAtZero: true, min: 0, ticks: { precision: 1 } }
                     }
                 }
             });
@@ -222,6 +217,7 @@ app.get("/", (req, res) => {
                 
                 if (!d || d.error) return;
 
+                // Update text cards
                 document.getElementById('t').innerText = d.temp.current || '--';
                 document.getElementById('mx').innerHTML = (d.temp.max || '--') + '°' + (d.temp.maxTime != "--:--" ? '<span class="time-mark">' + d.temp.maxTime + '</span>' : '');
                 document.getElementById('mn').innerHTML = (d.temp.min || '--') + '°' + (d.temp.minTime != "--:--" ? '<span class="time-mark">' + d.temp.minTime + '</span>' : '');
@@ -240,7 +236,6 @@ app.get("/", (req, res) => {
                 document.getElementById('pIcon').innerText = d.atmo.pTrend > 0 ? '▲' : d.atmo.pTrend < 0 ? '▼' : '●';
                 document.getElementById('sol').innerText = (d.solar.rad || '0') + ' W/m²';
                 document.getElementById('uv').innerText = d.solar.uvi || '0';
-                
                 document.getElementById('r_rate').innerText = d.rain.rate || '0';
                 document.getElementById('r_tot').innerText = (d.rain.total || '0') + ' mm';
                 
@@ -252,20 +247,21 @@ app.get("/", (req, res) => {
 
                 document.getElementById('ts').innerText = new Date(d.lastSync).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 
-                if (now - lastGraphUpdate >= 300000 || lastGraphUpdate === 0) {
-                    const labels = d.history.map(h => new Date(h.time).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', hour12:false}));
-                    if(!charts.cT) {
-                        charts.cT = setupChart('cT', 'Temperature (°C)', '#38bdf8');
-                        charts.cH = setupChart('cH', 'Humidity (%)', '#10b981');
-                        charts.cW = setupChart('cW', 'Wind Speed (km/h)', '#fbbf24');
-                        charts.cR = setupChart('cR', 'Daily Rain (mm)', '#818cf8');
-                    }
-                    if(charts.cT) { charts.cT.data.labels = labels; charts.cT.data.datasets[0].data = d.history.map(h => h.temp); charts.cT.update(); }
-                    if(charts.cH) { charts.cH.data.labels = labels; charts.cH.data.datasets[0].data = d.history.map(h => h.hum); charts.cH.update(); }
-                    if(charts.cW) { charts.cW.data.labels = labels; charts.cW.data.datasets[0].data = d.history.map(h => h.wind); charts.cW.update(); }
-                    if(charts.cR) { charts.cR.data.labels = labels; charts.cR.data.datasets[0].data = d.history.map(h => h.rain); charts.cR.update(); }
-                    lastGraphUpdate = now;
+                // FORCED GRAPH UPDATE - NO TIMER
+                const labels = d.history.map(h => new Date(h.time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' }));
+                
+                if(!charts.cT) {
+                    charts.cT = setupChart('cT', 'Temperature (°C)', '#38bdf8');
+                    charts.cH = setupChart('cH', 'Humidity (%)', '#10b981');
+                    charts.cW = setupChart('cW', 'Wind Speed (km/h)', '#fbbf24');
+                    charts.cR = setupChart('cR', 'Daily Rain (mm)', '#818cf8');
                 }
+                
+                if(charts.cT) { charts.cT.data.labels = labels; charts.cT.data.datasets[0].data = d.history.map(h => h.temp); charts.cT.update('none'); }
+                if(charts.cH) { charts.cH.data.labels = labels; charts.cH.data.datasets[0].data = d.history.map(h => h.hum); charts.cH.update('none'); }
+                if(charts.cW) { charts.cW.data.labels = labels; charts.cW.data.datasets[0].data = d.history.map(h => h.wind); charts.cW.update('none'); }
+                if(charts.cR) { charts.cR.data.labels = labels; charts.cR.data.datasets[0].data = d.history.map(h => h.rain); charts.cR.update('none'); }
+
             } catch (e) { console.error("Update Error:", e); }
         }
         setInterval(update, 45000); update();
