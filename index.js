@@ -52,24 +52,23 @@ async function syncWithEcowitt(forceWrite = false) {
         const liveRainYearly = parseFloat((d.rainfall.yearly.value * 25.4).toFixed(1));
         const liveRainRate = parseFloat(((d.rainfall.rain_rate?.value || 0) * 25.4).toFixed(1));
 
-        // --- MIDNIGHT IST RESET & HARVEST ---
+        // --- 1. MIDNIGHT IST RESET & ARCHIVE ---
         const todayIST = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
         const dateCheck = await pool.query(`SELECT time FROM weather_history ORDER BY time ASC LIMIT 1`);
         
         if (dateCheck.rows.length > 0) {
             const oldestDate = new Date(dateCheck.rows[0].time).toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
             if (oldestDate !== todayIST) {
-                // Archive logic: Save yesterday's summary before clearing
                 await pool.query(`
                     INSERT INTO daily_max_records (record_date, max_temp_c, min_temp_c, max_wind_kmh, total_rain_mm)
                     SELECT $1, MAX((temp_f - 32) * 5/9), MIN((temp_f - 32) * 5/9), MAX(wind_speed_mph * 1.60934), MAX(daily_rain_in * 25.4)
                     FROM weather_history;
                 `, [oldestDate]);
-                // Clear live history for the new day
                 await pool.query(`TRUNCATE TABLE weather_history;`);
             }
         }
 
+        // --- 2. DB WRITE (Every 2 mins) ---
         if (forceWrite || (now - state.lastDbWrite > 120000)) {
             try {
                 await pool.query(
@@ -81,7 +80,7 @@ async function syncWithEcowitt(forceWrite = false) {
             } catch (err) { console.error("Database Write Error:", err.message); }
         }
 
-        // Query only for today starting at Midnight IST
+        // --- 3. FETCH TODAY'S IST DATA ---
         const historyRes = await pool.query(`
             SELECT * FROM weather_history 
             WHERE time >= (CURRENT_DATE AT TIME ZONE 'Asia/Kolkata') 
@@ -89,8 +88,10 @@ async function syncWithEcowitt(forceWrite = false) {
         `);
         const oneHourAgoRes = await pool.query(`SELECT temp_f, humidity FROM weather_history WHERE time >= NOW() - INTERVAL '1 hour' ORDER BY time ASC LIMIT 1`);
         
-        // Initialize maxes with current live data in case DB was just reset
-        let mx_t = liveTemp, mn_t = liveTemp, mx_t_time = "--:--", mn_t_time = "--:--", mx_w = liveWind, mx_w_t = "--:--", mx_g = liveGust, mx_g_t = "--:--", mx_r = liveRainRate, mx_r_t = "--:--", pTrend = 0, tRate = 0, hTrend = 0;
+        // --- 4. CALCULATE AGGREGATES ---
+        let mx_t = -999, mn_t = 999, mx_t_time = "--:--", mn_t_time = "--:--", 
+            mx_w = 0, mx_w_t = "--:--", mx_g = 0, mx_g_t = "--:--", 
+            mx_r = 0, mx_r_t = "--:--", pTrend = 0, tRate = 0, hTrend = 0;
         let graphHistory = [];
 
         if (historyRes.rows.length > 0) {
@@ -110,13 +111,22 @@ async function syncWithEcowitt(forceWrite = false) {
                 const r_rain_rate = parseFloat((r.rain_rate_in * 25.4).toFixed(1));
 
                 if (r_temp >= mx_t) { mx_t = r_temp; mx_t_time = r_time; }
-                if (r_temp <= mn_t) { mn_t = r_temp; mn_t_time = r_time; }
+                if (r_temp <= mn_t || mn_t === 999) { mn_t = r_temp; mn_t_time = r_time; }
                 if (r_wind >= mx_w) { mx_w = r_wind; mx_w_t = r_time; }
-                if (r_gust >= mx_g) { mx_g = r_gust; mx_g_t = r_time; }
+                if (r_gust >= mx_g) { mx_g = r_gust; mx_g_t = r_time; } // Fixed Max Gust Timestamp
                 if (r_rain_rate > mx_r) { mx_r = r_rain_rate; mx_r_t = r_time; }
+                
                 graphHistory.push({ time: r.time, temp: r_temp, hum: r.humidity, wind: r_wind, rain: parseFloat((r.daily_rain_in * 25.4).toFixed(1)) });
             });
         }
+
+        // --- 5. LIVE SYNC FALLBACK ---
+        const liveTime = new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' });
+        if (mx_t === -999 || liveTemp > mx_t) { mx_t = liveTemp; mx_t_time = liveTime; }
+        if (mn_t === 999 || liveTemp < mn_t) { mn_t = liveTemp; mn_t_time = liveTime; }
+        if (liveWind > mx_w) { mx_w = liveWind; mx_w_t = "Live"; }
+        if (liveGust > mx_g) { mx_g = liveGust; mx_g_t = "Live"; }
+        if (liveRainRate > mx_r) { mx_r = liveRainRate; mx_r_t = "Live"; }
 
         state.cachedData = {
             temp: { current: liveTemp, dew: liveDew, max: mx_t, maxTime: mx_t_time, min: mn_t, minTime: mn_t_time, realFeel: calculateRealFeel(liveTemp, liveHum), rate: tRate },
