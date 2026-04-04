@@ -66,12 +66,14 @@ async function syncWithEcowitt(forceWrite = false) {
                 const r_time = new Date(r.time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' });
                 const r_temp = parseFloat(((r.temp_f - 32) * 5 / 9).toFixed(1));
                 const r_wind = parseFloat((r.wind_speed_mph * 1.60934).toFixed(1));
+                const r_gust = parseFloat((r.wind_gust_mph * 1.60934).toFixed(1)); // Added back
                 const r_rain_daily = parseFloat((r.daily_rain_in * 25.4).toFixed(1));
                 const r_rain_rate = parseFloat((r.rain_rate_in * 25.4).toFixed(1));
 
                 if (r_temp >= mx_t) { mx_t = r_temp; mx_t_time = r_time; }
                 if (r_temp <= mn_t) { mn_t = r_temp; mn_t_time = r_time; }
                 if (r_wind >= mx_w) { mx_w = r_wind; mx_w_t = r_time; }
+                if (r_gust >= mx_g) { mx_g = r_gust; mx_g_t = r_time; } // Fixed comparison
                 if (r_rain_rate > mx_r) { mx_r = r_rain_rate; mx_r_t = r_time; }
 
                 graphHistory.push({ time: r.time, temp: r_temp, hum: r.humidity, wind: r_wind, rain: r_rain_daily });
@@ -193,27 +195,24 @@ app.get("/", (req, res) => {
         let lastGraphUpdate = 0;
 
         function setupChart(id, label, color, type='line') {
-    const ctx = document.getElementById(id);
-    if (!ctx) return null;
-    return new Chart(ctx, {
-        type: type,
-        data: { labels: [], datasets: [{ label: label, data: [], borderColor: color, backgroundColor: color+'22', fill: true, tension: 0.4, pointRadius: 0 }] },
-        options: { 
-            responsive: true, 
-            maintainAspectRatio: false,
-            scales: {
-                y: {
-                    beginAtZero: true, // Forces the chart to start at 0
-                    min: 0,            // Prevents negative numbers from showing
-                    ticks: {
-                        precision: 1    // Keeps the numbers clean
+            const ctx = document.getElementById(id);
+            if (!ctx) return null;
+            return new Chart(ctx, {
+                type: type,
+                data: { labels: [], datasets: [{ label: label, data: [], borderColor: color, backgroundColor: color+'22', fill: true, tension: 0.4, pointRadius: 0 }] },
+                options: { 
+                    responsive: true, 
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            min: 0,
+                            ticks: { precision: 1 }
+                        }
                     }
                 }
-            }
+            });
         }
-    });
-}
-
 
         async function update() {
             try {
