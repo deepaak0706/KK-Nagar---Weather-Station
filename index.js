@@ -40,7 +40,7 @@ async function syncWithEcowitt(forceWrite = false) {
         const json = await response.json();
         const d = json.data;
 
-        // LIVE API VALUES
+        // 1. Current Live Values
         const liveTemp = parseFloat(((d.outdoor.temperature.value - 32) * 5 / 9).toFixed(1));
         const liveHum = d.outdoor.humidity.value || 0;
         const livePress = parseFloat((d.pressure.relative.value * 33.8639).toFixed(1));
@@ -48,7 +48,7 @@ async function syncWithEcowitt(forceWrite = false) {
         const liveGust = parseFloat((d.wind.wind_gust.value * 1.60934).toFixed(1));
         const liveRainRate = parseFloat(((d.rainfall.rain_rate?.value || 0) * 25.4).toFixed(1));
 
-        // DB WRITE
+        // 2. Persistent Database Write
         if (forceWrite || (now - state.lastDbWrite > 120000)) {
             await pool.query(`INSERT INTO weather_history (time, temp_f, humidity, wind_speed_mph, wind_gust_mph, daily_rain_in, solar_radiation, press_rel, rain_rate_in) 
                              VALUES (NOW(), $1, $2, $3, $4, $5, $6, $7, $8)`, 
@@ -56,62 +56,49 @@ async function syncWithEcowitt(forceWrite = false) {
             state.lastDbWrite = now;
         }
 
-        // DB QUERY: Get all data from 00:00 today IST
-        const historyRes = await pool.query(`
-            SELECT * FROM weather_history 
-            WHERE time >= (CURRENT_DATE AT TIME ZONE 'Asia/Kolkata') 
-            ORDER BY time ASC
-        `);
+        // 3. Query Last 24 Hours (This prevents the "Refresh Reset" issue)
+        const historyRes = await pool.query(`SELECT * FROM weather_history WHERE time > NOW() - INTERVAL '24 hours' ORDER BY time ASC`);
         
-        let mx_t = -999, mn_t = 999, mx_t_time = "";
-        let mn_t_time = "", mx_w = 0, mx_w_time = "";
-        let mx_g = 0, mx_g_time = "", mx_r = 0, mx_r_time = "";
-        let graphHistory = [];
-        let lastGraphTS = 0;
+        let mx_t = liveTemp, mn_t = liveTemp, mx_t_time = "Now", mn_t_time = "Now";
+        let mx_w = liveWind, mx_g = liveGust, mx_r = liveRainRate;
         let tTrend = 0, hTrend = 0, pTrend = 0;
+        let graphHistory = [];
 
         if (historyRes.rows.length > 0) {
-            // Trend Calculation (Compare current API with very last DB entry)
             const lastEntry = historyRes.rows[historyRes.rows.length - 1];
             const prevTemp = parseFloat(((lastEntry.temp_f - 32) * 5 / 9).toFixed(1));
             const timeDiffMin = (now - new Date(lastEntry.time).getTime()) / 60000;
             
+            // Minute-level Rate of Change (Arrow Logic)
             if (timeDiffMin > 0) {
                 tTrend = parseFloat(((liveTemp - prevTemp) * (60 / timeDiffMin)).toFixed(1));
                 hTrend = liveHum - lastEntry.humidity;
                 pTrend = parseFloat((livePress - (lastEntry.press_rel || livePress)).toFixed(1));
             }
 
-            // Process History for Max/Min and Graph
             historyRes.rows.forEach(r => {
                 const r_time = new Date(r.time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' });
                 const r_temp = parseFloat(((r.temp_f - 32) * 5 / 9).toFixed(1));
                 const r_wind = parseFloat((r.wind_speed_mph * 1.60934).toFixed(1));
                 const r_gust = parseFloat((r.wind_gust_mph * 1.60934).toFixed(1));
                 const r_rain_rate = parseFloat((r.rain_rate_in * 25.4).toFixed(1));
-                const r_ts = new Date(r.time).getTime();
 
+                // Update Max/Min based on 24hr history
                 if (r_temp >= mx_t) { mx_t = r_temp; mx_t_time = r_time; }
                 if (r_temp <= mn_t) { mn_t = r_temp; mn_t_time = r_time; }
-                if (r_wind >= mx_w) { mx_w = r_wind; mx_w_time = r_time; }
-                if (r_gust >= mx_g) { mx_g = r_gust; mx_g_time = r_time; }
-                if (r_rain_rate >= mx_r) { mx_r = r_rain_rate; mx_r_time = r_time; }
+                if (r_wind > mx_w) mx_w = r_wind;
+                if (r_gust > mx_g) mx_g = r_gust;
+                if (r_rain_rate > mx_r) mx_r = r_rain_rate;
 
-                if (r_ts - lastGraphTS >= 300000) {
-                    graphHistory.push({ time: r.time, temp: r_temp, hum: r.humidity, wind: r_wind, rain: r_rain_rate });
-                    lastGraphTS = r_ts;
-                }
+                graphHistory.push({ time: r.time, temp: r_temp, hum: r.humidity, wind: r_wind, rain: r_rain_rate });
             });
         }
 
-        // Safety fallback if DB is empty for the day
-        if (mx_t === -999) { mx_t = liveTemp; mn_t = liveTemp; mx_t_time = "Now"; mn_t_time = "Now"; }
-
         state.cachedData = {
             temp: { current: liveTemp, max: mx_t, maxTime: mx_t_time, min: mn_t, minTime: mn_t_time, trend: tTrend, realFeel: calculateRealFeel(liveTemp, liveHum) },
-            atmo: { hum: liveHum, press: livePress, dew: parseFloat(((d.outdoor.dew_point.value - 32) * 5 / 9).toFixed(1)), hTrend: hTrend, pTrend: pTrend },
-            wind: { speed: liveWind, gust: liveGust, maxS: mx_w, maxSTime: mx_w_time, maxG: mx_g, maxGTime: mx_g_time, deg: d.wind.wind_direction.value, card: getCard(d.wind.wind_direction.value) },
-            rain: { total: parseFloat((d.rainfall.daily.value * 25.4).toFixed(1)), rate: liveRainRate, maxR: mx_r, maxRTime: mx_r_time },
+            atmo: { hum: liveHum, press: livePress, dew: parseFloat(((d.outdoor.dew_point?.value || d.outdoor.temperature.value - 32) * 5 / 9).toFixed(1)), hTrend: hTrend, pTrend: pTrend },
+            wind: { speed: liveWind, gust: liveGust, maxS: mx_w, maxG: mx_g, deg: d.wind.wind_direction.value, card: getCard(d.wind.wind_direction.value) },
+            rain: { total: parseFloat((d.rainfall.daily.value * 25.4).toFixed(1)), rate: liveRainRate, maxR: mx_r },
             solar: { rad: d.solar_and_uvi?.solar?.value || 0, uvi: d.solar_and_uvi?.uvi?.value || 0 },
             history: graphHistory,
             lastSync: new Date().toISOString()
@@ -198,8 +185,8 @@ app.get("/", (req, res) => {
                 <div class="minor-line" style="color:var(--accent)">RealFeel: <span id="rf">--</span>°C</div>
                 <div class="trend-badge" id="tr">--</div>
                 <div class="sub-box-4">
-                    <div class="badge"><span class="badge-label">Today High</span><span id="mx" class="badge-val" style="color:var(--max-t)">--</span></div>
-                    <div class="badge"><span class="badge-label">Today Low</span><span id="mn" class="badge-val" style="color:var(--min-t)">--</span></div>
+                    <div class="badge"><span class="badge-label">24h High</span><span id="mx" class="badge-val" style="color:var(--max-t)">--</span></div>
+                    <div class="badge"><span class="badge-label">24h Low</span><span id="mn" class="badge-val" style="color:var(--min-t)">--</span></div>
                     <div class="badge"><div style="display:flex; align-items:center; gap:6px"><span class="badge-label">Humidity</span><span id="h_tr"></span></div><span id="h" class="badge-val">--</span></div>
                     <div class="badge"><span class="badge-label">Dew Point</span><span id="dp" class="badge-val">--</span></div>
                 </div>
@@ -225,7 +212,7 @@ app.get("/", (req, res) => {
             <div class="card" style="opacity:1">
                 <div class="label">Precipitation</div>
                 <div class="main-val"><span id="r_rate">--</span><span class="unit">mm/h</span></div>
-                <div class="minor-line" style="color:var(--rain)">Total Today: <span id="r_tot">--</span> mm</div>
+                <div class="minor-line" style="color:var(--rain)">Daily Total: <span id="r_tot">--</span> mm</div>
                 <div class="sub-box-4" style="grid-template-columns:1fr">
                     <div class="badge"><span class="badge-label">Max Intensity</span><span id="mr" class="badge-val">--</span></div>
                 </div>
@@ -276,8 +263,8 @@ app.get("/", (req, res) => {
                 document.getElementById('dp').innerText = d.atmo.dew + '°C';
                 document.getElementById('w').innerText = d.wind.speed;
                 document.getElementById('wg').innerText = d.wind.card + ' | Gust ' + d.wind.gust;
-                document.getElementById('mw').innerHTML = d.wind.maxS + ' km/h' + (d.wind.maxSTime ? '<span class="time-mark">' + d.wind.maxSTime + '</span>' : '');
-                document.getElementById('mg').innerHTML = d.wind.maxG + ' km/h' + (d.wind.maxGTime ? '<span class="time-mark">' + d.wind.maxGTime + '</span>' : '');
+                document.getElementById('mw').innerText = d.wind.maxS + ' km/h';
+                document.getElementById('mg').innerText = d.wind.maxG + ' km/h';
                 document.getElementById('needle').style.transform = 'rotate(' + d.wind.deg + 'deg)';
                 
                 document.getElementById('sol').innerText = d.solar.rad + ' W/m²';
@@ -285,7 +272,7 @@ app.get("/", (req, res) => {
                 
                 document.getElementById('r_rate').innerText = d.rain.rate;
                 document.getElementById('r_tot').innerText = d.rain.total;
-                document.getElementById('mr').innerHTML = d.rain.maxR + ' mm/h' + (d.rain.maxRTime ? '<span class="time-mark">' + d.rain.maxRTime + '</span>' : '');
+                document.getElementById('mr').innerText = d.rain.maxR + ' mm/h';
                 
                 document.getElementById('ts').innerText = new Date(d.lastSync).toLocaleTimeString('en-IN');
                 document.body.classList.toggle('solar-low', d.solar.rad <= 0);
