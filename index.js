@@ -198,7 +198,7 @@ app.get("/", (req, res) => {
         let charts = {};
         function setupChart(id, label, color) {
             const ctx = document.getElementById(id); if (!ctx) return null;
-            return new Chart(ctx, { type: 'line', data: { labels: [], datasets: [{ label: label, data: [], borderColor: color, backgroundColor: color+'22', fill: true, tension: 0.4, pointRadius: 0 }] }, options: { animation: false, responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: false, ticks: { precision: 1 } } } } });
+            return new Chart(ctx, { type: 'line', data: { labels: [], datasets: [{ label: label, data: [], borderColor: color, backgroundColor: color+'22', fill: true, tension: 0.4, pointRadius: 0 }] }, options: { animation: false, responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, min: 0, ticks: { precision: 1 } } } } });
         }
         async function update() {
             try {
@@ -245,7 +245,7 @@ app.get("/", (req, res) => {
                 charts.cT.data.labels = labels; charts.cT.data.datasets[0].data = d.history.map(h => h.temp); charts.cT.update('none');
                 charts.cH.data.labels = labels; charts.cH.data.datasets[0].data = d.history.map(h => h.hum); charts.cH.update('none');
                 charts.cW.data.labels = labels; charts.cW.data.datasets[0].data = d.history.map(h => h.wind); charts.cW.update('none');
-                charts.cR.data.labels = labels; charts.cR.data.datasets[0].data = d.history.map(h => h.rain); charts.cR.update('none');
+                charts.cW.data.labels = labels; charts.cR.data.datasets[0].data = d.history.map(h => Math.max(0, h.rain)); charts.cR.update('none');
             } catch (e) { console.error(e); }
         }
         setInterval(update, 45000); update();
