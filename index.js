@@ -131,7 +131,7 @@ app.get("/", (req, res) => {
             --text: #f1f5f9; --muted: #94a3b8; --accent: #38bdf8; --glow: 0 15px 50px -12px rgba(0,0,0,0.6);
         }
 
-        body { margin: 0; font-family: 'Outfit', sans-serif; background: var(--bg); color: var(--text); padding: 40px 24px; transition: all 0.5s ease; min-height: 100vh; }
+        body { margin: 0; font-family: 'Outfit', sans-serif; background: var(--bg); color: var(--text); padding: 40px 24px; transition: all 0.5s ease; min-height: 100vh; overflow-x: hidden; }
         .container { width: 100%; max-width: 1200px; margin: 0 auto; }
         
         .header { margin-bottom: 40px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 20px; }
@@ -173,7 +173,7 @@ app.get("/", (req, res) => {
         #needle { width: 3px; height: 38px; background: linear-gradient(to bottom, #ef4444 50%, var(--muted) 50%); clip-path: polygon(50% 0%, 100% 100%, 50% 85%, 0% 100%); transition: transform 2s cubic-bezier(0.1, 0.9, 0.2, 1); }
 
         .graphs-wrapper { display: grid; grid-template-columns: repeat(auto-fit, minmax(450px, 1fr)); gap: 24px; margin-top: 24px; }
-        .graph-card { background: var(--card); padding: 24px; border-radius: 36px; border: 1px solid var(--border); height: 360px; box-shadow: var(--glow); }
+        .graph-card { background: var(--card); padding: 24px; border-radius: 36px; border: 1px solid var(--border); height: 360px; box-shadow: var(--glow); overflow: hidden; }
 
         .trend-up { color: #f43f5e; } .trend-down { color: #0ea5e9; }
         .time-mark { font-size: 10px; color: var(--muted); font-weight: 600; margin-left: 4px; background: rgba(0,0,0,0.04); padding: 2px 6px; border-radius: 6px; }
@@ -260,6 +260,28 @@ app.get("/", (req, res) => {
 
     <script>
         let currentMode = localStorage.getItem('weatherMode') || 'auto';
+        let charts = {};
+
+        // Vertical Line Plugin Registration
+        Chart.register({
+            id: 'verticalLine',
+            afterDraw: (chart) => {
+                if (chart.tooltip?._active?.length) {
+                    const x = chart.tooltip._active[0].element.x;
+                    const yAxis = chart.scales.y;
+                    const ctx = chart.ctx;
+                    ctx.save();
+                    ctx.setLineDash([5, 5]);
+                    ctx.beginPath();
+                    ctx.moveTo(x, yAxis.top);
+                    ctx.lineTo(x, yAxis.bottom);
+                    ctx.lineWidth = 1;
+                    ctx.strokeStyle = document.body.classList.contains('is-night') ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.1)';
+                    ctx.stroke();
+                    ctx.restore();
+                }
+            }
+        });
 
         function applyTheme() {
             const hour = new Date().getHours();
@@ -296,33 +318,70 @@ app.get("/", (req, res) => {
             });
         }
 
-        let charts = {};
         function setupChart(id, label, color, minVal = null) {
-            const ctx = document.getElementById(id);
+            const canvas = document.getElementById(id);
+            const ctx = canvas.getContext('2d');
+            
+            // Modern Neon Gradient
+            const gradient = ctx.createLinearGradient(0, 0, 0, 300);
+            gradient.addColorStop(0, color + '40'); 
+            gradient.addColorStop(1, color + '00');
+
             return new Chart(ctx, { 
-                type: 'line', 
-                data: { labels: [], datasets: [{ label: label, data: [], borderColor: color, backgroundColor: color+'15', fill: true, tension: 0.4, pointRadius: 0, borderWidth: 3 }] }, 
+                type: id === 'cR' ? 'bar' : 'line', 
+                data: { 
+                    labels: [], 
+                    datasets: [{ 
+                        label: label, 
+                        data: [], 
+                        borderColor: color, 
+                        backgroundColor: gradient,
+                        fill: true, 
+                        tension: 0.4, 
+                        pointRadius: 0, 
+                        borderWidth: 3,
+                        borderRadius: 4,
+                        pointHoverRadius: 5,
+                        pointHoverBackgroundColor: color,
+                        pointHoverBorderColor: '#fff',
+                        pointHoverBorderWidth: 2
+                    }] 
+                }, 
                 options: { 
-                    animation: false, responsive: true, maintainAspectRatio: false, 
+                    animation: { duration: 1000, easing: 'easeOutQuart' },
+                    responsive: true, 
+                    maintainAspectRatio: false,
+                    interaction: { intersect: false, mode: 'index' },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: document.body.classList.contains('is-night') ? '#1e293b' : '#fff',
+                            titleColor: document.body.classList.contains('is-night') ? '#f1f5f9' : '#0f172a',
+                            bodyColor: document.body.classList.contains('is-night') ? '#f1f5f9' : '#0f172a',
+                            bodyFont: { family: 'Outfit', weight: '700' },
+                            padding: 12,
+                            cornerRadius: 12,
+                            displayColors: false,
+                            borderColor: 'rgba(0,0,0,0.05)',
+                            borderWidth: 1
+                        }
+                    },
                     scales: { 
                         y: { 
-                            grid: { color: 'rgba(0,0,0,0.03)' }, 
-                            ticks: { font: { family: 'Outfit' } },
+                            grid: { color: 'rgba(0,0,0,0.03)', drawBorder: false }, 
+                            ticks: { font: { family: 'Outfit', size: 10 }, padding: 8 },
                             min: minVal
                         }, 
-                                                                        x: { 
+                        x: { 
                             grid: { display: false }, 
                             ticks: { 
-                                font: { family: 'Outfit', size: 10 },
+                                font: { family: 'Outfit', size: 10 }, 
                                 maxTicksLimit: 10,
                                 autoSkip: true,
                                 maxRotation: 0,
-                                align: 'start',
-                                bounds: 'ticks'
+                                align: 'start'
                             } 
-                        }
- 
-
+                        } 
                     } 
                 } 
             });
