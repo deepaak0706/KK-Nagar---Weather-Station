@@ -15,7 +15,7 @@ let state = { cachedData: null, lastFetchTime: 0, lastDbWrite: 0 };
 
 const getCard = (a) => {
     const directions = ["N","NNE","NE","ENE","E","ESE","SE","SSE","S","SSW","SW","WSW","W","WNW","NW","NNW"];
-    return directions[Round(a / 22.5) % 16];
+    return directions[Math.round(a / 22.5) % 16];
 };
 
 function calculateRealFeel(tempC, humidity) {
@@ -108,7 +108,6 @@ app.get("/", (req, res) => {
         body { margin: 0; font-family: 'Outfit', sans-serif; background: var(--bg-1); color: #f8fafc; padding: 32px 24px; display: flex; flex-direction: column; align-items: center; }
         .container { width: 100%; max-width: 1200px; }
         
-        /* HEADER STYLES */
         .header { margin-bottom: 40px; display: flex; justify-content: space-between; align-items: center; width: 100%; }
         .header h1 { font-size: 28px; font-weight: 800; margin: 0; background: linear-gradient(to right, #f8fafc, #94a3b8); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
         .status-bar { display: flex; align-items: center; gap: 12px; background: rgba(255,255,255,0.03); padding: 8px 16px; border-radius: 100px; border: 1px solid var(--border); }
@@ -197,7 +196,9 @@ app.get("/", (req, res) => {
         let lastGraphUpdate = 0;
 
         function setupChart(id, label, color, type='line') {
-            return new Chart(document.getElementById(id), {
+            const ctx = document.getElementById(id);
+            if (!ctx) return null;
+            return new Chart(ctx, {
                 type: type,
                 data: { labels: [], datasets: [{ label: label, data: [], borderColor: color, backgroundColor: color+'22', fill: true, tension: 0.4, pointRadius: 0 }] },
                 options: { responsive: true, maintainAspectRatio: false }
@@ -210,40 +211,39 @@ app.get("/", (req, res) => {
                 const res = await fetch('/weather?v=' + now);
                 const d = await res.json();
                 
-                // 45s TEXT UPDATES
-                document.getElementById('t').innerText = d.temp.current;
-                document.getElementById('mx').innerHTML = d.temp.max + '°' + (d.temp.maxTime != "--:--" ? '<span class="time-mark">' + d.temp.maxTime + '</span>' : '');
-                document.getElementById('mn').innerHTML = d.temp.min + '°' + (d.temp.minTime != "--:--" ? '<span class="time-mark">' + d.temp.minTime + '</span>' : '');
-                document.getElementById('rf').innerText = d.temp.realFeel + '°';
-                document.getElementById('h').innerText = d.atmo.hum + '%';
-                
-                // Wind Updates
-                document.getElementById('w').innerText = d.wind.speed;
-                document.getElementById('wg').innerText = d.wind.gust + ' km/h';
-                document.getElementById('wd').innerText = d.wind.card + ' (' + d.wind.deg + '°)';
-                document.getElementById('mw').innerHTML = d.wind.maxS + ' <span class="time-mark">' + d.wind.maxSTime + '</span>';
-                document.getElementById('mg').innerHTML = d.wind.maxG + ' <span class="time-mark">' + d.wind.maxGTime + '</span>';
-                document.getElementById('needle').style.transform = 'rotate(' + d.wind.deg + 'deg)';
+                if (!d || d.error) return;
 
-                document.getElementById('pr').innerText = d.atmo.press;
+                // TEXT UPDATES
+                document.getElementById('t').innerText = d.temp.current || '--';
+                document.getElementById('mx').innerHTML = (d.temp.max || '--') + '°' + (d.temp.maxTime != "--:--" ? '<span class="time-mark">' + d.temp.maxTime + '</span>' : '');
+                document.getElementById('mn').innerHTML = (d.temp.min || '--') + '°' + (d.temp.minTime != "--:--" ? '<span class="time-mark">' + d.temp.minTime + '</span>' : '');
+                document.getElementById('rf').innerText = (d.temp.realFeel || '--') + '°';
+                document.getElementById('h').innerText = (d.atmo.hum || '--') + '%';
+                
+                document.getElementById('w').innerText = d.wind.speed || '0';
+                document.getElementById('wg').innerText = (d.wind.gust || '0') + ' km/h';
+                document.getElementById('wd').innerText = (d.wind.card || 'N') + ' (' + (d.wind.deg || '0') + '°)';
+                document.getElementById('mw').innerHTML = (d.wind.maxS || '0') + ' <span class="time-mark">' + (d.wind.maxSTime || '--:--') + '</span>';
+                document.getElementById('mg').innerHTML = (d.wind.maxG || '0') + ' <span class="time-mark">' + (d.wind.maxGTime || '--:--') + '</span>';
+                document.getElementById('needle').style.transform = 'rotate(' + (d.wind.deg || 0) + 'deg)';
+
+                document.getElementById('pr').innerText = d.atmo.press || '--';
                 document.getElementById('pIcon').innerText = d.atmo.pTrend > 0 ? '▲' : d.atmo.pTrend < 0 ? '▼' : '●';
-                document.getElementById('sol').innerText = d.solar.rad + ' W/m²';
-                document.getElementById('uv').innerText = d.solar.uvi;
+                document.getElementById('sol').innerText = (d.solar.rad || '0') + ' W/m²';
+                document.getElementById('uv').innerText = d.solar.uvi || '0';
                 
-                document.getElementById('r_rate').innerText = d.rain.rate;
-                document.getElementById('r_tot').innerText = d.rain.total + ' mm';
+                document.getElementById('r_rate').innerText = d.rain.rate || '0';
+                document.getElementById('r_tot').innerText = (d.rain.total || '0') + ' mm';
                 
-                // Rain Logic
                 if (d.rain.maxR > 0) {
                     document.getElementById('mr').innerHTML = d.rain.maxR + ' mm/h <span class="time-mark">' + d.rain.maxRTime + '</span>';
                 } else {
                     document.getElementById('mr').innerText = '0 mm/h';
                 }
 
-                // Global Status Timestamp
                 document.getElementById('ts').innerText = new Date(d.lastSync).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 
-                // 5m GRAPH UPDATES
+                // GRAPHS
                 if (now - lastGraphUpdate >= 300000 || lastGraphUpdate === 0) {
                     const labels = d.history.map(h => new Date(h.time).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', hour12:false}));
                     if(!charts.cT) {
@@ -252,13 +252,13 @@ app.get("/", (req, res) => {
                         charts.cW = setupChart('cW', 'Wind Speed (km/h)', '#fbbf24');
                         charts.cR = setupChart('cR', 'Rain Rate (mm/h)', '#818cf8', 'bar');
                     }
-                    charts.cT.data.labels = labels; charts.cT.data.datasets[0].data = d.history.map(h => h.temp); charts.cT.update();
-                    charts.cH.data.labels = labels; charts.cH.data.datasets[0].data = d.history.map(h => h.hum); charts.cH.update();
-                    charts.cW.data.labels = labels; charts.cW.data.datasets[0].data = d.history.map(h => h.wind); charts.cW.update();
-                    charts.cR.data.labels = labels; charts.cR.data.datasets[0].data = d.history.map(h => h.rain); charts.cR.update();
+                    if(charts.cT) { charts.cT.data.labels = labels; charts.cT.data.datasets[0].data = d.history.map(h => h.temp); charts.cT.update(); }
+                    if(charts.cH) { charts.cH.data.labels = labels; charts.cH.data.datasets[0].data = d.history.map(h => h.hum); charts.cH.update(); }
+                    if(charts.cW) { charts.cW.data.labels = labels; charts.cW.data.datasets[0].data = d.history.map(h => h.wind); charts.cW.update(); }
+                    if(charts.cR) { charts.cR.data.labels = labels; charts.cR.data.datasets[0].data = d.history.map(h => h.rain); charts.cR.update(); }
                     lastGraphUpdate = now;
                 }
-            } catch (e) { console.error(e); }
+            } catch (e) { console.error("Update Error:", e); }
         }
         setInterval(update, 45000); update();
     </script>
