@@ -64,7 +64,7 @@ async function syncWithEcowitt(forceWrite = false) {
                     SELECT $1, MAX((temp_f - 32) * 5/9), MIN((temp_f - 32) * 5/9), MAX(wind_speed_mph * 1.60934), MAX(daily_rain_in * 25.4)
                     FROM weather_history;
                 `, [oldestDate]);
-                await pool.query(`TRUNCATE TABLE weather_history;`);
+                await pool.query(`DELETE FROM weather_history WHERE time < (CURRENT_DATE AT TIME ZONE 'Asia/Kolkata');`);
             }
         }
 
