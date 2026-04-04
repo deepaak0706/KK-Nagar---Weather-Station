@@ -185,11 +185,17 @@ app.get("/", (req, res) => {
         <div class="header">
             <h1>KK Nagar Weather Hub</h1>
             <div class="header-actions">
-                <div class="header-actions">
     <div class="status-bar">
         <div class="live-dot"></div>
         <div class="timestamp">LIVE: <span id="ts">--:--:--</span></div>
     </div>
+    <div class="theme-toggle" id="themeToggle">
+        <div class="theme-btn" id="btn-light">LIGHT</div>
+        <div class="theme-btn" id="btn-dark">DARK</div>
+        <div class="theme-btn active" id="btn-auto">AUTO</div>
+    </div>
+</div>
+
     <div class="theme-toggle" id="themeToggle">
         <div class="theme-btn" id="btn-light">LIGHT</div>
         <div class="theme-btn" id="btn-dark">DARK</div>
