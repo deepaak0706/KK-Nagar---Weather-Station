@@ -40,6 +40,7 @@ async function syncWithEcowitt(forceWrite = false) {
         const json = await response.json();
         const d = json.data;
 
+        // LIVE API VALUES
         const liveTemp = parseFloat(((d.outdoor.temperature.value - 32) * 5 / 9).toFixed(1));
         const liveHum = d.outdoor.humidity.value || 0;
         const livePress = parseFloat((d.pressure.relative.value * 33.8639).toFixed(1));
@@ -47,6 +48,7 @@ async function syncWithEcowitt(forceWrite = false) {
         const liveGust = parseFloat((d.wind.wind_gust.value * 1.60934).toFixed(1));
         const liveRainRate = parseFloat(((d.rainfall.rain_rate?.value || 0) * 25.4).toFixed(1));
 
+        // DB WRITE
         if (forceWrite || (now - state.lastDbWrite > 120000)) {
             await pool.query(`INSERT INTO weather_history (time, temp_f, humidity, wind_speed_mph, wind_gust_mph, daily_rain_in, solar_radiation, press_rel, rain_rate_in) 
                              VALUES (NOW(), $1, $2, $3, $4, $5, $6, $7, $8)`, 
@@ -54,28 +56,33 @@ async function syncWithEcowitt(forceWrite = false) {
             state.lastDbWrite = now;
         }
 
-        // DB Data for Max/Min and Trends (Reset at 12 AM)
-        const historyRes = await pool.query(`SELECT * FROM weather_history WHERE time >= CURRENT_DATE AT TIME ZONE 'Asia/Kolkata' ORDER BY time ASC`);
+        // DB QUERY: Get all data from 00:00 today IST
+        const historyRes = await pool.query(`
+            SELECT * FROM weather_history 
+            WHERE time >= (CURRENT_DATE AT TIME ZONE 'Asia/Kolkata') 
+            ORDER BY time ASC
+        `);
         
-        let mx_t = -999, mn_t = 999, mx_t_time = "", mn_t_time = "";
-        let mx_w = 0, mx_w_time = "", mx_g = 0, mx_g_time = "";
-        let mx_r = 0, mx_r_time = "";
+        let mx_t = -999, mn_t = 999, mx_t_time = "";
+        let mn_t_time = "", mx_w = 0, mx_w_time = "";
+        let mx_g = 0, mx_g_time = "", mx_r = 0, mx_r_time = "";
         let graphHistory = [];
         let lastGraphTS = 0;
         let tTrend = 0, hTrend = 0, pTrend = 0;
 
         if (historyRes.rows.length > 0) {
+            // Trend Calculation (Compare current API with very last DB entry)
             const lastEntry = historyRes.rows[historyRes.rows.length - 1];
             const prevTemp = parseFloat(((lastEntry.temp_f - 32) * 5 / 9).toFixed(1));
             const timeDiffMin = (now - new Date(lastEntry.time).getTime()) / 60000;
             
-            // Calculate Rate of Change per hour
             if (timeDiffMin > 0) {
                 tTrend = parseFloat(((liveTemp - prevTemp) * (60 / timeDiffMin)).toFixed(1));
                 hTrend = liveHum - lastEntry.humidity;
                 pTrend = parseFloat((livePress - (lastEntry.press_rel || livePress)).toFixed(1));
             }
 
+            // Process History for Max/Min and Graph
             historyRes.rows.forEach(r => {
                 const r_time = new Date(r.time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' });
                 const r_temp = parseFloat(((r.temp_f - 32) * 5 / 9).toFixed(1));
@@ -97,11 +104,12 @@ async function syncWithEcowitt(forceWrite = false) {
             });
         }
 
-        if (mx_t === -999) { mx_t = liveTemp; mn_t = liveTemp; mx_w = liveWind; mx_g = liveGust; mx_r = liveRainRate; }
+        // Safety fallback if DB is empty for the day
+        if (mx_t === -999) { mx_t = liveTemp; mn_t = liveTemp; mx_t_time = "Now"; mn_t_time = "Now"; }
 
         state.cachedData = {
             temp: { current: liveTemp, max: mx_t, maxTime: mx_t_time, min: mn_t, minTime: mn_t_time, trend: tTrend, realFeel: calculateRealFeel(liveTemp, liveHum) },
-            atmo: { hum: liveHum, press: livePress, dew: parseFloat(((d.outdoor.temperature.value - 32) * 5 / 9).toFixed(1)), hTrend: hTrend, pTrend: pTrend },
+            atmo: { hum: liveHum, press: livePress, dew: parseFloat(((d.outdoor.dew_point.value - 32) * 5 / 9).toFixed(1)), hTrend: hTrend, pTrend: pTrend },
             wind: { speed: liveWind, gust: liveGust, maxS: mx_w, maxSTime: mx_w_time, maxG: mx_g, maxGTime: mx_g_time, deg: d.wind.wind_direction.value, card: getCard(d.wind.wind_direction.value) },
             rain: { total: parseFloat((d.rainfall.daily.value * 25.4).toFixed(1)), rate: liveRainRate, maxR: mx_r, maxRTime: mx_r_time },
             solar: { rad: d.solar_and_uvi?.solar?.value || 0, uvi: d.solar_and_uvi?.uvi?.value || 0 },
