@@ -40,7 +40,7 @@ async function syncWithEcowitt(forceWrite = false) {
         const d = json.data;
 
         const liveTemp = parseFloat(((d.outdoor.temperature.value - 32) * 5 / 9).toFixed(1));
-        const liveDew = parseFloat(((d.outdoor.dew_point.value - 32) * 5 / 9).toFixed(1));
+        const liveDew = parseFloat(((d.outdoor.dew_point.value - 32) * 5 / 9).toFixed(1)); // Added Dew Point
         const liveHum = d.outdoor.humidity.value || 0;
         const livePress = parseFloat((d.pressure.relative.value * 33.8639).toFixed(1));
         const liveWind = parseFloat((d.wind.wind_speed.value * 1.60934).toFixed(1));
@@ -52,6 +52,7 @@ async function syncWithEcowitt(forceWrite = false) {
         const liveRainYearly = parseFloat((d.rainfall.yearly.value * 25.4).toFixed(1));
         const liveRainRate = parseFloat(((d.rainfall.rain_rate?.value || 0) * 25.4).toFixed(1));
 
+        // DB Write Check (2 Minutes)
         if (forceWrite || (now - state.lastDbWrite > 120000)) {
             try {
                 await pool.query(
@@ -64,22 +65,19 @@ async function syncWithEcowitt(forceWrite = false) {
         }
 
         const historyRes = await pool.query(`SELECT * FROM weather_history WHERE time >= (CURRENT_DATE AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Kolkata') ORDER BY time ASC`);
-        const oneHourAgoRes = await pool.query(`SELECT temp_f, humidity FROM weather_history WHERE time >= NOW() - INTERVAL '1 hour' ORDER BY time ASC LIMIT 1`);
+        const oneHourAgoRes = await pool.query(`SELECT temp_f FROM weather_history WHERE time >= NOW() - INTERVAL '1 hour' ORDER BY time ASC LIMIT 1`);
         
-        let mx_t = -999, mn_t = 999, mx_t_time = "--:--", mn_t_time = "--:--", mx_w = 0, mx_w_t = "--:--", mx_g = 0, mx_g_t = "--:--", mx_r = 0, mx_r_t = "--:--", pTrend = 0, tRate = 0, hTrend = 0;
+        let mx_t = -999, mn_t = 999, mx_t_time = "--:--", mn_t_time = "--:--", mx_w = 0, mx_w_t = "--:--", mx_g = 0, mx_g_t = "--:--", mx_r = 0, mx_r_t = "--:--", pTrend = 0, tRate = 0;
         let graphHistory = [];
 
         if (historyRes.rows.length > 0) {
             const lastRow = historyRes.rows[historyRes.rows.length - 1];
             pTrend = parseFloat((livePress - (lastRow.press_rel || livePress)).toFixed(1));
             const baseTempF = oneHourAgoRes.rows.length > 0 ? oneHourAgoRes.rows[0].temp_f : (historyRes.rows[0].temp_f || d.outdoor.temperature.value);
-            const baseHum = oneHourAgoRes.rows.length > 0 ? oneHourAgoRes.rows[0].humidity : (historyRes.rows[0].humidity || liveHum);
-            
             tRate = parseFloat((liveTemp - parseFloat(((baseTempF - 32) * 5 / 9).toFixed(1))).toFixed(1));
-            hTrend = liveHum - baseHum;
 
             historyRes.rows.forEach(r => {
-                const r_time = new Date(r.time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' });
+                const r_time = new Date(r.time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' });
                 const r_temp = parseFloat(((r.temp_f - 32) * 5 / 9).toFixed(1));
                 const r_wind = parseFloat((r.wind_speed_mph * 1.60934).toFixed(1));
                 const r_gust = parseFloat((r.wind_gust_mph * 1.60934).toFixed(1));
@@ -96,7 +94,7 @@ async function syncWithEcowitt(forceWrite = false) {
 
         state.cachedData = {
             temp: { current: liveTemp, dew: liveDew, max: mx_t, maxTime: mx_t_time, min: mn_t, minTime: mn_t_time, realFeel: calculateRealFeel(liveTemp, liveHum), rate: tRate },
-            atmo: { hum: liveHum, hTrend: hTrend, press: livePress, pTrend, sol: d.solar_and_uvi?.solar?.value || 0, uv: d.solar_and_uvi?.uvi?.value || 0 },
+            atmo: { hum: liveHum, press: livePress, pTrend, sol: d.solar_and_uvi?.solar?.value || 0, uv: d.solar_and_uvi?.uvi?.value || 0 },
             wind: { speed: liveWind, gust: liveGust, maxS: mx_w, maxSTime: mx_w_t, maxG: mx_g, maxGTime: mx_g_t, deg: d.wind.wind_direction.value, card: getCard(d.wind.wind_direction.value) },
             rain: { total: liveRain24h, weekly: liveRainWeekly, monthly: liveRainMonthly, yearly: liveRainYearly, rate: liveRainRate, maxR: mx_r, maxRTime: mx_r_t },
             history: graphHistory,
@@ -116,153 +114,75 @@ app.get("/", (req, res) => {
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>KK Nagar Weather Hub</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kk Nagar Weather Hub</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;700;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800;900&display=swap" rel="stylesheet">
     <style>
-        /* LIGHT MODE (Sunny Day Feel) */
-:root { 
-    --bg: #e0f2fe; /* Soft Sky Blue */
-    --card: rgba(240, 249, 255, 0.9); /* Very pale blue, semi-transparent */
-    --border: rgba(186, 230, 253, 0.5); /* Light blue border */
-    --text: #0369a1; /* Deep blue-tinted text for better contrast on blue */
-    --muted: #64748b; 
-    --accent: #0284c7; 
-    --glow: 0 10px 40px -10px rgba(0,0,0,0.03);
-}
-
-/* DARK MODE (Remains Midnight/Night Feel) */
-body.is-night {
-    --bg: #020617; 
-    --card: rgba(15, 23, 42, 0.75); 
-    --border: rgba(255, 255, 255, 0.08);
-    --text: #f1f5f9; 
-    --muted: #94a3b8; 
-    --accent: #38bdf8; 
-    --glow: 0 15px 50px -12px rgba(0,0,0,0.6);
-}
-
-
-        body.is-night {
-            --bg: #020617; --card: rgba(15, 23, 42, 0.75); --border: rgba(255, 255, 255, 0.08);
-            --text: #f1f5f9; --muted: #94a3b8; --accent: #38bdf8; --glow: 0 15px 50px -12px rgba(0,0,0,0.6);
-        }
-
-        body { margin: 0; font-family: 'Outfit', sans-serif; background: var(--bg); color: var(--text); padding: 20px 16px 120px 16px; transition: all 0.5s ease; min-height: 100vh; overflow-x: hidden; }
-        .container { width: 100%; max-width: 1200px; margin: 0 auto; }
-        
-        .header { margin-bottom: 32px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; }
-        .header h1 { font-size: 28px; font-weight: 900; margin: 0; letter-spacing: -1px; }
-
-        .header-actions { display: flex; align-items: center; gap: 12px; }
-        
-        .theme-toggle {
-            background: var(--card); border: 1px solid var(--border); padding: 4px; border-radius: 12px;
-            display: flex; gap: 4px; box-shadow: var(--glow); cursor: pointer;
-        }
-        .theme-btn { 
-            padding: 6px 10px; border-radius: 8px; font-size: 11px; font-weight: 700; 
-            transition: 0.3s; color: var(--muted); 
-        }
-        .theme-btn.active { background: var(--accent); color: white; }
-
-        .status-bar { display: flex; align-items: center; gap: 8px; background: var(--card); padding: 6px 16px; border-radius: 100px; border: 1px solid var(--border); box-shadow: var(--glow); font-size: 13px; }
-        .live-dot { width: 6px; height: 6px; background: #10b981; border-radius: 50%; animation: blink 2s infinite; }
-        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
-        
-        .grid-system { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
-        
-        /* THE FIX: Canvas Positioning */
-        .card { background: var(--card); padding: 28px; border-radius: 32px; border: 1px solid var(--border); backdrop-filter: blur(15px); box-shadow: var(--glow); position: relative; overflow: hidden; }
-        #windCanvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; border-radius: 32px; }
-        .card > *:not(canvas) { position: relative; z-index: 5; }
-
-        .label { color: var(--accent); font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 6px; }
-        .main-val { font-size: 56px; font-weight: 900; margin: 0; letter-spacing: -2px; display: flex; align-items: baseline; line-height: 1.1; }
-        .unit { font-size: 20px; font-weight: 600; color: var(--muted); margin-left: 4px; letter-spacing: 0; }
-
-        .sub-pill { font-size: 12px; font-weight: 800; padding: 6px 12px; border-radius: 10px; background: rgba(0,0,0,0.03); display: inline-flex; align-items: center; gap: 4px; margin: 12px 0 20px 0; }
-        body.is-night .sub-pill { background: rgba(255,255,255,0.05); }
-
-        .sub-box-4 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding-top: 20px; border-top: 1px solid var(--border); }
-        .badge { padding: 12px; border-radius: 18px; background: rgba(0, 0, 0, 0.02); display: flex; flex-direction: column; gap: 2px; }
-        body.is-night .badge { background: rgba(255,255,255,0.04); }
-        .badge-label { font-size: 9px; color: var(--muted); text-transform: uppercase; font-weight: 800; }
-        .badge-val { font-size: 16px; font-weight: 800; }
-
-        .compass-ui { position: absolute !important; top: 28px !important; right: 28px !important; width: 50px; height: 50px; border: 2px solid var(--border); border-radius: 50%; display: flex; align-items: center; justify-content: center; z-index: 10; }
-        #needle { width: 3px; height: 32px; background: linear-gradient(to bottom, #ef4444 50%, var(--muted) 50%); clip-path: polygon(50% 0%, 100% 100%, 50% 85%, 0% 100%); transition: transform 2s cubic-bezier(0.1, 0.9, 0.2, 1); }
-
-        .graphs-wrapper { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin-top: 20px; }
-        .graph-card { background: var(--card); padding: 24px; border-radius: 32px; border: 1px solid var(--border); height: 320px; box-shadow: var(--glow); display: flex; flex-direction: column; overflow: hidden; }
-        .graph-card canvas { flex-grow: 1; width: 100% !important; height: 100% !important; }
-
-        .trend-up { color: #f43f5e; } .trend-down { color: #0ea5e9; }
-        .time-mark { font-size: 9px; color: var(--muted); font-weight: 600; margin-left: 2px; background: rgba(0,0,0,0.04); padding: 1px 4px; border-radius: 4px; }
-        body.is-night .time-mark { background: rgba(255,255,255,0.1); }
+        :root { --bg-1: #020617; --card: rgba(15, 23, 42, 0.45); --accent: #38bdf8; --max-t: #fb7185; --min-t: #60a5fa; --border: rgba(255, 255, 255, 0.08); }
+        body { margin: 0; font-family: 'Outfit', sans-serif; background: var(--bg-1); color: #f8fafc; padding: 32px 24px; display: flex; flex-direction: column; align-items: center; }
+        .container { width: 100%; max-width: 1200px; }
+        .header { margin-bottom: 40px; display: flex; justify-content: space-between; align-items: center; width: 100%; }
+        .header h1 { font-size: 28px; font-weight: 800; margin: 0; background: linear-gradient(to right, #f8fafc, #94a3b8); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .status-bar { display: flex; align-items: center; gap: 12px; background: rgba(255,255,255,0.03); padding: 8px 16px; border-radius: 100px; border: 1px solid var(--border); }
+        .live-dot { width: 8px; height: 8px; background: #10b981; border-radius: 50%; box-shadow: 0 0 12px #10b981; animation: blink 1.5s infinite; }
+        @keyframes blink { 0% { opacity: 1; } 50% { opacity: 0.3; } 100% { opacity: 1; } }
+        .timestamp { font-size: 13px; font-weight: 700; color: #94a3b8; }
+        .grid-system { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 24px; margin-bottom: 24px; }
+        .card { background: var(--card); padding: 32px; border-radius: 28px; border: 1px solid var(--border); backdrop-filter: blur(24px); position: relative; }
+        .label { color: #94a3b8; font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 8px; }
+        .main-val { font-size: 56px; font-weight: 900; margin: 4px 0; display: flex; align-items: baseline; letter-spacing: -2px; }
+        .unit { font-size: 22px; font-weight: 600; color: #64748b; margin-left: 8px; }
+        .sub-pill { font-size: 12px; font-weight: 800; padding: 4px 10px; border-radius: 8px; background: rgba(255,255,255,0.05); display: inline-flex; align-items: center; gap: 4px; margin-bottom: 12px; }
+        .trend-up { color: #fb7185; } .trend-down { color: #38bdf8; }
+        .sub-box-4 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding-top: 24px; border-top: 1px solid var(--border); }
+        .badge { padding: 16px; border-radius: 20px; background: rgba(0, 0, 0, 0.2); display: flex; flex-direction: column; gap: 4px; }
+        .badge-label { font-size: 11px; color: #64748b; text-transform: uppercase; font-weight: 800; }
+        .badge-val { font-size: 16px; font-weight: 700; }
+        .time-mark { font-size: 10px; font-weight: 800; color: #94a3b8; background: rgba(255,255,255,0.08); padding: 2px 6px; border-radius: 6px; margin-left: 4px; }
+        .compass-ui { position: absolute; top: 32px; right: 32px; width: 64px; height: 64px; border: 2px solid rgba(255,255,255,0.1); border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+        .compass-ui span { position: absolute; font-size: 8px; font-weight: 900; color: rgba(255,255,255,0.3); }
+        .c-n { top: 2px; } .c-e { right: 2px; } .c-s { bottom: 2px; } .c-w { left: 2px; }
+        #needle { width: 4px; height: 40px; background: linear-gradient(to bottom, var(--max-t) 50%, #e2e8f0 50%); clip-path: polygon(50% 0%, 100% 100%, 50% 85%, 0% 100%); transition: transform 1.5s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+        .graph-card { background: var(--card); padding: 32px; border-radius: 28px; border: 1px solid var(--border); height: 360px; margin-bottom: 24px; }
     </style>
 </head>
 <body>
     <div class="container">
-        <div class="header">
-            <h1>KK Nagar Weather Hub</h1>
-            <div class="header-actions">
-                <div class="status-bar">
-                    <div class="live-dot"></div>
-                    <div class="timestamp"><span id="ts">--:--:--</span></div>
-                </div>
-                
-                <div class="theme-toggle" id="themeToggle">
-                    <div class="theme-btn" id="btn-light">LIGHT</div>
-                    <div class="theme-btn" id="btn-dark">DARK</div>
-                    <div class="theme-btn active" id="btn-auto">AUTO</div>
-                </div>
-            </div>
-        </div>
-
+        <div class="header"><h1>KK Nagar Weather Hub</h1><div class="status-bar"><div class="live-dot"></div><div class="timestamp">LIVE: <span id="ts">--:--:--</span></div></div></div>
         <div class="grid-system">
             <div class="card">
                 <div class="label">Temperature</div>
                 <div class="main-val"><span id="t">--</span><span class="unit">°C</span></div>
                 <div id="tTrendBox" class="sub-pill">--</div>
-                <div class="sub-box-4">
-                    <div class="badge"><span class="badge-label">Today High</span><span id="mx" class="badge-val" style="color:#ef4444">--</span></div>
-                    <div class="badge"><span class="badge-label">Today Low</span><span id="mn" class="badge-val" style="color:#0ea5e9">--</span></div>
-                    <div class="badge"><span class="badge-label">Humidity</span><span id="h_val" class="badge-val">--</span></div>
-                    <div class="badge"><span class="badge-label">Dew Point</span><span id="d_val" class="badge-val">--</span></div>
-                    <div class="badge" style="grid-column: span 2;"><span class="badge-label">Feels Like</span><span id="rf" class="badge-val">--</span></div>
+                <div class="sub-box-4" style="grid-template-columns: repeat(2, 1fr);">
+                    <div class="badge"><span class="badge-label">Today High</span><span id="mx" class="badge-val" style="color:var(--max-t)">--</span></div>
+                    <div class="badge"><span class="badge-label">Today Low</span><span id="mn" class="badge-val" style="color:var(--min-t)">--</span></div>
+                    <div class="badge"><span class="badge-label">RealFeel</span><span id="rf" class="badge-val">--</span></div>
+                    <div class="badge"><span class="badge-label">Humidity</span><span id="h" class="badge-val">--</span></div>
+                    <div class="badge" style="grid-column: span 2;"><span class="badge-label">Dew Point</span><span id="dp" class="badge-val" style="color:var(--accent)">--</span></div>
                 </div>
             </div>
-
             <div class="card">
-                <canvas id="windCanvas"></canvas>
                 <div class="label">Wind Dynamics</div>
-                <div class="compass-ui"><div id="needle"></div></div>
-                <div class="main-val">
-                    <span id="w">--</span>
-                    <span id="wd_bracket" style="font-size:18px; color:var(--muted); margin-left:8px; font-weight:700">(--)</span>
-                    <span class="unit">km/h</span>
-                </div>
-                <div class="sub-pill">● Live Gust: <span id="wg" style="margin-left:4px">--</span></div>
+                <div class="compass-ui"><span class="c-n">N</span><span class="c-e">E</span><span class="c-s">S</span><span class="c-w">W</span><div id="needle"></div></div>
+                <div class="main-val"><span id="w">--</span><span id="wd_bracket" style="font-size:24px; color:#64748b; margin-left:12px; font-weight:600">(--)</span><span class="unit">km/h</span></div>
+                <div class="sub-pill">● Gusting <span id="wg" style="margin-left:4px">--</span></div>
                 <div class="sub-box-4">
-                    <div class="badge"><span class="badge-label">Max Speed</span><span id="mw" class="badge-val">--</span></div>
+                    <div class="badge"><span class="badge-label">Max Wind</span><span id="mw" class="badge-val">--</span></div>
                     <div class="badge"><span class="badge-label">Max Gust</span><span id="mg" class="badge-val">--</span></div>
                 </div>
             </div>
-
             <div class="card">
-                <div class="label">Rain Realm</div>
+                <div class="label">Rain (24h)</div>
                 <div class="main-val"><span id="r_tot">--</span><span class="unit">mm</span></div>
-                <div class="sub-pill">● Rain Rate: <span id="r_rate">--</span> mm/h</div>
+                <div style="display:flex; gap:8px;"><div class="sub-pill">● Rate: <span id="r_rate" style="margin-left:4px">--</span> mm/h</div><div class="sub-pill">● Max Rate: <span id="mr" style="margin-left:4px">--</span></div></div>
                 <div class="sub-box-4">
-                    <div class="badge" style="grid-column: span 2;"><span class="badge-label">Max Rate Today</span><span id="mr" class="badge-val">--</span></div>
                     <div class="badge"><span class="badge-label">Weekly</span><span id="r_week" class="badge-val">--</span></div>
                     <div class="badge"><span class="badge-label">Monthly</span><span id="r_month" class="badge-val">--</span></div>
-                    <div class="badge" style="grid-column: span 2;"><span class="badge-label">Yearly</span><span id="r_year" class="badge-val">--</span></div>
+                    <div class="badge" style="grid-column: span 2;"><span class="badge-label">Yearly Total</span><span id="r_year" class="badge-val">--</span></div>
                 </div>
             </div>
-
             <div class="card">
                 <div class="label">Atmospheric <span id="pIcon"></span></div>
                 <div class="main-val"><span id="pr">--</span><span class="unit">hPa</span></div>
@@ -272,233 +192,63 @@ body.is-night {
                 </div>
             </div>
         </div>
-
-        <div class="graphs-wrapper">
-            <div class="graph-card"><div class="label" style="margin-bottom: 8px;">Temperature Trend</div><canvas id="cT"></canvas></div>
-            <div class="graph-card"><div class="label" style="margin-bottom: 8px;">Humidity Levels</div><canvas id="cH"></canvas></div>
-            <div class="graph-card"><div class="label" style="margin-bottom: 8px;">Wind Velocity</div><canvas id="cW"></canvas></div>
-            <div class="graph-card"><div class="label" style="margin-bottom: 8px;">Precipitation</div><canvas id="cR"></canvas></div>
-        </div>
+        <div class="graph-card"><canvas id="cT"></canvas></div><div class="graph-card"><canvas id="cH"></canvas></div><div class="graph-card"><canvas id="cW"></canvas></div><div class="graph-card"><canvas id="cR"></canvas></div>
     </div>
-
-
     <script>
-        let currentMode = localStorage.getItem('weatherMode') || 'auto';
         let charts = {};
-        let liveWindSpeed = 0, liveWindDeg = 0, particles = [];
-        const wCanvas = document.getElementById('windCanvas');
-        const ctxW = wCanvas.getContext('2d');
-
-        Chart.register({
-            id: 'verticalLine',
-            afterDraw: (chart) => {
-                if (chart.tooltip?._active?.length) {
-                    const x = chart.tooltip._active[0].element.x;
-                    const yAxis = chart.scales.y;
-                    const ctx = chart.ctx;
-                    ctx.save();
-                    ctx.setLineDash([5, 5]);
-                    ctx.beginPath();
-                    ctx.moveTo(x, yAxis.top);
-                    ctx.lineTo(x, yAxis.bottom);
-                    ctx.lineWidth = 1;
-                    ctx.strokeStyle = document.body.classList.contains('is-night') ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.1)';
-                    ctx.stroke();
-                    ctx.restore();
-                }
-            }
-        });
-
-        function applyTheme() {
-            const hour = new Date().getHours();
-            const btns = document.querySelectorAll('.theme-btn');
-            btns.forEach(b => b.classList.remove('active'));
-
-            if (currentMode === 'dark') {
-                document.body.classList.add('is-night');
-                document.getElementById('btn-dark').classList.add('active');
-            } else if (currentMode === 'light') {
-                document.body.classList.remove('is-night');
-                document.getElementById('btn-light').classList.add('active');
-            } else {
-                document.getElementById('btn-auto').classList.add('active');
-                if (hour >= 18 || hour < 6) document.body.classList.add('is-night');
-                else document.body.classList.remove('is-night');
-            }
-            if (charts.cT) updateChartColors();
+        function setupChart(id, label, color) {
+            const ctx = document.getElementById(id); if (!ctx) return null;
+            return new Chart(ctx, { type: 'line', data: { labels: [], datasets: [{ label: label, data: [], borderColor: color, backgroundColor: color+'22', fill: true, tension: 0.4, pointRadius: 0 }] }, options: { animation: false, responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, min: 0, ticks: { precision: 1 } } } } });
         }
-
-        document.getElementById('btn-light').onclick = () => { currentMode = 'light'; localStorage.setItem('weatherMode', 'light'); applyTheme(); };
-        document.getElementById('btn-dark').onclick = () => { currentMode = 'dark'; localStorage.setItem('weatherMode', 'dark'); applyTheme(); };
-        document.getElementById('btn-auto').onclick = () => { currentMode = 'auto'; localStorage.setItem('weatherMode', 'auto'); applyTheme(); };
-
-        function updateChartColors() {
-            const gridColor = document.body.classList.contains('is-night') ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)';
-            const textColor = document.body.classList.contains('is-night') ? '#94a3b8' : '#64748b';
-            
-            Object.values(charts).forEach(chart => {
-                chart.options.scales.y.grid.color = gridColor;
-                chart.options.scales.y.ticks.color = textColor;
-                chart.options.scales.x.ticks.color = textColor;
-                chart.update('none');
-            });
-        }
-
-        function setupChart(id, label, color, minVal = null) {
-            const canvas = document.getElementById(id);
-            const ctx = canvas.getContext('2d');
-            const gradient = ctx.createLinearGradient(0, 0, 0, 300);
-            gradient.addColorStop(0, color + '40'); 
-            gradient.addColorStop(1, color + '00');
-
-            return new Chart(ctx, { 
-                type: id === 'cR' ? 'bar' : 'line', 
-                data: { 
-                    labels: [], 
-                    datasets: [{ 
-                        label: label, 
-                        data: [], 
-                        borderColor: color, 
-                        backgroundColor: gradient,
-                        fill: true, 
-                        tension: 0.4, 
-                        pointRadius: 0, 
-                        borderWidth: 2,
-                        borderRadius: 4,
-                        pointHoverRadius: 5,
-                        pointHoverBackgroundColor: color,
-                        pointHoverBorderColor: '#fff',
-                        pointHoverBorderWidth: 2
-                    }] 
-                }, 
-                options: { 
-                    animation: { duration: 1000, easing: 'easeOutQuart' },
-                    responsive: true, 
-                    maintainAspectRatio: false,
-                    interaction: { intersect: false, mode: 'index' },
-                    plugins: {
-                        legend: { display: false },
-                        tooltip: {
-                            backgroundColor: document.body.classList.contains('is-night') ? '#1e293b' : '#fff',
-                            titleColor: document.body.classList.contains('is-night') ? '#f1f5f9' : '#0f172a',
-                            bodyColor: document.body.classList.contains('is-night') ? '#f1f5f9' : '#0f172a',
-                            bodyFont: { family: 'Outfit', weight: '700' },
-                            padding: 10,
-                            cornerRadius: 10,
-                            displayColors: false,
-                            borderColor: 'rgba(0,0,0,0.05)',
-                            borderWidth: 1
-                        }
-                    },
-                    scales: { 
-                        y: { 
-                            grid: { color: 'rgba(0,0,0,0.03)', drawBorder: false }, 
-                            ticks: { font: { family: 'Outfit', size: 9 }, padding: 4 },
-                            min: minVal
-                        }, 
-                        x: { 
-                            grid: { display: false }, 
-                            ticks: { 
-                                font: { family: 'Outfit', size: 9 }, 
-                                maxTicksLimit: 8,
-                                autoSkip: true,
-                                maxRotation: 0
-                            } 
-                        } 
-                    } 
-                } 
-            });
-        }
-
         async function update() {
             try {
-                const res = await fetch('/weather?v=' + Date.now()); 
-                const d = await res.json(); 
-                if (!d || d.error) return;
+                const res = await fetch('/weather?v=' + Date.now()); const d = await res.json(); if (!d || d.error) return;
                 
+                // Temp Mapping
                 document.getElementById('t').innerText = d.temp.current;
+                document.getElementById('dp').innerText = d.temp.dew + '°C';
                 document.getElementById('tTrendBox').innerHTML = d.temp.rate > 0 ? '<span class="trend-up">▲</span> +' + d.temp.rate + '°C /hr' : d.temp.rate < 0 ? '<span class="trend-down">▼</span> ' + d.temp.rate + '°C /hr' : '● Steady';
                 document.getElementById('mx').innerHTML = d.temp.max + '°C <span class="time-mark">' + d.temp.maxTime + '</span>';
                 document.getElementById('mn').innerHTML = d.temp.min + '°C <span class="time-mark">' + d.temp.minTime + '</span>';
-                document.getElementById('rf').innerText = d.temp.realFeel + '°C'; 
+                document.getElementById('rf').innerText = d.temp.realFeel + '°'; document.getElementById('h').innerText = d.atmo.hum + '%';
                 
-                const hIcon = d.atmo.hTrend > 0 ? '<span style="color:#10b981">▲</span>' : d.atmo.hTrend < 0 ? '<span style="color:#f43f5e">▼</span>' : '<span style="opacity:0.4">●</span>';
-                document.getElementById('h_val').innerHTML = d.atmo.hum + '% ' + hIcon;
-                document.getElementById('d_val').innerText = d.temp.dew + '°C';
-                
-                document.getElementById('w').innerText = d.wind.speed; 
-                document.getElementById('wd_bracket').innerText = '(' + d.wind.card + ')';
+                // Wind Mapping
+                document.getElementById('w').innerText = d.wind.speed; document.getElementById('wd_bracket').innerText = '(' + d.wind.card + ')';
                 document.getElementById('wg').innerText = d.wind.gust + ' km/h';
                 document.getElementById('mw').innerHTML = d.wind.maxS + ' km/h <span class="time-mark">' + d.wind.maxSTime + '</span>';
                 document.getElementById('mg').innerHTML = d.wind.maxG + ' km/h <span class="time-mark">' + d.wind.maxGTime + '</span>';
                 document.getElementById('needle').style.transform = 'rotate(' + d.wind.deg + 'deg)';
                 
-                liveWindSpeed = d.wind.speed;
-                liveWindDeg = d.wind.deg;
-
-                document.getElementById('r_tot').innerText = d.rain.total; 
-                document.getElementById('r_rate').innerText = d.rain.rate;
+                // Rain Mapping
+                document.getElementById('r_tot').innerText = d.rain.total; document.getElementById('r_rate').innerText = d.rain.rate;
+                document.getElementById('mr').innerHTML = d.rain.maxR > 0 ? d.rain.maxR + ' mm/h <span class="time-mark">' + d.rain.maxRTime + '</span>' : '0';
                 document.getElementById('r_week').innerText = d.rain.weekly + ' mm'; 
                 document.getElementById('r_month').innerText = d.rain.monthly + ' mm';
                 document.getElementById('r_year').innerText = d.rain.yearly + ' mm';
-                document.getElementById('mr').innerHTML = d.rain.maxR > 0 ? d.rain.maxR + ' mm/h <span class="time-mark">' + d.rain.maxRTime + '</span>' : '0 mm/h';
                 
+                // Barometer Trend Icon
                 document.getElementById('pr').innerText = d.atmo.press;
                 const pIcon = document.getElementById('pIcon');
-                if (d.atmo.pTrend > 0) pIcon.innerHTML = '<span class="trend-up">▲</span>';
-                else if (d.atmo.pTrend < 0) pIcon.innerHTML = '<span class="trend-down">▼</span>';
-                else pIcon.innerHTML = '<span style="opacity:0.3">●</span>';
+                if (d.atmo.pTrend > 0) pIcon.innerHTML = '<span class="trend-up" style="font-size:14px">▲</span>';
+                else if (d.atmo.pTrend < 0) pIcon.innerHTML = '<span class="trend-down" style="font-size:14px">▼</span>';
+                else pIcon.innerHTML = '<span style="color:#64748b; font-size:10px">●</span>';
 
-                document.getElementById('sol').innerText = d.atmo.sol + ' W/m²'; 
-                document.getElementById('uv').innerText = d.atmo.uv;
+                document.getElementById('sol').innerText = d.atmo.sol + ' W/m²'; document.getElementById('uv').innerText = d.atmo.uv;
                 document.getElementById('ts').innerText = new Date(d.lastSync).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 
-                const labels = d.history.map(h => new Date(h.time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: false }));
+                // Automatic Graph Update Logic
+                const labels = d.history.map(h => new Date(h.time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' }));
                 if(!charts.cT) { 
-                    charts.cT = setupChart('cT', 'Temp °C', '#ef4444'); 
-                    charts.cH = setupChart('cH', 'Humidity %', '#10b981'); 
-                    charts.cW = setupChart('cW', 'Wind km/h', '#f59e0b'); 
-                    charts.cR = setupChart('cR', 'Rain mm', '#3b82f6', 0); 
-                    applyTheme(); 
+                    charts.cT = setupChart('cT', 'Temperature (°C)', '#38bdf8'); charts.cH = setupChart('cH', 'Humidity (%)', '#10b981'); 
+                    charts.cW = setupChart('cW', 'Wind Speed (km/h)', '#fbbf24'); charts.cR = setupChart('cR', 'Rain (mm)', '#818cf8'); 
                 }
                 charts.cT.data.labels = labels; charts.cT.data.datasets[0].data = d.history.map(h => h.temp); charts.cT.update('none');
                 charts.cH.data.labels = labels; charts.cH.data.datasets[0].data = d.history.map(h => h.hum); charts.cH.update('none');
                 charts.cW.data.labels = labels; charts.cW.data.datasets[0].data = d.history.map(h => h.wind); charts.cW.update('none');
-                charts.cR.data.labels = labels; charts.cR.data.datasets[0].data = d.history.map(h => h.rain); charts.cR.update('none');
+                charts.cW.data.labels = labels; charts.cR.data.datasets[0].data = d.history.map(h => Math.max(0, h.rain)); charts.cR.update('none');
             } catch (e) { console.error(e); }
         }
-
-        // Particle System with Clipping Fix
-        for(let i=0; i<60; i++) { particles.push({ x: Math.random() * 800, y: Math.random() * 800 }); }
-        function animateWind() {
-            // THE FIX: Constantly sync canvas size to parent container to avoid "cuts"
-            if (wCanvas.width !== wCanvas.offsetWidth) { 
-                wCanvas.width = wCanvas.offsetWidth; 
-                wCanvas.height = wCanvas.offsetHeight; 
-            }
-            ctxW.clearRect(0, 0, wCanvas.width, wCanvas.height);
-            const rad = (liveWindDeg - 90) * (Math.PI / 180);
-            const speed = Math.max(1.0, liveWindSpeed * 0.4);
-            const dx = Math.cos(rad) * speed, dy = Math.sin(rad) * speed;
-            ctxW.strokeStyle = document.body.classList.contains('is-night') ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)';
-            ctxW.lineWidth = 0.8;
-            ctxW.beginPath();
-            particles.forEach(p => {
-                p.x += dx; p.y += dy;
-                // Perfect wrapping logic
-                if (p.x > wCanvas.width) p.x = 0; else if (p.x < 0) p.x = wCanvas.width;
-                if (p.y > wCanvas.height) p.y = 0; else if (p.y < 0) p.y = wCanvas.height;
-                ctxW.moveTo(p.x, p.y);
-                ctxW.lineTo(p.x - dx * 0.35, p.y - dy * 0.35);
-            });
-            ctxW.stroke();
-            requestAnimationFrame(animateWind);
-        }
-
-        applyTheme();
-        animateWind();
-        setInterval(update, 45000); 
-        update();
+        setInterval(update, 45000); update();
     </script>
 </body>
 </html>
