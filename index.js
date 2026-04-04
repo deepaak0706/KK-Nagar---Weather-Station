@@ -120,17 +120,15 @@ app.get("/", (req, res) => {
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;700;900&display=swap" rel="stylesheet">
     <style>
         :root { 
-            --bg-base: #020617; 
-            --bg-glow: #0f172a;
-            --card-bg: rgba(15, 23, 42, 0.6); 
-            --accent: #38bdf8; 
-            --accent-glow: rgba(56, 189, 248, 0.25);
-            --max-t: #fb7185; 
-            --min-t: #60a5fa; 
-            --border-light: rgba(255, 255, 255, 0.12); 
-            --border-dark: rgba(255, 255, 255, 0.03);
-            --text-main: #f8fafc;
-            --text-muted: #94a3b8;
+            --bg-grad: linear-gradient(135deg, #e0f2fe 0%, #f0f9ff 50%, #e0eafc 100%);
+            --card-bg: rgba(255, 255, 255, 0.65); 
+            --accent: #0ea5e9; 
+            --max-t: #e11d48; 
+            --min-t: #0284c7; 
+            --border-light: rgba(255, 255, 255, 1); 
+            --text-main: #0f172a;
+            --text-muted: #475569;
+            --shadow-soft: 0 12px 32px rgba(15, 23, 42, 0.06);
         }
         
         * { box-sizing: border-box; }
@@ -138,7 +136,7 @@ app.get("/", (req, res) => {
         body { 
             margin: 0; 
             font-family: 'Outfit', sans-serif; 
-            background: radial-gradient(circle at 50% -20%, var(--bg-glow), var(--bg-base) 80%);
+            background: var(--bg-grad);
             color: var(--text-main); 
             padding: 40px 24px; 
             display: flex; 
@@ -149,7 +147,6 @@ app.get("/", (req, res) => {
 
         .container { width: 100%; max-width: 1300px; }
 
-        /* Smooth Entrance Animation */
         @keyframes fadeUp {
             from { opacity: 0; transform: translateY(20px); }
             to { opacity: 1; transform: translateY(0); }
@@ -165,39 +162,35 @@ app.get("/", (req, res) => {
         }
         
         .header h1 { 
-            font-size: 32px; 
+            font-size: 34px; 
             font-weight: 900; 
             margin: 0; 
-            background: linear-gradient(135deg, #ffffff, #94a3b8); 
-            -webkit-background-clip: text; 
-            -webkit-text-fill-color: transparent; 
-            letter-spacing: -0.5px;
+            color: #0f172a;
+            letter-spacing: -1px;
         }
         
         .status-bar { 
             display: flex; 
             align-items: center; 
             gap: 12px; 
-            background: rgba(255,255,255,0.03); 
+            background: rgba(255, 255, 255, 0.8); 
             padding: 10px 20px; 
             border-radius: 100px; 
             border: 1px solid var(--border-light); 
-            box-shadow: 0 4px 20px rgba(0,0,0,0.2);
-            backdrop-filter: blur(10px);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
         }
         
         .live-dot { 
-            width: 8px; height: 8px; 
+            width: 10px; height: 10px; 
             background: #10b981; 
             border-radius: 50%; 
-            box-shadow: 0 0 12px #10b981; 
+            box-shadow: 0 0 10px rgba(16, 185, 129, 0.6); 
             animation: blink 2s infinite cubic-bezier(0.4, 0, 0.6, 1); 
         }
         @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
         
-        .timestamp { font-size: 14px; font-weight: 700; color: var(--text-muted); letter-spacing: 0.5px; }
+        .timestamp { font-size: 14px; font-weight: 700; color: var(--text-muted); }
         
-        /* Modern Bento Grid */
         .grid-system { 
             display: grid; 
             grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); 
@@ -209,37 +202,33 @@ app.get("/", (req, res) => {
             background: var(--card-bg); 
             padding: 32px; 
             border-radius: 32px; 
-            border: 1px solid var(--border-dark); 
-            border-top: 1px solid var(--border-light);
-            border-left: 1px solid var(--border-light);
+            border: 1px solid var(--border-light); 
             backdrop-filter: blur(24px) saturate(150%); 
+            -webkit-backdrop-filter: blur(24px) saturate(150%);
             position: relative; 
-            box-shadow: 0 10px 30px -10px rgba(0,0,0,0.5);
-            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            box-shadow: var(--shadow-soft);
+            transition: all 0.3s ease;
             animation: fadeUp 0.6s ease-out both;
         }
         
-        /* Staggered animation delays for cards */
         .card:nth-child(1) { animation-delay: 0.1s; }
         .card:nth-child(2) { animation-delay: 0.2s; }
         .card:nth-child(3) { animation-delay: 0.3s; }
         .card:nth-child(4) { animation-delay: 0.4s; }
 
         .card:hover {
-            transform: translateY(-6px);
-            box-shadow: 0 20px 40px -10px rgba(0,0,0,0.6), 0 0 30px var(--accent-glow);
-            border-top-color: rgba(255,255,255,0.3);
+            transform: translateY(-4px);
+            box-shadow: 0 20px 40px rgba(15, 23, 42, 0.08);
+            background: rgba(255, 255, 255, 0.85);
         }
         
         .label { 
-            color: var(--text-muted); 
-            font-size: 13px; 
+            color: var(--accent); 
+            font-size: 14px; 
             font-weight: 800; 
             text-transform: uppercase; 
-            letter-spacing: 2.5px; 
+            letter-spacing: 2px; 
             margin-bottom: 12px; 
-            display: flex;
-            align-items: center;
         }
         
         .main-val { 
@@ -249,10 +238,7 @@ app.get("/", (req, res) => {
             display: flex; 
             align-items: baseline; 
             letter-spacing: -3px; 
-            background: linear-gradient(180deg, #ffffff, #cbd5e1);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            filter: drop-shadow(0px 4px 8px rgba(0,0,0,0.4));
+            color: #0f172a;
         }
         
         .unit { 
@@ -261,7 +247,6 @@ app.get("/", (req, res) => {
             color: #64748b; 
             margin-left: 8px; 
             letter-spacing: normal;
-            -webkit-text-fill-color: #64748b; /* Override gradient for units */
         }
         
         .sub-pill { 
@@ -269,64 +254,63 @@ app.get("/", (req, res) => {
             font-weight: 700; 
             padding: 6px 14px; 
             border-radius: 12px; 
-            background: rgba(255,255,255,0.04); 
-            border: 1px solid rgba(255,255,255,0.05);
+            background: rgba(255,255,255,0.7); 
+            border: 1px solid var(--border-light);
             display: inline-flex; 
             align-items: center; 
             gap: 6px; 
             margin-bottom: 16px; 
+            color: #334155;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.02);
         }
         
-        .trend-up { color: #fb7185; } 
-        .trend-down { color: #38bdf8; }
+        .trend-up { color: var(--max-t); } 
+        .trend-down { color: var(--min-t); }
         
         .sub-box-4 { 
             display: grid; 
             grid-template-columns: 1fr 1fr; 
             gap: 16px; 
             padding-top: 24px; 
-            border-top: 1px solid rgba(255,255,255,0.06); 
+            border-top: 1px solid rgba(0,0,0,0.06); 
         }
         
         .badge { 
             padding: 16px; 
             border-radius: 20px; 
-            background: rgba(0, 0, 0, 0.25); 
-            border: 1px solid rgba(255,255,255,0.02);
+            background: rgba(255, 255, 255, 0.5); 
+            border: 1px solid var(--border-light);
             display: flex; 
             flex-direction: column; 
             gap: 6px; 
-            transition: background 0.3s ease;
+            box-shadow: inset 0 2px 10px rgba(255,255,255,0.8);
         }
-        .badge:hover { background: rgba(0, 0, 0, 0.4); }
         
         .badge-label { font-size: 11px; color: #64748b; text-transform: uppercase; font-weight: 800; letter-spacing: 1px; }
-        .badge-val { font-size: 18px; font-weight: 700; }
-        .time-mark { font-size: 10px; font-weight: 800; color: #64748b; background: rgba(255,255,255,0.05); padding: 3px 8px; border-radius: 6px; margin-left: 6px; }
+        .badge-val { font-size: 18px; font-weight: 800; color: #1e293b; }
+        .time-mark { font-size: 10px; font-weight: 800; color: #64748b; background: rgba(0,0,0,0.04); padding: 3px 8px; border-radius: 6px; margin-left: 6px; }
         
-        /* Modernized Compass */
         .compass-ui { 
             position: absolute; 
             top: 32px; right: 32px; 
             width: 68px; height: 68px; 
-            border: 2px solid rgba(255,255,255,0.08); 
+            border: 2px solid rgba(0,0,0,0.05); 
             border-radius: 50%; 
             display: flex; align-items: center; justify-content: center; 
-            background: radial-gradient(circle, rgba(255,255,255,0.02) 0%, transparent 70%);
-            box-shadow: inset 0 0 20px rgba(0,0,0,0.5);
+            background: rgba(255,255,255,0.4);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.03);
         }
-        .compass-ui span { position: absolute; font-size: 9px; font-weight: 900; color: rgba(255,255,255,0.4); }
+        .compass-ui span { position: absolute; font-size: 10px; font-weight: 900; color: rgba(0,0,0,0.3); }
         .c-n { top: 4px; color: var(--max-t) !important; } .c-e { right: 4px; } .c-s { bottom: 4px; } .c-w { left: 4px; }
         
         #needle { 
             width: 4px; height: 44px; 
-            background: linear-gradient(to bottom, var(--max-t) 50%, #cbd5e1 50%); 
+            background: linear-gradient(to bottom, var(--max-t) 50%, #94a3b8 50%); 
             clip-path: polygon(50% 0%, 100% 100%, 50% 85%, 0% 100%); 
             transition: transform 1.5s cubic-bezier(0.34, 1.56, 0.64, 1); 
-            filter: drop-shadow(0 4px 6px rgba(0,0,0,0.6));
+            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2));
         }
 
-        /* Bento Grid for Graphs */
         .graphs-wrapper {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
@@ -338,16 +322,14 @@ app.get("/", (req, res) => {
             background: var(--card-bg); 
             padding: 24px; 
             border-radius: 32px; 
-            border: 1px solid var(--border-dark); 
-            border-top: 1px solid var(--border-light);
-            backdrop-filter: blur(24px); 
+            border: 1px solid var(--border-light); 
+            backdrop-filter: blur(24px) saturate(150%); 
             height: 380px; 
-            box-shadow: 0 10px 30px -10px rgba(0,0,0,0.5);
+            box-shadow: var(--shadow-soft);
             animation: fadeUp 0.8s ease-out both;
             animation-delay: 0.5s;
         }
 
-        /* Mobile tweaks */
         @media (max-width: 768px) {
             .header { flex-direction: column; gap: 16px; align-items: flex-start; }
             .graphs-wrapper { grid-template-columns: 1fr; }
@@ -384,7 +366,7 @@ app.get("/", (req, res) => {
                 <div class="label">Wind Dynamics</div>
                 <div class="compass-ui"><span class="c-n">N</span><span class="c-e">E</span><span class="c-s">S</span><span class="c-w">W</span><div id="needle"></div></div>
                 <div class="main-val"><span id="w">--</span><span id="wd_bracket" style="font-size:24px; color:#64748b; margin-left:12px; font-weight:700">(--)</span><span class="unit">km/h</span></div>
-                <div class="sub-pill">● Gusting <span id="wg" style="margin-left:4px; color: #f8fafc;">--</span></div>
+                <div class="sub-pill">● Gusting <span id="wg" style="margin-left:4px; color: #1e293b;">--</span></div>
                 <div class="sub-box-4">
                     <div class="badge"><span class="badge-label">Max Wind</span><span id="mw" class="badge-val">--</span></div>
                     <div class="badge"><span class="badge-label">Max Gust</span><span id="mg" class="badge-val">--</span></div>
@@ -395,8 +377,8 @@ app.get("/", (req, res) => {
                 <div class="label">Rainfall (24h)</div>
                 <div class="main-val"><span id="r_tot">--</span><span class="unit">mm</span></div>
                 <div style="display:flex; gap:8px; flex-wrap: wrap;">
-                    <div class="sub-pill">● Rate: <span id="r_rate" style="margin-left:4px; color: #f8fafc;">--</span> mm/h</div>
-                    <div class="sub-pill">● Max: <span id="mr" style="margin-left:4px; color: #f8fafc;">--</span></div>
+                    <div class="sub-pill">● Rate: <span id="r_rate" style="margin-left:4px; color: #1e293b;">--</span> mm/h</div>
+                    <div class="sub-pill">● Max: <span id="mr" style="margin-left:4px; color: #1e293b;">--</span></div>
                 </div>
                 <div class="sub-box-4">
                     <div class="badge"><span class="badge-label">Weekly</span><span id="r_week" class="badge-val">--</span></div>
@@ -468,8 +450,8 @@ app.get("/", (req, res) => {
                 // Automatic Graph Update Logic
                 const labels = d.history.map(h => new Date(h.time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' }));
                 if(!charts.cT) { 
-                    charts.cT = setupChart('cT', 'Temperature (°C)', '#38bdf8'); charts.cH = setupChart('cH', 'Humidity (%)', '#10b981'); 
-                    charts.cW = setupChart('cW', 'Wind Speed (km/h)', '#fbbf24'); charts.cR = setupChart('cR', 'Rain (mm)', '#818cf8'); 
+                    charts.cT = setupChart('cT', 'Temperature (°C)', '#0ea5e9'); charts.cH = setupChart('cH', 'Humidity (%)', '#10b981'); 
+                    charts.cW = setupChart('cW', 'Wind Speed (km/h)', '#f59e0b'); charts.cR = setupChart('cR', 'Rain (mm)', '#6366f1'); 
                 }
                 charts.cT.data.labels = labels; charts.cT.data.datasets[0].data = d.history.map(h => h.temp); charts.cT.update('none');
                 charts.cH.data.labels = labels; charts.cH.data.datasets[0].data = d.history.map(h => h.hum); charts.cH.update('none');
