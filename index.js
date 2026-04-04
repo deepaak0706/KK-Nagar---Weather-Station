@@ -121,10 +121,28 @@ app.get("/", (req, res) => {
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;700;900&display=swap" rel="stylesheet">
     <style>
-        :root { 
-            --bg: #f0f7ff; --card: rgba(255, 255, 255, 0.9); --border: rgba(0, 120, 255, 0.08);
-            --text: #0f172a; --muted: #64748b; --accent: #0284c7; --glow: 0 10px 40px -10px rgba(2,132,199,0.1);
-        }
+        /* LIGHT MODE (Sunny Day Feel) */
+:root { 
+    --bg: #e0f2fe; /* Soft Sky Blue */
+    --card: rgba(240, 249, 255, 0.9); /* Very pale blue, semi-transparent */
+    --border: rgba(186, 230, 253, 0.5); /* Light blue border */
+    --text: #0369a1; /* Deep blue-tinted text for better contrast on blue */
+    --muted: #64748b; 
+    --accent: #0284c7; 
+    --glow: 0 10px 40px -10px rgba(0,0,0,0.03);
+}
+
+/* DARK MODE (Remains Midnight/Night Feel) */
+body.is-night {
+    --bg: #020617; 
+    --card: rgba(15, 23, 42, 0.75); 
+    --border: rgba(255, 255, 255, 0.08);
+    --text: #f1f5f9; 
+    --muted: #94a3b8; 
+    --accent: #38bdf8; 
+    --glow: 0 15px 50px -12px rgba(0,0,0,0.6);
+}
+
 
         body.is-night {
             --bg: #020617; --card: rgba(15, 23, 42, 0.75); --border: rgba(255, 255, 255, 0.08);
