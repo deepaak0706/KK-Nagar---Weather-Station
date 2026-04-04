@@ -317,19 +317,36 @@ app.get("/", (req, res) => {
         }
 
         let charts = {};
-                function setupChart(id, label, color, minVal = null) {
+
+                function setupChart(id, label, chartColor, minVal = null) {
             const ctx = document.getElementById(id);
+            if (!ctx) return null; // Prevents crash if ID is missing
+
             return new Chart(ctx, { 
                 type: 'line', 
-                data: { labels: [], datasets: [{ label: label, data: [], borderColor: color, backgroundColor: color+'15', fill: true, tension: 0.4, pointRadius: 0, borderWidth: 3 }] }, 
+                data: { 
+                    labels: [], 
+                    datasets: [{ 
+                        label: label, 
+                        data: [], 
+                        borderColor: chartColor, 
+                        backgroundColor: chartColor + '15', 
+                        fill: true, 
+                        tension: 0.4, 
+                        pointRadius: 0, 
+                        borderWidth: 3 
+                    }] 
+                }, 
                 options: { 
-                    animation: false, responsive: true, maintainAspectRatio: false, 
+                    animation: false, 
+                    responsive: true, 
+                    maintainAspectRatio: false, 
                     plugins: {
                         legend: {
                             display: true,
                             align: 'start',
                             labels: {
-                                color: color,
+                                color: chartColor,
                                 font: { family: 'Outfit', size: 12, weight: '700' },
                                 boxWidth: 12,
                                 usePointStyle: true,
@@ -343,11 +360,16 @@ app.get("/", (req, res) => {
                             ticks: { font: { family: 'Outfit', size: 10 } },
                             min: minVal
                         }, 
-                        x: { grid: { display: false }, ticks: { font: { family: 'Outfit', size: 10 } } } 
+                        x: { 
+                            grid: { display: false }, 
+                            ticks: { font: { family: 'Outfit', size: 10 } } 
+                        } 
                     } 
                 } 
             });
         }
+
+                
 
 
         async function update() {
