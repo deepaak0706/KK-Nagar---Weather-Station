@@ -156,7 +156,12 @@ app.get("/", (req, res) => {
         .grid-system { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 24px; }
         .card { background: var(--card); padding: 32px; border-radius: 36px; border: 1px solid var(--border); backdrop-filter: blur(15px); box-shadow: var(--glow); position: relative; }
 
-        .label { color: var(--accent); font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 2.5px; margin-bottom: 8px; }
+                 .label { 
+            color: var(--accent); font-size: 11px; font-weight: 800; text-transform: uppercase; 
+            letter-spacing: 2.5px; margin-bottom: 16px; padding-left: 12px; 
+            border-left: 3px solid var(--accent); line-height: 1;
+        }
+
         .main-val { font-size: 64px; font-weight: 900; margin: 2px 0; letter-spacing: -3px; display: flex; align-items: baseline; }
         .unit { font-size: 22px; font-weight: 600; color: var(--muted); margin-left: 6px; letter-spacing: 0; }
 
@@ -164,7 +169,13 @@ app.get("/", (req, res) => {
         body.is-night .sub-pill { background: rgba(255,255,255,0.05); }
 
         .sub-box-4 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding-top: 24px; border-top: 1px solid var(--border); }
-        .badge { padding: 14px; border-radius: 20px; background: rgba(0, 0, 0, 0.025); display: flex; flex-direction: column; gap: 4px; }
+                .badge { 
+            padding: 14px; border-radius: 16px; 
+            background: rgba(0, 0, 0, 0.02); 
+            border: 1px solid var(--border); 
+            display: flex; flex-direction: column; gap: 4px; 
+        }
+
         body.is-night .badge { background: rgba(255,255,255,0.04); }
         .badge-label { font-size: 10px; color: var(--muted); text-transform: uppercase; font-weight: 800; }
         .badge-val { font-size: 18px; font-weight: 800; }
