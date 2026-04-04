@@ -116,7 +116,7 @@ app.get("/", (req, res) => {
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>KK Nagar Weather Hub</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;700;900&display=swap" rel="stylesheet">
@@ -131,58 +131,57 @@ app.get("/", (req, res) => {
             --text: #f1f5f9; --muted: #94a3b8; --accent: #38bdf8; --glow: 0 15px 50px -12px rgba(0,0,0,0.6);
         }
 
-        body { margin: 0; font-family: 'Outfit', sans-serif; background: var(--bg); color: var(--text); padding: 40px 24px; transition: all 0.5s ease; min-height: 100vh; overflow-x: hidden; }
+        body { margin: 0; font-family: 'Outfit', sans-serif; background: var(--bg); color: var(--text); padding: 20px 16px 120px 16px; transition: all 0.5s ease; min-height: 100vh; overflow-x: hidden; }
         .container { width: 100%; max-width: 1200px; margin: 0 auto; }
         
-        .header { margin-bottom: 40px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 20px; }
-        .header h1 { font-size: 30px; font-weight: 900; margin: 0; letter-spacing: -1.5px; }
+        .header { margin-bottom: 32px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; }
+        .header h1 { font-size: 28px; font-weight: 900; margin: 0; letter-spacing: -1px; }
 
-        .header-actions { display: flex; align-items: center; gap: 16px; }
+        .header-actions { display: flex; align-items: center; gap: 12px; }
         
         .theme-toggle {
             background: var(--card); border: 1px solid var(--border); padding: 4px; border-radius: 12px;
             display: flex; gap: 4px; box-shadow: var(--glow); cursor: pointer;
         }
         .theme-btn { 
-            padding: 6px 12px; border-radius: 8px; font-size: 12px; font-weight: 700; 
+            padding: 6px 10px; border-radius: 8px; font-size: 11px; font-weight: 700; 
             transition: 0.3s; color: var(--muted); 
         }
         .theme-btn.active { background: var(--accent); color: white; }
 
-        .status-bar { display: flex; align-items: center; gap: 12px; background: var(--card); padding: 8px 20px; border-radius: 100px; border: 1px solid var(--border); box-shadow: var(--glow); }
-        .live-dot { width: 8px; height: 8px; background: #10b981; border-radius: 50%; animation: blink 2s infinite; }
+        .status-bar { display: flex; align-items: center; gap: 8px; background: var(--card); padding: 6px 16px; border-radius: 100px; border: 1px solid var(--border); box-shadow: var(--glow); font-size: 13px; }
+        .live-dot { width: 6px; height: 6px; background: #10b981; border-radius: 50%; animation: blink 2s infinite; }
         @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
         
-        .grid-system { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 24px; }
-        .card { background: var(--card); padding: 32px; border-radius: 36px; border: 1px solid var(--border); backdrop-filter: blur(15px); box-shadow: var(--glow); position: relative; overflow: hidden; }
-
-        /* FIX: Wind Engine Background Layer */
-        #windCanvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; }
+        .grid-system { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
+        
+        /* THE FIX: Canvas Positioning */
+        .card { background: var(--card); padding: 28px; border-radius: 32px; border: 1px solid var(--border); backdrop-filter: blur(15px); box-shadow: var(--glow); position: relative; overflow: hidden; }
+        #windCanvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; border-radius: 32px; }
         .card > *:not(canvas) { position: relative; z-index: 5; }
 
-        .label { color: var(--accent); font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 2.5px; margin-bottom: 8px; }
-        .main-val { font-size: 64px; font-weight: 900; margin: 2px 0; letter-spacing: -3px; display: flex; align-items: baseline; }
-        .unit { font-size: 22px; font-weight: 600; color: var(--muted); margin-left: 6px; letter-spacing: 0; }
+        .label { color: var(--accent); font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 6px; }
+        .main-val { font-size: 56px; font-weight: 900; margin: 0; letter-spacing: -2px; display: flex; align-items: baseline; line-height: 1.1; }
+        .unit { font-size: 20px; font-weight: 600; color: var(--muted); margin-left: 4px; letter-spacing: 0; }
 
-        .sub-pill { font-size: 12px; font-weight: 800; padding: 6px 14px; border-radius: 12px; background: rgba(0,0,0,0.03); display: inline-flex; align-items: center; gap: 6px; margin-bottom: 24px; }
+        .sub-pill { font-size: 12px; font-weight: 800; padding: 6px 12px; border-radius: 10px; background: rgba(0,0,0,0.03); display: inline-flex; align-items: center; gap: 4px; margin: 12px 0 20px 0; }
         body.is-night .sub-pill { background: rgba(255,255,255,0.05); }
 
-        .sub-box-4 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding-top: 24px; border-top: 1px solid var(--border); }
-        .badge { padding: 14px; border-radius: 20px; background: rgba(0, 0, 0, 0.025); display: flex; flex-direction: column; gap: 4px; }
+        .sub-box-4 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding-top: 20px; border-top: 1px solid var(--border); }
+        .badge { padding: 12px; border-radius: 18px; background: rgba(0, 0, 0, 0.02); display: flex; flex-direction: column; gap: 2px; }
         body.is-night .badge { background: rgba(255,255,255,0.04); }
-        .badge-label { font-size: 10px; color: var(--muted); text-transform: uppercase; font-weight: 800; }
-        .badge-val { font-size: 18px; font-weight: 800; }
+        .badge-label { font-size: 9px; color: var(--muted); text-transform: uppercase; font-weight: 800; }
+        .badge-val { font-size: 16px; font-weight: 800; }
 
-        /* FIX: Ensure Compass is pinned and above the animation */
-        .compass-ui { position: absolute !important; top: 32px !important; right: 32px !important; width: 60px; height: 60px; border: 2px solid var(--border); border-radius: 50%; display: flex; align-items: center; justify-content: center; z-index: 10; }
-        #needle { width: 3px; height: 38px; background: linear-gradient(to bottom, #ef4444 50%, var(--muted) 50%); clip-path: polygon(50% 0%, 100% 100%, 50% 85%, 0% 100%); transition: transform 2s cubic-bezier(0.1, 0.9, 0.2, 1); }
+        .compass-ui { position: absolute !important; top: 28px !important; right: 28px !important; width: 50px; height: 50px; border: 2px solid var(--border); border-radius: 50%; display: flex; align-items: center; justify-content: center; z-index: 10; }
+        #needle { width: 3px; height: 32px; background: linear-gradient(to bottom, #ef4444 50%, var(--muted) 50%); clip-path: polygon(50% 0%, 100% 100%, 50% 85%, 0% 100%); transition: transform 2s cubic-bezier(0.1, 0.9, 0.2, 1); }
 
-        .graphs-wrapper { display: grid; grid-template-columns: repeat(auto-fit, minmax(450px, 1fr)); gap: 24px; margin-top: 24px; }
-        .graph-card { background: var(--card); padding: 28px; border-radius: 36px; border: 1px solid var(--border); height: 380px; box-shadow: var(--glow); display: flex; flex-direction: column; overflow: hidden; }
+        .graphs-wrapper { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin-top: 20px; }
+        .graph-card { background: var(--card); padding: 24px; border-radius: 32px; border: 1px solid var(--border); height: 320px; box-shadow: var(--glow); display: flex; flex-direction: column; overflow: hidden; }
         .graph-card canvas { flex-grow: 1; width: 100% !important; height: 100% !important; }
 
         .trend-up { color: #f43f5e; } .trend-down { color: #0ea5e9; }
-        .time-mark { font-size: 10px; color: var(--muted); font-weight: 600; margin-left: 4px; background: rgba(0,0,0,0.04); padding: 2px 6px; border-radius: 6px; }
+        .time-mark { font-size: 9px; color: var(--muted); font-weight: 600; margin-left: 2px; background: rgba(0,0,0,0.04); padding: 1px 4px; border-radius: 4px; }
         body.is-night .time-mark { background: rgba(255,255,255,0.1); }
     </style>
 </head>
@@ -193,7 +192,7 @@ app.get("/", (req, res) => {
             <div class="header-actions">
                 <div class="status-bar">
                     <div class="live-dot"></div>
-                    <div class="timestamp">LIVE: <span id="ts">--:--:--</span></div>
+                    <div class="timestamp"><span id="ts">--:--:--</span></div>
                 </div>
                 
                 <div class="theme-toggle" id="themeToggle">
@@ -224,7 +223,7 @@ app.get("/", (req, res) => {
                 <div class="compass-ui"><div id="needle"></div></div>
                 <div class="main-val">
                     <span id="w">--</span>
-                    <span id="wd_bracket" style="font-size:22px; color:var(--muted); margin-left:12px; font-weight:700">(--)</span>
+                    <span id="wd_bracket" style="font-size:18px; color:var(--muted); margin-left:8px; font-weight:700">(--)</span>
                     <span class="unit">km/h</span>
                 </div>
                 <div class="sub-pill">● Live Gust: <span id="wg" style="margin-left:4px">--</span></div>
@@ -257,10 +256,10 @@ app.get("/", (req, res) => {
         </div>
 
         <div class="graphs-wrapper">
-            <div class="graph-card"><div class="label" style="margin-bottom: 12px;">Temperature Trend</div><canvas id="cT"></canvas></div>
-            <div class="graph-card"><div class="label" style="margin-bottom: 12px;">Humidity Levels</div><canvas id="cH"></canvas></div>
-            <div class="graph-card"><div class="label" style="margin-bottom: 12px;">Wind Velocity</div><canvas id="cW"></canvas></div>
-            <div class="graph-card"><div class="label" style="margin-bottom: 12px;">Precipitation</div><canvas id="cR"></canvas></div>
+            <div class="graph-card"><div class="label" style="margin-bottom: 8px;">Temperature Trend</div><canvas id="cT"></canvas></div>
+            <div class="graph-card"><div class="label" style="margin-bottom: 8px;">Humidity Levels</div><canvas id="cH"></canvas></div>
+            <div class="graph-card"><div class="label" style="margin-bottom: 8px;">Wind Velocity</div><canvas id="cW"></canvas></div>
+            <div class="graph-card"><div class="label" style="margin-bottom: 8px;">Precipitation</div><canvas id="cR"></canvas></div>
         </div>
     </div>
 
@@ -268,8 +267,6 @@ app.get("/", (req, res) => {
     <script>
         let currentMode = localStorage.getItem('weatherMode') || 'auto';
         let charts = {};
-
-        // Wind Physics Setup
         let liveWindSpeed = 0, liveWindDeg = 0, particles = [];
         const wCanvas = document.getElementById('windCanvas');
         const ctxW = wCanvas.getContext('2d');
@@ -348,7 +345,7 @@ app.get("/", (req, res) => {
                         fill: true, 
                         tension: 0.4, 
                         pointRadius: 0, 
-                        borderWidth: 3,
+                        borderWidth: 2,
                         borderRadius: 4,
                         pointHoverRadius: 5,
                         pointHoverBackgroundColor: color,
@@ -368,8 +365,8 @@ app.get("/", (req, res) => {
                             titleColor: document.body.classList.contains('is-night') ? '#f1f5f9' : '#0f172a',
                             bodyColor: document.body.classList.contains('is-night') ? '#f1f5f9' : '#0f172a',
                             bodyFont: { family: 'Outfit', weight: '700' },
-                            padding: 12,
-                            cornerRadius: 12,
+                            padding: 10,
+                            cornerRadius: 10,
                             displayColors: false,
                             borderColor: 'rgba(0,0,0,0.05)',
                             borderWidth: 1
@@ -378,17 +375,16 @@ app.get("/", (req, res) => {
                     scales: { 
                         y: { 
                             grid: { color: 'rgba(0,0,0,0.03)', drawBorder: false }, 
-                            ticks: { font: { family: 'Outfit', size: 10 }, padding: 8 },
+                            ticks: { font: { family: 'Outfit', size: 9 }, padding: 4 },
                             min: minVal
                         }, 
                         x: { 
                             grid: { display: false }, 
                             ticks: { 
-                                font: { family: 'Outfit', size: 10 }, 
-                                maxTicksLimit: 10,
+                                font: { family: 'Outfit', size: 9 }, 
+                                maxTicksLimit: 8,
                                 autoSkip: true,
-                                maxRotation: 0,
-                                align: 'start'
+                                maxRotation: 0
                             } 
                         } 
                     } 
@@ -419,7 +415,6 @@ app.get("/", (req, res) => {
                 document.getElementById('mg').innerHTML = d.wind.maxG + ' km/h <span class="time-mark">' + d.wind.maxGTime + '</span>';
                 document.getElementById('needle').style.transform = 'rotate(' + d.wind.deg + 'deg)';
                 
-                // Update Wind variables
                 liveWindSpeed = d.wind.speed;
                 liveWindDeg = d.wind.deg;
 
@@ -455,23 +450,28 @@ app.get("/", (req, res) => {
             } catch (e) { console.error(e); }
         }
 
-        // Particle System Animation
+        // Particle System with Clipping Fix
         for(let i=0; i<60; i++) { particles.push({ x: Math.random() * 800, y: Math.random() * 800 }); }
         function animateWind() {
-            if (wCanvas.width !== wCanvas.offsetWidth) { wCanvas.width = wCanvas.offsetWidth; wCanvas.height = wCanvas.offsetHeight; }
+            // THE FIX: Constantly sync canvas size to parent container to avoid "cuts"
+            if (wCanvas.width !== wCanvas.offsetWidth) { 
+                wCanvas.width = wCanvas.offsetWidth; 
+                wCanvas.height = wCanvas.offsetHeight; 
+            }
             ctxW.clearRect(0, 0, wCanvas.width, wCanvas.height);
             const rad = (liveWindDeg - 90) * (Math.PI / 180);
-            const speed = Math.max(1.2, liveWindSpeed * 0.5); // Adjusted for subtle motion
+            const speed = Math.max(1.0, liveWindSpeed * 0.4);
             const dx = Math.cos(rad) * speed, dy = Math.sin(rad) * speed;
             ctxW.strokeStyle = document.body.classList.contains('is-night') ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)';
             ctxW.lineWidth = 0.8;
             ctxW.beginPath();
             particles.forEach(p => {
                 p.x += dx; p.y += dy;
+                // Perfect wrapping logic
                 if (p.x > wCanvas.width) p.x = 0; else if (p.x < 0) p.x = wCanvas.width;
                 if (p.y > wCanvas.height) p.y = 0; else if (p.y < 0) p.y = wCanvas.height;
                 ctxW.moveTo(p.x, p.y);
-                ctxW.lineTo(p.x - dx * 0.4, p.y - dy * 0.4); // Subtle trails
+                ctxW.lineTo(p.x - dx * 0.35, p.y - dy * 0.35);
             });
             ctxW.stroke();
             requestAnimationFrame(animateWind);
@@ -488,4 +488,3 @@ app.get("/", (req, res) => {
 });
 
 app.listen(3000);
-
