@@ -1,5 +1,5 @@
 const express = require("express");
-const fetch = require("fetch-node");
+const fetch = require("node-fetch"); // Fixed dependency name
 const { Pool } = require('pg');
 const app = express();
 
@@ -86,7 +86,7 @@ async function syncWithEcowitt(forceWrite = false) {
                 if (r_temp <= mn_t) { mn_t = r_temp; mn_t_time = r_time; }
                 if (r_wind >= mx_w) { mx_w = r_wind; mx_w_t = r_time; }
                 if (r_gust >= mx_g) { mx_g = r_gust; mx_g_t = r_time; }
-                if (r_rain_rate >= mx_r) { mx_r = r_rain_rate; mx_r_t = r_time; }
+                if (r_rain_rate > mx_r) { mx_r = r_rain_rate; mx_r_t = r_time; }
                 graphHistory.push({ time: r.time, temp: r_temp, hum: r.humidity, wind: r_wind, rain: parseFloat((r.daily_rain_in * 25.4).toFixed(1)) });
             });
         }
@@ -254,7 +254,6 @@ app.get("/", (req, res) => {
             try {
                 const res = await fetch('/weather?v=' + Date.now()); const d = await res.json(); if (!d || d.error) return;
                 
-                // Temp restored Humidity Indicator & Dew Point
                 document.getElementById('t').innerText = d.temp.current;
                 document.getElementById('tTrendBox').innerHTML = d.temp.rate > 0 ? '<span class="trend-up">▲</span> +' + d.temp.rate + '°C /hr' : d.temp.rate < 0 ? '<span class="trend-down">▼</span> ' + d.temp.rate + '°C /hr' : '● Steady';
                 document.getElementById('mx').innerHTML = d.temp.max + '°C <span class="time-mark">' + d.temp.maxTime + '</span>';
@@ -262,7 +261,6 @@ app.get("/", (req, res) => {
                 document.getElementById('rf').innerText = d.temp.realFeel + '°'; 
                 document.getElementById('h_dew').innerText = d.atmo.hum + '% / ' + d.temp.dew + '°';
                 
-                // Wind
                 document.getElementById('w').innerText = d.wind.speed; 
                 document.getElementById('wd_bracket').innerText = '(' + d.wind.card + ')';
                 document.getElementById('wg').innerText = d.wind.gust + ' km/h';
@@ -270,7 +268,6 @@ app.get("/", (req, res) => {
                 document.getElementById('mg').innerHTML = d.wind.maxG + ' km/h <span class="time-mark">' + d.wind.maxGTime + '</span>';
                 document.getElementById('needle').style.transform = 'rotate(' + d.wind.deg + 'deg)';
                 
-                // Rain restored Yearly
                 document.getElementById('r_tot').innerText = d.rain.total; 
                 document.getElementById('r_rate').innerText = d.rain.rate;
                 document.getElementById('r_week').innerText = d.rain.weekly + ' mm'; 
@@ -278,7 +275,6 @@ app.get("/", (req, res) => {
                 document.getElementById('r_year').innerText = d.rain.yearly + ' mm';
                 document.getElementById('mr').innerHTML = d.rain.maxR > 0 ? d.rain.maxR + ' mm/h <span class="time-mark">' + d.rain.maxRTime + '</span>' : '0';
                 
-                // Pressure & Others
                 document.getElementById('pr').innerText = d.atmo.press;
                 const pIcon = document.getElementById('pIcon');
                 if (d.atmo.pTrend > 0) pIcon.innerHTML = '<span class="trend-up">▲</span>';
