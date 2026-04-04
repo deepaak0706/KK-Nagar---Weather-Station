@@ -37,22 +37,30 @@ function calculateRealFeel(tempC, humidity) {
 
 async function syncWithEcowitt(forceWrite = false) {
     const now = Date.now();
+    
+    // Safety Shield: Don't spam Ecowitt if calls are less than 35 seconds apart
+    if (!forceWrite && state.cachedData && (now - state.lastFetchTime < 35000)) {
+        return state.cachedData;
+    }
+
     try {
         const url = `https://api.ecowitt.net/api/v3/device/real_time?application_key=${APPLICATION_KEY}&api_key=${API_KEY}&mac=${MAC}`;
         const response = await fetch(url);
         const json = await response.json();
+        if (!json.data) throw new Error("No data from Ecowitt");
         const d = json.data;
 
-        // 1. Current Stats
+        // 1. Current Stats Calculations
         const tempC = parseFloat(((d.outdoor.temperature.value - 32) * 5 / 9).toFixed(1));
-        const hum = d.outdoor.humidity.value;
-        const press = parseFloat((d.pressure.relative.value * 33.8639).toFixed(1));
-        const dailyRain = parseFloat((d.rainfall.daily.value * 25.4).toFixed(1));
-        const windKmh = parseFloat((d.wind.wind_speed.value * 1.60934).toFixed(1));
-        const gustKmh = parseFloat((d.wind.wind_gust.value * 1.60934).toFixed(1));
+        const hum = d.outdoor.humidity.value || 0;
+        const press = parseFloat((d.pressure.relative.value * 33.8639).toFixed(1)) || 0;
+        const dailyRain = parseFloat((d.rainfall.daily.value * 25.4).toFixed(1)) || 0;
+        const windKmh = parseFloat((d.wind.wind_speed.value * 1.60934).toFixed(1)) || 0;
+        const gustKmh = parseFloat((d.wind.wind_gust.value * 1.60934).toFixed(1)) || 0;
         const realFeel = calculateRealFeel(tempC, hum);
+        const dewC = parseFloat(((d.outdoor.dew_point.value - 32) * 5 / 9).toFixed(1)) || 0;
 
-        // 2. Database Write (Triggered by Cron every 2 mins)
+        // 2. Database Write Logic
         if (forceWrite || (now - state.lastDbWrite > 120000)) {
             await pool.query(`INSERT INTO weather_history (time, temp_f, humidity, wind_speed_mph, wind_gust_mph, daily_rain_in, solar_radiation, press_rel) 
                              VALUES (NOW(), $1, $2, $3, $4, $5, $6, $7)`, 
@@ -60,48 +68,54 @@ async function syncWithEcowitt(forceWrite = false) {
             state.lastDbWrite = now;
         }
 
-        // 3. Persistent Max/Min History
+        // 3. Persistent Max/Min & History Processing
         const historyRes = await pool.query(`SELECT * FROM weather_history WHERE time > NOW() - INTERVAL '24 hours' ORDER BY time ASC`);
         const todayStr = new Date().toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' });
         
-        let mx_t = tempC, mn_t = tempC, mx_t_time = "", mx_w = windKmh, mx_g = gustKmh;
+        let mx_t = tempC, mn_t = tempC, mx_t_time = "", mn_t_time = "", mx_w = windKmh, mx_g = gustKmh, mx_r = 0;
 
         const history = historyRes.rows.map(r => {
+            const r_date = new Date(r.time).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' });
+            const r_time = new Date(r.time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' });
             const r_temp = parseFloat(((r.temp_f - 32) * 5 / 9).toFixed(1));
             const r_wind = parseFloat((r.wind_speed_mph * 1.60934).toFixed(1));
-            const r_time = new Date(r.time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' });
-            const r_date = new Date(r.time).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' });
 
             if (r_date === todayStr) {
                 if (r_temp >= mx_t) { mx_t = r_temp; mx_t_time = r_time; }
-                if (r_temp <= mn_t) { mn_t = r_temp; }
+                if (r_temp <= mn_t) { mn_t = r_temp; mn_t_time = r_time; } // Fixed Min Timestamp
                 if (r_wind > mx_w) mx_w = r_wind;
+                if (r.rain_rate_in > mx_r) mx_r = r.rain_rate_in;
             }
-            return { time: r.time, temp: r_temp, hum: r.humidity, wind: r_wind, press: r.press_rel || press };
+            return { time: r.time, temp: r_temp, hum: r.humidity, wind: r_wind, press: r.press_rel || press, rain: r.rain_rate_in || 0 };
         });
 
-        // 4. THE JSON (Aligned with your HTML IDs)
+        // 4. Final JSON Package
         state.cachedData = {
-            temp: { current: tempC, max: mx_t, maxTime: mx_t_time, min: mn_t, trend: 0, realFeel: realFeel },
-            atmo: { hum: hum, press: press, dew: parseFloat(((d.outdoor.dew_point.value - 32) * 5 / 9).toFixed(1)), hTrend: 0, pTrend: 0 },
+            temp: { current: tempC, max: mx_t, maxTime: mx_t_time, min: mn_t, minTime: mn_t_time, trend: 0, realFeel: realFeel },
+            atmo: { hum: hum, press: press, dew: dewC, hTrend: 0, pTrend: 0 },
             wind: { speed: windKmh, gust: gustKmh, maxS: mx_w, maxG: mx_g, deg: d.wind.wind_direction.value, card: getCard(d.wind.wind_direction.value) },
-            rain: { total: dailyRain, rate: 0, maxR: 0 },
+            rain: { total: dailyRain, rate: 0, maxR: mx_r },
             solar: { rad: d.solar_and_uvi?.solar?.value || 0, uvi: d.solar_and_uvi?.uvi?.value || 0 },
             history: history,
             lastSync: new Date().toISOString()
         };
         state.lastFetchTime = now;
         return state.cachedData;
-    } catch (e) { return state.cachedData || { error: "Failed" }; }
+    } catch (e) { 
+        console.error("Sync Error:", e);
+        return state.cachedData || { error: "Failed to fetch" }; 
+    }
 }
 
+// Routes
 app.get("/api/sync", async (req, res) => {
-    await syncWithEcowitt(true);
-    res.json({ success: true, message: "DB Updated" });
+    await syncWithEcowitt(true); // Force write to DB
+    res.json({ success: true, message: "Database Synced Successfully" });
 });
 
 app.get("/weather", async (req, res) => {
-    res.json(await syncWithEcowitt());
+    const data = await syncWithEcowitt();
+    res.json(data);
 });
 
 app.get("/", (req, res) => {
