@@ -1,5 +1,5 @@
 const express = require("express");
-const fetch = require("node-fetch"); // Fixed dependency name
+const fetch = require("node-fetch");
 const { Pool } = require('pg');
 const app = express();
 
@@ -130,8 +130,22 @@ app.get("/", (req, res) => {
 
         body { margin: 0; font-family: 'Outfit', sans-serif; background: var(--bg); color: var(--text); padding: 40px 24px; transition: all 0.5s ease; min-height: 100vh; }
         .container { width: 100%; max-width: 1200px; margin: 0 auto; }
-        .header { margin-bottom: 40px; display: flex; justify-content: space-between; align-items: center; }
+        
+        .header { margin-bottom: 40px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 20px; }
         .header h1 { font-size: 30px; font-weight: 900; margin: 0; letter-spacing: -1.5px; }
+
+        .header-actions { display: flex; align-items: center; gap: 16px; }
+        
+        /* Toggle Styling */
+        .theme-toggle {
+            background: var(--card); border: 1px solid var(--border); padding: 4px; border-radius: 12px;
+            display: flex; gap: 4px; box-shadow: var(--glow); cursor: pointer;
+        }
+        .theme-btn { 
+            padding: 6px 12px; border-radius: 8px; font-size: 12px; font-weight: 700; 
+            transition: 0.3s; color: var(--muted); 
+        }
+        .theme-btn.active { background: var(--accent); color: white; }
 
         .status-bar { display: flex; align-items: center; gap: 12px; background: var(--card); padding: 8px 20px; border-radius: 100px; border: 1px solid var(--border); box-shadow: var(--glow); }
         .live-dot { width: 8px; height: 8px; background: #10b981; border-radius: 50%; animation: blink 2s infinite; }
@@ -168,9 +182,16 @@ app.get("/", (req, res) => {
     <div class="container">
         <div class="header">
             <h1>KK Nagar Weather Hub</h1>
-            <div class="status-bar">
-                <div class="live-dot"></div>
-                <div class="timestamp">SYNC: <span id="ts">--:--</span></div>
+            <div class="header-actions">
+                <div class="theme-toggle" id="themeToggle">
+                    <div class="theme-btn" id="btn-light">LIGHT</div>
+                    <div class="theme-btn" id="btn-dark">DARK</div>
+                    <div class="theme-btn active" id="btn-auto">AUTO</div>
+                </div>
+                <div class="status-bar">
+                    <div class="live-dot"></div>
+                    <div class="timestamp">SYNC: <span id="ts">--:--</span></div>
+                </div>
             </div>
         </div>
 
@@ -233,12 +254,42 @@ app.get("/", (req, res) => {
     </div>
 
     <script>
-        function updateTheme() {
+        let currentMode = localStorage.getItem('weatherMode') || 'auto';
+
+        function applyTheme() {
             const hour = new Date().getHours();
-            if (hour >= 18 || hour < 6) document.body.classList.add('is-night');
-            else document.body.classList.remove('is-night');
+            const btns = document.querySelectorAll('.theme-btn');
+            btns.forEach(b => b.classList.remove('active'));
+
+            if (currentMode === 'dark') {
+                document.body.classList.add('is-night');
+                document.getElementById('btn-dark').classList.add('active');
+            } else if (currentMode === 'light') {
+                document.body.classList.remove('is-night');
+                document.getElementById('btn-light').classList.add('active');
+            } else {
+                document.getElementById('btn-auto').classList.add('active');
+                if (hour >= 18 || hour < 6) document.body.classList.add('is-night');
+                else document.body.classList.remove('is-night');
+            }
+            if (charts.cT) updateChartColors();
         }
-        updateTheme(); setInterval(updateTheme, 60000);
+
+        document.getElementById('btn-light').onclick = () => { currentMode = 'light'; localStorage.setItem('weatherMode', 'light'); applyTheme(); };
+        document.getElementById('btn-dark').onclick = () => { currentMode = 'dark'; localStorage.setItem('weatherMode', 'dark'); applyTheme(); };
+        document.getElementById('btn-auto').onclick = () => { currentMode = 'auto'; localStorage.setItem('weatherMode', 'auto'); applyTheme(); };
+
+        function updateChartColors() {
+            const gridColor = document.body.classList.contains('is-night') ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)';
+            const textColor = document.body.classList.contains('is-night') ? '#94a3b8' : '#64748b';
+            
+            Object.values(charts).forEach(chart => {
+                chart.options.scales.y.grid.color = gridColor;
+                chart.options.scales.y.ticks.color = textColor;
+                chart.options.scales.x.ticks.color = textColor;
+                chart.update('none');
+            });
+        }
 
         let charts = {};
         function setupChart(id, label, color) {
@@ -246,13 +297,21 @@ app.get("/", (req, res) => {
             return new Chart(ctx, { 
                 type: 'line', 
                 data: { labels: [], datasets: [{ label: label, data: [], borderColor: color, backgroundColor: color+'15', fill: true, tension: 0.4, pointRadius: 0, borderWidth: 3 }] }, 
-                options: { animation: false, responsive: true, maintainAspectRatio: false, scales: { y: { grid: { color: 'rgba(0,0,0,0.03)' } }, x: { grid: { display: false } } } } 
+                options: { 
+                    animation: false, responsive: true, maintainAspectRatio: false, 
+                    scales: { 
+                        y: { grid: { color: 'rgba(0,0,0,0.03)' }, ticks: { font: { family: 'Outfit' } } }, 
+                        x: { grid: { display: false }, ticks: { font: { family: 'Outfit' } } } 
+                    } 
+                } 
             });
         }
 
         async function update() {
             try {
-                const res = await fetch('/weather?v=' + Date.now()); const d = await res.json(); if (!d || d.error) return;
+                const res = await fetch('/weather?v=' + Date.now()); 
+                const d = await res.json(); 
+                if (!d || d.error) return;
                 
                 document.getElementById('t').innerText = d.temp.current;
                 document.getElementById('tTrendBox').innerHTML = d.temp.rate > 0 ? '<span class="trend-up">▲</span> +' + d.temp.rate + '°C /hr' : d.temp.rate < 0 ? '<span class="trend-down">▼</span> ' + d.temp.rate + '°C /hr' : '● Steady';
@@ -289,6 +348,7 @@ app.get("/", (req, res) => {
                 if(!charts.cT) { 
                     charts.cT = setupChart('cT', 'Temp °C', '#ef4444'); charts.cH = setupChart('cH', 'Humidity %', '#10b981'); 
                     charts.cW = setupChart('cW', 'Wind km/h', '#f59e0b'); charts.cR = setupChart('cR', 'Rain mm', '#3b82f6'); 
+                    applyTheme(); 
                 }
                 charts.cT.data.labels = labels; charts.cT.data.datasets[0].data = d.history.map(h => h.temp); charts.cT.update('none');
                 charts.cH.data.labels = labels; charts.cH.data.datasets[0].data = d.history.map(h => h.hum); charts.cH.update('none');
@@ -296,7 +356,10 @@ app.get("/", (req, res) => {
                 charts.cR.data.labels = labels; charts.cR.data.datasets[0].data = d.history.map(h => h.rain); charts.cR.update('none');
             } catch (e) { console.error(e); }
         }
-        setInterval(update, 45000); update();
+
+        applyTheme();
+        setInterval(update, 45000); 
+        update();
     </script>
 </body>
 </html>
