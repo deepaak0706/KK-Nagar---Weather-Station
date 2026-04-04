@@ -310,7 +310,16 @@ app.get("/", (req, res) => {
                             ticks: { font: { family: 'Outfit' } },
                             min: minVal
                         }, 
-                        x: { grid: { display: false }, ticks: { font: { family: 'Outfit' } } } 
+                                                x: { 
+                            grid: { display: false }, 
+                            ticks: { 
+                                font: { family: 'Outfit', size: 10 },
+                                maxTicksLimit: 8, // Forces Chart.js to only show 8 evenly spaced time markers
+                                maxRotation: 45,  // Angles the text so they don't overlap
+                                minRotation: 45
+                            } 
+                        } 
+
                     } 
                 } 
             });
