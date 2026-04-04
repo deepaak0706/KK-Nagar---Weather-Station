@@ -192,7 +192,7 @@ app.get("/", (req, res) => {
                 </div>
                 <div class="status-bar">
                     <div class="live-dot"></div>
-                    <div class="timestamp">SYNC: <span id="ts">--:--:--</span></div>
+                    <div class="timestamp">LIVE: <span id="ts">--:--:--</span></div>
                 </div>
             </div>
         </div>
@@ -227,7 +227,7 @@ app.get("/", (req, res) => {
             </div>
 
             <div class="card">
-                <div class="label">Rainfall Overview</div>
+                <div class="label">Rain Realm</div>
                 <div class="main-val"><span id="r_tot">--</span><span class="unit">mm</span></div>
                 <div class="sub-pill">● Rain Rate: <span id="r_rate">--</span> mm/h</div>
                 <div class="sub-box-4">
@@ -342,7 +342,7 @@ app.get("/", (req, res) => {
                 document.getElementById('r_week').innerText = d.rain.weekly + ' mm'; 
                 document.getElementById('r_month').innerText = d.rain.monthly + ' mm';
                 document.getElementById('r_year').innerText = d.rain.yearly + ' mm';
-                document.getElementById('mr').innerHTML = d.rain.maxR > 0 ? d.rain.maxR + ' mm/h <span class="time-mark">' + d.rain.maxRTime + '</span>' : '0';
+                document.getElementById('mr').innerHTML = d.rain.maxR > 0 ? d.rain.maxR + ' mm/h <span class="time-mark">' + d.rain.maxRTime + '</span>' : '0 mm/h';
                 
                 document.getElementById('pr').innerText = d.atmo.press;
                 const pIcon = document.getElementById('pIcon');
