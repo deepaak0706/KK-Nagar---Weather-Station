@@ -1,4 +1,4 @@
-const express = require("express");
+Const express = require("express");
 const fetch = require("node-fetch");
 const { Pool } = require('pg');
 const app = express();
@@ -156,11 +156,20 @@ app.get("/", (req, res) => {
         .grid-system { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 24px; }
         .card { background: var(--card); padding: 32px; border-radius: 36px; border: 1px solid var(--border); backdrop-filter: blur(15px); box-shadow: var(--glow); position: relative; }
 
-                 .label { 
+                       .label { 
             color: var(--accent); font-size: 11px; font-weight: 800; text-transform: uppercase; 
-            letter-spacing: 2.5px; margin-bottom: 16px; padding-left: 12px; 
-            border-left: 3px solid var(--accent); line-height: 1;
+            letter-spacing: 2.5px; margin-bottom: 20px; padding-left: 12px; 
+            border-left: 3px solid var(--accent); line-height: 1; display: block;
         }
+
+        .badge { 
+            padding: 14px; border-radius: 16px; 
+            background: rgba(0, 0, 0, 0.02); 
+            border: 1px solid var(--border); 
+            display: flex; flex-direction: column; gap: 4px; 
+            transition: transform 0.2s ease;
+        }
+
 
         .main-val { font-size: 64px; font-weight: 900; margin: 2px 0; letter-spacing: -3px; display: flex; align-items: baseline; }
         .unit { font-size: 22px; font-weight: 600; color: var(--muted); margin-left: 6px; letter-spacing: 0; }
@@ -308,24 +317,38 @@ app.get("/", (req, res) => {
         }
 
         let charts = {};
-        function setupChart(id, label, color, minVal = null) {
+                function setupChart(id, label, color, minVal = null) {
             const ctx = document.getElementById(id);
             return new Chart(ctx, { 
                 type: 'line', 
                 data: { labels: [], datasets: [{ label: label, data: [], borderColor: color, backgroundColor: color+'15', fill: true, tension: 0.4, pointRadius: 0, borderWidth: 3 }] }, 
                 options: { 
                     animation: false, responsive: true, maintainAspectRatio: false, 
+                    plugins: {
+                        legend: {
+                            display: true,
+                            align: 'start',
+                            labels: {
+                                color: color,
+                                font: { family: 'Outfit', size: 12, weight: '700' },
+                                boxWidth: 12,
+                                usePointStyle: true,
+                                padding: 15
+                            }
+                        }
+                    },
                     scales: { 
                         y: { 
                             grid: { color: 'rgba(0,0,0,0.03)' }, 
-                            ticks: { font: { family: 'Outfit' } },
+                            ticks: { font: { family: 'Outfit', size: 10 } },
                             min: minVal
                         }, 
-                        x: { grid: { display: false }, ticks: { font: { family: 'Outfit' } } } 
+                        x: { grid: { display: false }, ticks: { font: { family: 'Outfit', size: 10 } } } 
                     } 
                 } 
             });
         }
+
 
         async function update() {
             try {
