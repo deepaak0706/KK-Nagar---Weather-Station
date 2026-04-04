@@ -15,7 +15,7 @@ let state = { cachedData: null, lastFetchTime: 0, lastDbWrite: 0 };
 
 const getCard = (a) => {
     const directions = ["N","NNE","NE","ENE","E","ESE","SE","SSE","S","SSW","SW","WSW","W","WNW","NW","NNW"];
-    return directions[Math.round(a / 22.5) % 16];
+    return directions[Round(a / 22.5) % 16];
 };
 
 function calculateRealFeel(tempC, humidity) {
@@ -45,7 +45,6 @@ async function syncWithEcowitt(forceWrite = false) {
         const liveGust = parseFloat((d.wind.wind_gust.value * 1.60934).toFixed(1));
         const liveRainRate = parseFloat(((d.rainfall.rain_rate?.value || 0) * 25.4).toFixed(1));
 
-        // DB Storage every 2 minutes
         if (forceWrite || (now - state.lastDbWrite > 120000)) {
             await pool.query(`INSERT INTO weather_history (time, temp_f, humidity, wind_speed_mph, wind_gust_mph, daily_rain_in, solar_radiation, press_rel, rain_rate_in) VALUES (NOW(), $1, $2, $3, $4, $5, $6, $7, $8)`, 
             [d.outdoor.temperature.value, liveHum, d.wind.wind_speed.value, d.wind.wind_gust.value, d.rainfall.daily.value, d.solar_and_uvi?.solar?.value || 0, livePress, d.rainfall.rain_rate?.value || 0]);
@@ -108,6 +107,15 @@ app.get("/", (req, res) => {
         :root { --bg-1: #020617; --card: rgba(15, 23, 42, 0.45); --accent: #38bdf8; --max-t: #fb7185; --min-t: #60a5fa; --border: rgba(255, 255, 255, 0.08); }
         body { margin: 0; font-family: 'Outfit', sans-serif; background: var(--bg-1); color: #f8fafc; padding: 32px 24px; display: flex; flex-direction: column; align-items: center; }
         .container { width: 100%; max-width: 1200px; }
+        
+        /* HEADER STYLES */
+        .header { margin-bottom: 40px; display: flex; justify-content: space-between; align-items: center; width: 100%; }
+        .header h1 { font-size: 28px; font-weight: 800; margin: 0; background: linear-gradient(to right, #f8fafc, #94a3b8); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .status-bar { display: flex; align-items: center; gap: 12px; background: rgba(255,255,255,0.03); padding: 8px 16px; border-radius: 100px; border: 1px solid var(--border); }
+        .live-dot { width: 8px; height: 8px; background: #10b981; border-radius: 50%; box-shadow: 0 0 12px #10b981; animation: blink 1.5s infinite; }
+        @keyframes blink { 0% { opacity: 1; } 50% { opacity: 0.3; } 100% { opacity: 1; } }
+        .timestamp { font-size: 13px; font-weight: 700; color: #94a3b8; font-variant-numeric: tabular-nums; }
+
         .grid-system { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 24px; margin-bottom: 24px; }
         .card, .graph-card { background: var(--card); padding: 32px; border-radius: 28px; border: 1px solid var(--border); backdrop-filter: blur(24px); position: relative; }
         .label { color: #94a3b8; font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 8px; }
@@ -126,6 +134,14 @@ app.get("/", (req, res) => {
 </head>
 <body>
     <div class="container">
+        <div class="header">
+            <h1>KK Nagar Weather Hub</h1>
+            <div class="status-bar">
+                <div class="live-dot"></div>
+                <div class="timestamp">LIVE: <span id="ts">--:--:--</span></div>
+            </div>
+        </div>
+
         <div class="grid-system">
             <div class="card">
                 <div class="label">Temperature</div>
@@ -217,12 +233,15 @@ app.get("/", (req, res) => {
                 document.getElementById('r_rate').innerText = d.rain.rate;
                 document.getElementById('r_tot').innerText = d.rain.total + ' mm';
                 
-                // Rain Logic (No timestamp if 0)
+                // Rain Logic
                 if (d.rain.maxR > 0) {
                     document.getElementById('mr').innerHTML = d.rain.maxR + ' mm/h <span class="time-mark">' + d.rain.maxRTime + '</span>';
                 } else {
                     document.getElementById('mr').innerText = '0 mm/h';
                 }
+
+                // Global Status Timestamp
+                document.getElementById('ts').innerText = new Date(d.lastSync).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 
                 // 5m GRAPH UPDATES
                 if (now - lastGraphUpdate >= 300000 || lastGraphUpdate === 0) {
