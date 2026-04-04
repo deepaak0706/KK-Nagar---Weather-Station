@@ -193,14 +193,27 @@ app.get("/", (req, res) => {
         let lastGraphUpdate = 0;
 
         function setupChart(id, label, color, type='line') {
-            const ctx = document.getElementById(id);
-            if (!ctx) return null;
-            return new Chart(ctx, {
-                type: type,
-                data: { labels: [], datasets: [{ label: label, data: [], borderColor: color, backgroundColor: color+'22', fill: true, tension: 0.4, pointRadius: 0 }] },
-                options: { responsive: true, maintainAspectRatio: false }
-            });
+    const ctx = document.getElementById(id);
+    if (!ctx) return null;
+    return new Chart(ctx, {
+        type: type,
+        data: { labels: [], datasets: [{ label: label, data: [], borderColor: color, backgroundColor: color+'22', fill: true, tension: 0.4, pointRadius: 0 }] },
+        options: { 
+            responsive: true, 
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true, // Forces the chart to start at 0
+                    min: 0,            // Prevents negative numbers from showing
+                    ticks: {
+                        precision: 1    // Keeps the numbers clean
+                    }
+                }
+            }
         }
+    });
+}
+
 
         async function update() {
             try {
