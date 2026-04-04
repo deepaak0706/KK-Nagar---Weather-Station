@@ -156,7 +156,7 @@ app.get("/", (req, res) => {
         .grid-system { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 24px; }
         .card { background: var(--card); padding: 32px; border-radius: 36px; border: 1px solid var(--border); backdrop-filter: blur(15px); box-shadow: var(--glow); position: relative; overflow: hidden; }
 
-        /* FIX: Ensure Wind Particles stay in the background */
+        /* FIX: Wind Engine Background Layer */
         #windCanvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; }
         .card > *:not(canvas) { position: relative; z-index: 5; }
 
@@ -173,7 +173,7 @@ app.get("/", (req, res) => {
         .badge-label { font-size: 10px; color: var(--muted); text-transform: uppercase; font-weight: 800; }
         .badge-val { font-size: 18px; font-weight: 800; }
 
-        /* FIX: Re-Pin Compass to top-right */
+        /* FIX: Ensure Compass is pinned and above the animation */
         .compass-ui { position: absolute !important; top: 32px !important; right: 32px !important; width: 60px; height: 60px; border: 2px solid var(--border); border-radius: 50%; display: flex; align-items: center; justify-content: center; z-index: 10; }
         #needle { width: 3px; height: 38px; background: linear-gradient(to bottom, #ef4444 50%, var(--muted) 50%); clip-path: polygon(50% 0%, 100% 100%, 50% 85%, 0% 100%); transition: transform 2s cubic-bezier(0.1, 0.9, 0.2, 1); }
 
@@ -269,7 +269,7 @@ app.get("/", (req, res) => {
         let currentMode = localStorage.getItem('weatherMode') || 'auto';
         let charts = {};
 
-        // Wind State
+        // Wind Physics Setup
         let liveWindSpeed = 0, liveWindDeg = 0, particles = [];
         const wCanvas = document.getElementById('windCanvas');
         const ctxW = wCanvas.getContext('2d');
@@ -419,7 +419,7 @@ app.get("/", (req, res) => {
                 document.getElementById('mg').innerHTML = d.wind.maxG + ' km/h <span class="time-mark">' + d.wind.maxGTime + '</span>';
                 document.getElementById('needle').style.transform = 'rotate(' + d.wind.deg + 'deg)';
                 
-                // Update Wind vars
+                // Update Wind variables
                 liveWindSpeed = d.wind.speed;
                 liveWindDeg = d.wind.deg;
 
@@ -455,13 +455,13 @@ app.get("/", (req, res) => {
             } catch (e) { console.error(e); }
         }
 
-        // Particle System Engine
+        // Particle System Animation
         for(let i=0; i<60; i++) { particles.push({ x: Math.random() * 800, y: Math.random() * 800 }); }
         function animateWind() {
             if (wCanvas.width !== wCanvas.offsetWidth) { wCanvas.width = wCanvas.offsetWidth; wCanvas.height = wCanvas.offsetHeight; }
             ctxW.clearRect(0, 0, wCanvas.width, wCanvas.height);
             const rad = (liveWindDeg - 90) * (Math.PI / 180);
-            const speed = Math.max(1.2, liveWindSpeed * 0.6);
+            const speed = Math.max(1.2, liveWindSpeed * 0.5); // Adjusted for subtle motion
             const dx = Math.cos(rad) * speed, dy = Math.sin(rad) * speed;
             ctxW.strokeStyle = document.body.classList.contains('is-night') ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)';
             ctxW.lineWidth = 0.8;
@@ -471,7 +471,7 @@ app.get("/", (req, res) => {
                 if (p.x > wCanvas.width) p.x = 0; else if (p.x < 0) p.x = wCanvas.width;
                 if (p.y > wCanvas.height) p.y = 0; else if (p.y < 0) p.y = wCanvas.height;
                 ctxW.moveTo(p.x, p.y);
-                ctxW.lineTo(p.x - dx * 0.5, p.y - dy * 0.5);
+                ctxW.lineTo(p.x - dx * 0.4, p.y - dy * 0.4); // Subtle trails
             });
             ctxW.stroke();
             requestAnimationFrame(animateWind);
@@ -488,3 +488,4 @@ app.get("/", (req, res) => {
 });
 
 app.listen(3000);
+
