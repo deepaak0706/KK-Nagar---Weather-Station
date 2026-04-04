@@ -118,94 +118,80 @@ app.get("/", (req, res) => {
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;700;900&display=swap" rel="stylesheet">
     <style>
-        /* Light Theme Vars (Pale Yellow / Grayish) */
+        /* DAY THEME (Default) - Pale Ivory/Gray */
         :root { 
-            --bg: #f8f7f2; 
-            --card: rgba(255, 255, 255, 0.7); 
-            --border: rgba(0, 0, 0, 0.05);
-            --text: #1e293b;
+            --bg: #fdfcf8; 
+            --card: rgba(255, 255, 255, 0.8); 
+            --border: rgba(0, 0, 0, 0.04);
+            --text: #0f172a;
             --muted: #64748b;
-            --accent: #0284c7;
-            --glow: 0 10px 30px -10px rgba(0,0,0,0.05);
+            --accent: #0369a1;
+            --glow: 0 10px 40px -10px rgba(0,0,0,0.04);
         }
 
-        /* Night Mode Logic */
-        @media (prefers-color-scheme: dark) {
-            :root {
-                --bg: #020617;
-                --card: rgba(15, 23, 42, 0.6);
-                --border: rgba(255, 255, 255, 0.08);
-                --text: #f8fafc;
-                --muted: #94a3b8;
-                --accent: #38bdf8;
-                --glow: 0 10px 30px -10px rgba(0,0,0,0.5);
-            }
-        }
-
-        /* Hardcoded Night Logic for 6PM-6AM */
-        .night-theme {
+        /* NIGHT THEME (Force Applied via JS) */
+        body.is-night {
             --bg: #020617;
-            --card: rgba(15, 23, 42, 0.6);
+            --card: rgba(15, 23, 42, 0.7);
             --border: rgba(255, 255, 255, 0.08);
-            --text: #f8fafc;
+            --text: #f1f5f9;
             --muted: #94a3b8;
             --accent: #38bdf8;
-            --glow: 0 10px 30px -10px rgba(0,0,0,0.5);
+            --glow: 0 15px 50px -12px rgba(0,0,0,0.6);
         }
 
         body { 
             margin: 0; font-family: 'Outfit', sans-serif; background: var(--bg); color: var(--text); 
-            padding: 40px 24px; transition: background 0.8s ease;
+            padding: 40px 24px; transition: all 0.5s ease; min-height: 100vh;
         }
 
         .container { width: 100%; max-width: 1200px; margin: 0 auto; }
-
         .header { margin-bottom: 40px; display: flex; justify-content: space-between; align-items: center; }
-        .header h1 { font-size: 28px; font-weight: 900; margin: 0; letter-spacing: -1px; }
+        .header h1 { font-size: 30px; font-weight: 900; margin: 0; letter-spacing: -1.5px; }
 
         .status-bar { 
-            display: flex; align-items: center; gap: 12px; background: var(--card); padding: 8px 16px; 
-            border-radius: 100px; border: 1px solid var(--border); backdrop-filter: blur(10px);
+            display: flex; align-items: center; gap: 12px; background: var(--card); padding: 8px 20px; 
+            border-radius: 100px; border: 1px solid var(--border); box-shadow: var(--glow);
         }
         
-        .live-dot { width: 8px; height: 8px; background: #10b981; border-radius: 50%; box-shadow: 0 0 8px #10b981; animation: blink 2s infinite; }
+        .live-dot { width: 8px; height: 8px; background: #10b981; border-radius: 50%; animation: blink 2s infinite; }
         @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
         
-        .grid-system { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 24px; }
+        .grid-system { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 24px; }
         
         .card { 
-            background: var(--card); padding: 32px; border-radius: 32px; border: 1px solid var(--border); 
-            backdrop-filter: blur(20px); box-shadow: var(--glow); position: relative;
+            background: var(--card); padding: 32px; border-radius: 36px; border: 1px solid var(--border); 
+            backdrop-filter: blur(15px); box-shadow: var(--glow); position: relative;
         }
 
-        .label { color: var(--accent); font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 12px; }
-        
-        .main-val { font-size: 60px; font-weight: 900; margin: 4px 0; letter-spacing: -2px; display: flex; align-items: baseline; }
-        .unit { font-size: 20px; font-weight: 600; color: var(--muted); margin-left: 8px; letter-spacing: 0; }
+        .label { color: var(--accent); font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 2.5px; margin-bottom: 8px; }
+        .main-val { font-size: 64px; font-weight: 900; margin: 2px 0; letter-spacing: -3px; display: flex; align-items: baseline; }
+        .unit { font-size: 22px; font-weight: 600; color: var(--muted); margin-left: 6px; letter-spacing: 0; }
 
         .sub-pill { 
-            font-size: 13px; font-weight: 700; padding: 6px 12px; border-radius: 12px; 
-            background: rgba(0,0,0,0.03); display: inline-flex; align-items: center; gap: 6px; margin-bottom: 20px; 
+            font-size: 12px; font-weight: 800; padding: 6px 14px; border-radius: 12px; 
+            background: rgba(0,0,0,0.03); display: inline-flex; align-items: center; gap: 6px; margin-bottom: 24px; 
         }
+        body.is-night .sub-pill { background: rgba(255,255,255,0.05); }
 
         .sub-box-4 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding-top: 24px; border-top: 1px solid var(--border); }
-        
-        .badge { padding: 16px; border-radius: 20px; background: rgba(0, 0, 0, 0.03); display: flex; flex-direction: column; gap: 4px; }
-        .badge-label { font-size: 11px; color: var(--muted); text-transform: uppercase; font-weight: 800; }
-        .badge-val { font-size: 17px; font-weight: 700; }
+        .badge { padding: 14px; border-radius: 20px; background: rgba(0, 0, 0, 0.025); display: flex; flex-direction: column; gap: 4px; }
+        body.is-night .badge { background: rgba(255,255,255,0.03); }
+        .badge-label { font-size: 10px; color: var(--muted); text-transform: uppercase; font-weight: 800; letter-spacing: 0.5px; }
+        .badge-val { font-size: 18px; font-weight: 800; }
 
-        .compass-ui { position: absolute; top: 32px; right: 32px; width: 64px; height: 64px; border: 2px solid var(--border); border-radius: 50%; display: flex; align-items: center; justify-content: center; }
-        .compass-ui span { position: absolute; font-size: 9px; font-weight: 900; color: var(--muted); }
-        .c-n { top: 4px; color: #ef4444 !important; } .c-e { right: 4px; } .c-s { bottom: 4px; } .c-w { left: 4px; }
-        #needle { width: 4px; height: 40px; background: linear-gradient(to bottom, #ef4444 50%, var(--muted) 50%); clip-path: polygon(50% 0%, 100% 100%, 50% 85%, 0% 100%); transition: transform 1.5s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+        .compass-ui { position: absolute; top: 32px; right: 32px; width: 60px; height: 60px; border: 2px solid var(--border); border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+        .compass-ui span { position: absolute; font-size: 10px; font-weight: 900; color: var(--muted); }
+        .c-n { top: 4px; color: #ef4444 !important; } 
+        #needle { width: 3px; height: 38px; background: linear-gradient(to bottom, #ef4444 50%, var(--muted) 50%); clip-path: polygon(50% 0%, 100% 100%, 50% 85%, 0% 100%); transition: transform 2s cubic-bezier(0.1, 0.9, 0.2, 1); }
 
         .graphs-wrapper { display: grid; grid-template-columns: repeat(auto-fit, minmax(450px, 1fr)); gap: 24px; margin-top: 24px; }
-        .graph-card { background: var(--card); padding: 24px; border-radius: 32px; border: 1px solid var(--border); height: 350px; box-shadow: var(--glow); }
+        .graph-card { background: var(--card); padding: 24px; border-radius: 36px; border: 1px solid var(--border); height: 360px; box-shadow: var(--glow); }
 
         .trend-up { color: #f43f5e; } .trend-down { color: #0ea5e9; }
-        .time-mark { font-size: 10px; color: var(--muted); background: rgba(0,0,0,0.05); padding: 2px 6px; border-radius: 6px; margin-left: 4px; }
+        .time-mark { font-size: 10px; color: var(--muted); opacity: 0.8; margin-left: 4px; }
 
-        @media (max-width: 768px) { .graphs-wrapper { grid-template-columns: 1fr; } }
+        @media (max-width: 768px) { .graphs-wrapper { grid-template-columns: 1fr; } .main-val { font-size: 50px; } }
     </style>
 </head>
 <body>
@@ -214,7 +200,7 @@ app.get("/", (req, res) => {
             <h1>KK Nagar Weather Hub</h1>
             <div class="status-bar">
                 <div class="live-dot"></div>
-                <div class="timestamp">SYNC: <span id="ts">--:--:--</span></div>
+                <div class="timestamp">STATION SYNC: <span id="ts">--:--:--</span></div>
             </div>
         </div>
 
@@ -228,38 +214,36 @@ app.get("/", (req, res) => {
                     <div class="badge"><span class="badge-label">Today Low</span><span id="mn" class="badge-val" style="color:#0ea5e9">--</span></div>
                     <div class="badge"><span class="badge-label">RealFeel</span><span id="rf" class="badge-val">--</span></div>
                     <div class="badge"><span class="badge-label">Humidity</span><span id="h" class="badge-val">--</span></div>
-                    <div class="badge" style="grid-column: span 2;"><span class="badge-label">Dew Point</span><span id="dp" class="badge-val">--</span></div>
                 </div>
             </div>
 
             <div class="card">
-                <div class="label">Wind Dynamics</div>
-                <div class="compass-ui"><span class="c-n">N</span><span class="c-e">E</span><span class="c-s">S</span><span class="c-w">W</span><div id="needle"></div></div>
+                <div class="label">Wind & Gust</div>
+                <div class="compass-ui"><span>N</span><div id="needle"></div></div>
                 <div class="main-val"><span id="w">--</span><span id="wd_bracket" style="font-size:20px; color:var(--muted); margin-left:8px">(--)</span><span class="unit">km/h</span></div>
                 <div class="sub-pill">● Gusting <span id="wg" style="margin-left:4px">--</span></div>
                 <div class="sub-box-4">
-                    <div class="badge"><span class="badge-label">Max Wind</span><span id="mw" class="badge-val">--</span></div>
+                    <div class="badge"><span class="badge-label">Max Speed</span><span id="mw" class="badge-val">--</span></div>
                     <div class="badge"><span class="badge-label">Max Gust</span><span id="mg" class="badge-val">--</span></div>
                 </div>
             </div>
 
             <div class="card">
-                <div class="label">Rain (24h)</div>
+                <div class="label">Precipitation</div>
                 <div class="main-val"><span id="r_tot">--</span><span class="unit">mm</span></div>
                 <div class="sub-pill">● Rate: <span id="r_rate">--</span> mm/h</div>
                 <div class="sub-box-4">
                     <div class="badge"><span class="badge-label">Weekly</span><span id="r_week" class="badge-val">--</span></div>
                     <div class="badge"><span class="badge-label">Monthly</span><span id="r_month" class="badge-val">--</span></div>
-                    <div class="badge" style="grid-column: span 2;"><span class="badge-label">Max Rate Today</span><span id="mr" class="badge-val">--</span></div>
                 </div>
             </div>
 
             <div class="card">
-                <div class="label">Atmospheric <span id="pIcon"></span></div>
+                <div class="label">Barometer <span id="pIcon"></span></div>
                 <div class="main-val"><span id="pr">--</span><span class="unit">hPa</span></div>
                 <div class="sub-box-4">
-                    <div class="badge"><span class="badge-label">Solar Rad</span><span id="sol" class="badge-val">--</span></div>
-                    <div class="badge"><span class="badge-label">UV Index</span><span id="uv" class="badge-val">--</span></div>
+                    <div class="badge"><span class="badge-label">Solar</span><span id="sol" class="badge-val">--</span></div>
+                    <div class="badge"><span class="badge-label">UV</span><span id="uv" class="badge-val">--</span></div>
                 </div>
             </div>
         </div>
@@ -275,32 +259,29 @@ app.get("/", (req, res) => {
     <script>
         function updateTheme() {
             const hour = new Date().getHours();
-            const body = document.body;
-            // 6 PM (18) to 6 AM (6) is night
+            // Force night theme only between 6 PM and 6 AM
             if (hour >= 18 || hour < 6) {
-                body.classList.add('night-theme');
+                document.body.classList.add('is-night');
             } else {
-                body.classList.remove('night-theme');
+                document.body.classList.remove('is-night');
             }
         }
-        updateTheme(); setInterval(updateTheme, 60000);
+        updateTheme();
+        setInterval(updateTheme, 60000);
 
         let charts = {};
         function setupChart(id, label, color) {
             const ctx = document.getElementById(id);
-            const isNight = document.body.classList.contains('night-theme');
-            const gridColor = isNight ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)';
-            const textColor = isNight ? '#94a3b8' : '#64748b';
-
+            const isNight = document.body.classList.contains('is-night');
             return new Chart(ctx, { 
                 type: 'line', 
-                data: { labels: [], datasets: [{ label: label, data: [], borderColor: color, backgroundColor: color+'22', fill: true, tension: 0.4, pointRadius: 0 }] }, 
+                data: { labels: [], datasets: [{ label: label, data: [], borderColor: color, backgroundColor: color+'15', fill: true, tension: 0.4, pointRadius: 0, borderWidth: 3 }] }, 
                 options: { 
                     animation: false, responsive: true, maintainAspectRatio: false, 
-                    plugins: { legend: { labels: { color: textColor, font: { family: 'Outfit', weight: 'bold' } } } },
+                    plugins: { legend: { display: true, labels: { font: { family: 'Outfit', weight: 'bold' } } } },
                     scales: { 
-                        y: { beginAtZero: true, min: 0, grid: { color: gridColor }, ticks: { color: textColor } },
-                        x: { grid: { display: false }, ticks: { color: textColor } }
+                        y: { beginAtZero: false, grid: { color: 'rgba(0,0,0,0.03)' } },
+                        x: { grid: { display: false } }
                     } 
                 } 
             });
@@ -308,47 +289,54 @@ app.get("/", (req, res) => {
 
         async function update() {
             try {
-                const res = await fetch('/weather?v=' + Date.now()); const d = await res.json(); if (!d || d.error) return;
+                const res = await fetch('/weather?v=' + Date.now()); 
+                const d = await res.json(); 
+                if (!d || d.error) return;
                 
                 document.getElementById('t').innerText = d.temp.current;
-                document.getElementById('dp').innerText = d.temp.dew + '°C';
                 document.getElementById('tTrendBox').innerHTML = d.temp.rate > 0 ? '<span class="trend-up">▲</span> +' + d.temp.rate + '°C /hr' : d.temp.rate < 0 ? '<span class="trend-down">▼</span> ' + d.temp.rate + '°C /hr' : '● Steady';
                 document.getElementById('mx').innerHTML = d.temp.max + '°C <span class="time-mark">' + d.temp.maxTime + '</span>';
                 document.getElementById('mn').innerHTML = d.temp.min + '°C <span class="time-mark">' + d.temp.minTime + '</span>';
-                document.getElementById('rf').innerText = d.temp.realFeel + '°'; document.getElementById('h').innerText = d.atmo.hum + '%';
+                document.getElementById('rf').innerText = d.temp.realFeel + '°'; 
+                document.getElementById('h').innerText = d.atmo.hum + '%';
                 
-                document.getElementById('w').innerText = d.wind.speed; document.getElementById('wd_bracket').innerText = '(' + d.wind.card + ')';
+                document.getElementById('w').innerText = d.wind.speed; 
+                document.getElementById('wd_bracket').innerText = d.wind.card;
                 document.getElementById('wg').innerText = d.wind.gust + ' km/h';
-                document.getElementById('mw').innerHTML = d.wind.maxS + ' km/h <span class="time-mark">' + d.wind.maxSTime + '</span>';
-                document.getElementById('mg').innerHTML = d.wind.maxG + ' km/h <span class="time-mark">' + d.wind.maxGTime + '</span>';
+                document.getElementById('mw').innerHTML = d.wind.maxS + ' <span class="time-mark">' + d.wind.maxSTime + '</span>';
+                document.getElementById('mg').innerHTML = d.wind.maxG + ' <span class="time-mark">' + d.wind.maxGTime + '</span>';
                 document.getElementById('needle').style.transform = 'rotate(' + d.wind.deg + 'deg)';
                 
-                document.getElementById('r_tot').innerText = d.rain.total; document.getElementById('r_rate').innerText = d.rain.rate;
-                document.getElementById('mr').innerHTML = d.rain.maxR > 0 ? d.rain.maxR + ' mm/h <span class="time-mark">' + d.rain.maxRTime + '</span>' : '0';
+                document.getElementById('r_tot').innerText = d.rain.total; 
+                document.getElementById('r_rate').innerText = d.rain.rate;
                 document.getElementById('r_week').innerText = d.rain.weekly + ' mm'; 
                 document.getElementById('r_month').innerText = d.rain.monthly + ' mm';
                 
                 document.getElementById('pr').innerText = d.atmo.press;
                 const pIcon = document.getElementById('pIcon');
-                if (d.atmo.pTrend > 0) pIcon.innerHTML = '<span class="trend-up" style="font-size:14px">▲</span>';
-                else if (d.atmo.pTrend < 0) pIcon.innerHTML = '<span class="trend-down" style="font-size:14px">▼</span>';
-                else pIcon.innerHTML = '<span style="color:#64748b; font-size:10px">●</span>';
+                if (d.atmo.pTrend > 0) pIcon.innerHTML = '<span class="trend-up">▲</span>';
+                else if (d.atmo.pTrend < 0) pIcon.innerHTML = '<span class="trend-down">▼</span>';
+                else pIcon.innerHTML = '<span style="opacity:0.3">●</span>';
 
-                document.getElementById('sol').innerText = d.atmo.sol + ' W/m²'; document.getElementById('uv').innerText = d.atmo.uv;
-                document.getElementById('ts').innerText = new Date(d.lastSync).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                document.getElementById('sol').innerText = d.atmo.sol; 
+                document.getElementById('uv').innerText = d.atmo.uv;
+                document.getElementById('ts').innerText = new Date(d.lastSync).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
 
-                const labels = d.history.map(h => new Date(h.time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' }));
+                const labels = d.history.map(h => new Date(h.time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: false }));
                 if(!charts.cT) { 
-                    charts.cT = setupChart('cT', 'Temperature (°C)', '#0ea5e9'); charts.cH = setupChart('cH', 'Humidity (%)', '#10b981'); 
-                    charts.cW = setupChart('cW', 'Wind Speed (km/h)', '#f59e0b'); charts.cR = setupChart('cR', 'Rain (mm)', '#6366f1'); 
+                    charts.cT = setupChart('cT', 'Temp °C', '#ef4444'); 
+                    charts.cH = setupChart('cH', 'Humidity %', '#10b981'); 
+                    charts.cW = setupChart('cW', 'Wind km/h', '#f59e0b'); 
+                    charts.cR = setupChart('cR', 'Rain mm', '#3b82f6'); 
                 }
                 charts.cT.data.labels = labels; charts.cT.data.datasets[0].data = d.history.map(h => h.temp); charts.cT.update('none');
                 charts.cH.data.labels = labels; charts.cH.data.datasets[0].data = d.history.map(h => h.hum); charts.cH.update('none');
                 charts.cW.data.labels = labels; charts.cW.data.datasets[0].data = d.history.map(h => h.wind); charts.cW.update('none');
-                charts.cW.data.labels = labels; charts.cR.data.datasets[0].data = d.history.map(h => Math.max(0, h.rain)); charts.cR.update('none');
+                charts.cR.data.labels = labels; charts.cR.data.datasets[0].data = d.history.map(h => h.rain); charts.cR.update('none');
             } catch (e) { console.error(e); }
         }
-        setInterval(update, 45000); update();
+        setInterval(update, 45000); 
+        update();
     </script>
 </body>
 </html>
