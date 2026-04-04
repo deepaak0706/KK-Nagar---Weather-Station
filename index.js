@@ -115,257 +115,41 @@ app.get("/", (req, res) => {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>KK Nagar Weather Hub</title>
+    <title>Kk Nagar Weather Hub</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;700;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800;900&display=swap" rel="stylesheet">
     <style>
-        :root { 
-            --bg-base: #020617; 
-            --bg-glow: #0f172a;
-            --card-bg: rgba(15, 23, 42, 0.6); 
-            --accent: #38bdf8; 
-            --accent-glow: rgba(56, 189, 248, 0.25);
-            --max-t: #fb7185; 
-            --min-t: #60a5fa; 
-            --border-light: rgba(255, 255, 255, 0.12); 
-            --border-dark: rgba(255, 255, 255, 0.03);
-            --text-main: #f8fafc;
-            --text-muted: #94a3b8;
-        }
-        
-        * { box-sizing: border-box; }
-        
-        body { 
-            margin: 0; 
-            font-family: 'Outfit', sans-serif; 
-            background: radial-gradient(circle at 50% -20%, var(--bg-glow), var(--bg-base) 80%);
-            color: var(--text-main); 
-            padding: 40px 24px; 
-            display: flex; 
-            flex-direction: column; 
-            align-items: center; 
-            min-height: 100vh;
-        }
-
-        .container { width: 100%; max-width: 1300px; }
-
-        /* Smooth Entrance Animation */
-        @keyframes fadeUp {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        .header { 
-            margin-bottom: 48px; 
-            display: flex; 
-            justify-content: space-between; 
-            align-items: center; 
-            width: 100%; 
-            animation: fadeUp 0.6s ease-out both;
-        }
-        
-        .header h1 { 
-            font-size: 32px; 
-            font-weight: 900; 
-            margin: 0; 
-            background: linear-gradient(135deg, #ffffff, #94a3b8); 
-            -webkit-background-clip: text; 
-            -webkit-text-fill-color: transparent; 
-            letter-spacing: -0.5px;
-        }
-        
-        .status-bar { 
-            display: flex; 
-            align-items: center; 
-            gap: 12px; 
-            background: rgba(255,255,255,0.03); 
-            padding: 10px 20px; 
-            border-radius: 100px; 
-            border: 1px solid var(--border-light); 
-            box-shadow: 0 4px 20px rgba(0,0,0,0.2);
-            backdrop-filter: blur(10px);
-        }
-        
-        .live-dot { 
-            width: 8px; height: 8px; 
-            background: #10b981; 
-            border-radius: 50%; 
-            box-shadow: 0 0 12px #10b981; 
-            animation: blink 2s infinite cubic-bezier(0.4, 0, 0.6, 1); 
-        }
-        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
-        
-        .timestamp { font-size: 14px; font-weight: 700; color: var(--text-muted); letter-spacing: 0.5px; }
-        
-        /* Modern Bento Grid */
-        .grid-system { 
-            display: grid; 
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); 
-            gap: 24px; 
-            margin-bottom: 32px; 
-        }
-        
-        .card { 
-            background: var(--card-bg); 
-            padding: 32px; 
-            border-radius: 32px; 
-            border: 1px solid var(--border-dark); 
-            border-top: 1px solid var(--border-light);
-            border-left: 1px solid var(--border-light);
-            backdrop-filter: blur(24px) saturate(150%); 
-            position: relative; 
-            box-shadow: 0 10px 30px -10px rgba(0,0,0,0.5);
-            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            animation: fadeUp 0.6s ease-out both;
-        }
-        
-        /* Staggered animation delays for cards */
-        .card:nth-child(1) { animation-delay: 0.1s; }
-        .card:nth-child(2) { animation-delay: 0.2s; }
-        .card:nth-child(3) { animation-delay: 0.3s; }
-        .card:nth-child(4) { animation-delay: 0.4s; }
-
-        .card:hover {
-            transform: translateY(-6px);
-            box-shadow: 0 20px 40px -10px rgba(0,0,0,0.6), 0 0 30px var(--accent-glow);
-            border-top-color: rgba(255,255,255,0.3);
-        }
-        
-        .label { 
-            color: var(--text-muted); 
-            font-size: 13px; 
-            font-weight: 800; 
-            text-transform: uppercase; 
-            letter-spacing: 2.5px; 
-            margin-bottom: 12px; 
-            display: flex;
-            align-items: center;
-        }
-        
-        .main-val { 
-            font-size: 64px; 
-            font-weight: 900; 
-            margin: 4px 0 12px 0; 
-            display: flex; 
-            align-items: baseline; 
-            letter-spacing: -3px; 
-            background: linear-gradient(180deg, #ffffff, #cbd5e1);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            filter: drop-shadow(0px 4px 8px rgba(0,0,0,0.4));
-        }
-        
-        .unit { 
-            font-size: 24px; 
-            font-weight: 700; 
-            color: #64748b; 
-            margin-left: 8px; 
-            letter-spacing: normal;
-            -webkit-text-fill-color: #64748b; /* Override gradient for units */
-        }
-        
-        .sub-pill { 
-            font-size: 13px; 
-            font-weight: 700; 
-            padding: 6px 14px; 
-            border-radius: 12px; 
-            background: rgba(255,255,255,0.04); 
-            border: 1px solid rgba(255,255,255,0.05);
-            display: inline-flex; 
-            align-items: center; 
-            gap: 6px; 
-            margin-bottom: 16px; 
-        }
-        
-        .trend-up { color: #fb7185; } 
-        .trend-down { color: #38bdf8; }
-        
-        .sub-box-4 { 
-            display: grid; 
-            grid-template-columns: 1fr 1fr; 
-            gap: 16px; 
-            padding-top: 24px; 
-            border-top: 1px solid rgba(255,255,255,0.06); 
-        }
-        
-        .badge { 
-            padding: 16px; 
-            border-radius: 20px; 
-            background: rgba(0, 0, 0, 0.25); 
-            border: 1px solid rgba(255,255,255,0.02);
-            display: flex; 
-            flex-direction: column; 
-            gap: 6px; 
-            transition: background 0.3s ease;
-        }
-        .badge:hover { background: rgba(0, 0, 0, 0.4); }
-        
-        .badge-label { font-size: 11px; color: #64748b; text-transform: uppercase; font-weight: 800; letter-spacing: 1px; }
-        .badge-val { font-size: 18px; font-weight: 700; }
-        .time-mark { font-size: 10px; font-weight: 800; color: #64748b; background: rgba(255,255,255,0.05); padding: 3px 8px; border-radius: 6px; margin-left: 6px; }
-        
-        /* Modernized Compass */
-        .compass-ui { 
-            position: absolute; 
-            top: 32px; right: 32px; 
-            width: 68px; height: 68px; 
-            border: 2px solid rgba(255,255,255,0.08); 
-            border-radius: 50%; 
-            display: flex; align-items: center; justify-content: center; 
-            background: radial-gradient(circle, rgba(255,255,255,0.02) 0%, transparent 70%);
-            box-shadow: inset 0 0 20px rgba(0,0,0,0.5);
-        }
-        .compass-ui span { position: absolute; font-size: 9px; font-weight: 900; color: rgba(255,255,255,0.4); }
-        .c-n { top: 4px; color: var(--max-t) !important; } .c-e { right: 4px; } .c-s { bottom: 4px; } .c-w { left: 4px; }
-        
-        #needle { 
-            width: 4px; height: 44px; 
-            background: linear-gradient(to bottom, var(--max-t) 50%, #cbd5e1 50%); 
-            clip-path: polygon(50% 0%, 100% 100%, 50% 85%, 0% 100%); 
-            transition: transform 1.5s cubic-bezier(0.34, 1.56, 0.64, 1); 
-            filter: drop-shadow(0 4px 6px rgba(0,0,0,0.6));
-        }
-
-        /* Bento Grid for Graphs */
-        .graphs-wrapper {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
-            gap: 24px;
-            width: 100%;
-        }
-        
-        .graph-card { 
-            background: var(--card-bg); 
-            padding: 24px; 
-            border-radius: 32px; 
-            border: 1px solid var(--border-dark); 
-            border-top: 1px solid var(--border-light);
-            backdrop-filter: blur(24px); 
-            height: 380px; 
-            box-shadow: 0 10px 30px -10px rgba(0,0,0,0.5);
-            animation: fadeUp 0.8s ease-out both;
-            animation-delay: 0.5s;
-        }
-
-        /* Mobile tweaks */
-        @media (max-width: 768px) {
-            .header { flex-direction: column; gap: 16px; align-items: flex-start; }
-            .graphs-wrapper { grid-template-columns: 1fr; }
-            .main-val { font-size: 48px; }
-            .graph-card { height: 300px; }
-        }
+        :root { --bg-1: #020617; --card: rgba(15, 23, 42, 0.45); --accent: #38bdf8; --max-t: #fb7185; --min-t: #60a5fa; --border: rgba(255, 255, 255, 0.08); }
+        body { margin: 0; font-family: 'Outfit', sans-serif; background: var(--bg-1); color: #f8fafc; padding: 32px 24px; display: flex; flex-direction: column; align-items: center; }
+        .container { width: 100%; max-width: 1200px; }
+        .header { margin-bottom: 40px; display: flex; justify-content: space-between; align-items: center; width: 100%; }
+        .header h1 { font-size: 28px; font-weight: 800; margin: 0; background: linear-gradient(to right, #f8fafc, #94a3b8); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .status-bar { display: flex; align-items: center; gap: 12px; background: rgba(255,255,255,0.03); padding: 8px 16px; border-radius: 100px; border: 1px solid var(--border); }
+        .live-dot { width: 8px; height: 8px; background: #10b981; border-radius: 50%; box-shadow: 0 0 12px #10b981; animation: blink 1.5s infinite; }
+        @keyframes blink { 0% { opacity: 1; } 50% { opacity: 0.3; } 100% { opacity: 1; } }
+        .timestamp { font-size: 13px; font-weight: 700; color: #94a3b8; }
+        .grid-system { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 24px; margin-bottom: 24px; }
+        .card { background: var(--card); padding: 32px; border-radius: 28px; border: 1px solid var(--border); backdrop-filter: blur(24px); position: relative; }
+        .label { color: #94a3b8; font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 8px; }
+        .main-val { font-size: 56px; font-weight: 900; margin: 4px 0; display: flex; align-items: baseline; letter-spacing: -2px; }
+        .unit { font-size: 22px; font-weight: 600; color: #64748b; margin-left: 8px; }
+        .sub-pill { font-size: 12px; font-weight: 800; padding: 4px 10px; border-radius: 8px; background: rgba(255,255,255,0.05); display: inline-flex; align-items: center; gap: 4px; margin-bottom: 12px; }
+        .trend-up { color: #fb7185; } .trend-down { color: #38bdf8; }
+        .sub-box-4 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding-top: 24px; border-top: 1px solid var(--border); }
+        .badge { padding: 16px; border-radius: 20px; background: rgba(0, 0, 0, 0.2); display: flex; flex-direction: column; gap: 4px; }
+        .badge-label { font-size: 11px; color: #64748b; text-transform: uppercase; font-weight: 800; }
+        .badge-val { font-size: 16px; font-weight: 700; }
+        .time-mark { font-size: 10px; font-weight: 800; color: #94a3b8; background: rgba(255,255,255,0.08); padding: 2px 6px; border-radius: 6px; margin-left: 4px; }
+        .compass-ui { position: absolute; top: 32px; right: 32px; width: 64px; height: 64px; border: 2px solid rgba(255,255,255,0.1); border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+        .compass-ui span { position: absolute; font-size: 8px; font-weight: 900; color: rgba(255,255,255,0.3); }
+        .c-n { top: 2px; } .c-e { right: 2px; } .c-s { bottom: 2px; } .c-w { left: 2px; }
+        #needle { width: 4px; height: 40px; background: linear-gradient(to bottom, var(--max-t) 50%, #e2e8f0 50%); clip-path: polygon(50% 0%, 100% 100%, 50% 85%, 0% 100%); transition: transform 1.5s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+        .graph-card { background: var(--card); padding: 32px; border-radius: 28px; border: 1px solid var(--border); height: 360px; margin-bottom: 24px; }
     </style>
 </head>
 <body>
     <div class="container">
-        <div class="header">
-            <h1>KK Nagar Weather Hub</h1>
-            <div class="status-bar">
-                <div class="live-dot"></div>
-                <div class="timestamp">LIVE SYSTEM SYNC: <span id="ts">--:--:--</span></div>
-            </div>
-        </div>
-        
+        <div class="header"><h1>KK Nagar Weather Hub</h1><div class="status-bar"><div class="live-dot"></div><div class="timestamp">LIVE: <span id="ts">--:--:--</span></div></div></div>
         <div class="grid-system">
             <div class="card">
                 <div class="label">Temperature</div>
@@ -379,50 +163,37 @@ app.get("/", (req, res) => {
                     <div class="badge" style="grid-column: span 2;"><span class="badge-label">Dew Point</span><span id="dp" class="badge-val" style="color:var(--accent)">--</span></div>
                 </div>
             </div>
-            
             <div class="card">
                 <div class="label">Wind Dynamics</div>
                 <div class="compass-ui"><span class="c-n">N</span><span class="c-e">E</span><span class="c-s">S</span><span class="c-w">W</span><div id="needle"></div></div>
-                <div class="main-val"><span id="w">--</span><span id="wd_bracket" style="font-size:24px; color:#64748b; margin-left:12px; font-weight:700">(--)</span><span class="unit">km/h</span></div>
-                <div class="sub-pill">● Gusting <span id="wg" style="margin-left:4px; color: #f8fafc;">--</span></div>
+                <div class="main-val"><span id="w">--</span><span id="wd_bracket" style="font-size:24px; color:#64748b; margin-left:12px; font-weight:600">(--)</span><span class="unit">km/h</span></div>
+                <div class="sub-pill">● Gusting <span id="wg" style="margin-left:4px">--</span></div>
                 <div class="sub-box-4">
                     <div class="badge"><span class="badge-label">Max Wind</span><span id="mw" class="badge-val">--</span></div>
                     <div class="badge"><span class="badge-label">Max Gust</span><span id="mg" class="badge-val">--</span></div>
                 </div>
             </div>
-            
             <div class="card">
-                <div class="label">Rainfall (24h)</div>
+                <div class="label">Rain (24h)</div>
                 <div class="main-val"><span id="r_tot">--</span><span class="unit">mm</span></div>
-                <div style="display:flex; gap:8px; flex-wrap: wrap;">
-                    <div class="sub-pill">● Rate: <span id="r_rate" style="margin-left:4px; color: #f8fafc;">--</span> mm/h</div>
-                    <div class="sub-pill">● Max: <span id="mr" style="margin-left:4px; color: #f8fafc;">--</span></div>
-                </div>
+                <div style="display:flex; gap:8px;"><div class="sub-pill">● Rate: <span id="r_rate" style="margin-left:4px">--</span> mm/h</div><div class="sub-pill">● Max Rate: <span id="mr" style="margin-left:4px">--</span></div></div>
                 <div class="sub-box-4">
                     <div class="badge"><span class="badge-label">Weekly</span><span id="r_week" class="badge-val">--</span></div>
                     <div class="badge"><span class="badge-label">Monthly</span><span id="r_month" class="badge-val">--</span></div>
                     <div class="badge" style="grid-column: span 2;"><span class="badge-label">Yearly Total</span><span id="r_year" class="badge-val">--</span></div>
                 </div>
             </div>
-            
             <div class="card">
-                <div class="label">Atmospheric <span id="pIcon" style="margin-left:8px;"></span></div>
+                <div class="label">Atmospheric <span id="pIcon"></span></div>
                 <div class="main-val"><span id="pr">--</span><span class="unit">hPa</span></div>
-                <div class="sub-box-4" style="margin-top: auto;">
+                <div class="sub-box-4">
                     <div class="badge"><span class="badge-label">Solar Rad</span><span id="sol" class="badge-val">--</span></div>
                     <div class="badge"><span class="badge-label">UV Index</span><span id="uv" class="badge-val">--</span></div>
                 </div>
             </div>
         </div>
-
-        <div class="graphs-wrapper">
-            <div class="graph-card"><canvas id="cT"></canvas></div>
-            <div class="graph-card"><canvas id="cH"></canvas></div>
-            <div class="graph-card"><canvas id="cW"></canvas></div>
-            <div class="graph-card"><canvas id="cR"></canvas></div>
-        </div>
+        <div class="graph-card"><canvas id="cT"></canvas></div><div class="graph-card"><canvas id="cH"></canvas></div><div class="graph-card"><canvas id="cW"></canvas></div><div class="graph-card"><canvas id="cR"></canvas></div>
     </div>
-    
     <script>
         let charts = {};
         function setupChart(id, label, color) {
