@@ -7,11 +7,16 @@ const pool = new Pool({
     connectionString: process.env.POSTGRES_URL + "?sslmode=require",
 });
 
+// Environment Variables
 const APPLICATION_KEY = process.env.APPLICATION_KEY;
 const API_KEY = process.env.API_KEY;
 const MAC = process.env.MAC;
 
-let state = { cachedData: null, lastFetchTime: 0, lastDbWrite: 0 };
+let state = {
+    cachedData: null,
+    lastFetchTime: 0,
+    lastDbWrite: 0
+};
 
 const getCard = (a) => {
     const directions = ["N","NNE","NE","ENE","E","ESE","SE","SSE","S","SSW","SW","WSW","W","WNW","NW","NNW"];
@@ -32,12 +37,16 @@ function calculateRealFeel(tempC, humidity) {
 
 async function syncWithEcowitt(forceWrite = false) {
     const now = Date.now();
-    if (!forceWrite && state.cachedData && (now - state.lastFetchTime < 35000)) return state.cachedData;
+    
+    if (!forceWrite && state.cachedData && (now - state.lastFetchTime < 35000)) {
+        return state.cachedData;
+    }
 
     try {
         const url = `https://api.ecowitt.net/api/v3/device/real_time?application_key=${APPLICATION_KEY}&api_key=${API_KEY}&mac=${MAC}`;
         const response = await fetch(url);
         const json = await response.json();
+        if (!json.data) throw new Error("No data from Ecowitt");
         const d = json.data;
 
         // 1. Current Live Values
@@ -48,7 +57,7 @@ async function syncWithEcowitt(forceWrite = false) {
         const liveGust = parseFloat((d.wind.wind_gust.value * 1.60934).toFixed(1));
         const liveRainRate = parseFloat(((d.rainfall.rain_rate?.value || 0) * 25.4).toFixed(1));
 
-        // 2. Persistent Database Write
+        // 2. Database Write (Every 2 mins)
         if (forceWrite || (now - state.lastDbWrite > 120000)) {
             await pool.query(`INSERT INTO weather_history (time, temp_f, humidity, wind_speed_mph, wind_gust_mph, daily_rain_in, solar_radiation, press_rel, rain_rate_in) 
                              VALUES (NOW(), $1, $2, $3, $4, $5, $6, $7, $8)`, 
@@ -56,11 +65,15 @@ async function syncWithEcowitt(forceWrite = false) {
             state.lastDbWrite = now;
         }
 
-        // 3. Query Last 24 Hours (This prevents the "Refresh Reset" issue)
-        const historyRes = await pool.query(`SELECT * FROM weather_history WHERE time > NOW() - INTERVAL '24 hours' ORDER BY time ASC`);
+        // 3. Persistent Today-Only Logic (Resets at Midnight IST)
+        const historyRes = await pool.query(`
+            SELECT * FROM weather_history 
+            WHERE time >= (CURRENT_DATE AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Kolkata') 
+            ORDER BY time ASC
+        `);
         
-        let mx_t = liveTemp, mn_t = liveTemp, mx_t_time = "Now", mn_t_time = "Now";
-        let mx_w = liveWind, mx_g = liveGust, mx_r = liveRainRate;
+        let mx_t = -999, mn_t = 999, mx_t_time = "", mn_t_time = "";
+        let mx_w = 0, mx_g = 0, mx_r = 0;
         let tTrend = 0, hTrend = 0, pTrend = 0;
         let graphHistory = [];
 
@@ -69,7 +82,7 @@ async function syncWithEcowitt(forceWrite = false) {
             const prevTemp = parseFloat(((lastEntry.temp_f - 32) * 5 / 9).toFixed(1));
             const timeDiffMin = (now - new Date(lastEntry.time).getTime()) / 60000;
             
-            // Minute-level Rate of Change (Arrow Logic)
+            // Calculate Trend
             if (timeDiffMin > 0) {
                 tTrend = parseFloat(((liveTemp - prevTemp) * (60 / timeDiffMin)).toFixed(1));
                 hTrend = liveHum - lastEntry.humidity;
@@ -83,7 +96,6 @@ async function syncWithEcowitt(forceWrite = false) {
                 const r_gust = parseFloat((r.wind_gust_mph * 1.60934).toFixed(1));
                 const r_rain_rate = parseFloat((r.rain_rate_in * 25.4).toFixed(1));
 
-                // Update Max/Min based on 24hr history
                 if (r_temp >= mx_t) { mx_t = r_temp; mx_t_time = r_time; }
                 if (r_temp <= mn_t) { mn_t = r_temp; mn_t_time = r_time; }
                 if (r_wind > mx_w) mx_w = r_wind;
@@ -93,6 +105,9 @@ async function syncWithEcowitt(forceWrite = false) {
                 graphHistory.push({ time: r.time, temp: r_temp, hum: r.humidity, wind: r_wind, rain: r_rain_rate });
             });
         }
+
+        // Safety fallbacks if it's the very first entry of the day
+        if (mx_t === -999) { mx_t = liveTemp; mn_t = liveTemp; mx_t_time = "Now"; mn_t_time = "Now"; mx_w = liveWind; mx_g = liveGust; mx_r = liveRainRate; }
 
         state.cachedData = {
             temp: { current: liveTemp, max: mx_t, maxTime: mx_t_time, min: mn_t, minTime: mn_t_time, trend: tTrend, realFeel: calculateRealFeel(liveTemp, liveHum) },
@@ -105,7 +120,10 @@ async function syncWithEcowitt(forceWrite = false) {
         };
         state.lastFetchTime = now;
         return state.cachedData;
-    } catch (e) { return state.cachedData || { error: "Sync failed" }; }
+    } catch (e) { 
+        console.error("Sync Error:", e);
+        return state.cachedData || { error: "Failed to fetch" }; 
+    }
 }
 
 app.get("/weather", async (req, res) => { res.json(await syncWithEcowitt()); });
@@ -185,8 +203,8 @@ app.get("/", (req, res) => {
                 <div class="minor-line" style="color:var(--accent)">RealFeel: <span id="rf">--</span>°C</div>
                 <div class="trend-badge" id="tr">--</div>
                 <div class="sub-box-4">
-                    <div class="badge"><span class="badge-label">24h High</span><span id="mx" class="badge-val" style="color:var(--max-t)">--</span></div>
-                    <div class="badge"><span class="badge-label">24h Low</span><span id="mn" class="badge-val" style="color:var(--min-t)">--</span></div>
+                    <div class="badge"><span class="badge-label">Today High</span><span id="mx" class="badge-val" style="color:var(--max-t)">--</span></div>
+                    <div class="badge"><span class="badge-label">Today Low</span><span id="mn" class="badge-val" style="color:var(--min-t)">--</span></div>
                     <div class="badge"><div style="display:flex; align-items:center; gap:6px"><span class="badge-label">Humidity</span><span id="h_tr"></span></div><span id="h" class="badge-val">--</span></div>
                     <div class="badge"><span class="badge-label">Dew Point</span><span id="dp" class="badge-val">--</span></div>
                 </div>
