@@ -54,10 +54,14 @@ async function syncWithEcowitt(forceWrite = false) {
 
         // --- 1. MIDNIGHT IST RESET & ARCHIVE ---
         const todayIST = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
-        const dateCheck = await pool.query(`SELECT time FROM weather_history ORDER BY time ASC LIMIT 1`);
+        const dateCheck = await pool.query(`
+            SELECT (time AT TIME ZONE 'Asia/Kolkata')::date as record_date 
+            FROM weather_history 
+            ORDER BY time ASC LIMIT 1
+        `);
         
         if (dateCheck.rows.length > 0) {
-            const oldestDate = new Date(dateCheck.rows[0].time).toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+            const oldestDate = new Date(dateCheck.rows[0].record_date).toLocaleDateString('en-CA');
             if (oldestDate !== todayIST) {
                 await pool.query(`
                     INSERT INTO daily_max_records (record_date, max_temp_c, min_temp_c, max_wind_kmh, total_rain_mm)
@@ -65,7 +69,10 @@ async function syncWithEcowitt(forceWrite = false) {
                     FROM weather_history
                     WHERE (time AT TIME ZONE 'Asia/Kolkata')::date = $1::date;
                 `, [oldestDate]);
-                await pool.query(`DELETE FROM weather_history WHERE time < (CURRENT_DATE AT TIME ZONE 'Asia/Kolkata');`);
+                await pool.query(`
+                    DELETE FROM weather_history 
+                    WHERE (time AT TIME ZONE 'Asia/Kolkata')::date < CURRENT_DATE AT TIME ZONE 'Asia/Kolkata';
+                `);
             }
         }
 
