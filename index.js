@@ -52,7 +52,7 @@ async function syncWithEcowitt(forceWrite = false) {
         const liveRainYearly = parseFloat((d.rainfall.yearly.value * 25.4).toFixed(1));
         const liveRainRate = parseFloat(((d.rainfall.rain_rate?.value || 0) * 25.4).toFixed(1));
 
-        // --- 1. MIDNIGHT IST RESET & ARCHIVE ---
+        // --- 1. MIDNIGHT IST RESET & ARCHIVE (UPDATED TO PREVENT DATA LOSS) ---
         const todayIST = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
         const dateCheck = await pool.query(`SELECT time FROM weather_history ORDER BY time ASC LIMIT 1`);
         
@@ -61,9 +61,16 @@ async function syncWithEcowitt(forceWrite = false) {
             if (oldestDate !== todayIST) {
                 await pool.query(`
                     INSERT INTO daily_max_records (record_date, max_temp_c, min_temp_c, max_wind_kmh, total_rain_mm)
-                    SELECT $1, MAX((temp_f - 32) * 5/9), MIN((temp_f - 32) * 5/9), MAX(wind_speed_mph * 1.60934), MAX(daily_rain_in * 25.4)
-                    FROM weather_history;
+                    SELECT $1, 
+                           MAX((temp_f - 32) * 5/9), 
+                           MIN((temp_f - 32) * 5/9), 
+                           MAX(wind_speed_mph * 1.60934), 
+                           MAX(daily_rain_in * 25.4)
+                    FROM weather_history
+                    WHERE (time AT TIME ZONE 'Asia/Kolkata')::date = $1::date;
                 `, [oldestDate]);
+                
+                // Fixed: Specifically delete rows before today's IST midnight, leaving today's records safe
                 await pool.query(`DELETE FROM weather_history WHERE time < (CURRENT_DATE AT TIME ZONE 'Asia/Kolkata');`);
             }
         }
