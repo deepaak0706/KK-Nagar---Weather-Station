@@ -78,17 +78,18 @@ async function syncWithEcowitt(forceWrite = false) {
         let graphHistory = [];
 
         if (historyRes.rows.length > 0) {
+            // Trend Calculation Logic
             const lastEntry = historyRes.rows[historyRes.rows.length - 1];
             const prevTemp = parseFloat(((lastEntry.temp_f - 32) * 5 / 9).toFixed(1));
             const timeDiffMin = (now - new Date(lastEntry.time).getTime()) / 60000;
             
-            // Calculate Trend
             if (timeDiffMin > 0) {
                 tTrend = parseFloat(((liveTemp - prevTemp) * (60 / timeDiffMin)).toFixed(1));
                 hTrend = liveHum - lastEntry.humidity;
                 pTrend = parseFloat((livePress - (lastEntry.press_rel || livePress)).toFixed(1));
             }
 
+            // Loop through DB rows to find ALL max values for today
             historyRes.rows.forEach(r => {
                 const r_time = new Date(r.time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' });
                 const r_temp = parseFloat(((r.temp_f - 32) * 5 / 9).toFixed(1));
@@ -96,21 +97,27 @@ async function syncWithEcowitt(forceWrite = false) {
                 const r_gust = parseFloat((r.wind_gust_mph * 1.60934).toFixed(1));
                 const r_rain_rate = parseFloat((r.rain_rate_in * 25.4).toFixed(1));
 
+                // Pulling All Max values from DB records
                 if (r_temp >= mx_t) { mx_t = r_temp; mx_t_time = r_time; }
                 if (r_temp <= mn_t) { mn_t = r_temp; mn_t_time = r_time; }
                 if (r_wind > mx_w) mx_w = r_wind;
                 if (r_gust > mx_g) mx_g = r_gust;
                 if (r_rain_rate > mx_r) mx_r = r_rain_rate;
 
+                // Only pushing what's needed for the visible graphs
                 graphHistory.push({ time: r.time, temp: r_temp, hum: r.humidity, wind: r_wind, rain: r_rain_rate });
             });
         }
 
-        // Safety fallbacks if it's the very first entry of the day
-        if (mx_t === -999) { mx_t = liveTemp; mn_t = liveTemp; mx_t_time = "Now"; mn_t_time = "Now"; mx_w = liveWind; mx_g = liveGust; mx_r = liveRainRate; }
+        // 4. Compare DB records with current live values (in case current is the highest)
+        mx_t = Math.max(mx_t, liveTemp);
+        mn_t = Math.min(mn_t === -999 ? liveTemp : mn_t, liveTemp);
+        mx_w = Math.max(mx_w, liveWind);
+        mx_g = Math.max(mx_g, liveGust);
+        mx_r = Math.max(mx_r, liveRainRate);
 
         state.cachedData = {
-            temp: { current: liveTemp, max: mx_t, maxTime: mx_t_time, min: mn_t, minTime: mn_t_time, trend: tTrend, realFeel: calculateRealFeel(liveTemp, liveHum) },
+            temp: { current: liveTemp, max: mx_t, maxTime: mx_t_time || "Now", min: mn_t, minTime: mn_t_time || "Now", trend: tTrend, realFeel: calculateRealFeel(liveTemp, liveHum) },
             atmo: { hum: liveHum, press: livePress, dew: parseFloat(((d.outdoor.dew_point?.value || d.outdoor.temperature.value - 32) * 5 / 9).toFixed(1)), hTrend: hTrend, pTrend: pTrend },
             wind: { speed: liveWind, gust: liveGust, maxS: mx_w, maxG: mx_g, deg: d.wind.wind_direction.value, card: getCard(d.wind.wind_direction.value) },
             rain: { total: parseFloat((d.rainfall.daily.value * 25.4).toFixed(1)), rate: liveRainRate, maxR: mx_r },
