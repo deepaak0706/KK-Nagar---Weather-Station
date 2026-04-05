@@ -12,7 +12,7 @@ const APPLICATION_KEY = process.env.APPLICATION_KEY;
 const API_KEY = process.env.API_KEY;
 const MAC = process.env.MAC;
 
-// Added interim buffers to track peaks between DB writes
+// Persistent state for caching and database buffering
 let state = { 
     cachedData: null, 
     lastFetchTime: 0, 
@@ -58,14 +58,13 @@ async function syncWithEcowitt(forceWrite = false) {
         const liveRainYearly = parseFloat((d.rainfall.yearly.value * 25.4).toFixed(1));
         const liveRainRate = parseFloat(((d.rainfall.rain_rate?.value || 0) * 25.4).toFixed(1));
 
-        // Update buffers for DB writes
+        // Archive and buffer logic
         if (d.wind.wind_speed.value > state.bufW) state.bufW = d.wind.wind_speed.value;
         if (d.wind.wind_gust.value > state.bufG) state.bufG = d.wind.wind_gust.value;
         if (d.outdoor.temperature.value > state.bufMaxT) state.bufMaxT = d.outdoor.temperature.value;
         if (d.outdoor.temperature.value < state.bufMinT) state.bufMinT = d.outdoor.temperature.value;
         if ((d.rainfall.rain_rate?.value || 0) > state.bufRR) state.bufRR = (d.rainfall.rain_rate?.value || 0);
 
-        // 1. Midnight Archive Logic
         const todayIST = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
         const dateCheck = await pool.query(`SELECT (time AT TIME ZONE 'Asia/Kolkata')::date as record_date FROM weather_history ORDER BY time ASC LIMIT 1`);
         
@@ -77,7 +76,6 @@ async function syncWithEcowitt(forceWrite = false) {
             }
         }
 
-        // 2. DB Write
         if (forceWrite || (now - state.lastDbWrite > 120000)) {
             try {
                 await pool.query(`INSERT INTO weather_history (time, temp_f, humidity, wind_speed_mph, wind_gust_mph, daily_rain_in, solar_radiation, press_rel, rain_rate_in) VALUES (NOW(), $1, $2, $3, $4, $5, $6, $7, $8)`, [state.bufMaxT, liveHum, state.bufW, state.bufG, d.rainfall.daily.value, d.solar_and_uvi?.solar?.value || 0, livePress, state.bufRR]);
@@ -86,7 +84,6 @@ async function syncWithEcowitt(forceWrite = false) {
             } catch (err) { console.error("DB Error:", err.message); }
         }
 
-        // 3. Fetch History
         const historyRes = await pool.query(`SELECT * FROM weather_history WHERE (time AT TIME ZONE 'Asia/Kolkata')::date = (NOW() AT TIME ZONE 'Asia/Kolkata')::date ORDER BY time ASC`);
         const oneHourAgoRes = await pool.query(`SELECT temp_f, humidity FROM weather_history WHERE time >= NOW() - INTERVAL '1 hour' ORDER BY time ASC LIMIT 1`);
         
@@ -138,7 +135,6 @@ async function syncWithEcowitt(forceWrite = false) {
     } catch (e) { return { error: e.message }; }
 }
 
-
 app.get("/weather", async (req, res) => res.json(await syncWithEcowitt()));
 app.get("/api/sync", async (req, res) => res.json(await syncWithEcowitt(true)));
 
@@ -155,8 +151,8 @@ app.get("/", (req, res) => {
     <style>
         :root { 
             --bg: #e0f2fe; 
-            --card: rgba(255, 255, 255, 0.9); 
-            --border: rgba(2, 132, 199, 0.08);
+            --card: rgba(255, 255, 255, 0.85); 
+            --border: rgba(2, 132, 199, 0.1);
             --text: #0f172a; 
             --muted: #64748b; 
             --accent: #0284c7; 
@@ -166,7 +162,7 @@ app.get("/", (req, res) => {
 
         body.is-night {
             --bg: #0f172a; 
-            --card: rgba(15, 23, 42, 0.75); 
+            --card: rgba(30, 41, 59, 0.7); 
             --border: rgba(255, 255, 255, 0.08);
             --text: #f1f5f9; 
             --muted: #94a3b8; 
@@ -175,7 +171,12 @@ app.get("/", (req, res) => {
             --badge: rgba(255, 255, 255, 0.04);
         }
 
-        body { margin: 0; font-family: 'Outfit', sans-serif; background: var(--bg); color: var(--text); padding: 20px 16px 120px 16px; transition: background 0.5s ease, color 0.5s ease; min-height: 100vh; overflow-x: hidden; }
+        body { 
+            margin: 0; font-family: 'Outfit', sans-serif; background: var(--bg); color: var(--text); 
+            padding: 20px 16px 120px 16px; transition: background 0.5s ease, color 0.5s ease; 
+            min-height: 100vh; overflow-x: hidden; 
+        }
+
         .container { width: 100%; max-width: 1200px; margin: 0 auto; }
         
         .header { margin-bottom: 32px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; }
@@ -199,7 +200,12 @@ app.get("/", (req, res) => {
         
         .grid-system { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
         
-        .card { background: var(--card); padding: 28px; border-radius: 32px; border: 1px solid var(--border); backdrop-filter: blur(15px); box-shadow: var(--glow); position: relative; overflow: hidden; transition: background 0.5s ease; }
+        .card { 
+            background: var(--card); padding: 28px; border-radius: 32px; border: 1px solid var(--border); 
+            backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); box-shadow: var(--glow); 
+            position: relative; overflow: hidden; transition: background 0.5s ease; 
+        }
+
         #windCanvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; border-radius: 32px; }
         .card > *:not(canvas) { position: relative; z-index: 5; }
 
@@ -224,19 +230,6 @@ app.get("/", (req, res) => {
         .trend-up { color: #f43f5e; } .trend-down { color: #0ea5e9; }
         .time-mark { font-size: 9px; color: var(--muted); font-weight: 600; margin-left: 2px; background: rgba(0,0,0,0.04); padding: 1px 4px; border-radius: 4px; }
         body.is-night .time-mark { background: rgba(255,255,255,0.1); }
-
-        /* Glassmorphism Styles */
-        .card {
-            background: rgba(255, 255, 255, 0.6) !important;
-            backdrop-filter: blur(12px) !important;
-            -webkit-backdrop-filter: blur(12px) !important;
-        }
-        body.is-night .card {
-            background: rgba(15, 23, 42, 0.6) !important;
-        }
-        body.is-night :root {
-            --accent: #38bdf8 !important; 
-        }
     </style>
 </head>
 <body>
@@ -325,6 +318,7 @@ app.get("/", (req, res) => {
         const wCanvas = document.getElementById('windCanvas');
         const ctxW = wCanvas.getContext('2d');
 
+        // Custom Chart Enhancements for MAX labels and hover lines
         Chart.register({
             id: 'customChartEnhancements',
             afterDraw: (chart) => {
@@ -360,12 +354,10 @@ app.get("/", (req, res) => {
                     ctx.strokeStyle = dataset.borderColor;
                     ctx.lineWidth = 2;
                     ctx.stroke();
-                    
                     ctx.beginPath();
                     ctx.arc(point.x, point.y, 2, 0, 2 * Math.PI);
                     ctx.fillStyle = '#fff';
                     ctx.fill();
-
                     ctx.fillStyle = document.body.classList.contains('is-night') ? '#94a3b8' : '#475569';
                     ctx.font = 'bold 10px Outfit, sans-serif';
                     ctx.textAlign = 'center';
@@ -392,7 +384,6 @@ app.get("/", (req, res) => {
                 else document.body.classList.remove('is-night');
             }
             if (charts.cT) updateChartColors();
-            update(); // Evaluation triggers immediately
         }
 
         document.getElementById('btn-light').onclick = () => { currentMode = 'light'; localStorage.setItem('weatherMode', 'light'); applyTheme(); };
@@ -402,7 +393,6 @@ app.get("/", (req, res) => {
         function updateChartColors() {
             const gridColor = document.body.classList.contains('is-night') ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)';
             const textColor = document.body.classList.contains('is-night') ? '#94a3b8' : '#64748b';
-            
             Object.values(charts).forEach(chart => {
                 chart.options.scales.y.grid.color = gridColor;
                 chart.options.scales.y.ticks.color = textColor;
@@ -418,9 +408,6 @@ app.get("/", (req, res) => {
             gradient.addColorStop(0, color + '40'); 
             gradient.addColorStop(1, color + '00');
 
-            ctx.shadowColor = color;
-            ctx.shadowBlur = 8;
-            ctx.shadowOffsetY = 4;       
             return new Chart(ctx, { 
                 type: id === 'cR' ? 'bar' : 'line', 
                 data: { 
@@ -428,8 +415,6 @@ app.get("/", (req, res) => {
                     datasets: [{ 
                         label: label, 
                         data: [], 
-                        shadowColor: color,
-                        shadowBlur: 10,
                         borderColor: color, 
                         backgroundColor: gradient,
                         fill: true, 
@@ -437,11 +422,7 @@ app.get("/", (req, res) => {
                         pointRadius: 0,
                         hitRadius: 10, 
                         borderWidth: 2,
-                        borderRadius: 4,
-                        pointHoverRadius: 5,
-                        pointHoverBackgroundColor: color,
-                        pointHoverBorderColor: '#fff',
-                        pointHoverBorderWidth: 2
+                        borderRadius: 4
                     }] 
                 }, 
                 options: { 
@@ -449,35 +430,10 @@ app.get("/", (req, res) => {
                     responsive: true, 
                     maintainAspectRatio: false,
                     interaction: { intersect: false, mode: 'index' },
-                    plugins: {
-                        legend: { display: false },
-                        tooltip: {
-                            backgroundColor: document.body.classList.contains('is-night') ? '#1e293b' : '#fff',
-                            titleColor: document.body.classList.contains('is-night') ? '#f1f5f9' : '#0f172a',
-                            bodyColor: document.body.classList.contains('is-night') ? '#f1f5f9' : '#0f172a',
-                            bodyFont: { family: 'Outfit', weight: '700' },
-                            padding: 10,
-                            cornerRadius: 10,
-                            displayColors: false,
-                            borderColor: 'rgba(0,0,0,0.05)',
-                            borderWidth: 1
-                        }
-                    },
+                    plugins: { legend: { display: false }, tooltip: { padding: 10, cornerRadius: 10, displayColors: false } },
                     scales: { 
-                        y: { 
-                            grid: { color: 'rgba(0,0,0,0.03)', drawBorder: false }, 
-                            ticks: { font: { family: 'Outfit', size: 9 }, padding: 4 },
-                            min: minVal
-                        }, 
-                        x: { 
-                            grid: { display: false }, 
-                            ticks: { 
-                                font: { family: 'Outfit', size: 9 }, 
-                                maxTicksLimit: 8,
-                                autoSkip: true,
-                                maxRotation: 0
-                            } 
-                        } 
+                        y: { grid: { color: 'rgba(0,0,0,0.03)', drawBorder: false }, ticks: { font: { family: 'Outfit', size: 9 }, padding: 4 }, min: minVal }, 
+                        x: { grid: { display: false }, ticks: { font: { family: 'Outfit', size: 9 }, maxTicksLimit: 8, maxRotation: 0 } } 
                     } 
                 } 
             });
@@ -539,27 +495,10 @@ app.get("/", (req, res) => {
                 charts.cW.data.labels = labels; charts.cW.data.datasets[0].data = d.history.map(h => h.wind); charts.cW.update('none');
                 charts.cR.data.labels = labels; charts.cR.data.datasets[0].data = d.history.map(h => h.rain); charts.cR.update('none');
 
-                const isNight = document.body.classList.contains('is-night');
-                let moodColor;
-
-                if (isNight) {
-                    moodColor = "#0f172a"; 
-                    if (d.rain.rate > 0) moodColor = "#1e293b";      
-                    else if (d.temp.current > 38) moodColor = "#450a0a"; 
-                    else if (d.temp.current > 32) moodColor = "#422006"; 
-                    else if (d.temp.current < 20) moodColor = "#0c4a6e"; 
-                } else {
-                    moodColor = "#e0f2fe"; 
-                    if (d.rain.rate > 0) moodColor = "#e2e8f0";      
-                    else if (d.temp.current > 38) moodColor = "#fff1f2"; 
-                    else if (d.temp.current > 32) moodColor = "#fef9c3"; 
-                    else if (d.temp.current < 22) moodColor = "#f0f9ff"; 
-                }
-                document.documentElement.style.setProperty('--bg', moodColor);
-
             } catch (e) { console.error(e); }
         }
 
+        // Particle logic for wind animation
         for(let i=0; i<60; i++) { particles.push({ x: Math.random() * 800, y: Math.random() * 800 }); }
         
         function animateWind() {
@@ -568,18 +507,16 @@ app.get("/", (req, res) => {
                 wCanvas.height = wCanvas.offsetHeight; 
             }
             ctxW.clearRect(0, 0, wCanvas.width, wCanvas.height);
-            
             const rad = (liveWindDeg - 90) * (Math.PI / 180);
             const speed = Math.max(0.5, liveWindSpeed * 0.8); 
             const dx = Math.cos(rad) * speed, dy = Math.sin(rad) * speed;
-            
             const intensity = Math.min(0.4, 0.1 + (liveWindSpeed / 60));
+            
             ctxW.strokeStyle = document.body.classList.contains('is-night') 
                 ? \`rgba(255, 255, 255, \${intensity * 1.5})\` 
                 : \`rgba(2, 132, 199, \${intensity})\`;
             
             ctxW.lineWidth = liveWindSpeed > 20 ? 1.5 : 1;
-            
             ctxW.beginPath();
             particles.forEach(p => {
                 p.x += dx; p.y += dy;
