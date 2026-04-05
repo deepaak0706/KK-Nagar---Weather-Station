@@ -318,15 +318,15 @@ app.get("/", (req, res) => {
         const wCanvas = document.getElementById('windCanvas');
         const ctxW = wCanvas.getContext('2d');
 
-        // Initializing particles with individual speed factors to break "lanes"
-        const particleCount = 30;
-        for(let i=0; i<particleCount; i++) { 
-            particles.push({ 
-                x: Math.random() * 800, 
-                y: Math.random() * 800,
-                s: 0.6 + Math.random() // Individual speed multiplier
-            }); 
-        }
+        const particleCount = 35; 
+let particles = [];
+for(let i=0; i<particleCount; i++) { 
+    particles.push({ 
+        x: Math.random() * 800, 
+        y: Math.random() * 800,
+        s: 0.6 + Math.random() 
+    }); 
+}
 
         // Custom Chart Enhancements for MAX labels and hover lines
         Chart.register({
@@ -509,44 +509,49 @@ app.get("/", (req, res) => {
         }
 
         function animateWind() {
-            const dpr = window.devicePixelRatio || 1;
-            if (wCanvas.width !== wCanvas.offsetWidth * dpr) { 
-                wCanvas.width = wCanvas.offsetWidth * dpr; 
-                wCanvas.height = wCanvas.offsetHeight * dpr;
-                ctxW.scale(dpr, dpr);
-            }
+    const dpr = window.devicePixelRatio || 1;
+    if (wCanvas.width !== wCanvas.offsetWidth * dpr) { 
+        wCanvas.width = wCanvas.offsetWidth * dpr; 
+        wCanvas.height = wCanvas.offsetHeight * dpr;
+        ctxW.scale(dpr, dpr);
+    }
 
-            ctxW.clearRect(0, 0, wCanvas.width, wCanvas.height);
-            const rad = (liveWindDeg - 90) * (Math.PI / 180);
-            const baseSpeed = Math.max(0.5, liveWindSpeed * 0.5); 
-            const dx = Math.cos(rad) * baseSpeed;
-            const dy = Math.sin(rad) * baseSpeed;
-            
-            ctxW.strokeStyle = document.body.classList.contains('is-night') 
-                ? 'rgba(255, 255, 255, 0.1)' 
-                : 'rgba(2, 132, 199, 0.08)';
-            
-            ctxW.lineWidth = 1.5;
-            ctxW.lineCap = 'round';
-            ctxW.beginPath();
+    ctxW.clearRect(0, 0, wCanvas.width, wCanvas.height);
+    
+    // THE FIX: Adding 180 flips the "Coming From" degree into a "Flowing To" vector
+    const rad = (liveWindDeg - 90 + 180) * (Math.PI / 180);
+    const baseSpeed = Math.max(0.4, liveWindSpeed * 0.4); 
+    const dx = Math.cos(rad) * baseSpeed;
+    const dy = Math.sin(rad) * baseSpeed;
+    
+    // Lesser density (lower alpha values)
+    ctxW.strokeStyle = document.body.classList.contains('is-night') 
+        ? 'rgba(255, 255, 255, 0.12)' 
+        : 'rgba(2, 132, 199, 0.07)';
+    
+    ctxW.lineWidth = 1.1;
+    ctxW.lineCap = 'round';
+    ctxW.beginPath();
 
-            particles.forEach(p => {
-                p.x += dx * p.s; 
-                p.y += dy * p.s;
+    particles.forEach(p => {
+        p.x += dx * p.s; 
+        p.y += dy * p.s;
 
-                // Fuzzy wrapping to prevent "lane" formation
-                if (p.x > wCanvas.offsetWidth) { p.x = 0; p.y = Math.random() * wCanvas.offsetHeight; }
-                else if (p.x < 0) { p.x = wCanvas.offsetWidth; p.y = Math.random() * wCanvas.offsetHeight; }
-                
-                if (p.y > wCanvas.offsetHeight) { p.y = 0; p.x = Math.random() * wCanvas.offsetWidth; }
-                else if (p.y < 0) { p.y = wCanvas.offsetHeight; p.x = Math.random() * wCanvas.offsetWidth; }
+        // Reset particles when they leave the frame
+        if (p.x > wCanvas.offsetWidth) { p.x = 0; p.y = Math.random() * wCanvas.offsetHeight; }
+        else if (p.x < 0) { p.x = wCanvas.offsetWidth; p.y = Math.random() * wCanvas.offsetHeight; }
+        
+        if (p.y > wCanvas.offsetHeight) { p.y = 0; p.x = Math.random() * wCanvas.offsetWidth; }
+        else if (p.y < 0) { p.y = wCanvas.offsetHeight; p.x = Math.random() * wCanvas.offsetWidth; }
 
-                ctxW.moveTo(p.x, p.y);
-                ctxW.lineTo(p.x - (dx * p.s * 1.0), p.y - (dy * p.s * 1.5));
-            });
-            ctxW.stroke();
-            requestAnimationFrame(animateWind);
-        }
+        ctxW.moveTo(p.x, p.y);
+        // Shortened the tails for a cleaner, less "busy" feel
+        ctxW.lineTo(p.x - (dx * p.s * 0.8), p.y - (dy * p.s * 0.8));
+    });
+    ctxW.stroke();
+    requestAnimationFrame(animateWind);
+}
+
 
         applyTheme();
         animateWind();
