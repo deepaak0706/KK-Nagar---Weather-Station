@@ -22,6 +22,12 @@ let state = {
     tW: null, tG: null, tMaxT: null, tMinT: null, tRR: null 
 };
 
+// Helper to clear "Ghost" values from memory if DB write fails or succeeds
+function resetStateBuffers() {
+    state.bufW = 0; state.bufG = 0; state.bufMaxT = -999; state.bufMinT = 999; state.bufRR = 0;
+    state.tW = null; state.tG = null; state.tMaxT = null; state.tMinT = null; state.tRR = null;
+}
+
 const getCard = (a) => {
     const directions = ["N","NNE","NE","ENE","E","ESE","SE","SSE","S","SSW","SW","WSW","W","WNW","NW","NNW"];
     return directions[Math.round(a / 22.5) % 16];
@@ -70,7 +76,7 @@ async function syncWithEcowitt(forceWrite = false) {
         if (d.outdoor.temperature.value < state.bufMinT) { state.bufMinT = d.outdoor.temperature.value; state.tMinT = currentTimeStamp; }
         if ((d.rainfall.rain_rate?.value || 0) > state.bufRR) { state.bufRR = (d.rainfall.rain_rate?.value || 0); state.tRR = currentTimeStamp; }
 
-                // Daily Archiving Logic
+        // Daily Archiving Logic
         const todayIST = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
         const dateCheck = await pool.query(`SELECT (time AT TIME ZONE 'Asia/Kolkata')::date as record_date FROM weather_history ORDER BY time ASC LIMIT 1`);
         
@@ -106,11 +112,16 @@ async function syncWithEcowitt(forceWrite = false) {
                     [state.bufMaxT, liveHum, state.bufW, state.bufG, d.rainfall.daily.value, d.solar_and_uvi?.solar?.value || 0, livePress, state.bufRR, state.bufMinT,
                      state.tMaxT, state.tMinT, state.tW, state.tG, state.tRR]);
                 
-                // Reset buffers AND timestamps after writing
-                state.bufW = 0; state.bufG = 0; state.bufMaxT = -999; state.bufMinT = 999; state.bufRR = 0;
-                state.tW = null; state.tG = null; state.tMaxT = null; state.tMinT = null; state.tRR = null;
+                // Reset buffers AND timestamps after successful writing
+                resetStateBuffers();
                 state.lastDbWrite = now;
-            } catch (err) { console.error("DB Error:", err.message); }
+            } catch (err) { 
+                console.error("DB Error:", err.message); 
+                // Safety: Wipe memory if DB is stuck for > 15 mins so we don't write "ghost" data later
+                if (now - state.lastFetchTime > 900000) { 
+                    resetStateBuffers();
+                }
+            }
         }
 
 
@@ -603,4 +614,3 @@ if (process.env.NODE_ENV !== 'production') {
 }
 
 module.exports = app;
-
