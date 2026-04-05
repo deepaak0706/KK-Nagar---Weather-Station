@@ -14,6 +14,7 @@ const MAC = process.env.MAC;
 
 // Persistent state for caching and database buffering
 let state = { 
+    isProcessing: false, 
     cachedData: null, 
     lastFetchTime: 0, 
     lastDbWrite: 0,
@@ -36,9 +37,13 @@ function calculateRealFeel(tempC, humidity) {
 }
 
 async function syncWithEcowitt(forceWrite = false) {
+    if (state.isProcessing) return state.cachedData;
+
     const now = Date.now();
     // CHANGED: Reduced from 35000 to 20000 to ensure the 45s frontend refresh always pulls fresh data
     if (!forceWrite && state.cachedData && (now - state.lastFetchTime < 20000)) return state.cachedData;
+
+    state.isProcessing = true;
 
     try {
         const url = `https://api.ecowitt.net/api/v3/device/real_time?application_key=${APPLICATION_KEY}&api_key=${API_KEY}&mac=${MAC}`;
@@ -134,6 +139,7 @@ async function syncWithEcowitt(forceWrite = false) {
         state.lastFetchTime = now;
         return state.cachedData;
     } catch (e) { return { error: e.message }; }
+    finally { state.isProcessing = false; }
 }
 
 app.get("/weather", async (req, res) => res.json(await syncWithEcowitt()));
