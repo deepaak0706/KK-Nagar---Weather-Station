@@ -314,25 +314,64 @@ app.get("/", (req, res) => {
         const wCanvas = document.getElementById('windCanvas');
         const ctxW = wCanvas.getContext('2d');
 
-        Chart.register({
-            id: 'verticalLine',
-            afterDraw: (chart) => {
-                if (chart.tooltip?._active?.length) {
-                    const x = chart.tooltip._active[0].element.x;
-                    const yAxis = chart.scales.y;
-                    const ctx = chart.ctx;
-                    ctx.save();
-                    ctx.setLineDash([5, 5]);
-                    ctx.beginPath();
-                    ctx.moveTo(x, yAxis.top);
-                    ctx.lineTo(x, yAxis.bottom);
-                    ctx.lineWidth = 1;
-                    ctx.strokeStyle = document.body.classList.contains('is-night') ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.1)';
-                    ctx.stroke();
-                    ctx.restore();
-                }
-            }
-        });
+Chart.register({
+    id: 'customChartEnhancements',
+    // 1. Draw the Vertical Line on Hover
+    afterDraw: (chart) => {
+        if (chart.tooltip?._active?.length) {
+            const x = chart.tooltip._active[0].element.x;
+            const yAxis = chart.scales.y;
+            const ctx = chart.ctx;
+            ctx.save();
+            ctx.setLineDash([5, 5]);
+            ctx.beginPath();
+            ctx.moveTo(x, yAxis.top);
+            ctx.lineTo(x, yAxis.bottom);
+            ctx.lineWidth = 1;
+            ctx.strokeStyle = document.body.classList.contains('is-night') ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.1)';
+            ctx.stroke();
+            ctx.restore();
+        }
+    },
+    // 2. Draw the Peak Marker (Highest Point)
+    afterDatasetsDraw: (chart) => {
+        const { ctx, data, scales: { x, y } } = chart;
+        const dataset = data.datasets[0];
+        if (!dataset || !dataset.data || dataset.data.length < 2) return;
+
+        // Find the index of the maximum value
+        const maxVal = Math.max(...dataset.data);
+        const maxIndex = dataset.data.lastIndexOf(maxVal);
+        const meta = chart.getDatasetMeta(0);
+        const point = meta.data[maxIndex];
+
+        // Only draw if we have a valid point and it's not a placeholder (-999)
+        if (point && maxVal > -50) { 
+            ctx.save();
+            
+            // Draw a glowing ring around the peak
+            ctx.beginPath();
+            ctx.arc(point.x, point.y, 5, 0, 2 * Math.PI);
+            ctx.strokeStyle = dataset.borderColor;
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            
+            // Inner white dot for "Sparkle"
+            ctx.beginPath();
+            ctx.arc(point.x, point.y, 2, 0, 2 * Math.PI);
+            ctx.fillStyle = '#fff';
+            ctx.fill();
+
+            // Add the "MAX" label
+            ctx.fillStyle = document.body.classList.contains('is-night') ? '#94a3b8' : '#475569';
+            ctx.font = 'bold 10px Outfit, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('MAX', point.x, point.y - 12);
+            
+            ctx.restore();
+        }
+    }
+});
 
         function applyTheme() {
             const hour = new Date().getHours();
@@ -387,7 +426,9 @@ app.get("/", (req, res) => {
                         backgroundColor: gradient,
                         fill: true, 
                         tension: 0.4, 
-                        pointRadius: 0, 
+                        pointRadius: 0,
+hitRadius: 10, // Makes it easier to hover over points
+
                         borderWidth: 2,
                         borderRadius: 4,
                         pointHoverRadius: 5,
