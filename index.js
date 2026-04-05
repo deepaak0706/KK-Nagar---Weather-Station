@@ -415,6 +415,9 @@ Chart.register({
             gradient.addColorStop(0, color + '40'); 
             gradient.addColorStop(1, color + '00');
 
+            ctx.shadowColor = color;
+            ctx.shadowBlur = 8;
+            ctx.shadowOffsetY = 4;       
             return new Chart(ctx, { 
                 type: id === 'cR' ? 'bar' : 'line', 
                 data: { 
@@ -422,6 +425,8 @@ Chart.register({
                     datasets: [{ 
                         label: label, 
                         data: [], 
+                        shadowColor: color,
+                        shadowBlur: 10,
                         borderColor: color, 
                         backgroundColor: gradient,
                         fill: true, 
