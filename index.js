@@ -18,7 +18,7 @@ let state = {
     lastFetchTime: 0, 
     lastDbWrite: 0,
     bufW: 0, bufG: 0, bufMaxT: -999, bufMinT: 999, bufRR: 0,
-    // NEW: Batch queue for 1-minute resolution data
+    // NEW: Batch queue for 1-minute resolution data (Updates graphs in real-time)
     batchQueue: [] 
 };
 
@@ -60,7 +60,7 @@ async function syncWithEcowitt(forceWrite = false) {
         const liveRainYearly = parseFloat((d.rainfall.yearly.value * 25.4).toFixed(1));
         const liveRainRate = parseFloat(((d.rainfall.rain_rate?.value || 0) * 25.4).toFixed(1));
 
-        // ARCHIVE LOGIC: Capture this 1-minute snapshot into RAM queue
+        // ARCHIVE LOGIC: Capture this 1-minute snapshot into RAM queue for the graph
         state.batchQueue.push({
             time: new Date().toISOString(),
             temp_f: d.outdoor.temperature.value,
@@ -73,7 +73,7 @@ async function syncWithEcowitt(forceWrite = false) {
             rain_rate_in: d.rainfall.rain_rate?.value || 0
         });
 
-        // Archive and buffer logic (Used for the live "Last Point" data)
+        // Buffer logic for "Live" max/min tracking
         if (d.wind.wind_speed.value > state.bufW) state.bufW = d.wind.wind_speed.value;
         if (d.wind.wind_gust.value > state.bufG) state.bufG = d.wind.wind_gust.value;
         if (d.outdoor.temperature.value > state.bufMaxT) state.bufMaxT = d.outdoor.temperature.value;
@@ -91,16 +91,14 @@ async function syncWithEcowitt(forceWrite = false) {
             }
         }
 
-        // DATABASE BATCH WRITE: Triggered by 10min Cron or 2min fallback
+        // DATABASE BATCH WRITE: Runs every 600000ms (10 minutes)
         if (forceWrite || (now - state.lastDbWrite > 600000)) {
             try {
-                // Batch insert all 1-minute points collected in RAM
                 for (const pt of state.batchQueue) {
                     await pool.query(`INSERT INTO weather_history (time, temp_f, humidity, wind_speed_mph, wind_gust_mph, daily_rain_in, solar_radiation, press_rel, rain_rate_in) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`, 
                     [pt.time, pt.temp_f, pt.humidity, pt.wind_speed_mph, pt.wind_gust_mph, pt.daily_rain_in, pt.solar, pt.press_rel, pt.rain_rate_in]);
                 }
-                
-                // Clear RAM buffers after successful DB write
+                // Clear buffers after committing to DB
                 state.batchQueue = [];
                 state.bufW = 0; state.bufG = 0; state.bufMaxT = -999; state.bufMinT = 999; state.bufRR = 0;
                 state.lastDbWrite = now;
@@ -110,7 +108,7 @@ async function syncWithEcowitt(forceWrite = false) {
         const historyRes = await pool.query(`SELECT * FROM weather_history WHERE (time AT TIME ZONE 'Asia/Kolkata')::date = (NOW() AT TIME ZONE 'Asia/Kolkata')::date ORDER BY time ASC`);
         const oneHourAgoRes = await pool.query(`SELECT temp_f, humidity FROM weather_history WHERE time >= NOW() - INTERVAL '1 hour' ORDER BY time ASC LIMIT 1`);
         
-        // Merge DB history with unsaved RAM points for the graph
+        // HYBRID DATA: Merge saved rows with unsaved queue to show 1-minute updates in graphs
         let combinedRows = [...historyRes.rows, ...state.batchQueue];
         
         let mx_t = -999, mn_t = 999, mx_t_time = "--:--", mn_t_time = "--:--", mx_w = 0, mx_w_t = "--:--", mx_g = 0, mx_g_t = "--:--", mx_r = 0, mx_r_t = "--:--", pTrend = 0, tRate = 0, hTrend = 0, graphHistory = [];
@@ -164,7 +162,7 @@ async function syncWithEcowitt(forceWrite = false) {
 app.get("/weather", async (req, res) => res.json(await syncWithEcowitt()));
 app.get("/api/sync", async (req, res) => res.json(await syncWithEcowitt(true)));
 
-// 1-MINUTE HEARTBEAT: Runs on the server even if no one visits the site
+// 1-MINUTE HEARTBEAT: Essential for 1-minute graph granularity
 setInterval(async () => {
     console.log("Heartbeat 1-min Sync...");
     await syncWithEcowitt(false);
@@ -350,17 +348,16 @@ app.get("/", (req, res) => {
         const wCanvas = document.getElementById('windCanvas');
         const ctxW = wCanvas.getContext('2d');
 
-        // Initializing particles with individual speed factors to break "lanes"
         const particleCount = 30;
         for(let i=0; i<particleCount; i++) { 
             particles.push({ 
                 x: Math.random() * 800, 
                 y: Math.random() * 800,
-                s: 0.6 + Math.random() // Individual speed multiplier
+                s: 0.6 + Math.random() 
             }); 
         }
 
-        // Custom Chart Enhancements for MAX labels and hover lines
+        // Custom Chart Enhancements for MAX labels
         Chart.register({
             id: 'customChartEnhancements',
             afterDraw: (chart) => {
@@ -549,6 +546,7 @@ app.get("/", (req, res) => {
             }
 
             ctxW.clearRect(0, 0, wCanvas.width, wCanvas.height);
+            // Direction fix: -90 ensures north is 0
             const rad = (liveWindDeg - 90) * (Math.PI / 180);
             const baseSpeed = Math.max(0.5, liveWindSpeed * 0.5); 
             const dx = Math.cos(rad) * baseSpeed;
@@ -565,14 +563,10 @@ app.get("/", (req, res) => {
             particles.forEach(p => {
                 p.x += dx * p.s; 
                 p.y += dy * p.s;
-
-                // Fuzzy wrapping to prevent "lane" formation
                 if (p.x > wCanvas.offsetWidth) { p.x = 0; p.y = Math.random() * wCanvas.offsetHeight; }
                 else if (p.x < 0) { p.x = wCanvas.offsetWidth; p.y = Math.random() * wCanvas.offsetHeight; }
-                
                 if (p.y > wCanvas.offsetHeight) { p.y = 0; p.x = Math.random() * wCanvas.offsetWidth; }
                 else if (p.y < 0) { p.y = wCanvas.offsetHeight; p.x = Math.random() * wCanvas.offsetWidth; }
-
                 ctxW.moveTo(p.x, p.y);
                 ctxW.lineTo(p.x - (dx * p.s * 1.0), p.y - (dy * p.s * 1.5));
             });
@@ -598,3 +592,4 @@ if (process.env.NODE_ENV !== 'production') {
 }
 
 module.exports = app;
+
