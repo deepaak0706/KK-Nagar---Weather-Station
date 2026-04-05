@@ -156,20 +156,18 @@ app.get("/", (req, res) => {
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;700;900&display=swap" rel="stylesheet">
     <style>
         :root { 
-    /* Changed from #fdfcf7 to a soft, palish sky blue */
-    --bg: #e0f2fe; 
+    --bg: #e0f2fe; /* Your light blue background */
     
-    /* Changed from white to a very light, translucent blue */
-    --card: rgba(240, 249, 255, 0.9); 
+    /* Changed from translucent blue to a soft, warm, "sunlit" light blue */
+    --card: rgba(253, 252, 246, 0.9); 
     
-    /* Slightly darkened the border to keep it visible against the blue */
     --border: rgba(2, 132, 199, 0.08);
-
     --text: #0f172a; 
     --muted: #64748b; 
     --accent: #0284c7; 
     --glow: 0 10px 40px -10px rgba(2, 132, 199, 0.1);
 }
+
 
 
         body.is-night {
@@ -201,7 +199,20 @@ app.get("/", (req, res) => {
         
         .grid-system { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
         
-        .card { background: var(--card); padding: 28px; border-radius: 32px; border: 1px solid var(--border); backdrop-filter: blur(15px); box-shadow: var(--glow); position: relative; overflow: hidden; }
+        .card {
+    /* Main card color */
+    background: #fcfbf5; /* Soft "parchment" day-tint */
+    
+    padding: 28px;
+    border-radius: 32px;
+    border: 1px solid var(--border);
+    /* Optional: reduce blur since the color is less translucent */
+    backdrop-filter: blur(8px); 
+    box-shadow: var(--glow);
+    position: relative;
+    overflow: hidden;
+}
+
         #windCanvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; border-radius: 32px; }
         .card > *:not(canvas) { position: relative; z-index: 5; }
 
@@ -213,7 +224,18 @@ app.get("/", (req, res) => {
         body.is-night .sub-pill { background: rgba(255,255,255,0.05); }
 
         .sub-box-4 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding-top: 20px; border-top: 1px solid var(--border); }
-        .badge { padding: 12px; border-radius: 18px; background: rgba(0, 0, 0, 0.02); display: flex; flex-direction: column; gap: 2px; }
+        .badge {
+    padding: 12px;
+    border-radius: 18px;
+    
+    /* Changed to be slightly darker than the main card for depth */
+    background: rgba(0, 0, 0, 0.03); 
+    
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
         body.is-night .badge { background: rgba(255,255,255,0.04); }
         .badge-label { font-size: 9px; color: var(--muted); text-transform: uppercase; font-weight: 800; }
         .badge-val { font-size: 16px; font-weight: 800; }
