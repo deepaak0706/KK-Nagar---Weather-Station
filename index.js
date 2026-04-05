@@ -37,6 +37,7 @@ function calculateRealFeel(tempC, humidity) {
 
 async function syncWithEcowitt(forceWrite = false) {
     const now = Date.now();
+    // Cache check: allow 1-minute cron to bypass cache to update buffers accurately
     if (!forceWrite && state.cachedData && (now - state.lastFetchTime < 35000)) return state.cachedData;
 
     try {
@@ -58,13 +59,14 @@ async function syncWithEcowitt(forceWrite = false) {
         const liveRainYearly = parseFloat((d.rainfall.yearly.value * 25.4).toFixed(1));
         const liveRainRate = parseFloat(((d.rainfall.rain_rate?.value || 0) * 25.4).toFixed(1));
 
-        // Archive and buffer logic
+        // Update buffers with every call (Heartbeat or Write)
         if (d.wind.wind_speed.value > state.bufW) state.bufW = d.wind.wind_speed.value;
         if (d.wind.wind_gust.value > state.bufG) state.bufG = d.wind.wind_gust.value;
         if (d.outdoor.temperature.value > state.bufMaxT) state.bufMaxT = d.outdoor.temperature.value;
         if (d.outdoor.temperature.value < state.bufMinT) state.bufMinT = d.outdoor.temperature.value;
         if ((d.rainfall.rain_rate?.value || 0) > state.bufRR) state.bufRR = (d.rainfall.rain_rate?.value || 0);
 
+        // Daily Archiving Logic
         const todayIST = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
         const dateCheck = await pool.query(`SELECT (time AT TIME ZONE 'Asia/Kolkata')::date as record_date FROM weather_history ORDER BY time ASC LIMIT 1`);
         
@@ -76,9 +78,11 @@ async function syncWithEcowitt(forceWrite = false) {
             }
         }
 
-        if (forceWrite || (now - state.lastDbWrite > 120000)) {
+        // Database Write Logic: Strictly triggered by forceWrite (?write=true)
+        if (forceWrite) {
             try {
                 await pool.query(`INSERT INTO weather_history (time, temp_f, humidity, wind_speed_mph, wind_gust_mph, daily_rain_in, solar_radiation, press_rel, rain_rate_in) VALUES (NOW(), $1, $2, $3, $4, $5, $6, $7, $8)`, [state.bufMaxT, liveHum, state.bufW, state.bufG, d.rainfall.daily.value, d.solar_and_uvi?.solar?.value || 0, livePress, state.bufRR]);
+                // Reset buffers after writing
                 state.bufW = 0; state.bufG = 0; state.bufMaxT = -999; state.bufMinT = 999; state.bufRR = 0;
                 state.lastDbWrite = now;
             } catch (err) { console.error("DB Error:", err.message); }
@@ -135,8 +139,12 @@ async function syncWithEcowitt(forceWrite = false) {
     } catch (e) { return { error: e.message }; }
 }
 
-app.get("/weather", async (req, res) => res.json(await syncWithEcowitt()));
-app.get("/api/sync", async (req, res) => res.json(await syncWithEcowitt(true)));
+// Updated routes for Dual-Cron handling
+app.get("/weather", async (req, res) => res.json(await syncWithEcowitt(false)));
+app.get("/api/sync", async (req, res) => {
+    const isWriteRequest = req.query.write === 'true';
+    res.json(await syncWithEcowitt(isWriteRequest));
+});
 
 app.get("/", (req, res) => {
     res.send(`
