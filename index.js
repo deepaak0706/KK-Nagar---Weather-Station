@@ -319,7 +319,7 @@ app.get("/", (req, res) => {
         const ctxW = wCanvas.getContext('2d');
 
         // Initializing particles with individual speed factors to break "lanes"
-        const particleCount = 70;
+        const particleCount = 30;
         for(let i=0; i<particleCount; i++) { 
             particles.push({ 
                 x: Math.random() * 800, 
@@ -523,8 +523,8 @@ app.get("/", (req, res) => {
             const dy = Math.sin(rad) * baseSpeed;
             
             ctxW.strokeStyle = document.body.classList.contains('is-night') 
-                ? 'rgba(255, 255, 255, 0.2)' 
-                : 'rgba(2, 132, 199, 0.15)';
+                ? 'rgba(255, 255, 255, 0.1)' 
+                : 'rgba(2, 132, 199, 0.08)';
             
             ctxW.lineWidth = 1.5;
             ctxW.lineCap = 'round';
@@ -542,7 +542,7 @@ app.get("/", (req, res) => {
                 else if (p.y < 0) { p.y = wCanvas.offsetHeight; p.x = Math.random() * wCanvas.offsetWidth; }
 
                 ctxW.moveTo(p.x, p.y);
-                ctxW.lineTo(p.x - (dx * p.s * 1.5), p.y - (dy * p.s * 1.5));
+                ctxW.lineTo(p.x - (dx * p.s * 1.0), p.y - (dy * p.s * 1.5));
             });
             ctxW.stroke();
             requestAnimationFrame(animateWind);
