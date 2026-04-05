@@ -107,7 +107,6 @@ async function syncWithEcowitt(forceWrite = false) {
                 const r_gust = parseFloat((r.wind_gust_mph * 1.60934).toFixed(1));
                 const r_rain_rate = parseFloat((r.rain_rate_in * 25.4).toFixed(1));
 
-                // --- STRICT COMPARISON: ONLY UPDATE IF NEW VALUE IS GREATER ---
                 if (r_temp > mx_t) { mx_t = r_temp; mx_t_time = r_time; }
                 if (r_temp < mn_t || mn_t === 999) { mn_t = r_temp; mn_t_time = r_time; }
                 if (r_wind > mx_w) { mx_w = r_wind; mx_w_t = r_time; }
@@ -120,7 +119,6 @@ async function syncWithEcowitt(forceWrite = false) {
 
         const liveTime = new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' });
         
-        // --- FINAL CHECK AGAINST LIVE DATA ---
         if (mx_t === -999 || liveTemp > mx_t) { mx_t = liveTemp; mx_t_time = liveTime; }
         if (mn_t === 999 || liveTemp < mn_t) { mn_t = liveTemp; mn_t_time = liveTime; }
         if (liveWind > mx_w) { mx_w = liveWind; mx_w_t = "Live"; }
@@ -156,7 +154,7 @@ app.get("/", (req, res) => {
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;700;900&display=swap" rel="stylesheet">
     <style>
         :root { 
-            --bg: #e0f2fe; /* Updated to Sky Blue */
+            --bg: #e0f2fe; 
             --card: rgba(255, 255, 255, 0.9); 
             --border: rgba(2, 132, 199, 0.08);
             --text: #0f172a; 
@@ -167,7 +165,7 @@ app.get("/", (req, res) => {
         }
 
         body.is-night {
-            --bg: #020617; 
+            --bg: #0f172a; 
             --card: rgba(15, 23, 42, 0.75); 
             --border: rgba(255, 255, 255, 0.08);
             --text: #f1f5f9; 
@@ -177,7 +175,7 @@ app.get("/", (req, res) => {
             --badge: rgba(255, 255, 255, 0.04);
         }
 
-        body { margin: 0; font-family: 'Outfit', sans-serif; background: var(--bg); color: var(--text); padding: 20px 16px 120px 16px; transition: all 0.5s ease; min-height: 100vh; overflow-x: hidden; }
+        body { margin: 0; font-family: 'Outfit', sans-serif; background: var(--bg); color: var(--text); padding: 20px 16px 120px 16px; transition: background-color 2s ease, color 0.5s ease; min-height: 100vh; overflow-x: hidden; }
         .container { width: 100%; max-width: 1200px; margin: 0 auto; }
         
         .header { margin-bottom: 32px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; }
@@ -226,6 +224,19 @@ app.get("/", (req, res) => {
         .trend-up { color: #f43f5e; } .trend-down { color: #0ea5e9; }
         .time-mark { font-size: 9px; color: var(--muted); font-weight: 600; margin-left: 2px; background: rgba(0,0,0,0.04); padding: 1px 4px; border-radius: 4px; }
         body.is-night .time-mark { background: rgba(255,255,255,0.1); }
+
+        /* MIGHTY UPGRADE: Glassmorphism added safely to the end */
+        .card {
+            background: rgba(255, 255, 255, 0.6) !important;
+            backdrop-filter: blur(12px) !important;
+            -webkit-backdrop-filter: blur(12px) !important;
+        }
+        body.is-night .card {
+            background: rgba(15, 23, 42, 0.6) !important;
+        }
+        body.is-night :root {
+            --accent: #38bdf8 !important; 
+        }
     </style>
 </head>
 <body>
@@ -316,7 +327,6 @@ app.get("/", (req, res) => {
 
 Chart.register({
     id: 'customChartEnhancements',
-    // 1. Draw the Vertical Line on Hover
     afterDraw: (chart) => {
         if (chart.tooltip?._active?.length) {
             const x = chart.tooltip._active[0].element.x;
@@ -333,41 +343,33 @@ Chart.register({
             ctx.restore();
         }
     },
-    // 2. Draw the Peak Marker (Highest Point)
     afterDatasetsDraw: (chart) => {
         const { ctx, data, scales: { x, y } } = chart;
         const dataset = data.datasets[0];
         if (!dataset || !dataset.data || dataset.data.length < 2) return;
 
-        // Find the index of the maximum value
         const maxVal = Math.max(...dataset.data);
         const maxIndex = dataset.data.lastIndexOf(maxVal);
         const meta = chart.getDatasetMeta(0);
         const point = meta.data[maxIndex];
 
-        // Only draw if we have a valid point and it's not a placeholder (-999)
         if (point && maxVal > -50) { 
             ctx.save();
-            
-            // Draw a glowing ring around the peak
             ctx.beginPath();
             ctx.arc(point.x, point.y, 5, 0, 2 * Math.PI);
             ctx.strokeStyle = dataset.borderColor;
             ctx.lineWidth = 2;
             ctx.stroke();
             
-            // Inner white dot for "Sparkle"
             ctx.beginPath();
             ctx.arc(point.x, point.y, 2, 0, 2 * Math.PI);
             ctx.fillStyle = '#fff';
             ctx.fill();
 
-            // Add the "MAX" label
             ctx.fillStyle = document.body.classList.contains('is-night') ? '#94a3b8' : '#475569';
             ctx.font = 'bold 10px Outfit, sans-serif';
             ctx.textAlign = 'center';
             ctx.fillText('MAX', point.x, point.y - 12);
-            
             ctx.restore();
         }
     }
@@ -390,6 +392,7 @@ Chart.register({
                 else document.body.classList.remove('is-night');
             }
             if (charts.cT) updateChartColors();
+            update(); // Trigger mood evaluation immediately on theme toggle
         }
 
         document.getElementById('btn-light').onclick = () => { currentMode = 'light'; localStorage.setItem('weatherMode', 'light'); applyTheme(); };
@@ -432,8 +435,7 @@ Chart.register({
                         fill: true, 
                         tension: 0.4, 
                         pointRadius: 0,
-hitRadius: 10, // Makes it easier to hover over points
-
+                        hitRadius: 10, 
                         borderWidth: 2,
                         borderRadius: 4,
                         pointHoverRadius: 5,
@@ -536,21 +538,50 @@ hitRadius: 10, // Makes it easier to hover over points
                 charts.cH.data.labels = labels; charts.cH.data.datasets[0].data = d.history.map(h => h.hum); charts.cH.update('none');
                 charts.cW.data.labels = labels; charts.cW.data.datasets[0].data = d.history.map(h => h.wind); charts.cW.update('none');
                 charts.cR.data.labels = labels; charts.cR.data.datasets[0].data = d.history.map(h => h.rain); charts.cR.update('none');
+
+                // --- MIGHTY UPGRADE: DYNAMIC WEATHER MOOD (Dual Mode) ---
+                const isNight = document.body.classList.contains('is-night');
+                let moodColor;
+
+                if (isNight) {
+                    moodColor = "#0f172a"; // Default Deep Navy
+                    if (d.rain.rate > 0) moodColor = "#1e293b";      // Rainy Slate
+                    else if (d.temp.current > 38) moodColor = "#450a0a"; // Extreme Heat
+                    else if (d.temp.current > 32) moodColor = "#422006"; // Warm
+                    else if (d.temp.current < 20) moodColor = "#0c4a6e"; // Cold
+                } else {
+                    moodColor = "#e0f2fe"; // Default Sky Blue
+                    if (d.rain.rate > 0) moodColor = "#e2e8f0";      // Rainy Mist
+                    else if (d.temp.current > 38) moodColor = "#fff1f2"; // Heatwave Pink
+                    else if (d.temp.current > 32) moodColor = "#fef9c3"; // Sunny Yellow
+                    else if (d.temp.current < 22) moodColor = "#f0f9ff"; // Cold Crisp Blue
+                }
+                document.documentElement.style.setProperty('--bg', moodColor);
+
             } catch (e) { console.error(e); }
         }
 
         for(let i=0; i<60; i++) { particles.push({ x: Math.random() * 800, y: Math.random() * 800 }); }
+        
+        // --- MIGHTY UPGRADE: DYNAMIC WIND SPEED & INTENSITY ---
         function animateWind() {
             if (wCanvas.width !== wCanvas.offsetWidth) { 
                 wCanvas.width = wCanvas.offsetWidth; 
                 wCanvas.height = wCanvas.offsetHeight; 
             }
             ctxW.clearRect(0, 0, wCanvas.width, wCanvas.height);
+            
             const rad = (liveWindDeg - 90) * (Math.PI / 180);
-            const speed = Math.max(1.0, liveWindSpeed * 0.4);
+            const speed = Math.max(0.5, liveWindSpeed * 0.8); 
             const dx = Math.cos(rad) * speed, dy = Math.sin(rad) * speed;
-            ctxW.strokeStyle = document.body.classList.contains('is-night') ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)';
-            ctxW.lineWidth = 0.8;
+            
+            const intensity = Math.min(0.4, 0.1 + (liveWindSpeed / 60));
+            ctxW.strokeStyle = document.body.classList.contains('is-night') 
+                ? \`rgba(255, 255, 255, \${intensity * 1.5})\` 
+                : \`rgba(2, 132, 199, \${intensity})\`;
+            
+            ctxW.lineWidth = liveWindSpeed > 20 ? 1.5 : 1;
+            
             ctxW.beginPath();
             particles.forEach(p => {
                 p.x += dx; p.y += dy;
@@ -573,7 +604,6 @@ hitRadius: 10, // Makes it easier to hover over points
     `);
 });
 
-// This replaces app.listen(3000);
 if (process.env.NODE_ENV !== 'production') {
     const port = 3000;
     app.listen(port, () => {
