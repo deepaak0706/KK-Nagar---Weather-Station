@@ -175,7 +175,7 @@ app.get("/", (req, res) => {
             --badge: rgba(255, 255, 255, 0.04);
         }
 
-        body { margin: 0; font-family: 'Outfit', sans-serif; background: var(--bg); color: var(--text); padding: 20px 16px 120px 16px; transition: background-color 2s ease, color 0.5s ease; min-height: 100vh; overflow-x: hidden; }
+        body { margin: 0; font-family: 'Outfit', sans-serif; background: var(--bg); color: var(--text); padding: 20px 16px 120px 16px; transition: background 0.5s ease, color 0.5s ease; min-height: 100vh; overflow-x: hidden; }
         .container { width: 100%; max-width: 1200px; margin: 0 auto; }
         
         .header { margin-bottom: 32px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; }
@@ -199,7 +199,7 @@ app.get("/", (req, res) => {
         
         .grid-system { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
         
-        .card { background: var(--card); padding: 28px; border-radius: 32px; border: 1px solid var(--border); backdrop-filter: blur(15px); box-shadow: var(--glow); position: relative; overflow: hidden; transition: background 0.3s ease; }
+        .card { background: var(--card); padding: 28px; border-radius: 32px; border: 1px solid var(--border); backdrop-filter: blur(15px); box-shadow: var(--glow); position: relative; overflow: hidden; transition: background 0.5s ease; }
         #windCanvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; border-radius: 32px; }
         .card > *:not(canvas) { position: relative; z-index: 5; }
 
@@ -218,14 +218,14 @@ app.get("/", (req, res) => {
         #needle { width: 3px; height: 32px; background: linear-gradient(to bottom, #ef4444 50%, var(--muted) 50%); clip-path: polygon(50% 0%, 100% 100%, 50% 85%, 0% 100%); transition: transform 2s cubic-bezier(0.1, 0.9, 0.2, 1); }
 
         .graphs-wrapper { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin-top: 20px; }
-        .graph-card { background: var(--card); padding: 24px; border-radius: 32px; border: 1px solid var(--border); height: 320px; box-shadow: var(--glow); display: flex; flex-direction: column; overflow: hidden; }
+        .graph-card { background: var(--card); padding: 24px; border-radius: 32px; border: 1px solid var(--border); height: 320px; box-shadow: var(--glow); display: flex; flex-direction: column; overflow: hidden; transition: background 0.5s ease; }
         .graph-card canvas { flex-grow: 1; width: 100% !important; height: 100% !important; }
 
         .trend-up { color: #f43f5e; } .trend-down { color: #0ea5e9; }
         .time-mark { font-size: 9px; color: var(--muted); font-weight: 600; margin-left: 2px; background: rgba(0,0,0,0.04); padding: 1px 4px; border-radius: 4px; }
         body.is-night .time-mark { background: rgba(255,255,255,0.1); }
 
-        /* MIGHTY UPGRADE: Glassmorphism added safely to the end */
+        /* Glassmorphism Styles */
         .card {
             background: rgba(255, 255, 255, 0.6) !important;
             backdrop-filter: blur(12px) !important;
@@ -325,55 +325,55 @@ app.get("/", (req, res) => {
         const wCanvas = document.getElementById('windCanvas');
         const ctxW = wCanvas.getContext('2d');
 
-Chart.register({
-    id: 'customChartEnhancements',
-    afterDraw: (chart) => {
-        if (chart.tooltip?._active?.length) {
-            const x = chart.tooltip._active[0].element.x;
-            const yAxis = chart.scales.y;
-            const ctx = chart.ctx;
-            ctx.save();
-            ctx.setLineDash([5, 5]);
-            ctx.beginPath();
-            ctx.moveTo(x, yAxis.top);
-            ctx.lineTo(x, yAxis.bottom);
-            ctx.lineWidth = 1;
-            ctx.strokeStyle = document.body.classList.contains('is-night') ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.1)';
-            ctx.stroke();
-            ctx.restore();
-        }
-    },
-    afterDatasetsDraw: (chart) => {
-        const { ctx, data, scales: { x, y } } = chart;
-        const dataset = data.datasets[0];
-        if (!dataset || !dataset.data || dataset.data.length < 2) return;
+        Chart.register({
+            id: 'customChartEnhancements',
+            afterDraw: (chart) => {
+                if (chart.tooltip?._active?.length) {
+                    const x = chart.tooltip._active[0].element.x;
+                    const yAxis = chart.scales.y;
+                    const ctx = chart.ctx;
+                    ctx.save();
+                    ctx.setLineDash([5, 5]);
+                    ctx.beginPath();
+                    ctx.moveTo(x, yAxis.top);
+                    ctx.lineTo(x, yAxis.bottom);
+                    ctx.lineWidth = 1;
+                    ctx.strokeStyle = document.body.classList.contains('is-night') ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.1)';
+                    ctx.stroke();
+                    ctx.restore();
+                }
+            },
+            afterDatasetsDraw: (chart) => {
+                const { ctx, data, scales: { x, y } } = chart;
+                const dataset = data.datasets[0];
+                if (!dataset || !dataset.data || dataset.data.length < 2) return;
 
-        const maxVal = Math.max(...dataset.data);
-        const maxIndex = dataset.data.lastIndexOf(maxVal);
-        const meta = chart.getDatasetMeta(0);
-        const point = meta.data[maxIndex];
+                const maxVal = Math.max(...dataset.data);
+                const maxIndex = dataset.data.lastIndexOf(maxVal);
+                const meta = chart.getDatasetMeta(0);
+                const point = meta.data[maxIndex];
 
-        if (point && maxVal > -50) { 
-            ctx.save();
-            ctx.beginPath();
-            ctx.arc(point.x, point.y, 5, 0, 2 * Math.PI);
-            ctx.strokeStyle = dataset.borderColor;
-            ctx.lineWidth = 2;
-            ctx.stroke();
-            
-            ctx.beginPath();
-            ctx.arc(point.x, point.y, 2, 0, 2 * Math.PI);
-            ctx.fillStyle = '#fff';
-            ctx.fill();
+                if (point && maxVal > -50) { 
+                    ctx.save();
+                    ctx.beginPath();
+                    ctx.arc(point.x, point.y, 5, 0, 2 * Math.PI);
+                    ctx.strokeStyle = dataset.borderColor;
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+                    
+                    ctx.beginPath();
+                    ctx.arc(point.x, point.y, 2, 0, 2 * Math.PI);
+                    ctx.fillStyle = '#fff';
+                    ctx.fill();
 
-            ctx.fillStyle = document.body.classList.contains('is-night') ? '#94a3b8' : '#475569';
-            ctx.font = 'bold 10px Outfit, sans-serif';
-            ctx.textAlign = 'center';
-            ctx.fillText('MAX', point.x, point.y - 12);
-            ctx.restore();
-        }
-    }
-});
+                    ctx.fillStyle = document.body.classList.contains('is-night') ? '#94a3b8' : '#475569';
+                    ctx.font = 'bold 10px Outfit, sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('MAX', point.x, point.y - 12);
+                    ctx.restore();
+                }
+            }
+        });
 
         function applyTheme() {
             const hour = new Date().getHours();
@@ -392,7 +392,7 @@ Chart.register({
                 else document.body.classList.remove('is-night');
             }
             if (charts.cT) updateChartColors();
-            update(); // Trigger mood evaluation immediately on theme toggle
+            update(); // Evaluation triggers immediately
         }
 
         document.getElementById('btn-light').onclick = () => { currentMode = 'light'; localStorage.setItem('weatherMode', 'light'); applyTheme(); };
@@ -539,22 +539,21 @@ Chart.register({
                 charts.cW.data.labels = labels; charts.cW.data.datasets[0].data = d.history.map(h => h.wind); charts.cW.update('none');
                 charts.cR.data.labels = labels; charts.cR.data.datasets[0].data = d.history.map(h => h.rain); charts.cR.update('none');
 
-                // --- MIGHTY UPGRADE: DYNAMIC WEATHER MOOD (Dual Mode) ---
                 const isNight = document.body.classList.contains('is-night');
                 let moodColor;
 
                 if (isNight) {
-                    moodColor = "#0f172a"; // Default Deep Navy
-                    if (d.rain.rate > 0) moodColor = "#1e293b";      // Rainy Slate
-                    else if (d.temp.current > 38) moodColor = "#450a0a"; // Extreme Heat
-                    else if (d.temp.current > 32) moodColor = "#422006"; // Warm
-                    else if (d.temp.current < 20) moodColor = "#0c4a6e"; // Cold
+                    moodColor = "#0f172a"; 
+                    if (d.rain.rate > 0) moodColor = "#1e293b";      
+                    else if (d.temp.current > 38) moodColor = "#450a0a"; 
+                    else if (d.temp.current > 32) moodColor = "#422006"; 
+                    else if (d.temp.current < 20) moodColor = "#0c4a6e"; 
                 } else {
-                    moodColor = "#e0f2fe"; // Default Sky Blue
-                    if (d.rain.rate > 0) moodColor = "#e2e8f0";      // Rainy Mist
-                    else if (d.temp.current > 38) moodColor = "#fff1f2"; // Heatwave Pink
-                    else if (d.temp.current > 32) moodColor = "#fef9c3"; // Sunny Yellow
-                    else if (d.temp.current < 22) moodColor = "#f0f9ff"; // Cold Crisp Blue
+                    moodColor = "#e0f2fe"; 
+                    if (d.rain.rate > 0) moodColor = "#e2e8f0";      
+                    else if (d.temp.current > 38) moodColor = "#fff1f2"; 
+                    else if (d.temp.current > 32) moodColor = "#fef9c3"; 
+                    else if (d.temp.current < 22) moodColor = "#f0f9ff"; 
                 }
                 document.documentElement.style.setProperty('--bg', moodColor);
 
@@ -563,7 +562,6 @@ Chart.register({
 
         for(let i=0; i<60; i++) { particles.push({ x: Math.random() * 800, y: Math.random() * 800 }); }
         
-        // --- MIGHTY UPGRADE: DYNAMIC WIND SPEED & INTENSITY ---
         function animateWind() {
             if (wCanvas.width !== wCanvas.offsetWidth) { 
                 wCanvas.width = wCanvas.offsetWidth; 
