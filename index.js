@@ -12,7 +12,13 @@ const APPLICATION_KEY = process.env.APPLICATION_KEY;
 const API_KEY = process.env.API_KEY;
 const MAC = process.env.MAC;
 
-let state = { cachedData: null, lastFetchTime: 0, lastDbWrite: 0 };
+// Added interim buffers to track peaks between DB writes
+let state = { 
+    cachedData: null, 
+    lastFetchTime: 0, 
+    lastDbWrite: 0,
+    bufW: 0, bufG: 0, bufMaxT: -999, bufMinT: 999, bufRR: 0 
+};
 
 const getCard = (a) => {
     const directions = ["N","NNE","NE","ENE","E","ESE","SE","SSE","S","SSW","SW","WSW","W","WNW","NW","NNW"];
@@ -52,6 +58,13 @@ async function syncWithEcowitt(forceWrite = false) {
         const liveRainYearly = parseFloat((d.rainfall.yearly.value * 25.4).toFixed(1));
         const liveRainRate = parseFloat(((d.rainfall.rain_rate?.value || 0) * 25.4).toFixed(1));
 
+        // --- NEW: UPDATE INTERIM BUFFERS ---
+        if (d.wind.wind_speed.value > state.bufW) state.bufW = d.wind.wind_speed.value;
+        if (d.wind.wind_gust.value > state.bufG) state.bufG = d.wind.wind_gust.value;
+        if (d.outdoor.temperature.value > state.bufMaxT) state.bufMaxT = d.outdoor.temperature.value;
+        if (d.outdoor.temperature.value < state.bufMinT) state.bufMinT = d.outdoor.temperature.value;
+        if ((d.rainfall.rain_rate?.value || 0) > state.bufRR) state.bufRR = (d.rainfall.rain_rate?.value || 0);
+
         // --- 1. MIDNIGHT IST RESET & ARCHIVE ---
         const todayIST = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
         const dateCheck = await pool.query(`
@@ -79,11 +92,14 @@ async function syncWithEcowitt(forceWrite = false) {
         // --- 2. DB WRITE (Every 2 mins) ---
         if (forceWrite || (now - state.lastDbWrite > 120000)) {
             try {
+                // Uses the buffered peaks to ensure no spikes are missed
                 await pool.query(
                     `INSERT INTO weather_history (time, temp_f, humidity, wind_speed_mph, wind_gust_mph, daily_rain_in, solar_radiation, press_rel, rain_rate_in) 
                      VALUES (NOW(), $1, $2, $3, $4, $5, $6, $7, $8)`, 
-                    [d.outdoor.temperature.value, liveHum, d.wind.wind_speed.value, d.wind.wind_gust.value, d.rainfall.daily.value, d.solar_and_uvi?.solar?.value || 0, livePress, d.rainfall.rain_rate?.value || 0]
+                    [state.bufMaxT, liveHum, state.bufW, state.bufG, d.rainfall.daily.value, d.solar_and_uvi?.solar?.value || 0, livePress, state.bufRR]
                 );
+                // Reset buffers after write
+                state.bufW = 0; state.bufG = 0; state.bufMaxT = -999; state.bufMinT = 999; state.bufRR = 0;
                 state.lastDbWrite = now;
             } catch (err) { console.error("Database Write Error:", err.message); }
         }
@@ -118,7 +134,6 @@ async function syncWithEcowitt(forceWrite = false) {
                 const r_gust = parseFloat((r.wind_gust_mph * 1.60934).toFixed(1));
                 const r_rain_rate = parseFloat((r.rain_rate_in * 25.4).toFixed(1));
 
-                // Updated logic: Use strictly > or < to keep the OLDEST timestamp during ties
                 if (r_temp > mx_t) { mx_t = r_temp; mx_t_time = r_time; }
                 if (r_temp < mn_t || mn_t === 999) { mn_t = r_temp; mn_t_time = r_time; }
                 if (r_wind > mx_w) { mx_w = r_wind; mx_w_t = r_time; }
@@ -132,7 +147,6 @@ async function syncWithEcowitt(forceWrite = false) {
         // --- 5. LIVE SYNC FALLBACK ---
         const liveTime = new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' });
         
-        // Keep the existing record timestamp if live value is just a tie
         if (mx_t === -999 || liveTemp > mx_t) { mx_t = liveTemp; mx_t_time = liveTime; }
         if (mn_t === 999 || liveTemp < mn_t) { mn_t = liveTemp; mn_t_time = liveTime; }
         if (liveWind > mx_w) { mx_w = liveWind; mx_w_t = "Live"; }
