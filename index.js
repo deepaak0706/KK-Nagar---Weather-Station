@@ -17,7 +17,9 @@ let state = {
     cachedData: null, 
     lastFetchTime: 0, 
     lastDbWrite: 0,
-    bufW: 0, bufG: 0, bufMaxT: -999, bufMinT: 999, bufRR: 0 
+    bufW: 0, bufG: 0, bufMaxT: -999, bufMinT: 999, bufRR: 0,
+    // NEW: Batch queue for 1-minute resolution data
+    batchQueue: [] 
 };
 
 const getCard = (a) => {
@@ -58,7 +60,20 @@ async function syncWithEcowitt(forceWrite = false) {
         const liveRainYearly = parseFloat((d.rainfall.yearly.value * 25.4).toFixed(1));
         const liveRainRate = parseFloat(((d.rainfall.rain_rate?.value || 0) * 25.4).toFixed(1));
 
-        // Archive and buffer logic
+        // ARCHIVE LOGIC: Capture this 1-minute snapshot into RAM queue
+        state.batchQueue.push({
+            time: new Date().toISOString(),
+            temp_f: d.outdoor.temperature.value,
+            humidity: liveHum,
+            wind_speed_mph: d.wind.wind_speed.value,
+            wind_gust_mph: d.wind.wind_gust.value,
+            daily_rain_in: d.rainfall.daily.value,
+            solar: d.solar_and_uvi?.solar?.value || 0,
+            press_rel: livePress,
+            rain_rate_in: d.rainfall.rain_rate?.value || 0
+        });
+
+        // Archive and buffer logic (Used for the live "Last Point" data)
         if (d.wind.wind_speed.value > state.bufW) state.bufW = d.wind.wind_speed.value;
         if (d.wind.wind_gust.value > state.bufG) state.bufG = d.wind.wind_gust.value;
         if (d.outdoor.temperature.value > state.bufMaxT) state.bufMaxT = d.outdoor.temperature.value;
@@ -76,9 +91,17 @@ async function syncWithEcowitt(forceWrite = false) {
             }
         }
 
-        if (forceWrite || (now - state.lastDbWrite > 120000)) {
+        // DATABASE BATCH WRITE: Triggered by 10min Cron or 2min fallback
+        if (forceWrite || (now - state.lastDbWrite > 600000)) {
             try {
-                await pool.query(`INSERT INTO weather_history (time, temp_f, humidity, wind_speed_mph, wind_gust_mph, daily_rain_in, solar_radiation, press_rel, rain_rate_in) VALUES (NOW(), $1, $2, $3, $4, $5, $6, $7, $8)`, [state.bufMaxT, liveHum, state.bufW, state.bufG, d.rainfall.daily.value, d.solar_and_uvi?.solar?.value || 0, livePress, state.bufRR]);
+                // Batch insert all 1-minute points collected in RAM
+                for (const pt of state.batchQueue) {
+                    await pool.query(`INSERT INTO weather_history (time, temp_f, humidity, wind_speed_mph, wind_gust_mph, daily_rain_in, solar_radiation, press_rel, rain_rate_in) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`, 
+                    [pt.time, pt.temp_f, pt.humidity, pt.wind_speed_mph, pt.wind_gust_mph, pt.daily_rain_in, pt.solar, pt.press_rel, pt.rain_rate_in]);
+                }
+                
+                // Clear RAM buffers after successful DB write
+                state.batchQueue = [];
                 state.bufW = 0; state.bufG = 0; state.bufMaxT = -999; state.bufMinT = 999; state.bufRR = 0;
                 state.lastDbWrite = now;
             } catch (err) { console.error("DB Error:", err.message); }
@@ -87,17 +110,20 @@ async function syncWithEcowitt(forceWrite = false) {
         const historyRes = await pool.query(`SELECT * FROM weather_history WHERE (time AT TIME ZONE 'Asia/Kolkata')::date = (NOW() AT TIME ZONE 'Asia/Kolkata')::date ORDER BY time ASC`);
         const oneHourAgoRes = await pool.query(`SELECT temp_f, humidity FROM weather_history WHERE time >= NOW() - INTERVAL '1 hour' ORDER BY time ASC LIMIT 1`);
         
+        // Merge DB history with unsaved RAM points for the graph
+        let combinedRows = [...historyRes.rows, ...state.batchQueue];
+        
         let mx_t = -999, mn_t = 999, mx_t_time = "--:--", mn_t_time = "--:--", mx_w = 0, mx_w_t = "--:--", mx_g = 0, mx_g_t = "--:--", mx_r = 0, mx_r_t = "--:--", pTrend = 0, tRate = 0, hTrend = 0, graphHistory = [];
 
-        if (historyRes.rows.length > 0) {
-            const lastRow = historyRes.rows[historyRes.rows.length - 1];
+        if (combinedRows.length > 0) {
+            const lastRow = combinedRows[combinedRows.length - 1];
             pTrend = parseFloat((livePress - (lastRow.press_rel || livePress)).toFixed(1));
-            const baseTempF = oneHourAgoRes.rows.length > 0 ? oneHourAgoRes.rows[0].temp_f : (historyRes.rows[0].temp_f || d.outdoor.temperature.value);
-            const baseHum = oneHourAgoRes.rows.length > 0 ? oneHourAgoRes.rows[0].humidity : (historyRes.rows[0].humidity || liveHum);
+            const baseTempF = oneHourAgoRes.rows.length > 0 ? oneHourAgoRes.rows[0].temp_f : (combinedRows[0].temp_f || d.outdoor.temperature.value);
+            const baseHum = oneHourAgoRes.rows.length > 0 ? oneHourAgoRes.rows[0].humidity : (combinedRows[0].humidity || liveHum);
             tRate = parseFloat((liveTemp - parseFloat(((baseTempF - 32) * 5 / 9).toFixed(1))).toFixed(1));
             hTrend = liveHum - baseHum;
 
-            historyRes.rows.forEach(r => {
+            combinedRows.forEach(r => {
                 const r_time = new Date(r.time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' });
                 const r_temp = parseFloat(((r.temp_f - 32) * 5 / 9).toFixed(1));
                 const r_wind = parseFloat((r.wind_speed_mph * 1.60934).toFixed(1));
@@ -137,6 +163,12 @@ async function syncWithEcowitt(forceWrite = false) {
 
 app.get("/weather", async (req, res) => res.json(await syncWithEcowitt()));
 app.get("/api/sync", async (req, res) => res.json(await syncWithEcowitt(true)));
+
+// 1-MINUTE HEARTBEAT: Runs on the server even if no one visits the site
+setInterval(async () => {
+    console.log("Heartbeat 1-min Sync...");
+    await syncWithEcowitt(false);
+}, 60000);
 
 app.get("/", (req, res) => {
     res.send(`
