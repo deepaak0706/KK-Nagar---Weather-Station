@@ -517,4 +517,12 @@ app.get("/", (req, res) => {
     `);
 });
 
-app.listen(3000);
+// This replaces app.listen(3000);
+if (process.env.NODE_ENV !== 'production') {
+    const port = 3000;
+    app.listen(port, () => {
+        console.log(`Local development server running at http://localhost:${port}`);
+    });
+}
+
+module.exports = app;
