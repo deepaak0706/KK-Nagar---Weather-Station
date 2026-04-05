@@ -37,12 +37,12 @@ function calculateRealFeel(tempC, humidity) {
 }
 
 async function syncWithEcowitt(forceWrite = false) {
-    // 1. If already processing, return cache immediately to prevent overlap/deadlock
+    // If already processing, return cache to prevent overlapping requests
     if (state.isProcessing) return state.cachedData;
 
     const now = Date.now();
     
-    // 2. Cache Logic: If not a forced write and data is younger than 20s, return cache
+    // Cache Logic: Return current cache if it's less than 20s old
     if (!forceWrite && state.cachedData && (now - state.lastFetchTime < 20000)) {
         return state.cachedData;
     }
@@ -66,18 +66,17 @@ async function syncWithEcowitt(forceWrite = false) {
         const liveGust = parseFloat((d.wind.wind_gust.value * 1.60934).toFixed(1));
         const liveRainRate = parseFloat(((d.rainfall.rain_rate?.value || 0) * 25.4).toFixed(1));
 
-        // Buffer Max/Min peaks in memory (Captured by Heartbeat)
+        // Buffer logic
         if (d.wind.wind_speed.value > state.bufW) state.bufW = d.wind.wind_speed.value;
         if (d.wind.wind_gust.value > state.bufG) state.bufG = d.wind.wind_gust.value;
         if (d.outdoor.temperature.value > state.bufMaxT) state.bufMaxT = d.outdoor.temperature.value;
         if (d.outdoor.temperature.value < state.bufMinT) state.bufMinT = d.outdoor.temperature.value;
         if ((d.rainfall.rain_rate?.value || 0) > state.bufRR) state.bufRR = (d.rainfall.rain_rate?.value || 0);
 
-        // --- DATABASE ARCHIVE LOGIC ---
+        // Archive Logic
         try {
             const todayIST = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
             const dateCheck = await pool.query(`SELECT (time AT TIME ZONE 'Asia/Kolkata')::date as record_date FROM weather_history ORDER BY time ASC LIMIT 1`);
-            
             if (dateCheck.rows.length > 0) {
                 const oldestDate = new Date(dateCheck.rows[0].record_date).toLocaleDateString('en-CA');
                 if (oldestDate !== todayIST) {
@@ -87,22 +86,18 @@ async function syncWithEcowitt(forceWrite = false) {
             }
         } catch (dbErr) { console.error("Archive Error:", dbErr.message); }
 
-        // --- 10 MINUTE DATABASE WRITE ---
+        // DB Write (10 min)
         if (forceWrite || (now - state.lastDbWrite > 600000)) {
             try {
-                // Ensure we have values to write; if heartbeat hasn't run yet, use live values
                 const writeTempMax = state.bufMaxT === -999 ? d.outdoor.temperature.value : state.bufMaxT;
                 const writeTempMin = state.bufMinT === 999 ? d.outdoor.temperature.value : state.bufMinT;
-                
                 await pool.query(`INSERT INTO weather_history (time, temp_f, temp_min_f, humidity, wind_speed_mph, wind_gust_mph, daily_rain_in, solar_radiation, press_rel, rain_rate_in) VALUES (NOW(), $1, $2, $3, $4, $5, $6, $7, $8, $9)`, [writeTempMax, writeTempMin, liveHum, state.bufW, state.bufG, d.rainfall.daily.value, d.solar_and_uvi?.solar?.value || 0, livePress, state.bufRR]);
-                
-                // Reset Buffers
                 state.bufW = 0; state.bufG = 0; state.bufMaxT = -999; state.bufMinT = 999; state.bufRR = 0;
                 state.lastDbWrite = now;
             } catch (err) { console.error("DB Write Error:", err.message); }
         }
 
-        // Fetch History for Trends
+        // Fetch History
         const historyRes = await pool.query(`SELECT * FROM weather_history WHERE (time AT TIME ZONE 'Asia/Kolkata')::date = (NOW() AT TIME ZONE 'Asia/Kolkata')::date ORDER BY time ASC`);
         const oneHourAgoRes = await pool.query(`SELECT temp_f, humidity FROM weather_history WHERE time >= NOW() - INTERVAL '1 hour' ORDER BY time ASC LIMIT 1`);
         
@@ -122,19 +117,16 @@ async function syncWithEcowitt(forceWrite = false) {
                 const r_wind = parseFloat((r.wind_speed_mph * 1.60934).toFixed(1));
                 const r_gust = parseFloat((r.wind_gust_mph * 1.60934).toFixed(1));
                 const r_rain_rate = parseFloat((r.rain_rate_in * 25.4).toFixed(1));
-
                 if (r_temp > mx_t) { mx_t = r_temp; mx_t_time = r_time; }
                 if (r_temp < mn_t || mn_t === 999) { mn_t = r_temp; mn_t_time = r_time; }
                 if (r_wind > mx_w) { mx_w = r_wind; mx_w_t = r_time; }
                 if (r_gust > mx_g) { mx_g = r_gust; mx_g_t = r_time; }
                 if (r_rain_rate > mx_r) { mx_r = r_rain_rate; mx_r_t = r_time; }
-                
                 graphHistory.push({ time: r.time, temp: r_temp, hum: r.humidity, wind: r_wind, rain: parseFloat((r.daily_rain_in * 25.4).toFixed(1)) });
             });
         }
 
         const liveTime = new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' });
-        
         if (mx_t === -999 || liveTemp > mx_t) { mx_t = liveTemp; mx_t_time = liveTime; }
         if (mn_t === 999 || liveTemp < mn_t) { mn_t = liveTemp; mn_t_time = liveTime; }
         if (liveWind > mx_w) { mx_w = liveWind; mx_w_t = "Live"; }
@@ -154,28 +146,25 @@ async function syncWithEcowitt(forceWrite = false) {
     } catch (e) { 
         console.error("Sync Error:", e.message);
         return state.cachedData || { error: e.message }; 
-    }
-    finally { 
+    } finally { 
         state.isProcessing = false; 
     }
 }
 
-// Optimized Weather Route: Instant Load using Cache
+// FIXED: WEATHER ROUTE AWAITS REFRESH TO PREVENT VERCEL COLD-KILL
 app.get("/weather", async (req, res) => {
     const now = Date.now();
-    // If we have data and it's less than 20s old, send it instantly
+    // If cache is fresh (<20s), return immediately
     if (state.cachedData && (now - state.lastFetchTime < 20000)) {
         return res.json(state.cachedData);
     }
 
-    // If data is older, send the OLD cache first so the UI isn't slow
-    if (state.cachedData) {
-        res.json(state.cachedData);
-        // Trigger fresh sync in background
-        syncWithEcowitt().catch(err => console.error("Background sync error:", err));
-    } else {
-        // Only wait if there is absolutely no cache (server just started)
-        res.json(await syncWithEcowitt());
+    // If cache is stale, we MUST await sync to ensure it completes before Vercel kills the process
+    try {
+        const freshData = await syncWithEcowitt();
+        res.json(freshData);
+    } catch (err) {
+        res.json(state.cachedData || { error: err.message });
     }
 });
 
@@ -393,12 +382,10 @@ app.get("/", (req, res) => {
             const { ctx, data, scales: { x, y } } = chart;
             const dataset = data.datasets[0];
             if (!dataset || !dataset.data || dataset.data.length < 2) return;
-
             const maxVal = Math.max(...dataset.data);
             const maxIndex = dataset.data.lastIndexOf(maxVal);
             const meta = chart.getDatasetMeta(0);
             const point = meta.data[maxIndex];
-
             if (point && maxVal > -50) { 
                 ctx.save();
                 ctx.beginPath();
@@ -423,7 +410,6 @@ app.get("/", (req, res) => {
         const hour = new Date().getHours();
         const btns = document.querySelectorAll('.theme-btn');
         btns.forEach(b => b.classList.remove('active'));
-
         if (currentMode === 'dark') {
             document.body.classList.add('is-night');
             document.getElementById('btn-dark').classList.add('active');
@@ -459,24 +445,9 @@ app.get("/", (req, res) => {
         const gradient = ctx.createLinearGradient(0, 0, 0, 300);
         gradient.addColorStop(0, color + '40'); 
         gradient.addColorStop(1, color + '00');
-
         return new Chart(ctx, { 
             type: id === 'cR' ? 'bar' : 'line', 
-            data: { 
-                labels: [], 
-                datasets: [{ 
-                    label: label, 
-                    data: [], 
-                    borderColor: color, 
-                    backgroundColor: gradient,
-                    fill: true, 
-                    tension: 0.4, 
-                    pointRadius: 0,
-                    hitRadius: 10, 
-                    borderWidth: 2,
-                    borderRadius: 4
-                }] 
-            }, 
+            data: { labels: [], datasets: [{ label: label, data: [], borderColor: color, backgroundColor: gradient, fill: true, tension: 0.4, pointRadius: 0, hitRadius: 10, borderWidth: 2, borderRadius: 4 }] }, 
             options: { 
                 animation: { duration: 1000, easing: 'easeOutQuart' },
                 responsive: true, 
@@ -493,7 +464,11 @@ app.get("/", (req, res) => {
 
     async function update() {
         try {
-            const res = await fetch('/weather?v=' + Date.now()); 
+            // FIXED: CACHE BUSTING FOR VERCEL
+            const res = await fetch('/weather?v=' + Date.now(), {
+                cache: "no-store",
+                headers: { 'Pragma': 'no-cache', 'Cache-Control': 'no-cache' }
+            }); 
             const d = await res.json(); 
             if (!d || d.error) return;
             
@@ -546,7 +521,6 @@ app.get("/", (req, res) => {
             charts.cH.data.labels = labels; charts.cH.data.datasets[0].data = d.history.map(h => h.hum); charts.cH.update('none');
             charts.cW.data.labels = labels; charts.cW.data.datasets[0].data = d.history.map(h => h.wind); charts.cW.update('none');
             charts.cR.data.labels = labels; charts.cR.data.datasets[0].data = d.history.map(h => h.rain); charts.cR.update('none');
-
         } catch (e) { console.error(e); }
     }
 
@@ -581,7 +555,6 @@ app.get("/", (req, res) => {
 
     applyTheme();
     animateWind();
-    // 45s Frontend refresh
     setInterval(update, 45000); 
     update();
     </script>
@@ -595,7 +568,7 @@ if (process.env.NODE_ENV !== 'production') {
     app.listen(port, () => { console.log(`Dev server: http://localhost:${port}`); });
 }
 
-// THE HEARTBEAT: Runs every 60 seconds to buffer peaks and write to DB every 10 mins
+// HEARTBEAT for buffering
 setInterval(async () => {
     try {
         await syncWithEcowitt(); 
