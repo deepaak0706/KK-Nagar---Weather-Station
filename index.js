@@ -37,7 +37,8 @@ function calculateRealFeel(tempC, humidity) {
 
 async function syncWithEcowitt(forceWrite = false) {
     const now = Date.now();
-    if (!forceWrite && state.cachedData && (now - state.lastFetchTime < 35000)) return state.cachedData;
+    // CHANGED: Reduced from 35000 to 20000 to ensure the 45s frontend refresh always pulls fresh data
+    if (!forceWrite && state.cachedData && (now - state.lastFetchTime < 20000)) return state.cachedData;
 
     try {
         const url = `https://api.ecowitt.net/api/v3/device/real_time?application_key=${APPLICATION_KEY}&api_key=${API_KEY}&mac=${MAC}`;
@@ -585,7 +586,5 @@ setInterval(async () => {
     }
 }, 60000); // Runs every 60 seconds
 // ------------------------------
-
-module.exports = app;
 
 module.exports = app;
