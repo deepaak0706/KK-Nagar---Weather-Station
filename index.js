@@ -150,10 +150,10 @@ app.get("/", (req, res) => {
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;700;900&display=swap" rel="stylesheet">
     <style>
         :root { 
-            --bg: #e0f2fe; 
+            --bg: #e0f2fe !important; 
             --card: rgba(255, 255, 255, 0.85); 
             --border: rgba(2, 132, 199, 0.1);
-            --text: #0f172a; 
+            --text: #0f172a !important; 
             --muted: #64748b; 
             --accent: #0284c7; 
             --glow: 0 10px 40px -10px rgba(2, 132, 199, 0.15);
@@ -161,10 +161,10 @@ app.get("/", (req, res) => {
         }
 
         body.is-night {
-            --bg: #0f172a; 
+            --bg: #0f172a !important; 
             --card: rgba(30, 41, 59, 0.7); 
             --border: rgba(255, 255, 255, 0.08);
-            --text: #f1f5f9; 
+            --text: #f1f5f9 !important; 
             --muted: #94a3b8; 
             --accent: #38bdf8; 
             --glow: 0 15px 50px -12px rgba(0,0,0,0.6);
@@ -317,6 +317,16 @@ app.get("/", (req, res) => {
         let liveWindSpeed = 0, liveWindDeg = 0, particles = [];
         const wCanvas = document.getElementById('windCanvas');
         const ctxW = wCanvas.getContext('2d');
+
+        // Initializing particles with individual speed factors to break "lanes"
+        const particleCount = 70;
+        for(let i=0; i<particleCount; i++) { 
+            particles.push({ 
+                x: Math.random() * 800, 
+                y: Math.random() * 800,
+                s: 0.6 + Math.random() // Individual speed multiplier
+            }); 
+        }
 
         // Custom Chart Enhancements for MAX labels and hover lines
         Chart.register({
@@ -498,32 +508,41 @@ app.get("/", (req, res) => {
             } catch (e) { console.error(e); }
         }
 
-        // Particle logic for wind animation
-        for(let i=0; i<60; i++) { particles.push({ x: Math.random() * 800, y: Math.random() * 800 }); }
-        
         function animateWind() {
-            if (wCanvas.width !== wCanvas.offsetWidth) { 
-                wCanvas.width = wCanvas.offsetWidth; 
-                wCanvas.height = wCanvas.offsetHeight; 
+            const dpr = window.devicePixelRatio || 1;
+            if (wCanvas.width !== wCanvas.offsetWidth * dpr) { 
+                wCanvas.width = wCanvas.offsetWidth * dpr; 
+                wCanvas.height = wCanvas.offsetHeight * dpr;
+                ctxW.scale(dpr, dpr);
             }
+
             ctxW.clearRect(0, 0, wCanvas.width, wCanvas.height);
             const rad = (liveWindDeg - 90) * (Math.PI / 180);
-            const speed = Math.max(0.5, liveWindSpeed * 0.8); 
-            const dx = Math.cos(rad) * speed, dy = Math.sin(rad) * speed;
-            const intensity = Math.min(0.4, 0.1 + (liveWindSpeed / 60));
+            const baseSpeed = Math.max(0.5, liveWindSpeed * 0.5); 
+            const dx = Math.cos(rad) * baseSpeed;
+            const dy = Math.sin(rad) * baseSpeed;
             
             ctxW.strokeStyle = document.body.classList.contains('is-night') 
-                ? \`rgba(255, 255, 255, \${intensity * 1.5})\` 
-                : \`rgba(2, 132, 199, \${intensity})\`;
+                ? 'rgba(255, 255, 255, 0.2)' 
+                : 'rgba(2, 132, 199, 0.15)';
             
-            ctxW.lineWidth = liveWindSpeed > 20 ? 1.5 : 1;
+            ctxW.lineWidth = 1.5;
+            ctxW.lineCap = 'round';
             ctxW.beginPath();
+
             particles.forEach(p => {
-                p.x += dx; p.y += dy;
-                if (p.x > wCanvas.width) p.x = 0; else if (p.x < 0) p.x = wCanvas.width;
-                if (p.y > wCanvas.height) p.y = 0; else if (p.y < 0) p.y = wCanvas.height;
+                p.x += dx * p.s; 
+                p.y += dy * p.s;
+
+                // Fuzzy wrapping to prevent "lane" formation
+                if (p.x > wCanvas.offsetWidth) { p.x = 0; p.y = Math.random() * wCanvas.offsetHeight; }
+                else if (p.x < 0) { p.x = wCanvas.offsetWidth; p.y = Math.random() * wCanvas.offsetHeight; }
+                
+                if (p.y > wCanvas.offsetHeight) { p.y = 0; p.x = Math.random() * wCanvas.offsetWidth; }
+                else if (p.y < 0) { p.y = wCanvas.offsetHeight; p.x = Math.random() * wCanvas.offsetWidth; }
+
                 ctxW.moveTo(p.x, p.y);
-                ctxW.lineTo(p.x - dx * 0.35, p.y - dy * 0.35);
+                ctxW.lineTo(p.x - (dx * p.s * 1.5), p.y - (dy * p.s * 1.5));
             });
             ctxW.stroke();
             requestAnimationFrame(animateWind);
