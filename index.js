@@ -70,14 +70,26 @@ async function syncWithEcowitt(forceWrite = false) {
         if (d.outdoor.temperature.value < state.bufMinT) { state.bufMinT = d.outdoor.temperature.value; state.tMinT = currentTimeStamp; }
         if ((d.rainfall.rain_rate?.value || 0) > state.bufRR) { state.bufRR = (d.rainfall.rain_rate?.value || 0); state.tRR = currentTimeStamp; }
 
-        // Daily Archiving Logic
+                // Daily Archiving Logic
         const todayIST = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
         const dateCheck = await pool.query(`SELECT (time AT TIME ZONE 'Asia/Kolkata')::date as record_date FROM weather_history ORDER BY time ASC LIMIT 1`);
         
         if (dateCheck.rows.length > 0) {
             const oldestDate = new Date(dateCheck.rows[0].record_date).toLocaleDateString('en-CA');
             if (oldestDate !== todayIST) {
-                await pool.query(`INSERT INTO daily_max_records (record_date, max_temp_c, min_temp_c, max_wind_kmh, total_rain_mm) SELECT $1, MAX((temp_f - 32) * 5/9), MIN((temp_f - 32) * 5/9), MAX(wind_speed_mph * 1.60934), MAX(daily_rain_in * 25.4) FROM weather_history WHERE (time AT TIME ZONE 'Asia/Kolkata')::date = $1::date;`, [oldestDate]);
+                // UPDATED: Now uses temp_min_f and includes max_gust_kmh
+                await pool.query(`
+                    INSERT INTO daily_max_records (record_date, max_temp_c, min_temp_c, max_wind_kmh, max_gust_kmh, total_rain_mm) 
+                    SELECT $1, 
+                           MAX((temp_f - 32) * 5/9), 
+                           MIN((temp_min_f - 32) * 5/9), 
+                           MAX(wind_speed_mph * 1.60934), 
+                           MAX(wind_gust_mph * 1.60934), 
+                           MAX(daily_rain_in * 25.4) 
+                    FROM weather_history 
+                    WHERE (time AT TIME ZONE 'Asia/Kolkata')::date = $1::date;`, 
+                [oldestDate]);
+
                 await pool.query(`DELETE FROM weather_history WHERE (time AT TIME ZONE 'Asia/Kolkata')::date < (NOW() AT TIME ZONE 'Asia/Kolkata')::date;`);
             }
         }
@@ -100,6 +112,7 @@ async function syncWithEcowitt(forceWrite = false) {
                 state.lastDbWrite = now;
             } catch (err) { console.error("DB Error:", err.message); }
         }
+
 
         const historyRes = await pool.query(`SELECT * FROM weather_history WHERE (time AT TIME ZONE 'Asia/Kolkata')::date = (NOW() AT TIME ZONE 'Asia/Kolkata')::date ORDER BY time ASC`);
         const oneHourAgoRes = await pool.query(`SELECT temp_f, humidity FROM weather_history WHERE time >= NOW() - INTERVAL '1 hour' ORDER BY time ASC LIMIT 1`);
