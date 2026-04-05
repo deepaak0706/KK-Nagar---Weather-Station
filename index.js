@@ -77,7 +77,7 @@ async function syncWithEcowitt(forceWrite = false) {
             }
         }
 
-        if (forceWrite || (now - state.lastDbWrite > 120000)) {
+        if (forceWrite || (now - state.lastDbWrite > 600000)) {
             try {
                 await pool.query(`INSERT INTO weather_history (time, temp_f, humidity, wind_speed_mph, wind_gust_mph, daily_rain_in, solar_radiation, press_rel, rain_rate_in) VALUES (NOW(), $1, $2, $3, $4, $5, $6, $7, $8)`, [state.bufMaxT, liveHum, state.bufW, state.bufG, d.rainfall.daily.value, d.solar_and_uvi?.solar?.value || 0, livePress, state.bufRR]);
                 state.bufW = 0; state.bufG = 0; state.bufMaxT = -999; state.bufMinT = 999; state.bufRR = 0;
