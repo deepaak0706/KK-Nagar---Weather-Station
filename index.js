@@ -151,15 +151,22 @@ async function syncWithEcowitt(forceWrite = false) {
     }
 }
 
-// FIXED: WEATHER ROUTE AWAITS REFRESH TO PREVENT VERCEL COLD-KILL
+// IMPROVED: WEATHER ROUTE WITH LOCK-WAIT TO PREVENT STALE CACHE
 app.get("/weather", async (req, res) => {
     const now = Date.now();
+    
+    // If a sync is in progress (from heartbeat), wait up to 4 seconds for it to finish
+    let attempts = 0;
+    while (state.isProcessing && attempts < 4) {
+        await new Promise(r => setTimeout(r, 1000));
+        attempts++;
+    }
+
     // If cache is fresh (<20s), return immediately
     if (state.cachedData && (now - state.lastFetchTime < 20000)) {
         return res.json(state.cachedData);
     }
 
-    // If cache is stale, we MUST await sync to ensure it completes before Vercel kills the process
     try {
         const freshData = await syncWithEcowitt();
         res.json(freshData);
@@ -464,13 +471,20 @@ app.get("/", (req, res) => {
 
     async function update() {
         try {
-            // FIXED: CACHE BUSTING FOR VERCEL
+            // FIXED: Added Cache-Busting Timestamp (?v=) and No-Store headers to prevent Vercel caching
             const res = await fetch('/weather?v=' + Date.now(), {
                 cache: "no-store",
-                headers: { 'Pragma': 'no-cache', 'Cache-Control': 'no-cache' }
+                headers: { 
+                    'Pragma': 'no-cache', 
+                    'Cache-Control': 'no-cache' 
+                }
             }); 
+            
             const d = await res.json(); 
-            if (!d || d.error) return;
+            if (!d || d.error) {
+                console.warn("Update Error:", d?.error);
+                return;
+            }
             
             document.getElementById('t').innerText = d.temp.current;
             document.getElementById('tTrendBox').innerHTML = d.temp.rate > 0 ? '<span class="trend-up">▲</span> +' + d.temp.rate + '°C /hr' : d.temp.rate < 0 ? '<span class="trend-down">▼</span> ' + d.temp.rate + '°C /hr' : '● Steady';
@@ -521,6 +535,8 @@ app.get("/", (req, res) => {
             charts.cH.data.labels = labels; charts.cH.data.datasets[0].data = d.history.map(h => h.hum); charts.cH.update('none');
             charts.cW.data.labels = labels; charts.cW.data.datasets[0].data = d.history.map(h => h.wind); charts.cW.update('none');
             charts.cR.data.labels = labels; charts.cR.data.datasets[0].data = d.history.map(h => h.rain); charts.cR.update('none');
+            
+            console.log("Update Success:", new Date().toLocaleTimeString());
         } catch (e) { console.error(e); }
     }
 
