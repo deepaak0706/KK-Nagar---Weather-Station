@@ -156,13 +156,25 @@ app.get("/", (req, res) => {
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;700;900&display=swap" rel="stylesheet">
     <style>
         :root { 
-            --bg: #fdfcf7; --card: rgba(255, 255, 255, 0.85); --border: rgba(0, 0, 0, 0.04);
-            --text: #0f172a; --muted: #64748b; --accent: #0284c7; --glow: 0 10px 40px -10px rgba(0,0,0,0.04);
+            --bg: #e0f2fe; /* Updated to Sky Blue */
+            --card: rgba(255, 255, 255, 0.9); 
+            --border: rgba(2, 132, 199, 0.08);
+            --text: #0f172a; 
+            --muted: #64748b; 
+            --accent: #0284c7; 
+            --glow: 0 10px 40px -10px rgba(2, 132, 199, 0.15);
+            --badge: rgba(2, 132, 199, 0.05);
         }
 
         body.is-night {
-            --bg: #020617; --card: rgba(15, 23, 42, 0.75); --border: rgba(255, 255, 255, 0.08);
-            --text: #f1f5f9; --muted: #94a3b8; --accent: #38bdf8; --glow: 0 15px 50px -12px rgba(0,0,0,0.6);
+            --bg: #020617; 
+            --card: rgba(15, 23, 42, 0.75); 
+            --border: rgba(255, 255, 255, 0.08);
+            --text: #f1f5f9; 
+            --muted: #94a3b8; 
+            --accent: #38bdf8; 
+            --glow: 0 15px 50px -12px rgba(0,0,0,0.6);
+            --badge: rgba(255, 255, 255, 0.04);
         }
 
         body { margin: 0; font-family: 'Outfit', sans-serif; background: var(--bg); color: var(--text); padding: 20px 16px 120px 16px; transition: all 0.5s ease; min-height: 100vh; overflow-x: hidden; }
@@ -189,7 +201,7 @@ app.get("/", (req, res) => {
         
         .grid-system { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
         
-        .card { background: var(--card); padding: 28px; border-radius: 32px; border: 1px solid var(--border); backdrop-filter: blur(15px); box-shadow: var(--glow); position: relative; overflow: hidden; }
+        .card { background: var(--card); padding: 28px; border-radius: 32px; border: 1px solid var(--border); backdrop-filter: blur(15px); box-shadow: var(--glow); position: relative; overflow: hidden; transition: background 0.3s ease; }
         #windCanvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; border-radius: 32px; }
         .card > *:not(canvas) { position: relative; z-index: 5; }
 
@@ -197,12 +209,10 @@ app.get("/", (req, res) => {
         .main-val { font-size: 56px; font-weight: 900; margin: 0; letter-spacing: -2px; display: flex; align-items: baseline; line-height: 1.1; }
         .unit { font-size: 20px; font-weight: 600; color: var(--muted); margin-left: 4px; letter-spacing: 0; }
 
-        .sub-pill { font-size: 12px; font-weight: 800; padding: 6px 12px; border-radius: 10px; background: rgba(0,0,0,0.03); display: inline-flex; align-items: center; gap: 4px; margin: 12px 0 20px 0; }
-        body.is-night .sub-pill { background: rgba(255,255,255,0.05); }
+        .sub-pill { font-size: 12px; font-weight: 800; padding: 6px 12px; border-radius: 10px; background: var(--badge); display: inline-flex; align-items: center; gap: 4px; margin: 12px 0 20px 0; }
 
         .sub-box-4 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding-top: 20px; border-top: 1px solid var(--border); }
-        .badge { padding: 12px; border-radius: 18px; background: rgba(0, 0, 0, 0.02); display: flex; flex-direction: column; gap: 2px; }
-        body.is-night .badge { background: rgba(255,255,255,0.04); }
+        .badge { padding: 12px; border-radius: 18px; background: var(--badge); display: flex; flex-direction: column; gap: 2px; }
         .badge-label { font-size: 9px; color: var(--muted); text-transform: uppercase; font-weight: 800; }
         .badge-val { font-size: 16px; font-weight: 800; }
 
