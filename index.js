@@ -527,8 +527,8 @@ app.get("/", (req, res) => {
             ctxW.clearRect(0, 0, wCanvas.width, wCanvas.height);
             const rad = (liveWindDeg - 90) * (Math.PI / 180);
             const baseSpeed = Math.max(0.5, liveWindSpeed * 0.5); 
-            const dx = Math.cos(rad) * baseSpeed;
-            const dy = Math.sin(rad) * baseSpeed;
+            const dx = -Math.cos(rad) * baseSpeed;
+            const dy = -Math.sin(rad) * baseSpeed;
             
             ctxW.strokeStyle = document.body.classList.contains('is-night') 
                 ? 'rgba(255, 255, 255, 0.1)' 
