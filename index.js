@@ -71,7 +71,7 @@ async function syncWithEcowitt(forceWrite = false) {
                 `, [oldestDate]);
                 await pool.query(`
                     DELETE FROM weather_history 
-                    WHERE (time AT TIME ZONE 'Asia/Kolkata')::date < CURRENT_DATE AT TIME ZONE 'Asia/Kolkata';
+                    WHERE (time AT TIME ZONE 'Asia/Kolkata')::date < (NOW() AT TIME ZONE 'Asia/Kolkata')::date;
                 `);
             }
         }
@@ -91,7 +91,7 @@ async function syncWithEcowitt(forceWrite = false) {
         // --- 3. FETCH TODAY'S IST DATA ---
         const historyRes = await pool.query(`
             SELECT * FROM weather_history 
-            WHERE time >= (CURRENT_DATE AT TIME ZONE 'Asia/Kolkata') 
+            WHERE (time AT TIME ZONE 'Asia/Kolkata')::date = (NOW() AT TIME ZONE 'Asia/Kolkata')::date 
             ORDER BY time ASC
         `);
         const oneHourAgoRes = await pool.query(`SELECT temp_f, humidity FROM weather_history WHERE time >= NOW() - INTERVAL '1 hour' ORDER BY time ASC LIMIT 1`);
