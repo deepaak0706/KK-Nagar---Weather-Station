@@ -37,7 +37,7 @@ function calculateRealFeel(tempC, humidity) {
 }
 
 async function syncWithEcowitt(forceWrite = false) {
-    // 1. If already processing, return cache immediately to prevent overlap
+    // 1. If already processing, return cache immediately to prevent overlap/deadlock
     if (state.isProcessing) return state.cachedData;
 
     const now = Date.now();
@@ -66,7 +66,7 @@ async function syncWithEcowitt(forceWrite = false) {
         const liveGust = parseFloat((d.wind.wind_gust.value * 1.60934).toFixed(1));
         const liveRainRate = parseFloat(((d.rainfall.rain_rate?.value || 0) * 25.4).toFixed(1));
 
-        // Buffer Max/Min peaks in memory
+        // Buffer Max/Min peaks in memory (Captured by Heartbeat)
         if (d.wind.wind_speed.value > state.bufW) state.bufW = d.wind.wind_speed.value;
         if (d.wind.wind_gust.value > state.bufG) state.bufG = d.wind.wind_gust.value;
         if (d.outdoor.temperature.value > state.bufMaxT) state.bufMaxT = d.outdoor.temperature.value;
@@ -90,7 +90,13 @@ async function syncWithEcowitt(forceWrite = false) {
         // --- 10 MINUTE DATABASE WRITE ---
         if (forceWrite || (now - state.lastDbWrite > 600000)) {
             try {
-                await pool.query(`INSERT INTO weather_history (time, temp_f, temp_min_f, humidity, wind_speed_mph, wind_gust_mph, daily_rain_in, solar_radiation, press_rel, rain_rate_in) VALUES (NOW(), $1, $2, $3, $4, $5, $6, $7, $8, $9)`, [state.bufMaxT, state.bufMinT, liveHum, state.bufW, state.bufG, d.rainfall.daily.value, d.solar_and_uvi?.solar?.value || 0, livePress, state.bufRR]);
+                // Ensure we have values to write; if heartbeat hasn't run yet, use live values
+                const writeTempMax = state.bufMaxT === -999 ? d.outdoor.temperature.value : state.bufMaxT;
+                const writeTempMin = state.bufMinT === 999 ? d.outdoor.temperature.value : state.bufMinT;
+                
+                await pool.query(`INSERT INTO weather_history (time, temp_f, temp_min_f, humidity, wind_speed_mph, wind_gust_mph, daily_rain_in, solar_radiation, press_rel, rain_rate_in) VALUES (NOW(), $1, $2, $3, $4, $5, $6, $7, $8, $9)`, [writeTempMax, writeTempMin, liveHum, state.bufW, state.bufG, d.rainfall.daily.value, d.solar_and_uvi?.solar?.value || 0, livePress, state.bufRR]);
+                
+                // Reset Buffers
                 state.bufW = 0; state.bufG = 0; state.bufMaxT = -999; state.bufMinT = 999; state.bufRR = 0;
                 state.lastDbWrite = now;
             } catch (err) { console.error("DB Write Error:", err.message); }
@@ -150,12 +156,29 @@ async function syncWithEcowitt(forceWrite = false) {
         return state.cachedData || { error: e.message }; 
     }
     finally { 
-        // CRITICAL: Always release the lock
         state.isProcessing = false; 
     }
 }
 
-app.get("/weather", async (req, res) => res.json(await syncWithEcowitt()));
+// Optimized Weather Route: Instant Load using Cache
+app.get("/weather", async (req, res) => {
+    const now = Date.now();
+    // If we have data and it's less than 20s old, send it instantly
+    if (state.cachedData && (now - state.lastFetchTime < 20000)) {
+        return res.json(state.cachedData);
+    }
+
+    // If data is older, send the OLD cache first so the UI isn't slow
+    if (state.cachedData) {
+        res.json(state.cachedData);
+        // Trigger fresh sync in background
+        syncWithEcowitt().catch(err => console.error("Background sync error:", err));
+    } else {
+        // Only wait if there is absolutely no cache (server just started)
+        res.json(await syncWithEcowitt());
+    }
+});
+
 app.get("/api/sync", async (req, res) => res.json(await syncWithEcowitt(true)));
 
 app.get("/", (req, res) => {
@@ -572,11 +595,13 @@ if (process.env.NODE_ENV !== 'production') {
     app.listen(port, () => { console.log(`Dev server: http://localhost:${port}`); });
 }
 
-// Heartbeat runs every 60 seconds to buffer peaks
+// THE HEARTBEAT: Runs every 60 seconds to buffer peaks and write to DB every 10 mins
 setInterval(async () => {
     try {
         await syncWithEcowitt(); 
-    } catch (e) {}
+    } catch (e) {
+        console.error("Heartbeat error:", e.message);
+    }
 }, 60000);
 
 module.exports = app;
