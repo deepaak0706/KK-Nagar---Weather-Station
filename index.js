@@ -17,7 +17,9 @@ let state = {
     cachedData: null, 
     lastFetchTime: 0, 
     lastDbWrite: 0,
-    bufW: 0, bufG: 0, bufMaxT: -999, bufMinT: 999, bufRR: 0 
+    bufW: 0, bufG: 0, bufMaxT: -999, bufMinT: 999, bufRR: 0,
+    // NEW: Timestamp buffers for precision tracking
+    tW: null, tG: null, tMaxT: null, tMinT: null, tRR: null 
 };
 
 const getCard = (a) => {
@@ -37,6 +39,8 @@ function calculateRealFeel(tempC, humidity) {
 
 async function syncWithEcowitt(forceWrite = false) {
     const now = Date.now();
+    const currentTimeStamp = new Date().toISOString();
+
     // Cache check: allow 1-minute cron to bypass cache to update buffers accurately
     if (!forceWrite && state.cachedData && (now - state.lastFetchTime < 35000)) return state.cachedData;
 
@@ -59,12 +63,12 @@ async function syncWithEcowitt(forceWrite = false) {
         const liveRainYearly = parseFloat((d.rainfall.yearly.value * 25.4).toFixed(1));
         const liveRainRate = parseFloat(((d.rainfall.rain_rate?.value || 0) * 25.4).toFixed(1));
 
-        // Update buffers with every call (Heartbeat or Write)
-        if (d.wind.wind_speed.value > state.bufW) state.bufW = d.wind.wind_speed.value;
-        if (d.wind.wind_gust.value > state.bufG) state.bufG = d.wind.wind_gust.value;
-        if (d.outdoor.temperature.value > state.bufMaxT) state.bufMaxT = d.outdoor.temperature.value;
-        if (d.outdoor.temperature.value < state.bufMinT) state.bufMinT = d.outdoor.temperature.value;
-        if ((d.rainfall.rain_rate?.value || 0) > state.bufRR) state.bufRR = (d.rainfall.rain_rate?.value || 0);
+        // Update buffers and CAPTURE exact timestamp when a new max/min is recorded
+        if (d.wind.wind_speed.value > state.bufW) { state.bufW = d.wind.wind_speed.value; state.tW = currentTimeStamp; }
+        if (d.wind.wind_gust.value > state.bufG) { state.bufG = d.wind.wind_gust.value; state.tG = currentTimeStamp; }
+        if (d.outdoor.temperature.value > state.bufMaxT) { state.bufMaxT = d.outdoor.temperature.value; state.tMaxT = currentTimeStamp; }
+        if (d.outdoor.temperature.value < state.bufMinT) { state.bufMinT = d.outdoor.temperature.value; state.tMinT = currentTimeStamp; }
+        if ((d.rainfall.rain_rate?.value || 0) > state.bufRR) { state.bufRR = (d.rainfall.rain_rate?.value || 0); state.tRR = currentTimeStamp; }
 
         // Daily Archiving Logic
         const todayIST = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
@@ -81,12 +85,18 @@ async function syncWithEcowitt(forceWrite = false) {
         // Database Write Logic: Strictly triggered by forceWrite (?write=true)
         if (forceWrite) {
             try {
-                // Updated Query to include the buffered MIN temperature as the 9th parameter
-                await pool.query(`INSERT INTO weather_history (time, temp_f, humidity, wind_speed_mph, wind_gust_mph, daily_rain_in, solar_radiation, press_rel, rain_rate_in, temp_min_f) VALUES (NOW(), $1, $2, $3, $4, $5, $6, $7, $8, $9)`, 
-                [state.bufMaxT, liveHum, state.bufW, state.bufG, d.rainfall.daily.value, d.solar_and_uvi?.solar?.value || 0, livePress, state.bufRR, state.bufMinT]);
+                // Updated Query to include both Values AND precise capture Timestamps
+                await pool.query(`
+                    INSERT INTO weather_history 
+                    (time, temp_f, humidity, wind_speed_mph, wind_gust_mph, daily_rain_in, solar_radiation, press_rel, rain_rate_in, temp_min_f,
+                     max_t_time, min_t_time, max_w_time, max_g_time, max_r_time) 
+                    VALUES (NOW(), $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`, 
+                    [state.bufMaxT, liveHum, state.bufW, state.bufG, d.rainfall.daily.value, d.solar_and_uvi?.solar?.value || 0, livePress, state.bufRR, state.bufMinT,
+                     state.tMaxT, state.tMinT, state.tW, state.tG, state.tRR]);
                 
-                // Reset buffers after writing
+                // Reset buffers AND timestamps after writing
                 state.bufW = 0; state.bufG = 0; state.bufMaxT = -999; state.bufMinT = 999; state.bufRR = 0;
+                state.tW = null; state.tG = null; state.tMaxT = null; state.tMinT = null; state.tRR = null;
                 state.lastDbWrite = now;
             } catch (err) { console.error("DB Error:", err.message); }
         }
@@ -105,17 +115,20 @@ async function syncWithEcowitt(forceWrite = false) {
             hTrend = liveHum - baseHum;
 
             historyRes.rows.forEach(r => {
-                const r_time = new Date(r.time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' });
+                // Helper to use captured precise time if available, otherwise fallback to DB write time
+                const formatTime = (iso) => iso ? new Date(iso).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' }) : new Date(r.time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' });
+                
                 const r_temp = parseFloat(((r.temp_f - 32) * 5 / 9).toFixed(1));
+                const r_min_temp = parseFloat(((r.temp_min_f - 32) * 5 / 9).toFixed(1));
                 const r_wind = parseFloat((r.wind_speed_mph * 1.60934).toFixed(1));
                 const r_gust = parseFloat((r.wind_gust_mph * 1.60934).toFixed(1));
                 const r_rain_rate = parseFloat((r.rain_rate_in * 25.4).toFixed(1));
 
-                if (r_temp > mx_t) { mx_t = r_temp; mx_t_time = r_time; }
-                if (r_temp < mn_t || mn_t === 999) { mn_t = r_temp; mn_t_time = r_time; }
-                if (r_wind > mx_w) { mx_w = r_wind; mx_w_t = r_time; }
-                if (r_gust > mx_g) { mx_g = r_gust; mx_g_t = r_time; }
-                if (r_rain_rate > mx_r) { mx_r = r_rain_rate; mx_r_t = r_time; }
+                if (r_temp > mx_t) { mx_t = r_temp; mx_t_time = formatTime(r.max_t_time); }
+                if (r_min_temp < mn_t || mn_t === 999) { mn_t = r_min_temp; mn_t_time = formatTime(r.min_t_time); }
+                if (r_wind > mx_w) { mx_w = r_wind; mx_w_t = formatTime(r.max_w_time); }
+                if (r_gust > mx_g) { mx_g = r_gust; mx_g_t = formatTime(r.max_g_time); }
+                if (r_rain_rate > mx_r) { mx_r = r_rain_rate; mx_r_t = formatTime(r.max_r_time); }
                 
                 graphHistory.push({ time: r.time, temp: r_temp, hum: r.humidity, wind: r_wind, rain: parseFloat((r.daily_rain_in * 25.4).toFixed(1)) });
             });
@@ -577,3 +590,4 @@ if (process.env.NODE_ENV !== 'production') {
 }
 
 module.exports = app;
+
