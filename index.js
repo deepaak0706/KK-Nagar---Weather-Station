@@ -312,21 +312,23 @@ app.get("/", (req, res) => {
 
 
     <script>
-        let currentMode = localStorage.getItem('weatherMode') || 'auto';
-        let charts = {};
-        let liveWindSpeed = 0, liveWindDeg = 0, particles = [];
-        const wCanvas = document.getElementById('windCanvas');
-        const ctxW = wCanvas.getContext('2d');
+    let currentMode = localStorage.getItem('weatherMode') || 'auto';
+    let charts = {};
+    let liveWindSpeed = 0, liveWindDeg = 0; 
+    const wCanvas = document.getElementById('windCanvas');
+    const ctxW = wCanvas.getContext('2d');
 
-        const particleCount = 35; 
-let particles = [];
-for(let i=0; i<particleCount; i++) { 
-    particles.push({ 
-        x: Math.random() * 800, 
-        y: Math.random() * 800,
-        s: 0.6 + Math.random() 
-    }); 
-}
+    // Single declaration and initialization
+    const particleCount = 35; 
+    let particles = []; 
+    for(let i=0; i<particleCount; i++) { 
+        particles.push({ 
+            x: Math.random() * 800, 
+            y: Math.random() * 800,
+            s: 0.6 + Math.random() 
+        }); 
+    }
+
 
         // Custom Chart Enhancements for MAX labels and hover lines
         Chart.register({
