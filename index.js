@@ -156,9 +156,21 @@ app.get("/", (req, res) => {
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;700;900&display=swap" rel="stylesheet">
     <style>
         :root { 
-            --bg: #fdfcf7; --card: rgba(255, 255, 255, 0.85); --border: rgba(0, 0, 0, 0.04);
-            --text: #0f172a; --muted: #64748b; --accent: #0284c7; --glow: 0 10px 40px -10px rgba(0,0,0,0.04);
-        }
+    /* Changed from #fdfcf7 to a soft, palish sky blue */
+    --bg: #e0f2fe; 
+    
+    /* Changed from white to a very light, translucent blue */
+    --card: rgba(240, 249, 255, 0.9); 
+    
+    /* Slightly darkened the border to keep it visible against the blue */
+    --border: rgba(2, 132, 199, 0.08);
+
+    --text: #0f172a; 
+    --muted: #64748b; 
+    --accent: #0284c7; 
+    --glow: 0 10px 40px -10px rgba(2, 132, 199, 0.1);
+}
+
 
         body.is-night {
             --bg: #020617; --card: rgba(15, 23, 42, 0.75); --border: rgba(255, 255, 255, 0.08);
