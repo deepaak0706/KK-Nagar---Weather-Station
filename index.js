@@ -310,6 +310,32 @@ app.get("/", (req, res) => {
     <script>
         let currentMode = localStorage.getItem('weatherMode') || 'auto';
         let charts = {};
+        // Add this right after: let charts = {};
+function animateValue(id, start, end, duration) {
+    if (isNaN(end)) return;
+    const obj = document.getElementById(id);
+    const range = end - start;
+    let startTime = null;
+
+    const step = (timestamp) => {
+        if (!startTime) startTime = timestamp;
+        const progress = Math.min((timestamp - startTime) / duration, 1);
+        const current = start + (range * progress);
+        
+        // Handle decimals for temp/rain, whole numbers for others
+        if (id === 't' || id === 'rf' || id === 'd_val' || id === 'r_tot' || id === 'r_rate' || id === 'pr') {
+            obj.innerText = current.toFixed(1);
+        } else {
+            obj.innerText = Math.floor(current);
+        }
+        
+        if (progress < 1) {
+            window.requestAnimationFrame(step);
+        }
+    };
+    window.requestAnimationFrame(step);
+}
+
         let liveWindSpeed = 0, liveWindDeg = 0, particles = [];
         const wCanvas = document.getElementById('windCanvas');
         const ctxW = wCanvas.getContext('2d');
