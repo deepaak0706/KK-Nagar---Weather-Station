@@ -572,4 +572,20 @@ if (process.env.NODE_ENV !== 'production') {
     });
 }
 
+
+// --- ADD THE HEARTBEAT HERE ---
+// This ensures we catch peaks even if no one is visiting the site
+setInterval(async () => {
+    try {
+        // Calling this without 'true' means it updates RAM but NOT the DB
+        await syncWithEcowitt(); 
+        console.log("Heartbeat: Weather peaks captured in memory.");
+    } catch (e) {
+        // Silently handle any network blips
+    }
+}, 60000); // Runs every 60 seconds
+// ------------------------------
+
+module.exports = app;
+
 module.exports = app;
