@@ -158,13 +158,23 @@ async function syncWithEcowitt(forceWrite = false) {
             });
         }
 
-        const liveTime = new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' });
-        
-        if (mx_t === -999 || liveTemp > mx_t) { mx_t = liveTemp; mx_t_time = liveTime; }
-        if (mn_t === 999 || liveTemp < mn_t) { mn_t = liveTemp; mn_t_time = liveTime; }
-        if (liveWind > mx_w) { mx_w = liveWind; mx_w_t = "Live"; }
-        if (liveGust > mx_g) { mx_g = liveGust; mx_g_t = "Live"; }
-        if (liveRainRate > mx_r) { mx_r = liveRainRate; mx_r_t = "Live"; }
+                const liveTime = new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' });
+        const formatBufferTime = (iso) => iso ? new Date(iso).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' }) : liveTime;
+
+        // Convert the 10-minute RAM buffer values from Imperial to Metric for the UI
+        const b_maxT = parseFloat(((state.bufMaxT - 32) * 5 / 9).toFixed(1));
+        const b_minT = parseFloat(((state.bufMinT - 32) * 5 / 9).toFixed(1));
+        const b_maxW = parseFloat((state.bufW * 1.60934).toFixed(1));
+        const b_maxG = parseFloat((state.bufG * 1.60934).toFixed(1));
+        const b_maxRR = parseFloat((state.bufRR * 25.4).toFixed(1));
+
+        // UI Override: Compare Database Maxes with RAM Buffer Maxes
+        if (mx_t === -999 || b_maxT > mx_t) { mx_t = b_maxT; mx_t_time = formatBufferTime(state.tMaxT); }
+        if (mn_t === 999 || b_minT < mn_t) { mn_t = b_minT; mn_t_time = formatBufferTime(state.tMinT); }
+        if (b_maxW > mx_w) { mx_w = b_maxW; mx_w_t = formatBufferTime(state.tW); }
+        if (b_maxG > mx_g) { mx_g = b_maxG; mx_g_t = formatBufferTime(state.tG); }
+        if (b_maxRR > mx_r) { mx_r = b_maxRR; mx_r_t = formatBufferTime(state.tRR); }
+
 
         state.cachedData = {
             temp: { current: liveTemp, dew: liveDew, max: mx_t, maxTime: mx_t_time, min: mn_t, minTime: mn_t_time, realFeel: calculateRealFeel(liveTemp, liveHum), rate: tRate },
