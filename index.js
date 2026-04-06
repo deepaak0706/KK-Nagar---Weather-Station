@@ -25,8 +25,8 @@ let state = {
     lastFetchTime: 0, 
     lastDbWrite: 0,
     lastRainRaw: null, 
-    lastCalculatedRate: 0, // Track last non-zero rate for decay
-    rainCounter: 0,        // Grace period counter for rain rate
+    lastCalculatedRate: 0, 
+    lastRainTime: 0, // Used for Davis-style rate decay
     bufW: 0, 
     bufG: 0, 
     bufMaxT: -999, 
@@ -110,31 +110,55 @@ async function syncWithEcowitt(forceWrite = false) {
         const liveRainMonthly = parseFloat((d.rainfall.monthly.value * 25.4).toFixed(1));
         const liveRainYearly = parseFloat((d.rainfall.yearly.value * 25.4).toFixed(1));
         
-        // High-Resolution Rain Rate (with Decay Logic)
+        // ---------------------------------------------------------------------
+        // DAVIS-STYLE PRO RAIN RATE CALCULATION
+        // ---------------------------------------------------------------------
         let customRateIn = 0;
         const rawDailyInches = d.rainfall.daily.value;
-        if (state.lastRainRaw !== null) {
-            if (rawDailyInches > state.lastRainRaw) {
-                customRateIn = (rawDailyInches - state.lastRainRaw) * 60;
-                state.lastCalculatedRate = customRateIn;
-                state.rainCounter = 3; 
-            } else if (state.rainCounter > 0) {
-                state.rainCounter--;
-                customRateIn = state.lastCalculatedRate;
-            } else {
-                customRateIn = 0;
+        const timeElapsedSec = state.lastFetchTime ? (now - state.lastFetchTime) / 1000 : 0;
+
+        if (state.lastRainRaw !== null && timeElapsedSec > 0) {
+            const deltaRain = rawDailyInches - state.lastRainRaw;
+            
+            if (deltaRain < 0) {
+                // Midnight reset handler
+                state.lastRainTime = now;
                 state.lastCalculatedRate = 0;
+            } else if (deltaRain > 0) {
+                // Active rain event: calculate exact rate based on time interval
+                customRateIn = deltaRain * (3600 / timeElapsedSec);
+                state.lastCalculatedRate = customRateIn;
+                state.lastRainTime = now;
+            } else if (state.lastCalculatedRate > 0) {
+                // Decay logic: simulate Davis bucket rate falloff
+                const timeSinceLastRain = (now - state.lastRainTime) / 1000;
+                const decayRate = 0.01 * (3600 / timeSinceLastRain); // Assume 0.01" bucket timeout
+                
+                if (timeSinceLastRain > 900) { 
+                    // 15-minute zero-out
+                    state.lastCalculatedRate = 0;
+                } else if (decayRate < state.lastCalculatedRate) {
+                    // Smooth inverse decay
+                    state.lastCalculatedRate = decayRate; 
+                }
+                customRateIn = state.lastCalculatedRate;
             }
+        } else if (state.lastRainRaw === null) {
+            state.lastRainTime = now;
         }
+        
         state.lastRainRaw = rawDailyInches;
         const displayRainRate = parseFloat((customRateIn * 25.4).toFixed(1));
 
-        // Update buffers and CAPTURE exact timestamp when a new max/min is recorded
-        if (d.wind.wind_speed.value > state.bufW) { state.bufW = d.wind.wind_speed.value; state.tW = currentTimeStamp; }
-        if (d.wind.wind_gust.value > state.bufG) { state.bufG = d.wind.wind_gust.value; state.tG = currentTimeStamp; }
-        if (d.outdoor.temperature.value > state.bufMaxT) { state.bufMaxT = d.outdoor.temperature.value; state.tMaxT = currentTimeStamp; }
-        if (d.outdoor.temperature.value < state.bufMinT) { state.bufMinT = d.outdoor.temperature.value; state.tMinT = currentTimeStamp; }
-        if (customRateIn > state.bufRR) { state.bufRR = customRateIn; state.tRR = currentTimeStamp; }
+        // ---------------------------------------------------------------------
+        // THE BUFFER FIX
+        // Ensure buffers populate on the very first pull after a database reset
+        // ---------------------------------------------------------------------
+        if (state.tW === null || d.wind.wind_speed.value > state.bufW) { state.bufW = d.wind.wind_speed.value; state.tW = currentTimeStamp; }
+        if (state.tG === null || d.wind.wind_gust.value > state.bufG) { state.bufG = d.wind.wind_gust.value; state.tG = currentTimeStamp; }
+        if (state.tMaxT === null || d.outdoor.temperature.value > state.bufMaxT) { state.bufMaxT = d.outdoor.temperature.value; state.tMaxT = currentTimeStamp; }
+        if (state.tMinT === null || d.outdoor.temperature.value < state.bufMinT) { state.bufMinT = d.outdoor.temperature.value; state.tMinT = currentTimeStamp; }
+        if (state.tRR === null || customRateIn > state.bufRR) { state.bufRR = customRateIn; state.tRR = currentTimeStamp; }
 
         /**
          * DAILY ARCHIVING & CLEANUP
