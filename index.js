@@ -161,20 +161,41 @@ async function syncWithEcowitt(forceWrite = false) {
                 const liveTime = new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' });
         const formatBufferTime = (iso) => iso ? new Date(iso).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' }) : liveTime;
 
-        // Convert the 10-minute RAM buffer values from Imperial to Metric for the UI
+        // 1. Convert Buffer Peaks to Metric
         const b_maxT = parseFloat(((state.bufMaxT - 32) * 5 / 9).toFixed(1));
         const b_minT = parseFloat(((state.bufMinT - 32) * 5 / 9).toFixed(1));
         const b_maxW = parseFloat((state.bufW * 1.60934).toFixed(1));
         const b_maxG = parseFloat((state.bufG * 1.60934).toFixed(1));
         const b_maxRR = parseFloat((state.bufRR * 25.4).toFixed(1));
 
-        // UI Override: Compare Database Maxes with RAM Buffer Maxes
-        if (mx_t === -999 || b_maxT > mx_t) { mx_t = b_maxT; mx_t_time = formatBufferTime(state.tMaxT); }
-        if (mn_t === 999 || b_minT < mn_t) { mn_t = b_minT; mn_t_time = formatBufferTime(state.tMinT); }
-        if (b_maxW > mx_w) { mx_w = b_maxW; mx_w_t = formatBufferTime(state.tW); }
-        if (b_maxG > mx_g) { mx_g = b_maxG; mx_g_t = formatBufferTime(state.tG); }
-        if (b_maxRR > mx_r) { mx_r = b_maxRR; mx_r_t = formatBufferTime(state.tRR); }
+        // 2. TEMPERATURE & MIN/MAX
+        if (mx_t === -999 || liveTemp > mx_t || b_maxT > mx_t) {
+            mx_t = Math.max(liveTemp, b_maxT);
+            mx_t_time = (liveTemp >= b_maxT) ? liveTime : formatBufferTime(state.tMaxT);
+        }
+        if (mn_t === 999 || liveTemp < mn_t || b_minT < mn_t) {
+            mn_t = Math.min(liveTemp, b_minT);
+            mn_t_time = (liveTemp <= b_minT) ? liveTime : formatBufferTime(state.tMinT);
+        }
 
+        // 3. WIND SPEED UPDATE
+        if (liveWind > mx_w || b_maxW > mx_w) {
+            mx_w = Math.max(liveWind, b_maxW);
+            mx_w_t = (liveWind >= b_maxW) ? liveTime : formatBufferTime(state.tW);
+        }
+
+        // 4. GUST UPDATE
+        if (liveGust > mx_g || b_maxG > mx_g) {
+            mx_g = Math.max(liveGust, b_maxG);
+            mx_g_t = (liveGust >= b_maxG) ? liveTime : formatBufferTime(state.tG);
+        }
+
+        // 5. RAIN RATE UPDATE
+        if (liveRainRate > mx_r || b_maxRR > mx_r) {
+            mx_r = Math.max(liveRainRate, b_maxRR);
+            mx_r_t = (liveRainRate >= b_maxRR) ? liveTime : formatBufferTime(state.tRR);
+        }
+        
 
         state.cachedData = {
             temp: { current: liveTemp, dew: liveDew, max: mx_t, maxTime: mx_t_time, min: mn_t, minTime: mn_t_time, realFeel: calculateRealFeel(liveTemp, liveHum), rate: tRate },
