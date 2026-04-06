@@ -1,15 +1,14 @@
 const express = require("express");
-// REMOVED: node-fetch require. Node 18+ has global fetch.
+const fetch = require("node-fetch");
 const { Pool } = require('pg');
 const app = express();
 
 /**
  * DATABASE CONFIGURATION
  * Using connection pooling for high-frequency writes and history lookups.
- * Removed inline sslmode string to allow the SSL object to handle the handshake.
  */
 const pool = new Pool({
-    connectionString: process.env.POSTGRES_URL,
+    connectionString: process.env.POSTGRES_URL + "?sslmode=require",
     ssl: { rejectUnauthorized: false }
 });
 
@@ -92,7 +91,6 @@ async function syncWithEcowitt(forceWrite = false) {
 
     try {
         const url = `https://api.ecowitt.net/api/v3/device/real_time?application_key=${APPLICATION_KEY}&api_key=${API_KEY}&mac=${MAC}`;
-        // Using global fetch for Node 18+ compatibility
         const response = await fetch(url);
         const json = await response.json();
         
