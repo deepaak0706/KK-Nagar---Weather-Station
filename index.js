@@ -1,15 +1,16 @@
 const express = require("express");
-const fetch = require("node-fetch");
 const { Pool } = require('pg');
 const app = express();
 
 /**
  * DATABASE CONFIGURATION
- * Using connection pooling for high-frequency writes and history lookups.
+ * Optimized for Vercel Serverless & Postgres SSL requirements.
  */
 const pool = new Pool({
-    connectionString: process.env.POSTGRES_URL + "?sslmode=require",
-    ssl: { rejectUnauthorized: false }
+    connectionString: process.env.POSTGRES_URL,
+    ssl: {
+        rejectUnauthorized: false
+    }
 });
 
 const APPLICATION_KEY = process.env.APPLICATION_KEY;
@@ -26,13 +27,12 @@ let state = {
     lastDbWrite: 0,
     lastRainRaw: null, 
     lastCalculatedRate: 0, 
-    lastRainTime: 0, // Used for Davis-style rate decay
+    lastRainTime: 0, 
     bufW: 0, 
     bufG: 0, 
     bufMaxT: -999, 
     bufMinT: 999, 
     bufRR: 0,
-    // Precise timestamp buffers for capture accuracy
     tW: null, 
     tG: null, 
     tMaxT: null, 
@@ -40,10 +40,6 @@ let state = {
     tRR: null 
 };
 
-/**
- * RESET LOGIC
- * Clears memory buffers after a successful DB commit to prevent "ghost" peaks.
- */
 function resetStateBuffers() {
     state.bufW = 0; 
     state.bufG = 0; 
@@ -62,9 +58,6 @@ const getCard = (a) => {
     return directions[Math.round(a / 22.5) % 16];
 };
 
-/**
- * NOAA HEAT INDEX CALCULATION
- */
 function calculateRealFeel(tempC, humidity) {
     const T = (tempC * 9/5) + 32;
     const R = humidity;
@@ -75,29 +68,23 @@ function calculateRealFeel(tempC, humidity) {
     return parseFloat(((hi - 32) * 5 / 9).toFixed(1));
 }
 
-/**
- * CORE SYNC LOGIC
- * Handles Ecowitt API fetching, Unit Conversion, State Buffering, 
- * Daily Archiving, and History Retrieval.
- */
 async function syncWithEcowitt(forceWrite = false) {
     const now = Date.now();
     const currentTimeStamp = new Date().toISOString();
 
-    // Cache check: allow 1-minute cron to bypass cache to update buffers accurately
     if (!forceWrite && state.cachedData && (now - state.lastFetchTime < 35000)) {
         return state.cachedData;
     }
 
     try {
         const url = `https://api.ecowitt.net/api/v3/device/real_time?application_key=${APPLICATION_KEY}&api_key=${API_KEY}&mac=${MAC}`;
+        // Using native fetch to prevent "node-fetch" ESM import crashes
         const response = await fetch(url);
         const json = await response.json();
         
         if (!json.data) throw new Error("Invalid API Response");
         const d = json.data;
 
-        // Metric Conversions
         const liveTemp = parseFloat(((d.outdoor.temperature.value - 32) * 5 / 9).toFixed(1));
         const liveDew = parseFloat(((d.outdoor.dew_point.value - 32) * 5 / 9).toFixed(1));
         const liveHum = d.outdoor.humidity.value || 0;
@@ -110,35 +97,25 @@ async function syncWithEcowitt(forceWrite = false) {
         const liveRainMonthly = parseFloat((d.rainfall.monthly.value * 25.4).toFixed(1));
         const liveRainYearly = parseFloat((d.rainfall.yearly.value * 25.4).toFixed(1));
         
-        // ---------------------------------------------------------------------
-        // DAVIS-STYLE PRO RAIN RATE CALCULATION
-        // ---------------------------------------------------------------------
         let customRateIn = 0;
         const rawDailyInches = d.rainfall.daily.value;
         const timeElapsedSec = state.lastFetchTime ? (now - state.lastFetchTime) / 1000 : 0;
 
         if (state.lastRainRaw !== null && timeElapsedSec > 0) {
             const deltaRain = rawDailyInches - state.lastRainRaw;
-            
             if (deltaRain < 0) {
-                // Midnight reset handler
                 state.lastRainTime = now;
                 state.lastCalculatedRate = 0;
             } else if (deltaRain > 0) {
-                // Active rain event: calculate exact rate based on time interval
                 customRateIn = deltaRain * (3600 / timeElapsedSec);
                 state.lastCalculatedRate = customRateIn;
                 state.lastRainTime = now;
             } else if (state.lastCalculatedRate > 0) {
-                // Decay logic: simulate Davis bucket rate falloff
                 const timeSinceLastRain = (now - state.lastRainTime) / 1000;
-                const decayRate = 0.01 * (3600 / timeSinceLastRain); // Assume 0.01" bucket timeout
-                
+                const decayRate = 0.01 * (3600 / timeSinceLastRain);
                 if (timeSinceLastRain > 900) { 
-                    // 15-minute zero-out
                     state.lastCalculatedRate = 0;
                 } else if (decayRate < state.lastCalculatedRate) {
-                    // Smooth inverse decay
                     state.lastCalculatedRate = decayRate; 
                 }
                 customRateIn = state.lastCalculatedRate;
@@ -150,19 +127,12 @@ async function syncWithEcowitt(forceWrite = false) {
         state.lastRainRaw = rawDailyInches;
         const displayRainRate = parseFloat((customRateIn * 25.4).toFixed(1));
 
-        // ---------------------------------------------------------------------
-        // THE BUFFER FIX
-        // Ensure buffers populate on the very first pull after a database reset
-        // ---------------------------------------------------------------------
         if (state.tW === null || d.wind.wind_speed.value > state.bufW) { state.bufW = d.wind.wind_speed.value; state.tW = currentTimeStamp; }
         if (state.tG === null || d.wind.wind_gust.value > state.bufG) { state.bufG = d.wind.wind_gust.value; state.tG = currentTimeStamp; }
         if (state.tMaxT === null || d.outdoor.temperature.value > state.bufMaxT) { state.bufMaxT = d.outdoor.temperature.value; state.tMaxT = currentTimeStamp; }
         if (state.tMinT === null || d.outdoor.temperature.value < state.bufMinT) { state.bufMinT = d.outdoor.temperature.value; state.tMinT = currentTimeStamp; }
         if (state.tRR === null || customRateIn > state.bufRR) { state.bufRR = customRateIn; state.tRR = currentTimeStamp; }
 
-        /**
-         * DAILY ARCHIVING & CLEANUP
-         */
         const todayIST = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
         const dateCheck = await pool.query(`SELECT (time AT TIME ZONE 'Asia/Kolkata')::date as record_date FROM weather_history ORDER BY time ASC LIMIT 1`);
         
@@ -177,9 +147,6 @@ async function syncWithEcowitt(forceWrite = false) {
             }
         }
 
-        /**
-         * DATABASE WRITE
-         */
         if (forceWrite) {
             try {
                 await pool.query(`
@@ -197,7 +164,6 @@ async function syncWithEcowitt(forceWrite = false) {
             }
         }
 
-        // History Processing
         const historyRes = await pool.query(`SELECT * FROM weather_history WHERE (time AT TIME ZONE 'Asia/Kolkata')::date = (NOW() AT TIME ZONE 'Asia/Kolkata')::date ORDER BY time ASC`);
         const oneHourAgoRes = await pool.query(`SELECT temp_f, humidity FROM weather_history WHERE time >= NOW() - INTERVAL '1 hour' ORDER BY time ASC LIMIT 1`);
         
@@ -213,7 +179,6 @@ async function syncWithEcowitt(forceWrite = false) {
 
             historyRes.rows.forEach(r => {
                 const formatTime = (iso) => iso ? new Date(iso).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' }) : new Date(r.time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' });
-                
                 const r_temp = parseFloat(((r.temp_f - 32) * 5 / 9).toFixed(1));
                 const r_min_temp = parseFloat(((r.temp_min_f - 32) * 5 / 9).toFixed(1));
                 const r_wind = parseFloat((r.wind_speed_mph * 1.60934).toFixed(1));
@@ -255,9 +220,6 @@ async function syncWithEcowitt(forceWrite = false) {
     } catch (e) { return { error: e.message }; }
 }
 
-/**
- * ROUTES
- */
 app.get("/weather", async (req, res) => res.json(await syncWithEcowitt(false)));
 app.get("/api/sync", async (req, res) => res.json(await syncWithEcowitt(req.query.write === 'true')));
 
@@ -339,7 +301,6 @@ app.get("/", (req, res) => {
         .time-mark { font-size: 9px; color: var(--muted); font-weight: 600; margin-left: 2px; background: rgba(0,0,0,0.04); padding: 1px 4px; border-radius: 4px; }
         body.is-night .time-mark { background: rgba(255,255,255,0.1); }
         
-        /* --- NEW RAIN HUB CSS --- */
         .rain-hub { display: flex; flex-direction: column; gap: 20px; padding: 24px !important; }
         .rate-display { font-size: 42px; font-weight: 900; letter-spacing: -2px; color: var(--accent); }
         .vessel-container { background: rgba(0, 0, 0, 0.05); border-radius: 24px; padding: 30px 20px; text-align: center; position: relative; border: 1px solid var(--border); box-shadow: inset 0 0 0px rgba(2, 132, 199, 0); transition: all 1s ease; }
@@ -351,7 +312,6 @@ app.get("/", (req, res) => {
         .archive-item { background: var(--badge); padding: 12px 8px; border-radius: 16px; text-align: center; display: flex; flex-direction: column; gap: 4px; }
         .arch-label { font-size: 9px; font-weight: 800; color: var(--muted); }
         .arch-val { font-size: 13px; font-weight: 700; }
-        /* ------------------------ */
     </style>
 </head>
 <body>
@@ -398,11 +358,10 @@ app.get("/", (req, res) => {
                 <div class="rain-header">
                     <div class="label">Live Intensity</div>
                     <div class="rate-display">
-                        <span id="r_rate" class="odometer">0.0</span>
+                        <span id="r_rate">0.0</span>
                         <span class="unit">mm/h</span>
                     </div>
                 </div>
-
                 <div class="vessel-container" id="rainVessel">
                     <div class="vessel-label">Today's Accumulation</div>
                     <div class="vessel-value">
@@ -412,7 +371,6 @@ app.get("/", (req, res) => {
                         <span>Peak: <span id="mr">--</span></span>
                     </div>
                 </div>
-
                 <div class="rain-archive-grid">
                     <div class="archive-item">
                         <span class="arch-label">WEEKLY</span>
@@ -428,6 +386,7 @@ app.get("/", (req, res) => {
                     </div>
                 </div>
             </div>
+
             <div class="card">
                 <div class="label">Atmospheric <span id="pIcon"></span></div>
                 <div class="main-val"><span id="pr">--</span><span class="unit">hPa</span></div>
@@ -488,16 +447,6 @@ app.get("/", (req, res) => {
             if (currentMode === 'dark' || (currentMode === 'auto' && (hour >= 18 || hour < 6))) document.body.classList.add('is-night');
             else document.body.classList.remove('is-night');
             if (charts.cT) updateChartColors();
-            
-            // Re-apply vessel background logic on theme change if vessel exists
-            const vessel = document.getElementById('rainVessel');
-            if (vessel) {
-                const currentTotalText = document.getElementById('r_tot').innerText;
-                const rainTotal = parseFloat(currentTotalText) || 0;
-                if (rainTotal <= 20) {
-                    vessel.style.background = document.body.classList.contains('is-night') ? 'rgba(255, 255, 255, 0.03)' : 'rgba(0, 0, 0, 0.05)';
-                }
-            }
         }
 
         document.getElementById('btn-light').onclick = () => { currentMode = 'light'; localStorage.setItem('weatherMode', 'light'); applyTheme(); };
@@ -521,7 +470,7 @@ app.get("/", (req, res) => {
             const gradient = ctx.createLinearGradient(0, 0, 0, 300);
             gradient.addColorStop(0, color + '40'); gradient.addColorStop(1, color + '00');
             return new Chart(ctx, { 
-                type: id === 'cR' ? 'line' : 'line', 
+                type: 'line', 
                 data: { 
                     labels: [], 
                     datasets: [{ 
@@ -575,31 +524,23 @@ app.get("/", (req, res) => {
                 document.getElementById('r_year').innerText = d.rain.yearly + ' mm';
                 document.getElementById('mr').innerHTML = d.rain.maxR > 0 ? d.rain.maxR + ' mm/h <span class="time-mark">' + d.rain.maxRTime + '</span>' : '0 mm/h';
 
-                // --- NEW VESSEL DEPTH LOGIC ---
                 const vessel = document.getElementById('rainVessel');
                 if (vessel) {
                     const rainTotal = d.rain.total;
                     const depthFactor = Math.min(rainTotal * 2, 40); 
                     const blurFactor = Math.min(15 + (rainTotal / 2), 40); 
-                    
                     vessel.style.boxShadow = `inset 0 10px ${depthFactor}px rgba(2, 132, 199, 0.15)`;
                     vessel.style.backdropFilter = `blur(${blurFactor}px)`;
-                    
                     if (rainTotal > 20) {
                         vessel.style.borderColor = 'var(--accent)';
                         vessel.style.background = 'rgba(2, 132, 199, 0.08)';
-                    } else {
-                        vessel.style.borderColor = 'var(--border)';
-                        vessel.style.background = document.body.classList.contains('is-night') ? 'rgba(255, 255, 255, 0.03)' : 'rgba(0, 0, 0, 0.05)';
                     }
                 }
-                // ------------------------------
 
                 const pTrend = d.atmo.pTrend;
-                let pArrow = '●'; // Stable
+                let pArrow = '●';
                 if (pTrend >= 0.1) pArrow = '<span class="trend-up" style="color:#ef4444">▲</span>';
                 if (pTrend <= -0.1) pArrow = '<span class="trend-down" style="color:#0ea5e9">▼</span>';
-
                 document.getElementById('pIcon').innerHTML = pArrow; 
                 
                 document.getElementById('pr').innerText = d.atmo.press;
