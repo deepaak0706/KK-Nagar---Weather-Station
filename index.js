@@ -475,10 +475,34 @@ app.get("/", (req, res) => {
             const gradient = ctx.createLinearGradient(0, 0, 0, 300);
             gradient.addColorStop(0, color + '40'); gradient.addColorStop(1, color + '00');
             return new Chart(ctx, { 
-                type: 'line', 
-                data: { labels: [], datasets: [{ label: label, data: [], borderColor: color, backgroundColor: gradient, fill: true, tension: 0.4, pointRadius: 0, borderWidth: 2 }] }, 
-                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { min: minVal }, x: { ticks: { maxTicksLimit: 8 } } } } 
-            });
+    type: id === 'cR' ? 'line' : 'line', // Ensure Rain is a line now too!
+    data: { 
+        labels: [], 
+        datasets: [{ 
+            label: label, 
+            data: [], 
+            borderColor: color, 
+            backgroundColor: gradient, 
+            fill: true, 
+            tension: 0.4, 
+            pointRadius: 0, 
+            borderWidth: 2 
+        }] 
+    }, 
+    options: { 
+        responsive: true, 
+        maintainAspectRatio: false, 
+        // --- ADD THESE THREE LINES BELOW ---
+        interaction: { intersect: false, mode: 'index' },
+        plugins: { tooltip: { enabled: true }, legend: { display: false } }, 
+        // ------------------------------------
+        scales: { 
+            y: { min: minVal }, 
+            x: { ticks: { maxTicksLimit: 8 } } 
+        } 
+    } 
+});
+
         }
 
         async function update() {
@@ -507,6 +531,14 @@ app.get("/", (req, res) => {
                 document.getElementById('r_month').innerText = d.rain.monthly + ' mm';
                 document.getElementById('r_year').innerText = d.rain.yearly + ' mm';
                 document.getElementById('mr').innerHTML = d.rain.maxR > 0 ? d.rain.maxR + ' mm/h <span class="time-mark">' + d.rain.maxRTime + '</span>' : '0 mm/h';
+
+                // Add this logic right before updating 'pr'
+                const pTrend = d.atmo.pTrend;
+                let pArrow = '●'; // Stable
+                if (pTrend >= 0.1) pArrow = '<span class="trend-up" style="color:#ef4444">▲</span>';
+                if (pTrend <= -0.1) pArrow = '<span class="trend-down" style="color:#0ea5e9">▼</span>';
+
+                document.getElementById('pIcon').innerHTML = pArrow; // This updates the span in your header
                 
                 document.getElementById('pr').innerText = d.atmo.press;
                 document.getElementById('sol').innerText = d.atmo.sol + ' W/m²'; 
