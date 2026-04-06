@@ -475,7 +475,7 @@ app.get("/", (req, res) => {
             const gradient = ctx.createLinearGradient(0, 0, 0, 300);
             gradient.addColorStop(0, color + '40'); gradient.addColorStop(1, color + '00');
             return new Chart(ctx, { 
-                type: id === 'cR' ? 'bar' : 'line', 
+                type: 'line', 
                 data: { labels: [], datasets: [{ label: label, data: [], borderColor: color, backgroundColor: gradient, fill: true, tension: 0.4, pointRadius: 0, borderWidth: 2 }] }, 
                 options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { min: minVal }, x: { ticks: { maxTicksLimit: 8 } } } } 
             });
