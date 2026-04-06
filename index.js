@@ -427,7 +427,7 @@ app.get("/", (req, res) => {
         const wCanvas = document.getElementById('windCanvas');
         const ctxW = wCanvas.getContext('2d');
 
-        for(let i=0; i<30; i++) { particles.push({ x: Math.random() * 800, y: Math.random() * 800, s: 0.6 + Math.random() }); }
+        for(let i=0; i<35; i++) { particles.push({ x: Math.random() * 800, y: Math.random() * 800, s: 0.6 + Math.random() }); }
 
         Chart.register({
             id: 'customChartEnhancements',
