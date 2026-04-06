@@ -320,6 +320,16 @@ app.get("/", (req, res) => {
 
         .label { color: var(--accent); font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 6px; }
         .main-val { font-size: 56px; font-weight: 900; margin: 0; letter-spacing: -2px; display: flex; align-items: baseline; line-height: 1.1; }
+        
+        /* MODERN TRANSIENT EFFECTS */
+        .main-val span:not(.unit), .badge-val { 
+            display: inline-block; 
+            transition: all 0.6s cubic-bezier(0.34, 1.56, 0.64, 1); 
+            font-variant-numeric: tabular-nums; 
+        }
+        @keyframes valueUpdate { 0% { transform: scale(1); } 50% { transform: scale(1.05); color: #10b981; } 100% { transform: scale(1); } }
+        .updated { animation: valueUpdate 0.8s ease-out; }
+        
         .unit { font-size: 20px; font-weight: 600; color: var(--muted); margin-left: 4px; letter-spacing: 0; }
         .sub-pill { font-size: 12px; font-weight: 800; padding: 6px 12px; border-radius: 10px; background: var(--badge); display: inline-flex; align-items: center; gap: 4px; margin: 12px 0 20px 0; }
 
@@ -357,7 +367,7 @@ app.get("/", (req, res) => {
         <div class="grid-system">
             <div class="card">
                 <div class="label">Temperature</div>
-                <div class="main-val"><span id="t">--</span><span class="unit">°C</span></div>
+                <div class="main-val"><span id="t">0.0</span><span class="unit">°C</span></div>
                 <div id="tTrendBox" class="sub-pill">--</div>
                 <div class="sub-box-4">
                     <div class="badge"><span class="badge-label">Today High</span><span id="mx" class="badge-val" style="color:#ef4444">--</span></div>
@@ -372,7 +382,7 @@ app.get("/", (req, res) => {
                 <canvas id="windCanvas"></canvas>
                 <div class="label">Wind Dynamics</div>
                 <div class="compass-ui"><div id="needle"></div></div>
-                <div class="main-val"><span id="w">--</span><span id="wd_bracket" style="font-size:18px; color:var(--muted); margin-left:8px; font-weight:700">(--)</span><span class="unit">km/h</span></div>
+                <div class="main-val"><span id="w">0.0</span><span id="wd_bracket" style="font-size:18px; color:var(--muted); margin-left:8px; font-weight:700">(--)</span><span class="unit">km/h</span></div>
                 <div class="sub-pill">● Live Gust: <span id="wg" style="margin-left:4px">--</span></div>
                 <div class="sub-box-4">
                     <div class="badge"><span class="badge-label">Max Speed</span><span id="mw" class="badge-val">--</span></div>
@@ -382,8 +392,8 @@ app.get("/", (req, res) => {
 
             <div class="card">
                 <div class="label">Rain Realm</div>
-                <div class="main-val"><span id="r_tot">--</span><span class="unit">mm</span></div>
-                <div class="sub-pill">● Rain Rate: <span id="r_rate">--</span> mm/h</div>
+                <div class="main-val"><span id="r_tot">0.0</span><span class="unit">mm</span></div>
+                <div class="sub-pill">● Rain Rate: <span id="r_rate">0.0</span> mm/h</div>
                 <div class="sub-box-4">
                     <div class="badge" style="grid-column: span 2;"><span class="badge-label">Max Rate Today</span><span id="mr" class="badge-val">--</span></div>
                     <div class="badge"><span class="badge-label">Weekly</span><span id="r_week" class="badge-val">--</span></div>
@@ -475,34 +485,32 @@ app.get("/", (req, res) => {
             const gradient = ctx.createLinearGradient(0, 0, 0, 300);
             gradient.addColorStop(0, color + '40'); gradient.addColorStop(1, color + '00');
             return new Chart(ctx, { 
-    type: id === 'cR' ? 'line' : 'line', // Ensure Rain is a line now too!
-    data: { 
-        labels: [], 
-        datasets: [{ 
-            label: label, 
-            data: [], 
-            borderColor: color, 
-            backgroundColor: gradient, 
-            fill: true, 
-            tension: 0.4, 
-            pointRadius: 0, 
-            borderWidth: 2 
-        }] 
-    }, 
-    options: { 
-        responsive: true, 
-        maintainAspectRatio: false, 
-        // --- ADD THESE THREE LINES BELOW ---
-        interaction: { intersect: false, mode: 'index' },
-        plugins: { tooltip: { enabled: true }, legend: { display: false } }, 
-        // ------------------------------------
-        scales: { 
-            y: { min: minVal }, 
-            x: { ticks: { maxTicksLimit: 8 } } 
-        } 
-    } 
-});
-
+                type: 'line', 
+                data: { labels: [], datasets: [{ label: label, data: [], borderColor: color, backgroundColor: gradient, fill: true, tension: 0.4, pointRadius: 0, borderWidth: 2 }] }, 
+                options: { 
+                    responsive: true, maintainAspectRatio: false, 
+                    interaction: { intersect: false, mode: 'index' },
+                    plugins: { tooltip: { enabled: true }, legend: { display: false } }, 
+                    scales: { y: { min: minVal }, x: { ticks: { maxTicksLimit: 8 } } } 
+                } 
+            });
+        }
+        
+        // ANIMATION HELPER
+        function animateValue(id, start, end, decimals = 1) {
+            const obj = document.getElementById(id);
+            if (!obj || start === end) return;
+            const duration = 1000;
+            let startTimestamp = null;
+            const step = (timestamp) => {
+                if (!startTimestamp) startTimestamp = timestamp;
+                const progress = Math.min((timestamp - startTimestamp) / duration, 1);
+                const current = (progress * (end - start)) + start;
+                obj.innerHTML = current.toFixed(decimals);
+                if (progress < 1) { window.requestAnimationFrame(step); } 
+                else { obj.classList.add('updated'); setTimeout(() => obj.classList.remove('updated'), 1000); }
+            };
+            window.requestAnimationFrame(step);
         }
 
         async function update() {
@@ -510,14 +518,27 @@ app.get("/", (req, res) => {
                 const res = await fetch('/weather?v=' + Date.now()); 
                 const d = await res.json(); 
                 if (!d || d.error) return;
-                document.getElementById('t').innerText = d.temp.current;
+                
+                // Animated Value Updates
+                const oldT = parseFloat(document.getElementById('t').innerText) || 0;
+                animateValue('t', oldT, d.temp.current, 1);
+                
+                const oldW = parseFloat(document.getElementById('w').innerText) || 0;
+                animateValue('w', oldW, d.wind.speed, 1);
+                
+                const oldR = parseFloat(document.getElementById('r_tot').innerText) || 0;
+                animateValue('r_tot', oldR, d.rain.total, 1);
+                
+                const oldRR = parseFloat(document.getElementById('r_rate').innerText) || 0;
+                animateValue('r_rate', oldRR, d.rain.rate, 1);
+
                 document.getElementById('tTrendBox').innerHTML = d.temp.rate > 0 ? '<span class="trend-up">▲</span> +' + d.temp.rate + '°C /hr' : d.temp.rate < 0 ? '<span class="trend-down">▼</span> ' + d.temp.rate + '°C /hr' : '● Steady';
                 document.getElementById('mx').innerHTML = d.temp.max + '°C <span class="time-mark">' + d.temp.maxTime + '</span>';
                 document.getElementById('mn').innerHTML = d.temp.min + '°C <span class="time-mark">' + d.temp.minTime + '</span>';
                 document.getElementById('rf').innerText = d.temp.realFeel + '°C'; 
                 document.getElementById('h_val').innerHTML = d.atmo.hum + '% ' + (d.atmo.hTrend > 0 ? '▲' : '▼');
                 document.getElementById('d_val').innerText = d.temp.dew + '°C';
-                document.getElementById('w').innerText = d.wind.speed; 
+                
                 document.getElementById('wd_bracket').innerText = '(' + d.wind.card + ')';
                 document.getElementById('wg').innerText = d.wind.gust + ' km/h';
                 document.getElementById('mw').innerHTML = d.wind.maxS + ' km/h <span class="time-mark">' + d.wind.maxSTime + '</span>';
@@ -525,20 +546,16 @@ app.get("/", (req, res) => {
                 document.getElementById('needle').style.transform = 'rotate(' + d.wind.deg + 'deg)';
                 liveWindSpeed = d.wind.speed; liveWindDeg = d.wind.deg;
                 
-                document.getElementById('r_tot').innerText = d.rain.total; 
-                document.getElementById('r_rate').innerText = d.rain.rate;
                 document.getElementById('r_week').innerText = d.rain.weekly + ' mm';
                 document.getElementById('r_month').innerText = d.rain.monthly + ' mm';
                 document.getElementById('r_year').innerText = d.rain.yearly + ' mm';
                 document.getElementById('mr').innerHTML = d.rain.maxR > 0 ? d.rain.maxR + ' mm/h <span class="time-mark">' + d.rain.maxRTime + '</span>' : '0 mm/h';
 
-                // Add this logic right before updating 'pr'
                 const pTrend = d.atmo.pTrend;
-                let pArrow = '●'; // Stable
+                let pArrow = '●';
                 if (pTrend >= 0.1) pArrow = '<span class="trend-up" style="color:#ef4444">▲</span>';
                 if (pTrend <= -0.1) pArrow = '<span class="trend-down" style="color:#0ea5e9">▼</span>';
-
-                document.getElementById('pIcon').innerHTML = pArrow; // This updates the span in your header
+                document.getElementById('pIcon').innerHTML = pArrow;
                 
                 document.getElementById('pr').innerText = d.atmo.press;
                 document.getElementById('sol').innerText = d.atmo.sol + ' W/m²'; 
