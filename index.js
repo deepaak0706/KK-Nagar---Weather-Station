@@ -124,7 +124,7 @@ async function syncWithEcowitt(forceWrite = false) {
                 // Midnight reset handler
                 state.lastRainTime = now;
                 state.lastCalculatedRate = 0;
-            } else if (deltaRain > 0) {
+            } else if (deltaRain > 0 && timeElapsedSec >= 30) {
                 // Active rain event: calculate exact rate based on time interval
                 customRateIn = deltaRain * (3600 / timeElapsedSec);
                 state.lastCalculatedRate = customRateIn;
@@ -143,9 +143,14 @@ async function syncWithEcowitt(forceWrite = false) {
                 }
                 customRateIn = state.lastCalculatedRate;
             }
-        } else if (state.lastRainRaw === null) {
-            state.lastRainTime = now;
+        } else {
+          // INITIALIZATION: Prime the system immediately
+         // This ensures the NEXT 45s fetch can calculate a delta
+         state.lastRainRaw = rawDailyInches;
+         state.lastRainTime = now;
+         state.lastCalculatedRate = 0;
         }
+
         
         state.lastRainRaw = rawDailyInches;
         const displayRainRate = parseFloat((customRateIn * 25.4).toFixed(1));
