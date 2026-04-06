@@ -458,11 +458,24 @@ app.get("/", (req, res) => {
         });
 
         function applyTheme() {
-            const hour = new Date().getHours();
-            if (currentMode === 'dark' || (currentMode === 'auto' && (hour >= 18 || hour < 6))) document.body.classList.add('is-night');
-            else document.body.classList.remove('is-night');
-            if (charts.cT) updateChartColors();
-        }
+    const hour = new Date().getHours();
+    
+    // 1. Handle Body Class
+    if (currentMode === 'dark' || (currentMode === 'auto' && (hour >= 18 || hour < 6))) {
+        document.body.classList.add('is-night');
+    } else {
+        document.body.classList.remove('is-night');
+    }
+
+    // 2. Handle Button Highlights (The missing logic)
+    document.querySelectorAll('.theme-btn').forEach(btn => btn.classList.remove('active'));
+    if (currentMode === 'light') document.getElementById('btn-light').classList.add('active');
+    else if (currentMode === 'dark') document.getElementById('btn-dark').classList.add('active');
+    else document.getElementById('btn-auto').classList.add('active');
+
+    if (charts.cT) updateChartColors();
+}
+
 
         document.getElementById('btn-light').onclick = () => { currentMode = 'light'; localStorage.setItem('weatherMode', 'light'); applyTheme(); };
         document.getElementById('btn-dark').onclick = () => { currentMode = 'dark'; localStorage.setItem('weatherMode', 'dark'); applyTheme(); };
