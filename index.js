@@ -320,16 +320,6 @@ app.get("/", (req, res) => {
 
         .label { color: var(--accent); font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 6px; }
         .main-val { font-size: 56px; font-weight: 900; margin: 0; letter-spacing: -2px; display: flex; align-items: baseline; line-height: 1.1; }
-        
-        /* MODERN TRANSIENT EFFECTS */
-        .main-val span:not(.unit), .badge-val { 
-            display: inline-block; 
-            transition: all 0.6s cubic-bezier(0.34, 1.56, 0.64, 1); 
-            font-variant-numeric: tabular-nums; 
-        }
-        @keyframes valueUpdate { 0% { transform: scale(1); } 50% { transform: scale(1.05); color: #10b981; } 100% { transform: scale(1); } }
-        .updated { animation: valueUpdate 0.8s ease-out; }
-        
         .unit { font-size: 20px; font-weight: 600; color: var(--muted); margin-left: 4px; letter-spacing: 0; }
         .sub-pill { font-size: 12px; font-weight: 800; padding: 6px 12px; border-radius: 10px; background: var(--badge); display: inline-flex; align-items: center; gap: 4px; margin: 12px 0 20px 0; }
 
@@ -348,6 +338,20 @@ app.get("/", (req, res) => {
         .trend-up { color: #f43f5e; } .trend-down { color: #0ea5e9; }
         .time-mark { font-size: 9px; color: var(--muted); font-weight: 600; margin-left: 2px; background: rgba(0,0,0,0.04); padding: 1px 4px; border-radius: 4px; }
         body.is-night .time-mark { background: rgba(255,255,255,0.1); }
+        
+        /* --- NEW RAIN HUB CSS --- */
+        .rain-hub { display: flex; flex-direction: column; gap: 20px; padding: 24px !important; }
+        .rate-display { font-size: 42px; font-weight: 900; letter-spacing: -2px; color: var(--accent); }
+        .vessel-container { background: rgba(0, 0, 0, 0.05); border-radius: 24px; padding: 30px 20px; text-align: center; position: relative; border: 1px solid var(--border); box-shadow: inset 0 0 0px rgba(2, 132, 199, 0); transition: all 1s ease; }
+        body.is-night .vessel-container { background: rgba(255, 255, 255, 0.03); }
+        .vessel-label { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); }
+        .vessel-value { font-size: 52px; font-weight: 900; margin: 10px 0; line-height: 1; }
+        .peak-line { font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--muted); letter-spacing: 1px; }
+        .rain-archive-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+        .archive-item { background: var(--badge); padding: 12px 8px; border-radius: 16px; text-align: center; display: flex; flex-direction: column; gap: 4px; }
+        .arch-label { font-size: 9px; font-weight: 800; color: var(--muted); }
+        .arch-val { font-size: 13px; font-weight: 700; }
+        /* ------------------------ */
     </style>
 </head>
 <body>
@@ -367,7 +371,7 @@ app.get("/", (req, res) => {
         <div class="grid-system">
             <div class="card">
                 <div class="label">Temperature</div>
-                <div class="main-val"><span id="t">0.0</span><span class="unit">°C</span></div>
+                <div class="main-val"><span id="t">--</span><span class="unit">°C</span></div>
                 <div id="tTrendBox" class="sub-pill">--</div>
                 <div class="sub-box-4">
                     <div class="badge"><span class="badge-label">Today High</span><span id="mx" class="badge-val" style="color:#ef4444">--</span></div>
@@ -382,7 +386,7 @@ app.get("/", (req, res) => {
                 <canvas id="windCanvas"></canvas>
                 <div class="label">Wind Dynamics</div>
                 <div class="compass-ui"><div id="needle"></div></div>
-                <div class="main-val"><span id="w">0.0</span><span id="wd_bracket" style="font-size:18px; color:var(--muted); margin-left:8px; font-weight:700">(--)</span><span class="unit">km/h</span></div>
+                <div class="main-val"><span id="w">--</span><span id="wd_bracket" style="font-size:18px; color:var(--muted); margin-left:8px; font-weight:700">(--)</span><span class="unit">km/h</span></div>
                 <div class="sub-pill">● Live Gust: <span id="wg" style="margin-left:4px">--</span></div>
                 <div class="sub-box-4">
                     <div class="badge"><span class="badge-label">Max Speed</span><span id="mw" class="badge-val">--</span></div>
@@ -390,18 +394,40 @@ app.get("/", (req, res) => {
                 </div>
             </div>
 
-            <div class="card">
-                <div class="label">Rain Realm</div>
-                <div class="main-val"><span id="r_tot">0.0</span><span class="unit">mm</span></div>
-                <div class="sub-pill">● Rain Rate: <span id="r_rate">0.0</span> mm/h</div>
-                <div class="sub-box-4">
-                    <div class="badge" style="grid-column: span 2;"><span class="badge-label">Max Rate Today</span><span id="mr" class="badge-val">--</span></div>
-                    <div class="badge"><span class="badge-label">Weekly</span><span id="r_week" class="badge-val">--</span></div>
-                    <div class="badge"><span class="badge-label">Monthly</span><span id="r_month" class="badge-val">--</span></div>
-                    <div class="badge" style="grid-column: span 2;"><span class="badge-label">Yearly</span><span id="r_year" class="badge-val">--</span></div>
+            <div class="card rain-hub" id="rainCard">
+                <div class="rain-header">
+                    <div class="label">Live Intensity</div>
+                    <div class="rate-display">
+                        <span id="r_rate" class="odometer">0.0</span>
+                        <span class="unit">mm/h</span>
+                    </div>
+                </div>
+
+                <div class="vessel-container" id="rainVessel">
+                    <div class="vessel-label">Today's Accumulation</div>
+                    <div class="vessel-value">
+                        <span id="r_tot">0.0</span><span class="unit">mm</span>
+                    </div>
+                    <div class="peak-line">
+                        <span>Peak: <span id="mr">--</span></span>
+                    </div>
+                </div>
+
+                <div class="rain-archive-grid">
+                    <div class="archive-item">
+                        <span class="arch-label">WEEKLY</span>
+                        <span id="r_week" class="arch-val">--</span>
+                    </div>
+                    <div class="archive-item">
+                        <span class="arch-label">MONTHLY</span>
+                        <span id="r_month" class="arch-val">--</span>
+                    </div>
+                    <div class="archive-item">
+                        <span class="arch-label">YEARLY</span>
+                        <span id="r_year" class="arch-val">--</span>
+                    </div>
                 </div>
             </div>
-
             <div class="card">
                 <div class="label">Atmospheric <span id="pIcon"></span></div>
                 <div class="main-val"><span id="pr">--</span><span class="unit">hPa</span></div>
@@ -462,6 +488,16 @@ app.get("/", (req, res) => {
             if (currentMode === 'dark' || (currentMode === 'auto' && (hour >= 18 || hour < 6))) document.body.classList.add('is-night');
             else document.body.classList.remove('is-night');
             if (charts.cT) updateChartColors();
+            
+            // Re-apply vessel background logic on theme change if vessel exists
+            const vessel = document.getElementById('rainVessel');
+            if (vessel) {
+                const currentTotalText = document.getElementById('r_tot').innerText;
+                const rainTotal = parseFloat(currentTotalText) || 0;
+                if (rainTotal <= 20) {
+                    vessel.style.background = document.body.classList.contains('is-night') ? 'rgba(255, 255, 255, 0.03)' : 'rgba(0, 0, 0, 0.05)';
+                }
+            }
         }
 
         document.getElementById('btn-light').onclick = () => { currentMode = 'light'; localStorage.setItem('weatherMode', 'light'); applyTheme(); };
@@ -485,32 +521,31 @@ app.get("/", (req, res) => {
             const gradient = ctx.createLinearGradient(0, 0, 0, 300);
             gradient.addColorStop(0, color + '40'); gradient.addColorStop(1, color + '00');
             return new Chart(ctx, { 
-                type: 'line', 
-                data: { labels: [], datasets: [{ label: label, data: [], borderColor: color, backgroundColor: gradient, fill: true, tension: 0.4, pointRadius: 0, borderWidth: 2 }] }, 
+                type: id === 'cR' ? 'line' : 'line', 
+                data: { 
+                    labels: [], 
+                    datasets: [{ 
+                        label: label, 
+                        data: [], 
+                        borderColor: color, 
+                        backgroundColor: gradient, 
+                        fill: true, 
+                        tension: 0.4, 
+                        pointRadius: 0, 
+                        borderWidth: 2 
+                    }] 
+                }, 
                 options: { 
-                    responsive: true, maintainAspectRatio: false, 
+                    responsive: true, 
+                    maintainAspectRatio: false, 
                     interaction: { intersect: false, mode: 'index' },
                     plugins: { tooltip: { enabled: true }, legend: { display: false } }, 
-                    scales: { y: { min: minVal }, x: { ticks: { maxTicksLimit: 8 } } } 
+                    scales: { 
+                        y: { min: minVal }, 
+                        x: { ticks: { maxTicksLimit: 8 } } 
+                    } 
                 } 
             });
-        }
-        
-        // ANIMATION HELPER
-        function animateValue(id, start, end, decimals = 1) {
-            const obj = document.getElementById(id);
-            if (!obj || start === end) return;
-            const duration = 1000;
-            let startTimestamp = null;
-            const step = (timestamp) => {
-                if (!startTimestamp) startTimestamp = timestamp;
-                const progress = Math.min((timestamp - startTimestamp) / duration, 1);
-                const current = (progress * (end - start)) + start;
-                obj.innerHTML = current.toFixed(decimals);
-                if (progress < 1) { window.requestAnimationFrame(step); } 
-                else { obj.classList.add('updated'); setTimeout(() => obj.classList.remove('updated'), 1000); }
-            };
-            window.requestAnimationFrame(step);
         }
 
         async function update() {
@@ -518,27 +553,14 @@ app.get("/", (req, res) => {
                 const res = await fetch('/weather?v=' + Date.now()); 
                 const d = await res.json(); 
                 if (!d || d.error) return;
-                
-                // Animated Value Updates
-                const oldT = parseFloat(document.getElementById('t').innerText) || 0;
-                animateValue('t', oldT, d.temp.current, 1);
-                
-                const oldW = parseFloat(document.getElementById('w').innerText) || 0;
-                animateValue('w', oldW, d.wind.speed, 1);
-                
-                const oldR = parseFloat(document.getElementById('r_tot').innerText) || 0;
-                animateValue('r_tot', oldR, d.rain.total, 1);
-                
-                const oldRR = parseFloat(document.getElementById('r_rate').innerText) || 0;
-                animateValue('r_rate', oldRR, d.rain.rate, 1);
-
+                document.getElementById('t').innerText = d.temp.current;
                 document.getElementById('tTrendBox').innerHTML = d.temp.rate > 0 ? '<span class="trend-up">▲</span> +' + d.temp.rate + '°C /hr' : d.temp.rate < 0 ? '<span class="trend-down">▼</span> ' + d.temp.rate + '°C /hr' : '● Steady';
                 document.getElementById('mx').innerHTML = d.temp.max + '°C <span class="time-mark">' + d.temp.maxTime + '</span>';
                 document.getElementById('mn').innerHTML = d.temp.min + '°C <span class="time-mark">' + d.temp.minTime + '</span>';
                 document.getElementById('rf').innerText = d.temp.realFeel + '°C'; 
                 document.getElementById('h_val').innerHTML = d.atmo.hum + '% ' + (d.atmo.hTrend > 0 ? '▲' : '▼');
                 document.getElementById('d_val').innerText = d.temp.dew + '°C';
-                
+                document.getElementById('w').innerText = d.wind.speed; 
                 document.getElementById('wd_bracket').innerText = '(' + d.wind.card + ')';
                 document.getElementById('wg').innerText = d.wind.gust + ' km/h';
                 document.getElementById('mw').innerHTML = d.wind.maxS + ' km/h <span class="time-mark">' + d.wind.maxSTime + '</span>';
@@ -546,16 +568,39 @@ app.get("/", (req, res) => {
                 document.getElementById('needle').style.transform = 'rotate(' + d.wind.deg + 'deg)';
                 liveWindSpeed = d.wind.speed; liveWindDeg = d.wind.deg;
                 
+                document.getElementById('r_tot').innerText = d.rain.total; 
+                document.getElementById('r_rate').innerText = d.rain.rate;
                 document.getElementById('r_week').innerText = d.rain.weekly + ' mm';
                 document.getElementById('r_month').innerText = d.rain.monthly + ' mm';
                 document.getElementById('r_year').innerText = d.rain.yearly + ' mm';
                 document.getElementById('mr').innerHTML = d.rain.maxR > 0 ? d.rain.maxR + ' mm/h <span class="time-mark">' + d.rain.maxRTime + '</span>' : '0 mm/h';
 
+                // --- NEW VESSEL DEPTH LOGIC ---
+                const vessel = document.getElementById('rainVessel');
+                if (vessel) {
+                    const rainTotal = d.rain.total;
+                    const depthFactor = Math.min(rainTotal * 2, 40); 
+                    const blurFactor = Math.min(15 + (rainTotal / 2), 40); 
+                    
+                    vessel.style.boxShadow = `inset 0 10px ${depthFactor}px rgba(2, 132, 199, 0.15)`;
+                    vessel.style.backdropFilter = `blur(${blurFactor}px)`;
+                    
+                    if (rainTotal > 20) {
+                        vessel.style.borderColor = 'var(--accent)';
+                        vessel.style.background = 'rgba(2, 132, 199, 0.08)';
+                    } else {
+                        vessel.style.borderColor = 'var(--border)';
+                        vessel.style.background = document.body.classList.contains('is-night') ? 'rgba(255, 255, 255, 0.03)' : 'rgba(0, 0, 0, 0.05)';
+                    }
+                }
+                // ------------------------------
+
                 const pTrend = d.atmo.pTrend;
-                let pArrow = '●';
+                let pArrow = '●'; // Stable
                 if (pTrend >= 0.1) pArrow = '<span class="trend-up" style="color:#ef4444">▲</span>';
                 if (pTrend <= -0.1) pArrow = '<span class="trend-down" style="color:#0ea5e9">▼</span>';
-                document.getElementById('pIcon').innerHTML = pArrow;
+
+                document.getElementById('pIcon').innerHTML = pArrow; 
                 
                 document.getElementById('pr').innerText = d.atmo.press;
                 document.getElementById('sol').innerText = d.atmo.sol + ' W/m²'; 
