@@ -17,8 +17,9 @@ let state = {
     cachedData: null, 
     lastFetchTime: 0, 
     lastDbWrite: 0,
+    lastRainTotal: null, // NEW: Used for instantaneous rain rate calculation
     bufW: 0, bufG: 0, bufMaxT: -999, bufMinT: 999, bufRR: 0,
-    // NEW: Timestamp buffers for precision tracking
+    // Timestamp buffers for precision tracking
     tW: null, tG: null, tMaxT: null, tMinT: null, tRR: null 
 };
 
@@ -43,12 +44,12 @@ function calculateRealFeel(tempC, humidity) {
     return parseFloat(((hi - 32) * 5 / 9).toFixed(1));
 }
 
-async function syncWithEcowitt(forceWrite = false) {
+async function syncWithEcowitt(forceWrite = false, isSyncCall = false) {
     const now = Date.now();
     const currentTimeStamp = new Date().toISOString();
 
-    // Cache check: allow 1-minute cron to bypass cache to update buffers accurately
-    if (!forceWrite && state.cachedData && (now - state.lastFetchTime < 35000)) return state.cachedData;
+    // FIXED: Cache bypass logic. isSyncCall (Cron) now forces a fresh fetch to catch peaks
+    if (!forceWrite && !isSyncCall && state.cachedData && (now - state.lastFetchTime < 35000)) return state.cachedData;
 
     try {
         const url = `https://api.ecowitt.net/api/v3/device/real_time?application_key=${APPLICATION_KEY}&api_key=${API_KEY}&mac=${MAC}`;
@@ -67,14 +68,28 @@ async function syncWithEcowitt(forceWrite = false) {
         const liveRainWeekly = parseFloat((d.rainfall.weekly.value * 25.4).toFixed(1));
         const liveRainMonthly = parseFloat((d.rainfall.monthly.value * 25.4).toFixed(1));
         const liveRainYearly = parseFloat((d.rainfall.yearly.value * 25.4).toFixed(1));
-        const liveRainRate = parseFloat(((d.rainfall.rain_rate?.value || 0) * 25.4).toFixed(1));
+
+        // NEW: Instantaneous Rain Rate Calculation (Delta-based)
+        const currentDailyRainRaw = d.rainfall.daily.value; // In inches
+        let calculatedRainRateInPerHour = 0;
+        
+        if (state.lastRainTotal !== null && now > state.lastFetchTime) {
+            const rainDelta = Math.max(0, currentDailyRainRaw - state.lastRainTotal);
+            const timeDeltaHours = (now - state.lastFetchTime) / 3600000;
+            if (timeDeltaHours > 0) {
+                calculatedRainRateInPerHour = rainDelta / timeDeltaHours;
+            }
+        }
+        state.lastRainTotal = currentDailyRainRaw;
+        const liveRainRate = parseFloat((calculatedRainRateInPerHour * 25.4).toFixed(1)); // mm/h
 
         // Update buffers and CAPTURE exact timestamp when a new max/min is recorded
-        if (d.wind.wind_speed.value > state.bufW) { state.bufW = d.wind.wind_speed.value; state.tW = currentTimeStamp; }
-        if (d.wind.wind_gust.value > state.bufG) { state.bufG = d.wind.wind_gust.value; state.tG = currentTimeStamp; }
-        if (d.outdoor.temperature.value > state.bufMaxT) { state.bufMaxT = d.outdoor.temperature.value; state.tMaxT = currentTimeStamp; }
-        if (d.outdoor.temperature.value < state.bufMinT) { state.bufMinT = d.outdoor.temperature.value; state.tMinT = currentTimeStamp; }
-        if ((d.rainfall.rain_rate?.value || 0) > state.bufRR) { state.bufRR = (d.rainfall.rain_rate?.value || 0); state.tRR = currentTimeStamp; }
+        if (d.wind.wind_speed.value >= state.bufW) { state.bufW = d.wind.wind_speed.value; state.tW = currentTimeStamp; }
+        if (d.wind.wind_gust.value >= state.bufG) { state.bufG = d.wind.wind_gust.value; state.tG = currentTimeStamp; }
+        if (d.outdoor.temperature.value >= state.bufMaxT) { state.bufMaxT = d.outdoor.temperature.value; state.tMaxT = currentTimeStamp; }
+        if (d.outdoor.temperature.value <= state.bufMinT) { state.bufMinT = d.outdoor.temperature.value; state.tMinT = currentTimeStamp; }
+        // Store the calculated instantaneous rate in the buffer if it's the new high for the interval
+        if (calculatedRainRateInPerHour >= state.bufRR) { state.bufRR = calculatedRainRateInPerHour; state.tRR = currentTimeStamp; }
 
         // Daily Archiving Logic
         const todayIST = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
@@ -83,7 +98,6 @@ async function syncWithEcowitt(forceWrite = false) {
         if (dateCheck.rows.length > 0) {
             const oldestDate = new Date(dateCheck.rows[0].record_date).toLocaleDateString('en-CA');
             if (oldestDate !== todayIST) {
-                // UPDATED: Now uses temp_min_f and includes max_gust_kmh
                 await pool.query(`
                     INSERT INTO daily_max_records (record_date, max_temp_c, min_temp_c, max_wind_kmh, max_gust_kmh, total_rain_mm) 
                     SELECT $1, 
@@ -100,10 +114,9 @@ async function syncWithEcowitt(forceWrite = false) {
             }
         }
 
-        // Database Write Logic: Strictly triggered by forceWrite (?write=true)
+        // Database Write Logic
         if (forceWrite) {
             try {
-                // Updated Query to include both Values AND precise capture Timestamps
                 await pool.query(`
                     INSERT INTO weather_history 
                     (time, temp_f, humidity, wind_speed_mph, wind_gust_mph, daily_rain_in, solar_radiation, press_rel, rain_rate_in, temp_min_f,
@@ -112,18 +125,15 @@ async function syncWithEcowitt(forceWrite = false) {
                     [state.bufMaxT, liveHum, state.bufW, state.bufG, d.rainfall.daily.value, d.solar_and_uvi?.solar?.value || 0, livePress, state.bufRR, state.bufMinT,
                      state.tMaxT, state.tMinT, state.tW, state.tG, state.tRR]);
                 
-                // Reset buffers AND timestamps after successful writing
                 resetStateBuffers();
                 state.lastDbWrite = now;
             } catch (err) { 
                 console.error("DB Error:", err.message); 
-                // Safety: Wipe memory if DB is stuck for > 15 mins so we don't write "ghost" data later
                 if (now - state.lastFetchTime > 900000) { 
                     resetStateBuffers();
                 }
             }
         }
-
 
         const historyRes = await pool.query(`SELECT * FROM weather_history WHERE (time AT TIME ZONE 'Asia/Kolkata')::date = (NOW() AT TIME ZONE 'Asia/Kolkata')::date ORDER BY time ASC`);
         const oneHourAgoRes = await pool.query(`SELECT temp_f, humidity FROM weather_history WHERE time >= NOW() - INTERVAL '1 hour' ORDER BY time ASC LIMIT 1`);
@@ -139,7 +149,6 @@ async function syncWithEcowitt(forceWrite = false) {
             hTrend = liveHum - baseHum;
 
             historyRes.rows.forEach(r => {
-                // Helper to use captured precise time if available, otherwise fallback to DB write time
                 const formatTime = (iso) => iso ? new Date(iso).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' }) : new Date(r.time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' });
                 
                 const r_temp = parseFloat(((r.temp_f - 32) * 5 / 9).toFixed(1));
@@ -158,45 +167,39 @@ async function syncWithEcowitt(forceWrite = false) {
             });
         }
 
-                const liveTime = new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' });
+        const liveTime = new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' });
         const formatBufferTime = (iso) => iso ? new Date(iso).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' }) : liveTime;
 
-        // 1. Convert Buffer Peaks to Metric
         const b_maxT = parseFloat(((state.bufMaxT - 32) * 5 / 9).toFixed(1));
         const b_minT = parseFloat(((state.bufMinT - 32) * 5 / 9).toFixed(1));
         const b_maxW = parseFloat((state.bufW * 1.60934).toFixed(1));
         const b_maxG = parseFloat((state.bufG * 1.60934).toFixed(1));
         const b_maxRR = parseFloat((state.bufRR * 25.4).toFixed(1));
 
-        // 2. TEMPERATURE & MIN/MAX
         if (mx_t === -999 || liveTemp > mx_t || b_maxT > mx_t) {
-            mx_t = Math.max(liveTemp, b_maxT);
-            mx_t_time = (liveTemp >= b_maxT) ? liveTime : formatBufferTime(state.tMaxT);
+            mx_t = Math.max(liveTemp, b_maxT, mx_t);
+            mx_t_time = (liveTemp >= b_maxT && liveTemp >= mx_t) ? liveTime : formatBufferTime(state.tMaxT);
         }
         if (mn_t === 999 || liveTemp < mn_t || b_minT < mn_t) {
-            mn_t = Math.min(liveTemp, b_minT);
-            mn_t_time = (liveTemp <= b_minT) ? liveTime : formatBufferTime(state.tMinT);
+            mn_t = Math.min(liveTemp, b_minT, mn_t);
+            mn_t_time = (liveTemp <= b_minT && liveTemp <= mn_t) ? liveTime : formatBufferTime(state.tMinT);
         }
 
-        // 3. WIND SPEED UPDATE
         if (liveWind > mx_w || b_maxW > mx_w) {
-            mx_w = Math.max(liveWind, b_maxW);
-            mx_w_t = (liveWind >= b_maxW) ? liveTime : formatBufferTime(state.tW);
+            mx_w = Math.max(liveWind, b_maxW, mx_w);
+            mx_w_t = (liveWind >= b_maxW && liveWind >= mx_w) ? liveTime : formatBufferTime(state.tW);
         }
 
-        // 4. GUST UPDATE
         if (liveGust > mx_g || b_maxG > mx_g) {
-            mx_g = Math.max(liveGust, b_maxG);
-            mx_g_t = (liveGust >= b_maxG) ? liveTime : formatBufferTime(state.tG);
+            mx_g = Math.max(liveGust, b_maxG, mx_g);
+            mx_g_t = (liveGust >= b_maxG && liveGust >= mx_g) ? liveTime : formatBufferTime(state.tG);
         }
 
-        // 5. RAIN RATE UPDATE
         if (liveRainRate > mx_r || b_maxRR > mx_r) {
-            mx_r = Math.max(liveRainRate, b_maxRR);
-            mx_r_t = (liveRainRate >= b_maxRR) ? liveTime : formatBufferTime(state.tRR);
+            mx_r = Math.max(liveRainRate, b_maxRR, mx_r);
+            mx_r_t = (liveRainRate >= b_maxRR && liveRainRate >= mx_r) ? liveTime : formatBufferTime(state.tRR);
         }
         
-
         state.cachedData = {
             temp: { current: liveTemp, dew: liveDew, max: mx_t, maxTime: mx_t_time, min: mn_t, minTime: mn_t_time, realFeel: calculateRealFeel(liveTemp, liveHum), rate: tRate },
             atmo: { hum: liveHum, hTrend: hTrend, press: livePress, pTrend, sol: d.solar_and_uvi?.solar?.value || 0, uv: d.solar_and_uvi?.uvi?.value || 0 },
@@ -211,10 +214,10 @@ async function syncWithEcowitt(forceWrite = false) {
 }
 
 // Updated routes for Dual-Cron handling
-app.get("/weather", async (req, res) => res.json(await syncWithEcowitt(false)));
+app.get("/weather", async (req, res) => res.json(await syncWithEcowitt(false, false)));
 app.get("/api/sync", async (req, res) => {
     const isWriteRequest = req.query.write === 'true';
-    res.json(await syncWithEcowitt(isWriteRequest));
+    res.json(await syncWithEcowitt(isWriteRequest, true)); // True bypasses cache for cron
 });
 
 app.get("/", (req, res) => {
