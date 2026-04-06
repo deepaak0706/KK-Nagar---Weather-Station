@@ -24,7 +24,9 @@ let state = {
     cachedData: null, 
     lastFetchTime: 0, 
     lastDbWrite: 0,
-    lastRainRaw: null, // Added to track 1-minute delta
+    lastRainRaw: null, 
+    lastCalculatedRate: 0, // Track last non-zero rate for decay
+    rainCounter: 0,        // Grace period counter for rain rate
     bufW: 0, 
     bufG: 0, 
     bufMaxT: -999, 
@@ -108,12 +110,23 @@ async function syncWithEcowitt(forceWrite = false) {
         const liveRainMonthly = parseFloat((d.rainfall.monthly.value * 25.4).toFixed(1));
         const liveRainYearly = parseFloat((d.rainfall.yearly.value * 25.4).toFixed(1));
         
-        // High-Resolution Rain Rate (1-minute Delta calculation)
+        // High-Resolution Rain Rate (with Decay Logic)
         let customRateIn = 0;
-        if (state.lastRainRaw !== null && d.rainfall.daily.value > state.lastRainRaw) {
-            customRateIn = (d.rainfall.daily.value - state.lastRainRaw) * 60;
+        const rawDailyInches = d.rainfall.daily.value;
+        if (state.lastRainRaw !== null) {
+            if (rawDailyInches > state.lastRainRaw) {
+                customRateIn = (rawDailyInches - state.lastRainRaw) * 60;
+                state.lastCalculatedRate = customRateIn;
+                state.rainCounter = 3; 
+            } else if (state.rainCounter > 0) {
+                state.rainCounter--;
+                customRateIn = state.lastCalculatedRate;
+            } else {
+                customRateIn = 0;
+                state.lastCalculatedRate = 0;
+            }
         }
-        state.lastRainRaw = d.rainfall.daily.value;
+        state.lastRainRaw = rawDailyInches;
         const displayRainRate = parseFloat((customRateIn * 25.4).toFixed(1));
 
         // Update buffers and CAPTURE exact timestamp when a new max/min is recorded
@@ -196,9 +209,14 @@ async function syncWithEcowitt(forceWrite = false) {
         const liveTime = new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' });
         if (mx_t === -999 || liveTemp > mx_t) { mx_t = liveTemp; mx_t_time = liveTime; }
         if (mn_t === 999 || liveTemp < mn_t) { mn_t = liveTemp; mn_t_time = liveTime; }
-        if (liveWind > mx_w) { mx_w = liveWind; mx_w_t = "Live"; }
-        if (liveGust > mx_g) { mx_g = liveGust; mx_g_t = "Live"; }
-        if (displayRainRate > mx_r) { mx_r = displayRainRate; mx_r_t = "Live"; }
+        
+        const bufWindKmh = parseFloat((state.bufW * 1.60934).toFixed(1));
+        const bufGustKmh = parseFloat((state.bufG * 1.60934).toFixed(1));
+        const bufRainMm = parseFloat((state.bufRR * 25.4).toFixed(1));
+
+        if (bufWindKmh > mx_w) { mx_w = bufWindKmh; mx_w_t = "Peak (Buffered)"; }
+        if (bufGustKmh > mx_g) { mx_g = bufGustKmh; mx_g_t = "Peak (Buffered)"; }
+        if (bufRainMm > mx_r) { mx_r = bufRainMm; mx_r_t = "Peak (Buffered)"; }
 
         state.cachedData = {
             temp: { current: liveTemp, dew: liveDew, max: mx_t, maxTime: mx_t_time, min: mn_t, minTime: mn_t_time, realFeel: calculateRealFeel(liveTemp, liveHum), rate: tRate },
@@ -459,7 +477,6 @@ app.get("/", (req, res) => {
                 document.getElementById('needle').style.transform = 'rotate(' + d.wind.deg + 'deg)';
                 liveWindSpeed = d.wind.speed; liveWindDeg = d.wind.deg;
                 
-                // Rain realm logic updates
                 document.getElementById('r_tot').innerText = d.rain.total; 
                 document.getElementById('r_rate').innerText = d.rain.rate;
                 document.getElementById('r_week').innerText = d.rain.weekly + ' mm';
