@@ -244,9 +244,15 @@ async function syncWithEcowitt(forceWrite = false) {
         const bufGustKmh = parseFloat((state.bufG * 1.60934).toFixed(1));
         const bufRainMm = parseFloat((state.bufRR * 25.4).toFixed(1));
 
-        if (bufWindKmh > mx_w) { mx_w = bufWindKmh; mx_w_t = "Peak (Buffered)"; }
-        if (bufGustKmh > mx_g) { mx_g = bufGustKmh; mx_g_t = "Peak (Buffered)"; }
-        if (bufRainMm > mx_r) { mx_r = bufRainMm; mx_r_t = "Peak (Buffered)"; }
+        // -------------------------------------------------------------
+        // FIX 2: Format the state memory timestamps instead of hardcoding text
+        // -------------------------------------------------------------
+        const formatLiveTime = (iso) => iso ? new Date(iso).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' }) : "--:--";
+
+        if (bufWindKmh > mx_w) { mx_w = bufWindKmh; mx_w_t = formatLiveTime(state.tW); }
+        if (bufGustKmh > mx_g) { mx_g = bufGustKmh; mx_g_t = formatLiveTime(state.tG); }
+        if (bufRainMm > mx_r) { mx_r = bufRainMm; mx_r_t = formatLiveTime(state.tRR); }
+
 
         state.cachedData = {
             temp: { current: liveTemp, dew: liveDew, max: mx_t, maxTime: mx_t_time, min: mn_t, minTime: mn_t_time, realFeel: calculateRealFeel(liveTemp, liveHum), rate: tRate },
