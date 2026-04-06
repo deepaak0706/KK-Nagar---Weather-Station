@@ -314,13 +314,50 @@ app.get("/", (req, res) => {
         @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
         
         .grid-system { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
-        .card { background: var(--card); padding: 28px; border-radius: 32px; border: 1px solid var(--border); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); box-shadow: var(--glow); position: relative; overflow: hidden; transition: background 0.5s ease; }
+        
+        /* Glassmorphism & Hover Integration */
+        .card { 
+            background: var(--card); 
+            padding: 28px; 
+            border-radius: 32px; 
+            border: 1px solid var(--border); 
+            backdrop-filter: blur(20px); 
+            -webkit-backdrop-filter: blur(20px); 
+            box-shadow: var(--glow); 
+            position: relative; 
+            overflow: hidden; 
+            transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.4s ease, border 0.4s ease, background 0.5s ease; 
+        }
+
+        .card:hover {
+            transform: translateY(-8px) scale(1.01);
+            border: 1px solid var(--accent);
+            box-shadow: 0 25px 50px -12px rgba(2, 132, 199, 0.22);
+            z-index: 20;
+        }
+
+        body.is-night .card:hover {
+            background: rgba(30, 41, 59, 0.9);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
+        }
+
         #windCanvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; border-radius: 32px; }
         .card > *:not(canvas) { position: relative; z-index: 5; }
 
         .label { color: var(--accent); font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 6px; }
         .main-val { font-size: 56px; font-weight: 900; margin: 0; letter-spacing: -2px; display: flex; align-items: baseline; line-height: 1.1; }
         
+        /* Empty State Blur Effect */
+        .main-val span:first-child {
+            filter: blur(8px);
+            transition: filter 1.2s ease, transform 0.6s ease;
+            display: inline-block;
+        }
+
+        .main-val.loaded span:first-child {
+            filter: blur(0);
+        }
+
         /* MODERN TRANSIENT EFFECTS */
         .main-val span:not(.unit), .badge-val { 
             display: inline-block; 
@@ -532,6 +569,9 @@ app.get("/", (req, res) => {
                 const d = await res.json(); 
                 if (!d || d.error) return;
                 
+                // Triggers the "Unblur" effect on the first load
+                document.querySelectorAll('.main-val').forEach(el => el.classList.add('loaded'));
+
                 // Animated Value Updates
                 const oldT = parseFloat(document.getElementById('t').innerText) || 0;
                 animateValue('t', oldT, d.temp.current, 1);
