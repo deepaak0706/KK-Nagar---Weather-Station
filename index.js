@@ -24,6 +24,7 @@ let state = {
     cachedData: null, 
     lastFetchTime: 0, 
     lastDbWrite: 0,
+    lastRainRaw: null, // Added to track 1-minute delta
     bufW: 0, 
     bufG: 0, 
     bufMaxT: -999, 
@@ -106,14 +107,21 @@ async function syncWithEcowitt(forceWrite = false) {
         const liveRainWeekly = parseFloat((d.rainfall.weekly.value * 25.4).toFixed(1));
         const liveRainMonthly = parseFloat((d.rainfall.monthly.value * 25.4).toFixed(1));
         const liveRainYearly = parseFloat((d.rainfall.yearly.value * 25.4).toFixed(1));
-        const liveRainRate = parseFloat(((d.rainfall.rain_rate?.value || 0) * 25.4).toFixed(1));
+        
+        // High-Resolution Rain Rate (1-minute Delta calculation)
+        let customRateIn = 0;
+        if (state.lastRainRaw !== null && d.rainfall.daily.value > state.lastRainRaw) {
+            customRateIn = (d.rainfall.daily.value - state.lastRainRaw) * 60;
+        }
+        state.lastRainRaw = d.rainfall.daily.value;
+        const displayRainRate = parseFloat((customRateIn * 25.4).toFixed(1));
 
         // Update buffers and CAPTURE exact timestamp when a new max/min is recorded
         if (d.wind.wind_speed.value > state.bufW) { state.bufW = d.wind.wind_speed.value; state.tW = currentTimeStamp; }
         if (d.wind.wind_gust.value > state.bufG) { state.bufG = d.wind.wind_gust.value; state.tG = currentTimeStamp; }
         if (d.outdoor.temperature.value > state.bufMaxT) { state.bufMaxT = d.outdoor.temperature.value; state.tMaxT = currentTimeStamp; }
         if (d.outdoor.temperature.value < state.bufMinT) { state.bufMinT = d.outdoor.temperature.value; state.tMinT = currentTimeStamp; }
-        if ((d.rainfall.rain_rate?.value || 0) > state.bufRR) { state.bufRR = (d.rainfall.rain_rate?.value || 0); state.tRR = currentTimeStamp; }
+        if (customRateIn > state.bufRR) { state.bufRR = customRateIn; state.tRR = currentTimeStamp; }
 
         /**
          * DAILY ARCHIVING & CLEANUP
@@ -190,13 +198,13 @@ async function syncWithEcowitt(forceWrite = false) {
         if (mn_t === 999 || liveTemp < mn_t) { mn_t = liveTemp; mn_t_time = liveTime; }
         if (liveWind > mx_w) { mx_w = liveWind; mx_w_t = "Live"; }
         if (liveGust > mx_g) { mx_g = liveGust; mx_g_t = "Live"; }
-        if (liveRainRate > mx_r) { mx_r = liveRainRate; mx_r_t = "Live"; }
+        if (displayRainRate > mx_r) { mx_r = displayRainRate; mx_r_t = "Live"; }
 
         state.cachedData = {
             temp: { current: liveTemp, dew: liveDew, max: mx_t, maxTime: mx_t_time, min: mn_t, minTime: mn_t_time, realFeel: calculateRealFeel(liveTemp, liveHum), rate: tRate },
             atmo: { hum: liveHum, hTrend: hTrend, press: livePress, pTrend, sol: d.solar_and_uvi?.solar?.value || 0, uv: d.solar_and_uvi?.uvi?.value || 0 },
             wind: { speed: liveWind, gust: liveGust, maxS: mx_w, maxSTime: mx_w_t, maxG: mx_g, maxGTime: mx_g_t, deg: d.wind.wind_direction.value, card: getCard(d.wind.wind_direction.value) },
-            rain: { total: liveRain24h, weekly: liveRainWeekly, monthly: liveRainMonthly, yearly: liveRainYearly, rate: liveRainRate, maxR: mx_r, maxRTime: mx_r_t },
+            rain: { total: liveRain24h, weekly: liveRainWeekly, monthly: liveRainMonthly, yearly: liveRainYearly, rate: displayRainRate, maxR: mx_r, maxRTime: mx_r_t },
             history: graphHistory,
             lastSync: new Date().toISOString()
         };
@@ -450,9 +458,15 @@ app.get("/", (req, res) => {
                 document.getElementById('mg').innerHTML = d.wind.maxG + ' km/h <span class="time-mark">' + d.wind.maxGTime + '</span>';
                 document.getElementById('needle').style.transform = 'rotate(' + d.wind.deg + 'deg)';
                 liveWindSpeed = d.wind.speed; liveWindDeg = d.wind.deg;
+                
+                // Rain realm logic updates
                 document.getElementById('r_tot').innerText = d.rain.total; 
                 document.getElementById('r_rate').innerText = d.rain.rate;
+                document.getElementById('r_week').innerText = d.rain.weekly + ' mm';
+                document.getElementById('r_month').innerText = d.rain.monthly + ' mm';
+                document.getElementById('r_year').innerText = d.rain.yearly + ' mm';
                 document.getElementById('mr').innerHTML = d.rain.maxR > 0 ? d.rain.maxR + ' mm/h <span class="time-mark">' + d.rain.maxRTime + '</span>' : '0 mm/h';
+                
                 document.getElementById('pr').innerText = d.atmo.press;
                 document.getElementById('sol').innerText = d.atmo.sol + ' W/m²'; 
                 document.getElementById('uv').innerText = d.atmo.uv;
