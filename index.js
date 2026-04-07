@@ -357,15 +357,6 @@ app.get("/", (req, res) => {
         .label { color: var(--accent); font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 6px; }
         .main-val { font-size: 56px; font-weight: 900; margin: 0; letter-spacing: -2px; display: flex; align-items: baseline; line-height: 1.1; }
         
-        /* MODERN TRANSIENT EFFECTS */
-        .main-val span:not(.unit), .badge-val { 
-            display: inline-block; 
-            transition: all 0.6s cubic-bezier(0.34, 1.56, 0.64, 1); 
-            font-variant-numeric: tabular-nums; 
-        }
-        @keyframes valueUpdate { 0% { transform: scale(1); } 50% { transform: scale(1.05); color: #10b981; } 100% { transform: scale(1); } }
-        .updated { animation: valueUpdate 0.8s ease-out; }
-        
         .unit { font-size: 20px; font-weight: 600; color: var(--muted); margin-left: 4px; letter-spacing: 0; }
         .sub-pill { font-size: 12px; font-weight: 800; padding: 6px 12px; border-radius: 10px; background: var(--badge); display: inline-flex; align-items: center; gap: 4px; margin: 12px 0 20px 0; }
 
@@ -384,39 +375,34 @@ app.get("/", (req, res) => {
         .trend-up { color: #f43f5e; } .trend-down { color: #0ea5e9; }
         .time-mark { font-size: 9px; color: var(--muted); font-weight: 600; margin-left: 2px; background: rgba(0,0,0,0.04); padding: 1px 4px; border-radius: 4px; }
         body.is-night .time-mark { background: rgba(255,255,255,0.1); }
+
+        /* FIXED: Archive Styles moved inside style tag */
+        .view-toggle { background: var(--card); border: 1px solid var(--border); padding: 4px; border-radius: 12px; display: flex; gap: 4px; margin-right: 12px; }
+        .view-btn { padding: 6px 14px; border-radius: 8px; font-size: 11px; font-weight: 800; cursor: pointer; color: var(--muted); transition: 0.3s; letter-spacing: 0.5px; }
+        .view-btn.active { background: var(--accent); color: white; }
+
+        #archive-view { display: none; margin-top: 20px; animation: fadeIn 0.4s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        .archive-filters { display: flex; gap: 10px; margin-bottom: 20px; align-items: center; }
+        .sum-select { background: var(--card); color: var(--text); border: 1px solid var(--border); padding: 10px; border-radius: 12px; font-family: 'Outfit'; font-weight: 600; outline: none; }
+
+        .archive-table-wrapper { overflow-x: auto; background: var(--card); border-radius: 24px; border: 1px solid var(--border); }
+        .archive-table { width: 100%; border-collapse: collapse; min-width: 500px; }
+        .archive-table th { padding: 15px; text-align: left; font-size: 10px; text-transform: uppercase; color: var(--muted); border-bottom: 1px solid var(--border); }
+        .archive-table td { padding: 15px; font-weight: 600; font-size: 14px; border-bottom: 1px solid rgba(2, 132, 199, 0.05); }
+        body.is-night .archive-table td { border-bottom: 1px solid rgba(255, 255, 255, 0.05); }
     </style>
-
-    /* View Toggle Menu */
-.view-toggle { background: var(--card); border: 1px solid var(--border); padding: 4px; border-radius: 12px; display: flex; gap: 4px; margin-right: 12px; }
-.view-btn { padding: 6px 14px; border-radius: 8px; font-size: 11px; font-weight: 800; cursor: pointer; color: var(--muted); transition: 0.3s; letter-spacing: 0.5px; }
-.view-btn.active { background: var(--accent); color: white; }
-
-/* Archive View Layout */
-#archive-view { display: none; margin-top: 20px; animation: fadeIn 0.4s ease-out; }
-@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-
-.archive-filters { display: flex; gap: 10px; margin-bottom: 20px; align-items: center; }
-.sum-select { background: var(--card); color: var(--text); border: 1px solid var(--border); padding: 10px; border-radius: 12px; font-family: 'Outfit'; font-weight: 600; outline: none; }
-
-.archive-table-wrapper { overflow-x: auto; background: var(--card); border-radius: 24px; border: 1px solid var(--border); }
-.archive-table { width: 100%; border-collapse: collapse; min-width: 500px; }
-.archive-table th { padding: 15px; text-align: left; font-size: 10px; text-transform: uppercase; color: var(--muted); border-bottom: 1px solid var(--border); }
-.archive-table td { padding: 15px; font-weight: 600; font-size: 14px; border-bottom: 1px solid rgba(2, 132, 199, 0.05); }
-body.is-night .archive-table td { border-bottom: 1px solid rgba(255, 255, 255, 0.05); }
-
-
-
-    
 </head>
 <body>
     <div class="container">
         <div class="header">
             <h1>KK Nagar Weather Hub</h1>
             <div class="header-actions">
-            <div class="view-toggle" id="viewToggle">
-            <div class="view-btn active" id="show-live">LIVE</div>
-            <div class="view-btn" id="show-archive">ARCHIVE</div>
-            </div>
+                <div class="view-toggle" id="viewToggle">
+                    <div class="view-btn active" id="show-live">LIVE</div>
+                    <div class="view-btn" id="show-archive">ARCHIVE</div>
+                </div>
                 <div class="status-bar"><div class="live-dot"></div><div class="timestamp"><span id="ts">--:--:--</span></div></div>
                 <div class="theme-toggle" id="themeToggle">
                     <div class="theme-btn" id="btn-light">LIGHT</div>
@@ -482,102 +468,89 @@ body.is-night .archive-table td { border-bottom: 1px solid rgba(255, 255, 255, 0
         </div>
 
         <div id="archive-view">
-    <div class="archive-filters">
-        <select id="sel-month" class="sum-select">
-            <option value="1">January</option><option value="2">February</option>
-            <option value="3">March</option><option value="4">April</option>
-            <option value="5">May</option><option value="6">June</option>
-            <option value="7">July</option><option value="8">August</option>
-            <option value="9">September</option><option value="10">October</option>
-            <option value="11">November</option><option value="12">December</option>
-        </select>
-        <select id="sel-year" class="sum-select">
-            <option value="2026">2026</option>
-            <option value="2025">2025</option>
-        </select>
-        <button id="fetch-btn" class="view-btn active" style="padding: 10px 20px;">VIEW SUMMARY</button>
-    </div>
+            <div class="archive-filters">
+                <select id="sel-month" class="sum-select">
+                    <option value="1">January</option><option value="2">February</option>
+                    <option value="3">March</option><option value="4">April</option>
+                    <option value="5">May</option><option value="6">June</option>
+                    <option value="7">July</option><option value="8">August</option>
+                    <option value="9">September</option><option value="10">October</option>
+                    <option value="11">November</option><option value="12">December</option>
+                </select>
+                <select id="sel-year" class="sum-select">
+                    <option value="2026">2026</option>
+                    <option value="2025">2025</option>
+                </select>
+                <button id="fetch-btn" class="view-btn active" style="padding: 10px 20px;">VIEW SUMMARY</button>
+            </div>
 
-    <div class="archive-table-wrapper">
-        <table class="archive-table">
-            <thead>
-                <tr>
-                    <th>Date</th>
-                    <th>Max Temp</th>
-                    <th>Min Temp</th>
-                    <th>Max Wind</th>
-                    <th>Total Rain</th>
-                </tr>
-            </thead>
-            <tbody id="archive-body">
-                <tr><td colspan="5" style="text-align:center; color:var(--muted); padding:40px;">Select month and click View</td></tr>
-            </tbody>
-        </table>
-    </div>
-</div>
-
+            <div class="archive-table-wrapper">
+                <table class="archive-table">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Max Temp</th>
+                            <th>Min Temp</th>
+                            <th>Max Wind</th>
+                            <th>Total Rain</th>
+                        </tr>
+                    </thead>
+                    <tbody id="archive-body">
+                        <tr><td colspan="5" style="text-align:center; color:var(--muted); padding:40px;">Select month and click View</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
     </div>
 
     <script>
+        // FIXED: Swapped backticks for single quotes to avoid crashing Node.js
+        const liveElements = [document.querySelector('.grid-system'), document.querySelector('.graphs-wrapper')];
+        const archiveView = document.getElementById('archive-view');
 
-        // 1. Toggle between Live and Archive views
-const liveElements = [document.querySelector('.grid-system'), document.querySelector('.graphs-wrapper')];
-const archiveView = document.getElementById('archive-view');
+        document.getElementById('show-live').onclick = function() {
+            this.classList.add('active');
+            document.getElementById('show-archive').classList.remove('active');
+            archiveView.style.display = 'none';
+            liveElements.forEach(el => el.style.display = 'grid');
+        };
 
-document.getElementById('show-live').onclick = function() {
-    this.classList.add('active');
-    document.getElementById('show-archive').classList.remove('active');
-    archiveView.style.display = 'none';
-    liveElements.forEach(el => el.style.display = 'grid');
-};
+        document.getElementById('show-archive').onclick = function() {
+            this.classList.add('active');
+            document.getElementById('show-live').classList.remove('active');
+            liveElements.forEach(el => el.style.display = 'none');
+            archiveView.style.display = 'block';
+            const now = new Date();
+            document.getElementById('sel-month').value = now.getMonth() + 1;
+        };
 
-document.getElementById('show-archive').onclick = function() {
-    this.classList.add('active');
-    document.getElementById('show-live').classList.remove('active');
-    liveElements.forEach(el => el.style.display = 'none');
-    archiveView.style.display = 'block';
-    
-    // Auto-select current month
-    const now = new Date();
-    document.getElementById('sel-month').value = now.getMonth() + 1;
-};
+        document.getElementById('fetch-btn').onclick = async () => {
+            const m = document.getElementById('sel-month').value;
+            const y = document.getElementById('sel-year').value;
+            const body = document.getElementById('archive-body');
+            body.innerHTML = '<tr><td colspan="5" style="text-align:center;">Loading Archive...</td></tr>';
+            try {
+                const res = await fetch('/api/summary?month=' + m + '&year=' + y);
+                const data = await res.json();
+                if (data.length === 0) {
+                    body.innerHTML = '<tr><td colspan="5" style="text-align:center; color:var(--muted);">No data found for this period.</td></tr>';
+                    return;
+                }
+                body.innerHTML = data.map(row => {
+                    const d = new Date(row.record_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' });
+                    return '<tr>' +
+                        '<td style="color:var(--accent)">' + d + '</td>' +
+                        '<td style="color:#ef4444">' + parseFloat(row.max_temp_c).toFixed(1) + '°C</td>' +
+                        '<td style="color:#0ea5e9">' + parseFloat(row.min_temp_c).toFixed(1) + '°C</td>' +
+                        '<td>' + (row.max_wind_kmh ? parseFloat(row.max_wind_kmh).toFixed(1) + ' km/h' : '--') + '</td>' +
+                        '<td>' + parseFloat(row.total_rain_mm).toFixed(1) + ' mm</td>' +
+                        '</tr>';
+                }).join('');
+            } catch (err) {
+                body.innerHTML = '<tr><td colspan="5" style="text-align:center; color:#ef4444;">Error loading data.</td></tr>';
+            }
+        };
 
-// 2. Fetch Summary Data
-document.getElementById('fetch-btn').onclick = async () => {
-    const m = document.getElementById('sel-month').value;
-    const y = document.getElementById('sel-year').value;
-    const body = document.getElementById('archive-body');
-    
-    body.innerHTML = '<tr><td colspan="5" style="text-align:center;">Loading Archive...</td></tr>';
-    
-    try {
-        const res = await fetch(`/api/summary?month=${m}&year=${y}`);
-        const data = await res.json();
-        
-        if (data.length === 0) {
-            body.innerHTML = '<tr><td colspan="5" style="text-align:center; color:var(--muted);">No data found for this period.</td></tr>';
-            return;
-        }
-
-        body.innerHTML = data.map(row => {
-            const d = new Date(row.record_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' });
-            return `
-                <tr>
-                    <td style="color:var(--accent)">${d}</td>
-                    <td style="color:#ef4444">${parseFloat(row.max_temp_c).toFixed(1)}°C</td>
-                    <td style="color:#0ea5e9">${parseFloat(row.min_temp_c).toFixed(1)}°C</td>
-                    <td>${row.max_wind_kmh ? parseFloat(row.max_wind_kmh).toFixed(1) + ' km/h' : '--'}</td>
-                    <td>${parseFloat(row.total_rain_mm).toFixed(1)} mm</td>
-                </tr>
-            `;
-        }).join('');
-    } catch (err) {
-        body.innerHTML = '<tr><td colspan="5" style="text-align:center; color:#ef4444;">Error loading data.</td></tr>';
-    }
-};
-
-
-    
         let currentMode = localStorage.getItem('weatherMode') || 'auto';
         let charts = {};
         let liveWindSpeed = 0, liveWindDeg = 0, particles = [];
@@ -586,53 +559,19 @@ document.getElementById('fetch-btn').onclick = async () => {
 
         for(let i=0; i<30; i++) { particles.push({ x: Math.random() * 800, y: Math.random() * 800, s: 0.6 + Math.random() }); }
 
-        Chart.register({
-            id: 'customChartEnhancements',
-            afterDraw: (chart) => {
-                if (chart.tooltip?._active?.length) {
-                    const x = chart.tooltip._active[0].element.x;
-                    const yAxis = chart.scales.y;
-                    const ctx = chart.ctx;
-                    ctx.save(); ctx.setLineDash([5, 5]); ctx.beginPath(); ctx.moveTo(x, yAxis.top); ctx.lineTo(x, yAxis.bottom);
-                    ctx.lineWidth = 1; ctx.strokeStyle = document.body.classList.contains('is-night') ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.1)';
-                    ctx.stroke(); ctx.restore();
-                }
-            },
-            afterDatasetsDraw: (chart) => {
-                const { ctx, data } = chart;
-                const dataset = data.datasets[0];
-                if (!dataset || !dataset.data || dataset.data.length < 2) return;
-                const maxVal = Math.max(...dataset.data);
-                const maxIndex = dataset.data.lastIndexOf(maxVal);
-                const meta = chart.getDatasetMeta(0);
-                const point = meta.data[maxIndex];
-                if (point && maxVal > -50) { 
-                    ctx.save(); ctx.beginPath(); ctx.arc(point.x, point.y, 5, 0, 2 * Math.PI); ctx.strokeStyle = dataset.borderColor; ctx.lineWidth = 2; ctx.stroke();
-                    ctx.beginPath(); ctx.arc(point.x, point.y, 2, 0, 2 * Math.PI); ctx.fillStyle = '#fff'; ctx.fill();
-                    ctx.fillStyle = document.body.classList.contains('is-night') ? '#94a3b8' : '#475569'; ctx.font = 'bold 10px Outfit'; ctx.textAlign = 'center'; ctx.fillText('MAX', point.x, point.y - 12); ctx.restore();
-                }
-            }
-        });
-
         function applyTheme() {
-    const hour = new Date().getHours();
-    
-    // 1. Handle Body Class
-    if (currentMode === 'dark' || (currentMode === 'auto' && (hour >= 18 || hour < 6))) {
-        document.body.classList.add('is-night');
-    } else {
-        document.body.classList.remove('is-night');
-    }
-
-    // 2. Handle Button Highlights (The missing logic)
-    document.querySelectorAll('.theme-btn').forEach(btn => btn.classList.remove('active'));
-    if (currentMode === 'light') document.getElementById('btn-light').classList.add('active');
-    else if (currentMode === 'dark') document.getElementById('btn-dark').classList.add('active');
-    else document.getElementById('btn-auto').classList.add('active');
-
-    if (charts.cT) updateChartColors();
-}
-
+            const hour = new Date().getHours();
+            if (currentMode === 'dark' || (currentMode === 'auto' && (hour >= 18 || hour < 6))) {
+                document.body.classList.add('is-night');
+            } else {
+                document.body.classList.remove('is-night');
+            }
+            document.querySelectorAll('.theme-btn').forEach(btn => btn.classList.remove('active'));
+            if (currentMode === 'light') document.getElementById('btn-light').classList.add('active');
+            else if (currentMode === 'dark') document.getElementById('btn-dark').classList.add('active');
+            else document.getElementById('btn-auto').classList.add('active');
+            if (charts.cT) updateChartColors();
+        }
 
         document.getElementById('btn-light').onclick = () => { currentMode = 'light'; localStorage.setItem('weatherMode', 'light'); applyTheme(); };
         document.getElementById('btn-dark').onclick = () => { currentMode = 'dark'; localStorage.setItem('weatherMode', 'dark'); applyTheme(); };
@@ -666,7 +605,6 @@ document.getElementById('fetch-btn').onclick = async () => {
             });
         }
         
-        // ANIMATION HELPER
         function animateValue(id, start, end, decimals = 1) {
             const obj = document.getElementById(id);
             if (!obj || start === end) return;
@@ -689,16 +627,12 @@ document.getElementById('fetch-btn').onclick = async () => {
                 const d = await res.json(); 
                 if (!d || d.error) return;
                 
-                // Animated Value Updates
                 const oldT = parseFloat(document.getElementById('t').innerText) || 0;
                 animateValue('t', oldT, d.temp.current, 1);
-                
                 const oldW = parseFloat(document.getElementById('w').innerText) || 0;
                 animateValue('w', oldW, d.wind.speed, 1);
-                
                 const oldR = parseFloat(document.getElementById('r_tot').innerText) || 0;
                 animateValue('r_tot', oldR, d.rain.total, 1);
-                
                 const oldRR = parseFloat(document.getElementById('r_rate').innerText) || 0;
                 animateValue('r_rate', oldRR, d.rain.rate, 1);
 
@@ -770,9 +704,3 @@ document.getElementById('fetch-btn').onclick = async () => {
 </html>
     `);
 });
-
-if (process.env.NODE_ENV !== 'production') {
-    app.listen(3000, () => console.log(`Running at http://localhost:3000`));
-}
-
-module.exports = app;
