@@ -145,20 +145,17 @@ async function syncWithEcowitt(forceWrite = false) {
                 customRateIn = state.lastCalculatedRate;
             }
         } else {
-          // INITIALIZATION: Prime the system immediately
-         // This ensures the NEXT 45s fetch can calculate a delta
-         state.lastRainRaw = rawDailyInches;
-         state.lastRainTime = now;
-         state.lastCalculatedRate = 0;
+          // INITIALIZATION
+          state.lastRainRaw = rawDailyInches;
+          state.lastRainTime = now;
+          state.lastCalculatedRate = 0;
         }
 
-        
         state.lastRainRaw = rawDailyInches;
         const displayRainRate = parseFloat((customRateIn * 25.4).toFixed(1));
 
         // ---------------------------------------------------------------------
-        // THE BUFFER FIX
-        // Ensure buffers populate on the very first pull after a database reset
+        // THE BUFFER LOGIC
         // ---------------------------------------------------------------------
         if (state.tW === null || d.wind.wind_speed.value > state.bufW) { state.bufW = d.wind.wind_speed.value; state.tW = currentTimeStamp; }
         if (state.tG === null || d.wind.wind_gust.value > state.bufG) { state.bufG = d.wind.wind_gust.value; state.tG = currentTimeStamp; }
@@ -167,24 +164,8 @@ async function syncWithEcowitt(forceWrite = false) {
         if (state.tRR === null || customRateIn > state.bufRR) { state.bufRR = customRateIn; state.tRR = currentTimeStamp; }
 
         /**
-         * DAILY ARCHIVING & CLEANUP
-         */
-        const todayIST = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
-        const dateCheck = await pool.query(`SELECT (time AT TIME ZONE 'Asia/Kolkata')::date as record_date FROM weather_history ORDER BY time ASC LIMIT 1`);
-        
-        if (dateCheck.rows.length > 0) {
-            const oldestDate = new Date(dateCheck.rows[0].record_date).toLocaleDateString('en-CA');
-            if (oldestDate !== todayIST) {
-                await pool.query(`
-                    INSERT INTO daily_max_records (record_date, max_temp_c, min_temp_c, max_wind_kmh, max_gust_kmh, total_rain_mm) 
-                    SELECT $1, MAX((temp_f - 32) * 5/9), MIN((temp_min_f - 32) * 5/9), MAX(wind_speed_mph * 1.60934), MAX(wind_gust_mph * 1.60934), MAX(daily_rain_in * 25.4) 
-                    FROM weather_history WHERE (time AT TIME ZONE 'Asia/Kolkata')::date = $1::date;`, [oldestDate]);
-                await pool.query(`DELETE FROM weather_history WHERE (time AT TIME ZONE 'Asia/Kolkata')::date < (NOW() AT TIME ZONE 'Asia/Kolkata')::date;`);
-            }
-        }
-
-        /**
-         * DATABASE WRITE
+         * STEP 1: DATABASE WRITE (FIX: Moved to run before Archiving)
+         * This ensures the 12:00 AM data is in the DB for the daily summary calculation.
          */
         if (forceWrite) {
             try {
@@ -195,12 +176,38 @@ async function syncWithEcowitt(forceWrite = false) {
                     VALUES (NOW(), $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`, 
                     [state.bufMaxT, liveHum, state.bufW, state.bufG, d.rainfall.daily.value, d.solar_and_uvi?.solar?.value || 0, livePress, state.bufRR, state.bufMinT,
                      state.tMaxT, state.tMinT, state.tW, state.tG, state.tRR]);
-                resetStateBuffers();
+                
                 state.lastDbWrite = now;
+                // Note: resetStateBuffers() moved to after Archiving
             } catch (err) { 
                 console.error("DB Error:", err.message); 
                 if (now - state.lastFetchTime > 900000) resetStateBuffers();
             }
+        }
+
+        /**
+         * STEP 2: DAILY ARCHIVING & CLEANUP
+         */
+        const todayIST = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+        const dateCheck = await pool.query(`SELECT (time AT TIME ZONE 'Asia/Kolkata')::date as record_date FROM weather_history ORDER BY time ASC LIMIT 1`);
+        
+        if (dateCheck.rows.length > 0) {
+            const oldestDate = new Date(dateCheck.rows[0].record_date).toLocaleDateString('en-CA');
+            if (oldestDate !== todayIST) {
+                // Now including the 12:00 AM row we just inserted in Step 1
+                await pool.query(`
+                    INSERT INTO daily_max_records (record_date, max_temp_c, min_temp_c, max_wind_kmh, max_gust_kmh, total_rain_mm) 
+                    SELECT $1, MAX((temp_f - 32) * 5/9), MIN((temp_min_f - 32) * 5/9), MAX(wind_speed_mph * 1.60934), MAX(wind_gust_mph * 1.60934), MAX(daily_rain_in * 25.4) 
+                    FROM weather_history WHERE (time AT TIME ZONE 'Asia/Kolkata')::date = $1::date;`, [oldestDate]);
+                await pool.query(`DELETE FROM weather_history WHERE (time AT TIME ZONE 'Asia/Kolkata')::date < (NOW() AT TIME ZONE 'Asia/Kolkata')::date;`);
+            }
+        }
+
+        /**
+         * STEP 3: RESET BUFFERS (FIX: Reset after Archiving)
+         */
+        if (forceWrite) {
+            resetStateBuffers();
         }
 
         // History Processing
@@ -244,9 +251,6 @@ async function syncWithEcowitt(forceWrite = false) {
         const bufGustKmh = parseFloat((state.bufG * 1.60934).toFixed(1));
         const bufRainMm = parseFloat((state.bufRR * 25.4).toFixed(1));
 
-        // -------------------------------------------------------------
-        // FIX 2: Format the state memory timestamps instead of hardcoding text
-        // -------------------------------------------------------------
         const formatLiveTime = (iso) => iso ? new Date(iso).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' }) : "--:--";
 
         if (bufWindKmh > mx_w) { mx_w = bufWindKmh; mx_w_t = formatLiveTime(state.tW); }
@@ -266,6 +270,7 @@ async function syncWithEcowitt(forceWrite = false) {
         return state.cachedData;
     } catch (e) { return { error: e.message }; }
 }
+
 
 /**
  * ROUTES
