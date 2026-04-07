@@ -385,11 +385,31 @@ app.get("/", (req, res) => {
             transition: all 0.6s cubic-bezier(0.34, 1.56, 0.64, 1); 
             font-variant-numeric: tabular-nums; 
         }
-                @keyframes fadeInUpdate { 
-            0% { opacity: 0; transform: translateY(6px); color: #10b981; } 
-            100% { opacity: 1; transform: translateY(0); } 
-        }
-        .fade-update { animation: fadeInUpdate 0.8s cubic-bezier(0.2, 0.8, 0.2, 1); }
+
+        /* The "Magic" Animation */
+@keyframes magicFade {
+    0% { 
+        opacity: 0; 
+        filter: blur(12px);          /* Starts blurry */
+        transform: scale(0.8) translateY(10px); /* Starts small and lower */
+        color: #10b981;              /* Optional: Flash green on change */
+    }
+    30% {
+        opacity: 0.8;
+        filter: blur(4px);           /* Rapidly clears up */
+    }
+    100% { 
+        opacity: 1; 
+        filter: blur(0);             /* Perfectly sharp */
+        transform: scale(1) translateY(0);    /* Settles into position */
+    }
+}
+
+.fade-update { 
+    animation: magicFade 1.5s cubic-bezier(0.16, 1, 0.3, 1); 
+    will-change: transform, opacity, filter;
+}
+
 
         
         .unit { font-size: 20px; font-weight: 600; color: var(--muted); margin-left: 4px; letter-spacing: 0; }
@@ -576,20 +596,30 @@ app.get("/", (req, res) => {
             });
         }
         
-            // ANIMATION HELPER (Fade Update with Suffix)
-            function updateValueWithFade(id, newValue, decimals = 1, suffix = "") {
-            const obj = document.getElementById(id);
-            if (!obj) return;
-            const formattedValue = parseFloat(newValue).toFixed(decimals) + suffix;
+        function updateValueWithFade(id, newValue, decimals = 1, suffix = "") {
+    const obj = document.getElementById(id);
+    if (!obj) return;
+    
+    // Safety check for null/undefined data
+    const val = newValue !== undefined && newValue !== null ? newValue : 0;
+    const formattedValue = parseFloat(val).toFixed(decimals) + suffix;
 
-            // Only animate if the text actually changed
-            if (obj.innerText !== formattedValue) {
-                obj.classList.remove('fade-update');
-                void obj.offsetWidth; // Trigger reflow
-                obj.innerText = formattedValue;
-                obj.classList.add('fade-update');
-            }
-        }
+    // Only trigger if the value actually changed
+    if (obj.innerText !== formattedValue) {
+        obj.classList.remove('fade-update');
+        
+        // Brief invisible pause makes the "Magic" pop more
+        obj.style.opacity = "0"; 
+        
+        setTimeout(() => {
+            void obj.offsetWidth; // Force CSS refresh
+            obj.innerText = formattedValue;
+            obj.style.opacity = "1";
+            obj.classList.add('fade-update');
+        }, 50); 
+    }
+}
+
      
 
         async function update() {
