@@ -594,7 +594,9 @@ app.get("/", (req, res) => {
     // First-time setup: Wrap the number in our grid container
     if (!obj.classList.contains('val-slider')) {
         obj.classList.add('val-slider');
-        obj.innerHTML = `<span class="current-val">${formattedValue}</span>`;
+        // THE CORRECTED LINE
+obj.innerHTML = '<span class="current-val">' + formattedValue + '</span>';
+
         obj.dataset.raw = val; // Store exact numerical value for comparison
         return;
     }
