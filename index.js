@@ -386,31 +386,18 @@ app.get("/", (req, res) => {
             font-variant-numeric: tabular-nums; 
         }
 
-        /* "Moderate" Magic Animation - Replaces your current version */
-@keyframes magicFade {
-    0% { 
-        opacity: 0; 
-        filter: blur(15px);          /* Heavier blur at start */
-        transform: translateY(12px) scale(0.95); 
-    }
-    60% {
-        opacity: 0.5;                /* Still faint and blurry more than halfway through */
-        filter: blur(6px);
-    }
-    100% { 
-        opacity: 1; 
-        filter: blur(0);             /* Full clarity only at the very end */
-        transform: translateY(0) scale(1);
-    }
+        /* Mechanical Slider Container */
+.val-slider {
+    display: inline-grid; /* Stacks the old and new numbers on top of each other */
+    overflow: hidden;     /* Hides the numbers when they slide out of bounds */
+    vertical-align: bottom; /* Keeps it aligned with your °C and km/h units */
 }
 
-.fade-update { 
-    /* Changed from 1.5s to 2.0s for that moderate pace */
-    animation: magicFade 2.0s cubic-bezier(0.33, 1, 0.68, 1); 
-    will-change: transform, opacity, filter;
+.val-slider span {
+    grid-area: 1 / 1;
+    /* 0.4s duration with a slight "spring" at the end like a mechanical gear */
+    transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); 
 }
-
-
 
         
         .unit { font-size: 20px; font-weight: 600; color: var(--muted); margin-left: 4px; letter-spacing: 0; }
@@ -597,29 +584,57 @@ app.get("/", (req, res) => {
             });
         }
         
-        function updateValueWithFade(id, newValue, decimals = 1, suffix = "") {
+        function updateValueWithSlide(id, newValue, decimals = 1, suffix = "") {
     const obj = document.getElementById(id);
     if (!obj) return;
-    
-    // Safety check for null/undefined data
+
     const val = newValue !== undefined && newValue !== null ? newValue : 0;
     const formattedValue = parseFloat(val).toFixed(decimals) + suffix;
 
-    // Only trigger if the value actually changed
-    if (obj.innerText !== formattedValue) {
-        obj.classList.remove('fade-update');
-        
-        // Brief invisible pause makes the "Magic" pop more
-        obj.style.opacity = "0"; 
-        
-        setTimeout(() => {
-            void obj.offsetWidth; // Force CSS refresh
-            obj.innerText = formattedValue;
-            obj.style.opacity = "1";
-            obj.classList.add('fade-update');
-        }, 75); 
+    // First-time setup: Wrap the number in our grid container
+    if (!obj.classList.contains('val-slider')) {
+        obj.classList.add('val-slider');
+        obj.innerHTML = `<span class="current-val">${formattedValue}</span>`;
+        obj.dataset.raw = val; // Store exact numerical value for comparison
+        return;
     }
+
+    const currentSpan = obj.querySelector('.current-val');
+    // Don't animate if the value hasn't changed
+    if (!currentSpan || currentSpan.innerText === formattedValue) return;
+
+    // Check direction: Up or Down
+    const oldVal = parseFloat(obj.dataset.raw || 0);
+    const isGoingUp = parseFloat(val) > oldVal; 
+    obj.dataset.raw = val; // Update stored value
+
+    // Create the incoming number
+    const nextSpan = document.createElement('span');
+    nextSpan.innerText = formattedValue;
+    nextSpan.className = 'next-val';
+    
+    // Position the new number out of sight before animating
+    // If going UP, new number hides at the BOTTOM (100%)
+    // If going DOWN, new number hides at the TOP (-100%)
+    nextSpan.style.transform = isGoingUp ? 'translateY(100%)' : 'translateY(-100%)';
+    
+    obj.appendChild(nextSpan);
+
+    // Force browser reflow so it registers the starting position
+    void obj.offsetWidth;
+
+    // Trigger the slide animation
+    currentSpan.style.transform = isGoingUp ? 'translateY(-100%)' : 'translateY(100%)';
+    nextSpan.style.transform = 'translateY(0)';
+
+    // Cleanup: Remove the old number after the animation finishes
+    setTimeout(() => {
+        if (currentSpan.parentNode) currentSpan.remove();
+        nextSpan.className = 'current-val';
+        nextSpan.style.transform = 'none'; // Lock it into place
+    }, 400); // Matches the 0.4s transition in the CSS
 }
+
 
      
 
@@ -629,13 +644,12 @@ app.get("/", (req, res) => {
                 const d = await res.json(); 
                 if (!d || d.error) return;
 
-                // Fade Value Updates
-                updateValueWithFade('t', d.temp.current, 1);
-                updateValueWithFade('w', d.wind.speed, 1);
-                updateValueWithFade('r_tot', d.rain.total, 1);
-                updateValueWithFade('r_rate', d.rain.rate, 1);
-                updateValueWithFade('wg', d.wind.gust, 1, ' km/h'); // This handles it now!
-
+                // Slide Value Updates
+                updateValueWithSlide('t', d.temp.current, 1);
+                updateValueWithSlide('w', d.wind.speed, 1);
+                updateValueWithSlide('r_tot', d.rain.total, 1);
+                updateValueWithSlide('r_rate', d.rain.rate, 1);
+                updateValueWithSlide('wg', d.wind.gust, 1, ' km/h');
 
                 document.getElementById('tTrendBox').innerHTML = d.temp.rate > 0 ? '<span class="trend-up">▲</span> +' + d.temp.rate + '°C /hr' : d.temp.rate < 0 ? '<span class="trend-down">▼</span> ' + d.temp.rate + '°C /hr' : '● Steady';
                 document.getElementById('mx').innerHTML = d.temp.max + '°C <span class="time-mark">' + d.temp.maxTime + '</span>';
