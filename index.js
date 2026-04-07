@@ -617,7 +617,7 @@ app.get("/", (req, res) => {
             obj.innerText = formattedValue;
             obj.style.opacity = "1";
             obj.classList.add('fade-update');
-        }, 100); 
+        }, 75); 
     }
 }
 
