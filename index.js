@@ -385,8 +385,12 @@ app.get("/", (req, res) => {
             transition: all 0.6s cubic-bezier(0.34, 1.56, 0.64, 1); 
             font-variant-numeric: tabular-nums; 
         }
-        @keyframes valueUpdate { 0% { transform: scale(1); } 50% { transform: scale(1.05); color: #10b981; } 100% { transform: scale(1); } }
-        .updated { animation: valueUpdate 0.8s ease-out; }
+                @keyframes fadeInUpdate { 
+            0% { opacity: 0; transform: translateY(6px); color: #10b981; } 
+            100% { opacity: 1; transform: translateY(0); } 
+        }
+        .fade-update { animation: fadeInUpdate 0.8s cubic-bezier(0.2, 0.8, 0.2, 1); }
+
         
         .unit { font-size: 20px; font-weight: 600; color: var(--muted); margin-left: 4px; letter-spacing: 0; }
         .sub-pill { font-size: 12px; font-weight: 800; padding: 6px 12px; border-radius: 10px; background: var(--badge); display: inline-flex; align-items: center; gap: 4px; margin: 12px 0 20px 0; }
@@ -572,41 +576,35 @@ app.get("/", (req, res) => {
             });
         }
         
-        // ANIMATION HELPER
-        function animateValue(id, start, end, decimals = 1) {
+            // ANIMATION HELPER (Fade Update with Suffix)
+            function updateValueWithFade(id, newValue, decimals = 1, suffix = "") {
             const obj = document.getElementById(id);
-            if (!obj || start === end) return;
-            const duration = 1000;
-            let startTimestamp = null;
-            const step = (timestamp) => {
-                if (!startTimestamp) startTimestamp = timestamp;
-                const progress = Math.min((timestamp - startTimestamp) / duration, 1);
-                const current = (progress * (end - start)) + start;
-                obj.innerHTML = current.toFixed(decimals);
-                if (progress < 1) { window.requestAnimationFrame(step); } 
-                else { obj.classList.add('updated'); setTimeout(() => obj.classList.remove('updated'), 1000); }
-            };
-            window.requestAnimationFrame(step);
+            if (!obj) return;
+            const formattedValue = parseFloat(newValue).toFixed(decimals) + suffix;
+
+            // Only animate if the text actually changed
+            if (obj.innerText !== formattedValue) {
+                obj.classList.remove('fade-update');
+                void obj.offsetWidth; // Trigger reflow
+                obj.innerText = formattedValue;
+                obj.classList.add('fade-update');
+            }
         }
+     
 
         async function update() {
             try {
                 const res = await fetch('/weather?v=' + Date.now()); 
                 const d = await res.json(); 
                 if (!d || d.error) return;
-                
-                // Animated Value Updates
-                const oldT = parseFloat(document.getElementById('t').innerText) || 0;
-                animateValue('t', oldT, d.temp.current, 1);
-                
-                const oldW = parseFloat(document.getElementById('w').innerText) || 0;
-                animateValue('w', oldW, d.wind.speed, 1);
-                
-                const oldR = parseFloat(document.getElementById('r_tot').innerText) || 0;
-                animateValue('r_tot', oldR, d.rain.total, 1);
-                
-                const oldRR = parseFloat(document.getElementById('r_rate').innerText) || 0;
-                animateValue('r_rate', oldRR, d.rain.rate, 1);
+
+                // Fade Value Updates
+                updateValueWithFade('t', d.temp.current, 1);
+                updateValueWithFade('w', d.wind.speed, 1);
+                updateValueWithFade('r_tot', d.rain.total, 1);
+                updateValueWithFade('r_rate', d.rain.rate, 1);
+                updateValueWithFade('wg', d.wind.gust, 1, ' km/h'); // This handles it now!
+
 
                 document.getElementById('tTrendBox').innerHTML = d.temp.rate > 0 ? '<span class="trend-up">▲</span> +' + d.temp.rate + '°C /hr' : d.temp.rate < 0 ? '<span class="trend-down">▼</span> ' + d.temp.rate + '°C /hr' : '● Steady';
                 document.getElementById('mx').innerHTML = d.temp.max + '°C <span class="time-mark">' + d.temp.maxTime + '</span>';
@@ -616,7 +614,6 @@ app.get("/", (req, res) => {
                 document.getElementById('d_val').innerText = d.temp.dew + '°C';
                 
                 document.getElementById('wd_bracket').innerText = '(' + d.wind.card + ')';
-                document.getElementById('wg').innerText = d.wind.gust + ' km/h';
                 document.getElementById('mw').innerHTML = d.wind.maxS + ' km/h <span class="time-mark">' + d.wind.maxSTime + '</span>';
                 document.getElementById('mg').innerHTML = d.wind.maxG + ' km/h <span class="time-mark">' + d.wind.maxGTime + '</span>';
                 document.getElementById('needle').style.transform = 'rotate(' + d.wind.deg + 'deg)';
