@@ -26,19 +26,20 @@ let state = {
     lastDbWrite: 0,
     lastRainRaw: null, 
     lastCalculatedRate: 0, 
-    lastRainTime: 0, // Used for Davis-style rate decay
+    lastRainTime: 0, 
     bufW: 0, 
     bufG: 0, 
     bufMaxT: -999, 
     bufMinT: 999, 
     bufRR: 0,
-    // Precise timestamp buffers for capture accuracy
     tW: null, 
     tG: null, 
     tMaxT: null, 
     tMinT: null, 
-    tRR: null 
+    tRR: null,
+    lastArchivedDate: null // Added tracker
 };
+
 
 /**
  * RESET LOGIC
@@ -160,12 +161,13 @@ async function syncWithEcowitt(forceWrite = false) {
         // Update Rain Rate Buffer
         if (state.tRR === null || customRateIn > state.bufRR) { state.bufRR = customRateIn; state.tRR = currentTimeStamp; }
 
-        /**
-         * STEP 1: DATABASE WRITE
-         * Using the newly updated buffers from above.
+                /**
+         * DATABASE OPERATIONS (Consolidated for DB Sleep)
+         * Only triggers on the 10-min Cron hit (forceWrite = true)
          */
         if (forceWrite) {
             try {
+                // 1. COMMIT BUFFERED DATA
                 await pool.query(`
                     INSERT INTO weather_history 
                     (time, temp_f, humidity, wind_speed_mph, wind_gust_mph, daily_rain_in, solar_radiation, press_rel, rain_rate_in, temp_min_f,
@@ -175,34 +177,48 @@ async function syncWithEcowitt(forceWrite = false) {
                      state.tMaxT, state.tMinT, state.tW, state.tG, state.tRR]);
                 
                 state.lastDbWrite = now;
+
+                // 2. DAILY ARCHIVING GATE (Midnight Window)
+                const nowIST = new Date(new Date().toLocaleString("en-US", {timeZone: "Asia/Kolkata"}));
+                const hour = nowIST.getHours();
+                const minute = nowIST.getMinutes();
+                const todayStr = nowIST.toLocaleDateString('en-CA');
+
+                // Check archive only between 12:00 AM and 12:20 AM
+                if (hour === 0 && minute < 20 && state.lastArchivedDate !== todayStr) {
+                    const dateCheck = await pool.query(`
+                        SELECT (time AT TIME ZONE 'Asia/Kolkata')::date as record_date 
+                        FROM weather_history ORDER BY time ASC LIMIT 1
+                    `);
+
+                    if (dateCheck.rows.length > 0) {
+                        const oldestDate = new Date(dateCheck.rows[0].record_date).toLocaleDateString('en-CA');
+                        
+                        if (oldestDate !== todayStr) {
+                            await pool.query(`
+                                INSERT INTO daily_max_records (record_date, max_temp_c, min_temp_c, max_wind_kmh, max_gust_kmh, total_rain_mm) 
+                                SELECT $1, MAX((temp_f - 32) * 5/9), MIN((temp_min_f - 32) * 5/9), 
+                                       MAX(wind_speed_mph * 1.60934), MAX(wind_gust_mph * 1.60934), MAX(daily_rain_in * 25.4) 
+                                FROM weather_history WHERE (time AT TIME ZONE 'Asia/Kolkata')::date = $1::date;
+                            `, [oldestDate]);
+
+                            await pool.query(`
+                                DELETE FROM weather_history 
+                                WHERE (time AT TIME ZONE 'Asia/Kolkata')::date = $1::date;
+                            `, [oldestDate]);
+                        }
+                    }
+                    state.lastArchivedDate = todayStr; // Lock the gate for the rest of the day
+                }
+
+                // 3. RESET BUFFERS
+                resetStateBuffers();
+
             } catch (err) { 
-                console.error("DB Error:", err.message); 
+                console.error("DB Write/Archive Error:", err.message); 
+                // Safety: if write fails for 15 mins, reset anyway to avoid stale data
                 if (now - state.lastFetchTime > 900000) resetStateBuffers();
             }
-        }
-
-        /**
-         * STEP 2: DAILY ARCHIVING & CLEANUP
-         */
-        const todayIST = new Date().toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' });
-        const dateCheck = await pool.query(`SELECT (time AT TIME ZONE 'Asia/Kolkata')::date as record_date FROM weather_history ORDER BY time ASC LIMIT 1`);
-        
-        if (dateCheck.rows.length > 0) {
-            const oldestDate = new Date(dateCheck.rows[0].record_date).toLocaleDateString('en-CA');
-            if (oldestDate !== new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' })) {
-                await pool.query(`
-                    INSERT INTO daily_max_records (record_date, max_temp_c, min_temp_c, max_wind_kmh, max_gust_kmh, total_rain_mm) 
-                    SELECT $1, MAX((temp_f - 32) * 5/9), MIN((temp_min_f - 32) * 5/9), MAX(wind_speed_mph * 1.60934), MAX(wind_gust_mph * 1.60934), MAX(daily_rain_in * 25.4) 
-                    FROM weather_history WHERE (time AT TIME ZONE 'Asia/Kolkata')::date = $1::date;`, [oldestDate]);
-                await pool.query(`DELETE FROM weather_history WHERE (time AT TIME ZONE 'Asia/Kolkata')::date < (NOW() AT TIME ZONE 'Asia/Kolkata')::date;`);
-            }
-        }
-
-        /**
-         * STEP 3: RESET BUFFERS
-         */
-        if (forceWrite) {
-            resetStateBuffers();
         }
 
         // History Processing
@@ -471,22 +487,27 @@ app.get("/", (req, res) => {
 
         function applyTheme() {
     const hour = new Date().getHours();
+    const isDark = currentMode === 'dark' || (currentMode === 'auto' && (hour >= 18 || hour < 6));
     
-    // 1. Handle Body Class
-    if (currentMode === 'dark' || (currentMode === 'auto' && (hour >= 18 || hour < 6))) {
+    // 1. Change the actual colors of the page
+    if (isDark) {
         document.body.classList.add('is-night');
     } else {
         document.body.classList.remove('is-night');
     }
 
-    // 2. Handle Button Highlights (The missing logic)
+    // 2. MOVE THE HIGHLIGHT (The fix)
+    // First, remove the highlight from ALL buttons
     document.querySelectorAll('.theme-btn').forEach(btn => btn.classList.remove('active'));
+    
+    // Then, add it only to the one the user actually chose
     if (currentMode === 'light') document.getElementById('btn-light').classList.add('active');
     else if (currentMode === 'dark') document.getElementById('btn-dark').classList.add('active');
     else document.getElementById('btn-auto').classList.add('active');
 
     if (charts.cT) updateChartColors();
 }
+
 
 
         document.getElementById('btn-light').onclick = () => { currentMode = 'light'; localStorage.setItem('weatherMode', 'light'); applyTheme(); };
