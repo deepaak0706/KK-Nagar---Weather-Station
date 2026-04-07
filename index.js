@@ -386,29 +386,30 @@ app.get("/", (req, res) => {
             font-variant-numeric: tabular-nums; 
         }
 
-        /* The "Magic" Animation */
+        /* "Moderate" Magic Animation - Replaces your current version */
 @keyframes magicFade {
     0% { 
         opacity: 0; 
-        filter: blur(12px);          /* Starts blurry */
-        transform: scale(0.8) translateY(10px); /* Starts small and lower */
-        color: #10b981;              /* Optional: Flash green on change */
+        filter: blur(15px);          /* Heavier blur at start */
+        transform: translateY(12px) scale(0.95); 
     }
-    30% {
-        opacity: 0.8;
-        filter: blur(4px);           /* Rapidly clears up */
+    60% {
+        opacity: 0.5;                /* Still faint and blurry more than halfway through */
+        filter: blur(6px);
     }
     100% { 
         opacity: 1; 
-        filter: blur(0);             /* Perfectly sharp */
-        transform: scale(1) translateY(0);    /* Settles into position */
+        filter: blur(0);             /* Full clarity only at the very end */
+        transform: translateY(0) scale(1);
     }
 }
 
 .fade-update { 
-    animation: magicFade 1.5s cubic-bezier(0.16, 1, 0.3, 1); 
+    /* Changed from 1.5s to 2.0s for that moderate pace */
+    animation: magicFade 2.0s cubic-bezier(0.33, 1, 0.68, 1); 
     will-change: transform, opacity, filter;
 }
+
 
 
         
@@ -616,7 +617,7 @@ app.get("/", (req, res) => {
             obj.innerText = formattedValue;
             obj.style.opacity = "1";
             obj.classList.add('fade-update');
-        }, 50); 
+        }, 100); 
     }
 }
 
