@@ -180,17 +180,31 @@ async function syncWithEcowitt(forceWrite = false) {
             state.tRR = currentTimeStamp; 
         }
 
-        /**
+                /**
          * DATABASE OPERATIONS
+         * Updated logic to handle the 12:00 AM hand-off correctly.
          */
         if (forceWrite) {
             try {
-                // 1. COMMIT BUFFERED DATA WITH TIMESTAMP FALLBACKS
+                // Determine current local time
+                const nowIST = new Date(new Date().toLocaleString("en-US", {timeZone: "Asia/Kolkata"}));
+                const hour = nowIST.getHours();
+                const minute = nowIST.getMinutes();
+                const todayStr = nowIST.toLocaleDateString('en-CA');
+
+                // 1. TIMESTAMP BACKTRACK (The Fix)
+                // If it's the first minute of the day (12:00 AM), we force the record into 
+                // 11:59:59 PM of the previous day so it gets picked up by the archive logic.
+                const dbTimestamp = (hour === 0 && minute === 0) 
+                    ? "((CURRENT_DATE AT TIME ZONE 'Asia/Kolkata') - INTERVAL '1 second')" 
+                    : "NOW()";
+
+                // 2. COMMIT BUFFERED DATA
                 await pool.query(`
                     INSERT INTO weather_history 
                     (time, temp_f, humidity, wind_speed_mph, wind_gust_mph, daily_rain_in, solar_radiation, press_rel, rain_rate_in, temp_min_f,
                      max_t_time, min_t_time, max_w_time, max_g_time, max_r_time) 
-                    VALUES (NOW(), $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`, 
+                    VALUES (${dbTimestamp}, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`, 
                     [
                         state.bufMaxT, 
                         liveHum, 
@@ -210,39 +224,41 @@ async function syncWithEcowitt(forceWrite = false) {
                 
                 state.lastDbWrite = now;
 
-                // 2. DAILY ARCHIVING GATE
-                const nowIST = new Date(new Date().toLocaleString("en-US", {timeZone: "Asia/Kolkata"}));
-                const hour = nowIST.getHours();
-                const minute = nowIST.getMinutes();
-                const todayStr = nowIST.toLocaleDateString('en-CA');
-
-                if (hour === 0 && minute < 20 && state.lastArchivedDate !== todayStr) {
+                // 3. DAILY ARCHIVING GATE
+                // This will now find the entry we just inserted (since we backdated it to 11:59:59 PM)
+                if (hour === 0 && minute === 0 && state.lastArchivedDate !== todayStr) {
                     const dateCheck = await pool.query(`
                         SELECT (time AT TIME ZONE 'Asia/Kolkata')::date as record_date 
-                        FROM weather_history ORDER BY time ASC LIMIT 1
+                        FROM weather_history 
+                        WHERE (time AT TIME ZONE 'Asia/Kolkata')::date < (CURRENT_DATE AT TIME ZONE 'Asia/Kolkata')::date
+                        ORDER BY time ASC LIMIT 1
                     `);
 
                     if (dateCheck.rows.length > 0) {
-                        const oldestDate = new Date(dateCheck.rows[0].record_date).toLocaleDateString('en-CA');
+                        const targetDate = new Date(dateCheck.rows[0].record_date).toLocaleDateString('en-CA');
                         
-                        if (oldestDate !== todayStr) {
-                            await pool.query(`
-                                INSERT INTO daily_max_records (record_date, max_temp_c, min_temp_c, max_wind_kmh, max_gust_kmh, total_rain_mm) 
-                                SELECT $1, MAX((temp_f - 32) * 5/9), MIN((temp_min_f - 32) * 5/9), 
-                                       MAX(wind_speed_mph * 1.60934), MAX(wind_gust_mph * 1.60934), MAX(daily_rain_in * 25.4) 
-                                FROM weather_history WHERE (time AT TIME ZONE 'Asia/Kolkata')::date = $1::date;
-                            `, [oldestDate]);
+                        // Archive Yesterday's data
+                        await pool.query(`
+                            INSERT INTO daily_max_records (record_date, max_temp_c, min_temp_c, max_wind_kmh, max_gust_kmh, total_rain_mm) 
+                            SELECT $1, MAX((temp_f - 32) * 5/9), MIN((temp_min_f - 32) * 5/9), 
+                                   MAX(wind_speed_mph * 1.60934), MAX(wind_gust_mph * 1.60934), MAX(daily_rain_in * 25.4) 
+                            FROM weather_history 
+                            WHERE (time AT TIME ZONE 'Asia/Kolkata')::date = $1::date;
+                        `, [targetDate]);
 
-                            await pool.query(`
-                                DELETE FROM weather_history 
-                                WHERE (time AT TIME ZONE 'Asia/Kolkata')::date = $1::date;
-                            `, [oldestDate]);
-                        }
+                        // Clean Yesterday's data from history
+                        await pool.query(`
+                            DELETE FROM weather_history 
+                            WHERE (time AT TIME ZONE 'Asia/Kolkata')::date = $1::date;
+                        `, [targetDate]);
+                        
+                        console.log(`Successfully archived: ${targetDate}`);
                     }
                     state.lastArchivedDate = todayStr;
                 }
 
-                // 3. RESET BUFFERS
+                // 4. RESET BUFFERS
+                // This ensures memory is cleared ONLY after the archive is finished.
                 resetStateBuffers();
 
             } catch (err) { 
@@ -250,6 +266,7 @@ async function syncWithEcowitt(forceWrite = false) {
                 if (now - state.lastFetchTime > 900000) resetStateBuffers();
             }
         }
+
 
         // History Processing
         const historyRes = await pool.query(`SELECT * FROM weather_history WHERE (time AT TIME ZONE 'Asia/Kolkata')::date = (NOW() AT TIME ZONE 'Asia/Kolkata')::date ORDER BY time ASC`);
