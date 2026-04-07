@@ -330,7 +330,7 @@ app.get("/", (req, res) => {
 
         .container { width: 100%; max-width: 1200px; margin: 0 auto; }
         .header { margin-bottom: 32px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; }
-        .header h1 { font-size: 20px; font-weight: 900; margin: 0; letter-spacing: -1px;
+        .header h1 { font-size: 28px; font-weight: 900; margin: 0; letter-spacing: -1px; }
         .header-actions { display: flex; align-items: center; gap: 12px; }
         
         .theme-toggle { background: var(--card); border: 1px solid var(--border); padding: 4px; border-radius: 12px; display: flex; gap: 4px; box-shadow: var(--glow); cursor: pointer; }
@@ -374,28 +374,6 @@ app.get("/", (req, res) => {
         .graph-card canvas { flex-grow: 1; width: 100% !important; height: 100% !important; }
 
         .trend-up { color: #f43f5e; } .trend-down { color: #0ea5e9; }
-        @media (max-width: 640px) {
-    .grid-system { 
-        grid-template-columns: 1fr; 
-    }
-    .graphs-wrapper {
-        grid-template-columns: 1fr;
-    }
-    .main-val {
-        font-size: 72px;
-    }
-    .card {
-        border-radius: 24px;
-        padding: 22px;
-    }
-    .header { 
-        margin-bottom: 16px; 
-    }
-    .header h1 { 
-        font-size: 18px; 
-    }
-}
-
         .time-mark { font-size: 9px; color: var(--muted); font-weight: 600; margin-left: 2px; background: rgba(0,0,0,0.04); padding: 1px 4px; border-radius: 4px; }
         body.is-night .time-mark { background: rgba(255,255,255,0.1); }
     </style>
