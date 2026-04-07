@@ -273,6 +273,30 @@ async function syncWithEcowitt(forceWrite = false) {
 app.get("/weather", async (req, res) => res.json(await syncWithEcowitt(false)));
 app.get("/api/sync", async (req, res) => res.json(await syncWithEcowitt(req.query.write === 'true')));
 
+// NEW: Fetch monthly summary from the archive table
+app.get("/api/summary", async (req, res) => {
+    const { month, year } = req.query;
+    try {
+        const result = await pool.query(`
+            SELECT 
+                record_date, 
+                max_temp_c, 
+                min_temp_c, 
+                max_wind_kmh, 
+                total_rain_mm 
+            FROM daily_max_records 
+            WHERE EXTRACT(MONTH FROM record_date) = $1 
+            AND EXTRACT(YEAR FROM record_date) = $2
+            ORDER BY record_date DESC
+        `, [month, year]);
+        res.json(result.rows);
+    } catch (e) {
+        console.error("Archive Fetch Error:", e.message);
+        res.status(500).json({ error: "Failed to fetch archive data" });
+    }
+});
+
+
 app.get("/", (req, res) => {
     res.send(`
 <!DOCTYPE html>
@@ -361,12 +385,38 @@ app.get("/", (req, res) => {
         .time-mark { font-size: 9px; color: var(--muted); font-weight: 600; margin-left: 2px; background: rgba(0,0,0,0.04); padding: 1px 4px; border-radius: 4px; }
         body.is-night .time-mark { background: rgba(255,255,255,0.1); }
     </style>
+
+    /* View Toggle Menu */
+.view-toggle { background: var(--card); border: 1px solid var(--border); padding: 4px; border-radius: 12px; display: flex; gap: 4px; margin-right: 12px; }
+.view-btn { padding: 6px 14px; border-radius: 8px; font-size: 11px; font-weight: 800; cursor: pointer; color: var(--muted); transition: 0.3s; letter-spacing: 0.5px; }
+.view-btn.active { background: var(--accent); color: white; }
+
+/* Archive View Layout */
+#archive-view { display: none; margin-top: 20px; animation: fadeIn 0.4s ease-out; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+.archive-filters { display: flex; gap: 10px; margin-bottom: 20px; align-items: center; }
+.sum-select { background: var(--card); color: var(--text); border: 1px solid var(--border); padding: 10px; border-radius: 12px; font-family: 'Outfit'; font-weight: 600; outline: none; }
+
+.archive-table-wrapper { overflow-x: auto; background: var(--card); border-radius: 24px; border: 1px solid var(--border); }
+.archive-table { width: 100%; border-collapse: collapse; min-width: 500px; }
+.archive-table th { padding: 15px; text-align: left; font-size: 10px; text-transform: uppercase; color: var(--muted); border-bottom: 1px solid var(--border); }
+.archive-table td { padding: 15px; font-weight: 600; font-size: 14px; border-bottom: 1px solid rgba(2, 132, 199, 0.05); }
+body.is-night .archive-table td { border-bottom: 1px solid rgba(255, 255, 255, 0.05); }
+
+
+
+    
 </head>
 <body>
     <div class="container">
         <div class="header">
             <h1>KK Nagar Weather Hub</h1>
             <div class="header-actions">
+            <div class="view-toggle" id="viewToggle">
+            <div class="view-btn active" id="show-live">LIVE</div>
+            <div class="view-btn" id="show-archive">ARCHIVE</div>
+            </div>
                 <div class="status-bar"><div class="live-dot"></div><div class="timestamp"><span id="ts">--:--:--</span></div></div>
                 <div class="theme-toggle" id="themeToggle">
                     <div class="theme-btn" id="btn-light">LIGHT</div>
@@ -430,9 +480,104 @@ app.get("/", (req, res) => {
             <div class="graph-card"><div class="label" style="margin-bottom: 8px;">Wind Velocity</div><canvas id="cW"></canvas></div>
             <div class="graph-card"><div class="label" style="margin-bottom: 8px;">Precipitation</div><canvas id="cR"></canvas></div>
         </div>
+
+        <div id="archive-view">
+    <div class="archive-filters">
+        <select id="sel-month" class="sum-select">
+            <option value="1">January</option><option value="2">February</option>
+            <option value="3">March</option><option value="4">April</option>
+            <option value="5">May</option><option value="6">June</option>
+            <option value="7">July</option><option value="8">August</option>
+            <option value="9">September</option><option value="10">October</option>
+            <option value="11">November</option><option value="12">December</option>
+        </select>
+        <select id="sel-year" class="sum-select">
+            <option value="2026">2026</option>
+            <option value="2025">2025</option>
+        </select>
+        <button id="fetch-btn" class="view-btn active" style="padding: 10px 20px;">VIEW SUMMARY</button>
+    </div>
+
+    <div class="archive-table-wrapper">
+        <table class="archive-table">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Max Temp</th>
+                    <th>Min Temp</th>
+                    <th>Max Wind</th>
+                    <th>Total Rain</th>
+                </tr>
+            </thead>
+            <tbody id="archive-body">
+                <tr><td colspan="5" style="text-align:center; color:var(--muted); padding:40px;">Select month and click View</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
     </div>
 
     <script>
+
+        // 1. Toggle between Live and Archive views
+const liveElements = [document.querySelector('.grid-system'), document.querySelector('.graphs-wrapper')];
+const archiveView = document.getElementById('archive-view');
+
+document.getElementById('show-live').onclick = function() {
+    this.classList.add('active');
+    document.getElementById('show-archive').classList.remove('active');
+    archiveView.style.display = 'none';
+    liveElements.forEach(el => el.style.display = 'grid');
+};
+
+document.getElementById('show-archive').onclick = function() {
+    this.classList.add('active');
+    document.getElementById('show-live').classList.remove('active');
+    liveElements.forEach(el => el.style.display = 'none');
+    archiveView.style.display = 'block';
+    
+    // Auto-select current month
+    const now = new Date();
+    document.getElementById('sel-month').value = now.getMonth() + 1;
+};
+
+// 2. Fetch Summary Data
+document.getElementById('fetch-btn').onclick = async () => {
+    const m = document.getElementById('sel-month').value;
+    const y = document.getElementById('sel-year').value;
+    const body = document.getElementById('archive-body');
+    
+    body.innerHTML = '<tr><td colspan="5" style="text-align:center;">Loading Archive...</td></tr>';
+    
+    try {
+        const res = await fetch(`/api/summary?month=${m}&year=${y}`);
+        const data = await res.json();
+        
+        if (data.length === 0) {
+            body.innerHTML = '<tr><td colspan="5" style="text-align:center; color:var(--muted);">No data found for this period.</td></tr>';
+            return;
+        }
+
+        body.innerHTML = data.map(row => {
+            const d = new Date(row.record_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' });
+            return `
+                <tr>
+                    <td style="color:var(--accent)">${d}</td>
+                    <td style="color:#ef4444">${parseFloat(row.max_temp_c).toFixed(1)}°C</td>
+                    <td style="color:#0ea5e9">${parseFloat(row.min_temp_c).toFixed(1)}°C</td>
+                    <td>${row.max_wind_kmh ? parseFloat(row.max_wind_kmh).toFixed(1) + ' km/h' : '--'}</td>
+                    <td>${parseFloat(row.total_rain_mm).toFixed(1)} mm</td>
+                </tr>
+            `;
+        }).join('');
+    } catch (err) {
+        body.innerHTML = '<tr><td colspan="5" style="text-align:center; color:#ef4444;">Error loading data.</td></tr>';
+    }
+};
+
+
+    
         let currentMode = localStorage.getItem('weatherMode') || 'auto';
         let charts = {};
         let liveWindSpeed = 0, liveWindDeg = 0, particles = [];
