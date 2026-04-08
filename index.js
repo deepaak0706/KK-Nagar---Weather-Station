@@ -8,15 +8,13 @@ const app = express();
  * Using connection pooling for high-frequency writes and history lookups.
  */
 
-const pool = new Pool({
+ const pool = new Pool({
     connectionString: process.env.POSTGRES_URL + "?sslmode=require",
     ssl: { rejectUnauthorized: false },
     max: 3,
-    idleTimeoutMillis: 2000, // <--- Change this from 10000 to 2000
-    connectionTimeoutMillis: 15000 // Increased to allow time for "Cold Start" wake up
+    idleTimeoutMillis: 10000, // Kept at 10s to allow a "warm" handoff for dashboard visitors
+    connectionTimeoutMillis: 60000 // Increased to 60s to safely handle Neon Cold Starts
 });
-
-
 
 
 
