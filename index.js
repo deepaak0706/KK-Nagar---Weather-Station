@@ -279,7 +279,18 @@ async function syncWithEcowitt(forceWrite = false) {
  * ROUTES
  */
 app.get("/weather", async (req, res) => res.json(await syncWithEcowitt(false)));
-app.get("/api/sync", async (req, res) => res.json(await syncWithEcowitt(req.query.write === 'true')));
+app.get("/api/sync", (req, res) => {
+    const isWrite = req.query.write === 'true';
+    if (isWrite) {
+        // Immediately tell Cron-job.org "OK" so it doesn't time out
+        res.status(202).json({ status: "Sync started in background" });
+        // Run the sync in the background
+        syncWithEcowitt(true).catch(err => console.error("Background Sync Error:", err));
+    } else {
+        syncWithEcowitt(false).then(data => res.json(data));
+    }
+});
+
 
 app.get("/", (req, res) => {
     res.send(`
