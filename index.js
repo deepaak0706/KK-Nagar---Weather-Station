@@ -163,7 +163,10 @@ async function syncWithEcowitt(forceWrite = false) {
                 const minute = nowIST.getMinutes();
                 const todayStr = nowIST.toLocaleDateString('en-CA');
 
-                const dbTimestamp = (hour === 0 && minute === 0) 
+                // FIX: Broaden the window to the first 10 minutes of the day.
+                // If it's between 12:00 and 12:10 AM, push the timestamp back 1 second
+                // to 23:59:59 of the previous day so the archive logic sees it.
+                const dbTimestamp = (hour === 0 && minute < 10) 
                     ? "((CURRENT_DATE AT TIME ZONE 'Asia/Kolkata') - INTERVAL '1 second')" 
                     : "NOW()";
 
@@ -181,16 +184,29 @@ async function syncWithEcowitt(forceWrite = false) {
                         state.tW || currentTimeStamp, state.tG || currentTimeStamp, state.tRR || currentTimeStamp
                     ]);
                 
-                // Archive Logic
+                // Archive Logic: Look for ANY date older than today.
                 if (hour === 0 && state.lastArchivedDate !== todayStr) {
-                    const dateCheck = await client.query(`SELECT (time AT TIME ZONE 'Asia/Kolkata')::date as record_date FROM weather_history WHERE (time AT TIME ZONE 'Asia/Kolkata')::date < (CURRENT_DATE AT TIME ZONE 'Asia/Kolkata')::date ORDER BY time ASC LIMIT 1`);
+                    const dateCheck = await client.query(`
+                        SELECT (time AT TIME ZONE 'Asia/Kolkata')::date as record_date 
+                        FROM weather_history 
+                        WHERE (time AT TIME ZONE 'Asia/Kolkata')::date < (CURRENT_DATE AT TIME ZONE 'Asia/Kolkata')::date 
+                        ORDER BY time ASC LIMIT 1
+                    `);
+
                     if (dateCheck.rows.length > 0) {
                         const targetDate = new Date(dateCheck.rows[0].record_date).toLocaleDateString('en-CA');
-                        await client.query(`INSERT INTO daily_max_records (record_date, max_temp_c, min_temp_c, max_wind_kmh, max_gust_kmh, total_rain_mm) SELECT $1, MAX((temp_f - 32) * 5/9), MIN((temp_min_f - 32) * 5/9), MAX(wind_speed_mph * 1.60934), MAX(wind_gust_mph * 1.60934), MAX(daily_rain_in * 25.4) FROM weather_history WHERE (time AT TIME ZONE 'Asia/Kolkata')::date = $1::date;`, [targetDate]);
+                        await client.query(`
+                            INSERT INTO daily_max_records (record_date, max_temp_c, min_temp_c, max_wind_kmh, max_gust_kmh, total_rain_mm) 
+                            SELECT $1, MAX((temp_f - 32) * 5/9), MIN((temp_min_f - 32) * 5/9), MAX(wind_speed_mph * 1.60934), MAX(wind_gust_mph * 1.60934), MAX(daily_rain_in * 25.4) 
+                            FROM weather_history 
+                            WHERE (time AT TIME ZONE 'Asia/Kolkata')::date = $1::date;`, [targetDate]);
+                        
                         await client.query(`DELETE FROM weather_history WHERE (time AT TIME ZONE 'Asia/Kolkata')::date = $1::date;`, [targetDate]);
+                        console.log(`Archived data for ${targetDate}`);
                     }
                     state.lastArchivedDate = todayStr;
                 }
+
 
                 // --- SUCCESS GATE ---
                 // We only reach these lines if the INSERT succeeded.
