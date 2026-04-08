@@ -139,49 +139,47 @@ async function syncWithEcowitt(forceWrite = false) {
             state.tMinT = currentTimeStamp; 
         }
         
+                // ---------------------------------------------------------------------
+        // DAVIS-STYLE PRO RAIN RATE CALCULATION (Metric/MM Logic)
         // ---------------------------------------------------------------------
-        // DAVIS-STYLE PRO RAIN RATE CALCULATION
-        // ---------------------------------------------------------------------
-        let customRateIn = 0;
+        const TIP_SIZE_MM = 0.254; // One bucket tip (0.01")
         const rawDailyInches = d.rainfall.daily.value;
-        const timeElapsedSec = state.lastFetchTime ? (now - state.lastFetchTime) / 1000 : 0;
+        const rawDailyMM = rawDailyInches * 25.4;
+        const now = Date.now();
 
-        if (state.lastRainRaw !== null && timeElapsedSec > 0) {
-            const deltaRain = rawDailyInches - state.lastRainRaw;
+        if (state.lastRainRaw !== null) {
+            const deltaRainMM = rawDailyMM - (state.lastRainRaw * 25.4);
             
-            if (deltaRain < 0) {
-                state.lastRainTime = now;
-                state.lastCalculatedRate = 0;
-                state.lastRainRaw = rawDailyInches;
-            } else if (deltaRain > 0 && timeElapsedSec >= 30) {
-                customRateIn = deltaRain * (3600 / timeElapsedSec);
-                state.lastCalculatedRate = customRateIn;
-                state.lastRainTime = now;
-            } else if (state.lastCalculatedRate > 0) {
-                const timeSinceLastRain = (now - state.lastRainTime) / 1000;
-                const decayRate = 0.01 * (3600 / timeSinceLastRain);
+            if (deltaRainMM > 0) {
+                const timeSinceLastEventSec = (now - state.lastRainTime) / 1000;
+                // Calculate rate in MM/H directly
+                const calculatedRate = (deltaRainMM / Math.max(timeSinceLastEventSec, 30)) * 3600;
                 
-                if (timeSinceLastRain > 900) { 
+                state.lastCalculatedRate = calculatedRate;
+                state.lastRainTime = now; 
+            } else {
+                const secondsSinceLastTip = (now - state.lastRainTime) / 1000;
+                if (secondsSinceLastTip > 900) {
                     state.lastCalculatedRate = 0;
-                } else if (decayRate < state.lastCalculatedRate) {
-                    state.lastCalculatedRate = decayRate; 
                 }
-                customRateIn = state.lastCalculatedRate;
             }
         } else {
-          state.lastRainRaw = rawDailyInches;
-          state.lastRainTime = now;
-          state.lastCalculatedRate = 0;
+            state.lastRainTime = now;
         }
 
-        state.lastRainRaw = rawDailyInches;
-        const displayRainRate = parseFloat((customRateIn * 25.4).toFixed(1));
+        state.lastRainRaw = rawDailyInches; 
         
-        // Update Rain Rate Buffer
-        if (state.tRR === null || customRateIn > state.bufRR) { 
-            state.bufRR = customRateIn; 
+        // This is the value your dashboard uses
+        const displayRainRate = parseFloat(state.lastCalculatedRate.toFixed(1));
+
+        // --- KEEP THIS PART: Update Rain Rate Buffer for your Max Record ---
+        // We convert back to Inches for the buffer because your DB expects Inches
+        const rateInInches = state.lastCalculatedRate / 25.4;
+        if (state.tRR === null || rateInInches > state.bufRR) { 
+            state.bufRR = rateInInches; 
             state.tRR = currentTimeStamp; 
         }
+
 
                 /**
          * DATABASE OPERATIONS
