@@ -151,13 +151,13 @@ async function syncWithEcowitt(forceWrite = false) {
         const rateInInches = state.lastCalculatedRate / 25.4;
         if (state.tRR === null || rateInInches > state.bufRR) { state.bufRR = rateInInches; state.tRR = currentTimeStamp; }
 
-        /**
+                /**
          * DATABASE OPERATIONS (Waking the DB for 10-min Sync)
          */
         if (forceWrite) {
             let client;
             try {
-                client = await pool.connect(); // Open Connection
+                client = await pool.connect(); 
                 const nowIST = new Date(new Date().toLocaleString("en-US", {timeZone: "Asia/Kolkata"}));
                 const hour = nowIST.getHours();
                 const minute = nowIST.getMinutes();
@@ -167,6 +167,7 @@ async function syncWithEcowitt(forceWrite = false) {
                     ? "((CURRENT_DATE AT TIME ZONE 'Asia/Kolkata') - INTERVAL '1 second')" 
                     : "NOW()";
 
+                // --- THE CRITICAL WRITE ---
                 await client.query(`
                     INSERT INTO weather_history 
                     (time, temp_f, humidity, wind_speed_mph, wind_gust_mph, daily_rain_in, solar_radiation, press_rel, rain_rate_in, temp_min_f,
@@ -180,8 +181,8 @@ async function syncWithEcowitt(forceWrite = false) {
                         state.tW || currentTimeStamp, state.tG || currentTimeStamp, state.tRR || currentTimeStamp
                     ]);
                 
-                // Archive Logic (Intact)
-                if (hour === 0 && minute === 0 && state.lastArchivedDate !== todayStr) {
+                // Archive Logic
+                if (hour === 0 && state.lastArchivedDate !== todayStr) {
                     const dateCheck = await client.query(`SELECT (time AT TIME ZONE 'Asia/Kolkata')::date as record_date FROM weather_history WHERE (time AT TIME ZONE 'Asia/Kolkata')::date < (CURRENT_DATE AT TIME ZONE 'Asia/Kolkata')::date ORDER BY time ASC LIMIT 1`);
                     if (dateCheck.rows.length > 0) {
                         const targetDate = new Date(dateCheck.rows[0].record_date).toLocaleDateString('en-CA');
@@ -191,15 +192,30 @@ async function syncWithEcowitt(forceWrite = false) {
                     state.lastArchivedDate = todayStr;
                 }
 
+                // --- SUCCESS GATE ---
+                // We only reach these lines if the INSERT succeeded.
                 state.needsHistoryUpdate = true; 
+                state.lastDbWrite = now; // Update the timestamp of the last successful write
                 resetStateBuffers();
+                console.log("Sync Success: Memory Cleared.");
+
             } catch (err) { 
-                console.error("DB Error:", err.message); 
+                console.error("Sync Failed:", err.message); 
+                
+                // 20-MINUTE SAFETY VALVE
+                // If the DB is down for more than 20 mins, clear the buffers anyway.
+                // This prevents a 10:00 AM gust from showing up at 4:00 PM if the DB was down all day.
+                if (now - state.lastDbWrite > 1200000) { 
+                    console.warn("Safety Reset: DB unreachable for 20m. Clearing stale peaks.");
+                    resetStateBuffers();
+                    state.lastDbWrite = now; 
+                }
             } finally {
-                if (client) client.release(); // Close connection immediately
+                if (client) client.release(); 
             }
         }
 
+     
         /**
          * SMART CACHING GATE (Waking the DB for Random Visits)
          */
@@ -286,7 +302,7 @@ app.get("/api/sync", async (req, res) => { // Added 'async' here
     if (isWrite) {
         // 1. Create the 25-second "Safety Net" stopwatch
         const timeout = new Promise((resolve) => 
-            setTimeout(() => resolve({ status: "Timeout: Moving to background" }), 25000)
+            setTimeout(() => resolve({ status: "Timeout: Moving to background" }), 55000)
         );
 
         try {
