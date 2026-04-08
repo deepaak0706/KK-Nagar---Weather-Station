@@ -188,33 +188,31 @@ async function syncWithEcowitt(forceWrite = false) {
          * Updated logic to handle the 12:00 AM hand-off correctly.
          */
                 if (forceWrite) {
-            try {
-                // 1. Determine current local time
-                const nowIST = new Date(new Date().toLocaleString("en-US", {timeZone: "Asia/Kolkata"}));
-                const hour = nowIST.getHours();
-                const minute = nowIST.getMinutes();
-                const todayStr = nowIST.toLocaleDateString('en-CA');
+    try {
+        const nowIST = new Date(new Date().toLocaleString("en-US", {timeZone: "Asia/Kolkata"}));
+        const hour = nowIST.getHours();
+        const minute = nowIST.getMinutes();
+        const todayStr = nowIST.toLocaleDateString('en-CA');
 
-                // 2. TIMESTAMP BACKTRACK
-                const dbTimestamp = (hour === 0 && minute === 0) 
-                    ? "((CURRENT_DATE AT TIME ZONE 'Asia/Kolkata') - INTERVAL '1 second')" 
-                    : "NOW()";
+        const dbTimestamp = (hour === 0 && minute === 0) 
+            ? "((CURRENT_DATE AT TIME ZONE 'Asia/Kolkata') - INTERVAL '1 second')" 
+            : "NOW()";
 
-                // 3. COMMIT BUFFERED DATA
-                await pool.query(`
-                    INSERT INTO weather_history 
-                    (time, temp_f, humidity, wind_speed_mph, wind_gust_mph, daily_rain_in, solar_radiation, press_rel, rain_rate_in, temp_min_f,
-                     max_t_time, min_t_time, max_w_time, max_g_time, max_r_time) 
-                    VALUES (${dbTimestamp}, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`, 
-                    [
-                        state.bufMaxT, liveHum, state.bufW, state.bufG, 
-                        d.rainfall.daily.value, d.solar_and_uvi?.solar?.value || 0, 
-                        livePress, state.bufRR, state.bufMinT,
-                        state.tMaxT || currentTimeStamp, state.tMinT || currentTimeStamp, 
-                        state.tW || currentTimeStamp, state.tG || currentTimeStamp, state.tRR || currentTimeStamp
-                    ]);
-                
-                state.lastDbWrite = now;
+        // 1. Write the buffered peaks to the Database
+        await pool.query(`
+            INSERT INTO weather_history 
+            (time, temp_f, humidity, wind_speed_mph, wind_gust_mph, daily_rain_in, solar_radiation, press_rel, rain_rate_in, temp_min_f,
+             max_t_time, min_t_time, max_w_time, max_g_time, max_r_time) 
+            VALUES (${dbTimestamp}, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`, 
+            [
+                state.bufMaxT, liveHum, state.bufW, state.bufG, 
+                d.rainfall.daily.value, d.solar_and_uvi?.solar?.value || 0, 
+                livePress, state.bufRR, state.bufMinT,
+                state.tMaxT || currentTimeStamp, state.tMinT || currentTimeStamp, 
+                state.tW || currentTimeStamp, state.tG || currentTimeStamp, state.tRR || currentTimeStamp
+            ]);
+        
+        state.lastDbWrite = now;
 
                 // 4. DAILY ARCHIVING GATE
                 if (hour === 0 && minute === 0 && state.lastArchivedDate !== todayStr) {
