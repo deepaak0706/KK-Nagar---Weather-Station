@@ -571,21 +571,59 @@ app.get("/", (req, res) => {
         }
 
         function setupChart(id, label, color, minVal = null) {
-            const canvas = document.getElementById(id);
-            const ctx = canvas.getContext('2d');
-            const gradient = ctx.createLinearGradient(0, 0, 0, 300);
-            gradient.addColorStop(0, color + '40'); gradient.addColorStop(1, color + '00');
-            return new Chart(ctx, { 
-                type: 'line', 
-                data: { labels: [], datasets: [{ label: label, data: [], borderColor: color, backgroundColor: gradient, fill: true, tension: 0.4, pointRadius: 0, borderWidth: 2 }] }, 
-                options: { 
-                    responsive: true, maintainAspectRatio: false, 
-                    interaction: { intersect: false, mode: 'index' },
-                    plugins: { tooltip: { enabled: true }, legend: { display: false } }, 
-                    scales: { y: { min: minVal }, x: { ticks: { maxTicksLimit: 8 } } } 
+    const canvas = document.getElementById(id);
+    const ctx = canvas.getContext('2d');
+    
+    // 1. Create a Professional Area Gradient
+    const gradient = ctx.createLinearGradient(0, 0, 0, 300);
+    gradient.addColorStop(0, color + '60'); // Vibrant at the top
+    gradient.addColorStop(1, color + '00'); // Fades to nothing at the bottom
+
+    return new Chart(ctx, { 
+        type: 'line', 
+        data: { 
+            labels: [], 
+            datasets: [{ 
+                label: label, 
+                data: [], 
+                borderColor: color, 
+                backgroundColor: gradient, 
+                fill: true, 
+                tension: 0.5,      // Makes the lines look like smooth waves
+                pointRadius: 0,    // Hides the dots for a cleaner look
+                borderWidth: 3,    // Thicker, "bold" lines
+                capBezierPoints: true
+            }] 
+        }, 
+        options: { 
+            responsive: true, 
+            maintainAspectRatio: false, 
+            interaction: { intersect: false, mode: 'index' },
+            plugins: { 
+                legend: { display: false }, // Hide the messy labels at the top
+                tooltip: {
+                    backgroundColor: 'rgba(15, 23, 42, 0.9)', // Dark "Pro" tooltips
+                    titleFont: { family: 'Outfit', size: 13 },
+                    bodyFont: { family: 'Outfit', size: 13 },
+                    padding: 12,
+                    displayColors: false
+                }
+            }, 
+            scales: { 
+                y: { 
+                    min: minVal,
+                    grid: { color: 'rgba(148, 163, 184, 0.08)', drawBorder: false }, // Faint lines
+                    ticks: { font: { family: 'Outfit', weight: '500' } }
+                }, 
+                x: { 
+                    grid: { display: false }, // Remove vertical lines for that clean look
+                    ticks: { maxTicksLimit: 6, font: { family: 'Outfit' } }
                 } 
-            });
-        }
+            } 
+        } 
+    });
+}
+
         
         function updateValueWithFade(id, newValue, decimals = 1, suffix = "") {
     const obj = document.getElementById(id);
