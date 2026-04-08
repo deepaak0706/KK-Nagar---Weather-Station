@@ -279,15 +279,33 @@ async function syncWithEcowitt(forceWrite = false) {
  * ROUTES
  */
 app.get("/weather", async (req, res) => res.json(await syncWithEcowitt(false)));
-app.get("/api/sync", (req, res) => {
+
+app.get("/api/sync", async (req, res) => { // Added 'async' here
     const isWrite = req.query.write === 'true';
+    
     if (isWrite) {
-        // Immediately tell Cron-job.org "OK" so it doesn't time out
-        res.status(202).json({ status: "Sync started in background" });
-        // Run the sync in the background
-        syncWithEcowitt(true).catch(err => console.error("Background Sync Error:", err));
+        // 1. Create the 25-second "Safety Net" stopwatch
+        const timeout = new Promise((resolve) => 
+            setTimeout(() => resolve({ status: "Timeout: Moving to background" }), 25000)
+        );
+
+        try {
+            /* 2. THE FIX: We 'await' the race. 
+               Vercel will now stay awake until the DB write finishes 
+               OR 25 seconds pass. 
+            */
+            await Promise.race([syncWithEcowitt(true), timeout]);
+            
+            // 3. ONLY send the response after the race is over
+            res.status(200).json({ status: "Success" });
+        } catch (err) {
+            console.error("Sync Error:", err);
+            res.status(500).json({ error: err.message });
+        }
     } else {
-        syncWithEcowitt(false).then(data => res.json(data));
+        // Normal dashboard fetch (not a cron job)
+        const data = await syncWithEcowitt(false);
+        res.json(data);
     }
 });
 
