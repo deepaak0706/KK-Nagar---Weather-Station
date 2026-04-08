@@ -37,6 +37,9 @@ let state = {
     tMaxT: null, 
     tMinT: null, 
     tRR: null,
+    cachedGraphHistory: null,
+    cachedTrends: null,
+    needsHistoryUpdate: true,
     lastArchivedDate: null // Added tracker
 };
 
@@ -87,7 +90,7 @@ async function syncWithEcowitt(forceWrite = false) {
     const currentTimeStamp = new Date().toISOString();
 
     // Cache check: allow 1-minute cron to bypass cache to update buffers accurately
-    if (!forceWrite && state.cachedData && (now - state.lastFetchTime < 35000)) {
+    if (!forceWrite && state.cachedData && (now - state.lastFetchTime < 40000)) {
         return state.cachedData;
     }
 
@@ -184,48 +187,36 @@ async function syncWithEcowitt(forceWrite = false) {
          * DATABASE OPERATIONS
          * Updated logic to handle the 12:00 AM hand-off correctly.
          */
-        if (forceWrite) {
+                if (forceWrite) {
             try {
-                // Determine current local time
+                // 1. Determine current local time
                 const nowIST = new Date(new Date().toLocaleString("en-US", {timeZone: "Asia/Kolkata"}));
                 const hour = nowIST.getHours();
                 const minute = nowIST.getMinutes();
                 const todayStr = nowIST.toLocaleDateString('en-CA');
 
-                // 1. TIMESTAMP BACKTRACK (The Fix)
-                // If it's the first minute of the day (12:00 AM), we force the record into 
-                // 11:59:59 PM of the previous day so it gets picked up by the archive logic.
+                // 2. TIMESTAMP BACKTRACK
                 const dbTimestamp = (hour === 0 && minute === 0) 
                     ? "((CURRENT_DATE AT TIME ZONE 'Asia/Kolkata') - INTERVAL '1 second')" 
                     : "NOW()";
 
-                // 2. COMMIT BUFFERED DATA
+                // 3. COMMIT BUFFERED DATA
                 await pool.query(`
                     INSERT INTO weather_history 
                     (time, temp_f, humidity, wind_speed_mph, wind_gust_mph, daily_rain_in, solar_radiation, press_rel, rain_rate_in, temp_min_f,
                      max_t_time, min_t_time, max_w_time, max_g_time, max_r_time) 
                     VALUES (${dbTimestamp}, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`, 
                     [
-                        state.bufMaxT, 
-                        liveHum, 
-                        state.bufW, 
-                        state.bufG, 
-                        d.rainfall.daily.value, 
-                        d.solar_and_uvi?.solar?.value || 0, 
-                        livePress, 
-                        state.bufRR, 
-                        state.bufMinT,
-                        state.tMaxT || currentTimeStamp, 
-                        state.tMinT || currentTimeStamp, 
-                        state.tW || currentTimeStamp, 
-                        state.tG || currentTimeStamp, 
-                        state.tRR || currentTimeStamp
+                        state.bufMaxT, liveHum, state.bufW, state.bufG, 
+                        d.rainfall.daily.value, d.solar_and_uvi?.solar?.value || 0, 
+                        livePress, state.bufRR, state.bufMinT,
+                        state.tMaxT || currentTimeStamp, state.tMinT || currentTimeStamp, 
+                        state.tW || currentTimeStamp, state.tG || currentTimeStamp, state.tRR || currentTimeStamp
                     ]);
                 
                 state.lastDbWrite = now;
 
-                // 3. DAILY ARCHIVING GATE
-                // This will now find the entry we just inserted (since we backdated it to 11:59:59 PM)
+                // 4. DAILY ARCHIVING GATE
                 if (hour === 0 && minute === 0 && state.lastArchivedDate !== todayStr) {
                     const dateCheck = await pool.query(`
                         SELECT (time AT TIME ZONE 'Asia/Kolkata')::date as record_date 
@@ -237,7 +228,6 @@ async function syncWithEcowitt(forceWrite = false) {
                     if (dateCheck.rows.length > 0) {
                         const targetDate = new Date(dateCheck.rows[0].record_date).toLocaleDateString('en-CA');
                         
-                        // Archive Yesterday's data
                         await pool.query(`
                             INSERT INTO daily_max_records (record_date, max_temp_c, min_temp_c, max_wind_kmh, max_gust_kmh, total_rain_mm) 
                             SELECT $1, MAX((temp_f - 32) * 5/9), MIN((temp_min_f - 32) * 5/9), 
@@ -246,7 +236,6 @@ async function syncWithEcowitt(forceWrite = false) {
                             WHERE (time AT TIME ZONE 'Asia/Kolkata')::date = $1::date;
                         `, [targetDate]);
 
-                        // Clean Yesterday's data from history
                         await pool.query(`
                             DELETE FROM weather_history 
                             WHERE (time AT TIME ZONE 'Asia/Kolkata')::date = $1::date;
@@ -257,49 +246,69 @@ async function syncWithEcowitt(forceWrite = false) {
                     state.lastArchivedDate = todayStr;
                 }
 
-                // 4. RESET BUFFERS
-                // This ensures memory is cleared ONLY after the archive is finished.
+                // --- CRITICAL CACHE TRIGGER ---
+                // This tells the "History Processing" section below to refresh the graphs
+                state.needsHistoryUpdate = true; 
+                
+                // Reset memory buffers for the next 10-minute cycle
                 resetStateBuffers();
+                console.log("DB Sync Complete. Memory Buffers Reset.");
 
             } catch (err) { 
                 console.error("DB Write/Archive Error:", err.message); 
+                // Safety: If DB fails for 15 mins, reset anyway to avoid massive peaks
                 if (now - state.lastFetchTime > 900000) resetStateBuffers();
             }
         }
 
+        // --- SMART CACHING GATE ---
+// Only hit the DB if we have NO cache OR if the 10-min cron just finished
+if (state.needsHistoryUpdate || !state.cachedGraphHistory) {
+    const historyRes = await pool.query(`SELECT * FROM weather_history WHERE (time AT TIME ZONE 'Asia/Kolkata')::date = (NOW() AT TIME ZONE 'Asia/Kolkata')::date ORDER BY time ASC`);
+    const oneHourAgoRes = await pool.query(`SELECT temp_f, humidity FROM weather_history WHERE time >= NOW() - INTERVAL '1 hour' ORDER BY time ASC LIMIT 1`);
+    
+    let mx_t = -999, mn_t = 999, mx_t_time = "--:--", mn_t_time = "--:--", mx_w = 0, mx_w_t = "--:--", mx_g = 0, mx_g_t = "--:--", mx_r = 0, mx_r_t = "--:--", pTrend = 0, tRate = 0, hTrend = 0, graphHistory = [];
 
-        // History Processing
-        const historyRes = await pool.query(`SELECT * FROM weather_history WHERE (time AT TIME ZONE 'Asia/Kolkata')::date = (NOW() AT TIME ZONE 'Asia/Kolkata')::date ORDER BY time ASC`);
-        const oneHourAgoRes = await pool.query(`SELECT temp_f, humidity FROM weather_history WHERE time >= NOW() - INTERVAL '1 hour' ORDER BY time ASC LIMIT 1`);
-        
-        let mx_t = -999, mn_t = 999, mx_t_time = "--:--", mn_t_time = "--:--", mx_w = 0, mx_w_t = "--:--", mx_g = 0, mx_g_t = "--:--", mx_r = 0, mx_r_t = "--:--", pTrend = 0, tRate = 0, hTrend = 0, graphHistory = [];
+    if (historyRes.rows.length > 0) {
+        const lastRow = historyRes.rows[historyRes.rows.length - 1];
+        pTrend = parseFloat((livePress - (lastRow.press_rel || livePress)).toFixed(1));
+        const baseTempF = oneHourAgoRes.rows.length > 0 ? oneHourAgoRes.rows[0].temp_f : (historyRes.rows[0].temp_f || d.outdoor.temperature.value);
+        const baseHum = oneHourAgoRes.rows.length > 0 ? oneHourAgoRes.rows[0].humidity : (historyRes.rows[0].humidity || liveHum);
+        tRate = parseFloat((liveTemp - parseFloat(((baseTempF - 32) * 5 / 9).toFixed(1))).toFixed(1));
+        hTrend = liveHum - baseHum;
 
-        if (historyRes.rows.length > 0) {
-            const lastRow = historyRes.rows[historyRes.rows.length - 1];
-            pTrend = parseFloat((livePress - (lastRow.press_rel || livePress)).toFixed(1));
-            const baseTempF = oneHourAgoRes.rows.length > 0 ? oneHourAgoRes.rows[0].temp_f : (historyRes.rows[0].temp_f || d.outdoor.temperature.value);
-            const baseHum = oneHourAgoRes.rows.length > 0 ? oneHourAgoRes.rows[0].humidity : (historyRes.rows[0].humidity || liveHum);
-            tRate = parseFloat((liveTemp - parseFloat(((baseTempF - 32) * 5 / 9).toFixed(1))).toFixed(1));
-            hTrend = liveHum - baseHum;
+        historyRes.rows.forEach(r => {
+            const formatTime = (iso) => iso ? new Date(iso).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' }) : new Date(r.time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' });
+            
+            const r_temp = parseFloat(((r.temp_f - 32) * 5 / 9).toFixed(1));
+            const r_min_temp = parseFloat(((r.temp_min_f - 32) * 5 / 9).toFixed(1));
+            const r_wind = parseFloat((r.wind_speed_mph * 1.60934).toFixed(1));
+            const r_gust = parseFloat((r.wind_gust_mph * 1.60934).toFixed(1));
+            const r_rain_rate = parseFloat((r.rain_rate_in * 25.4).toFixed(1));
 
-            historyRes.rows.forEach(r => {
-                const formatTime = (iso) => iso ? new Date(iso).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' }) : new Date(r.time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' });
-                
-                const r_temp = parseFloat(((r.temp_f - 32) * 5 / 9).toFixed(1));
-                const r_min_temp = parseFloat(((r.temp_min_f - 32) * 5 / 9).toFixed(1));
-                const r_wind = parseFloat((r.wind_speed_mph * 1.60934).toFixed(1));
-                const r_gust = parseFloat((r.wind_gust_mph * 1.60934).toFixed(1));
-                const r_rain_rate = parseFloat((r.rain_rate_in * 25.4).toFixed(1));
+            if (r_temp > mx_t) { mx_t = r_temp; mx_t_time = formatTime(r.max_t_time); }
+            if (r_min_temp < mn_t || mn_t === 999) { mn_t = r_min_temp; mn_t_time = formatTime(r.min_t_time); }
+            if (r_wind > mx_w) { mx_w = r_wind; mx_w_t = formatTime(r.max_w_time); }
+            if (r_gust > mx_g) { mx_g = r_gust; mx_g_t = formatTime(r.max_g_time); }
+            if (r_rain_rate > mx_r) { mx_r = r_rain_rate; mx_r_t = formatTime(r.max_r_time); }
+            
+            graphHistory.push({ time: r.time, temp: r_temp, hum: r.humidity, wind: r_wind, rain: parseFloat((r.daily_rain_in * 25.4).toFixed(1)) });
+        });
+    }
 
-                if (r_temp > mx_t) { mx_t = r_temp; mx_t_time = formatTime(r.max_t_time); }
-                if (r_min_temp < mn_t || mn_t === 999) { mn_t = r_min_temp; mn_t_time = formatTime(r.min_t_time); }
-                if (r_wind > mx_w) { mx_w = r_wind; mx_w_t = formatTime(r.max_w_time); }
-                if (r_gust > mx_g) { mx_g = r_gust; mx_g_t = formatTime(r.max_g_time); }
-                if (r_rain_rate > mx_r) { mx_r = r_rain_rate; mx_r_t = formatTime(r.max_r_time); }
-                
-                graphHistory.push({ time: r.time, temp: r_temp, hum: r.humidity, wind: r_wind, rain: parseFloat((r.daily_rain_in * 25.4).toFixed(1)) });
-            });
-        }
+    // Save this processed data to our "Cheat Sheet"
+    state.cachedGraphHistory = graphHistory;
+    state.cachedTrends = { mx_t, mn_t, mx_t_time, mn_t_time, mx_w, mx_w_t, mx_g, mx_g_t, mx_r, mx_r_t, pTrend, tRate, hTrend };
+    state.needsHistoryUpdate = false; 
+    console.log("Database queried: Cache Refreshed.");
+}
+
+// Map the variables from the cache (Whether it was just updated or pulled from RAM)
+let { mx_t, mn_t, mx_t_time, mn_t_time, mx_w, mx_w_t, mx_g, mx_g_t, mx_r, mx_r_t, pTrend, tRate, hTrend } = state.cachedTrends;
+let graphHistory = state.cachedGraphHistory;
+
+
+
 
         // --- DASHBOARD DISPLAY: Convert to KM/H locally only ---
         const formatLiveTime = (iso) => iso ? new Date(iso).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' }) : "--:--";
