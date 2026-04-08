@@ -427,7 +427,7 @@ app.get("/", (req, res) => {
                 <div class="label">Wind Dynamics</div>
                 <div class="compass-ui"><div id="needle"></div></div>
                 <div class="main-val"><span id="w">0.0</span><span id="wd_bracket" style="font-size:18px; color:var(--muted); margin-left:8px; font-weight:700">(--)</span><span class="unit">km/h</span></div>
-                <div class="sub-pill">● Gusting to <span id="wg" style="margin-left:4px">--</span></div>
+                <div class="sub-pill">● Live Gust: <span id="wg" style="margin-left:4px">--</span></div>
                 <div class="sub-box-4">
                     <div class="badge"><span class="badge-label">Max Speed</span><span id="mw" class="badge-val">--</span></div>
                     <div class="badge"><span class="badge-label">Max Gust</span><span id="mg" class="badge-val">--</span></div>
