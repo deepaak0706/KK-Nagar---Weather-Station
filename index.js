@@ -643,7 +643,7 @@ app.get("/", (req, res) => {
 
         async function update() {
             try {
-                const res = await fetch('/weather?v=' + Date.now()); 
+                const res = await fetch('/api/sync?v=' + Date.now());
                 const d = await res.json(); 
                 if (!d || d.error) return;
 
