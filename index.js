@@ -95,8 +95,7 @@ function calculateRealFeel(tempC, humidity) {
     const now = Date.now();
     const currentTimeStamp = new Date().toISOString();
 
-    // 1. FRONTEND DEBOUNCE
-    // Prevents the Ecowitt API from being spammed more than once every 40s
+    // 1. FRONTEND DEBOUNCE (Intact)
     if (!forceWrite && state.cachedData && (now - state.lastFetchTime < 40000)) {
         return state.cachedData;
     }
@@ -150,24 +149,25 @@ function calculateRealFeel(tempC, humidity) {
         if (state.tRR === null || rateInInches > state.bufRR) { state.bufRR = rateInInches; state.tRR = currentTimeStamp; }
         // --- END CONVERSIONS ---
 
-
         /**
          * 2. DATABASE WRITE (CRON ONLY)
-         * Only runs if /api/sync?write=true is called.
+         * Guaranteed write on forceWrite=true
          */
         if (forceWrite) {
-            let client;
+            const client = await pool.connect();
             try {
-                client = await pool.connect(); 
                 const nowIST = new Date(new Date().toLocaleString("en-US", {timeZone: "Asia/Kolkata"}));
                 const hour = nowIST.getHours();
                 const minute = nowIST.getMinutes();
                 const todayStr = nowIST.toLocaleDateString('en-CA');
 
+                // MIDNIGHT RESET FORCE 11:59:59 (Intact)
                 const dbTimestamp = (hour === 0 && minute < 10) 
                     ? "((CURRENT_DATE AT TIME ZONE 'Asia/Kolkata') - INTERVAL '1 second')" 
                     : "NOW()";
 
+                await client.query('BEGIN'); // Atomic Transaction Start
+                
                 await client.query(`
                     INSERT INTO weather_history 
                     (time, temp_f, humidity, wind_speed_mph, wind_gust_mph, daily_rain_in, solar_radiation, press_rel, rain_rate_in, temp_min_f,
@@ -181,7 +181,7 @@ function calculateRealFeel(tempC, humidity) {
                         state.tW || currentTimeStamp, state.tG || currentTimeStamp, state.tRR || currentTimeStamp
                     ]);
                 
-                // ARCHIVE LOGIC
+                // ARCHIVE LOGIC (Intact)
                 if (hour === 0 && state.lastArchivedDate !== todayStr) {
                     const dateCheck = await client.query(`SELECT (time AT TIME ZONE 'Asia/Kolkata')::date as record_date FROM weather_history WHERE (time AT TIME ZONE 'Asia/Kolkata')::date < (CURRENT_DATE AT TIME ZONE 'Asia/Kolkata')::date ORDER BY time ASC LIMIT 1`);
                     if (dateCheck.rows.length > 0) {
@@ -192,21 +192,23 @@ function calculateRealFeel(tempC, humidity) {
                     state.lastArchivedDate = todayStr;
                 }
 
-                state.needsHistoryUpdate = true; // Mark cache as dirty so next UI visit refreshes it
+                await client.query('COMMIT'); // Commit only on absolute success
+                state.needsHistoryUpdate = true; 
                 state.lastDbWrite = now; 
-                resetStateBuffers();
-                console.log("DB Sync Success: Connections released.");
+                resetStateBuffers(); // Buffers clear ONLY after successful write
+                console.log("DB Sync Success: Buffers Cleared.");
             } catch (err) { 
+                await client.query('ROLLBACK'); // Prevents partial entry on 2:30 fail
                 console.error("DB Sync Failed:", err.message); 
-                if (now - state.lastDbWrite > 1200000) resetStateBuffers(); 
+                // Note: resetStateBuffers() is NOT called here, so 2:40 will catch 2:30's peaks.
             } finally {
-                if (client) client.release(); 
+                client.release(); 
             }
         }
 
         /**
          * 3. SMART HISTORY CACHE (UI ONLY)
-         * Only queries the DB if the cache is missing or if a new record was just written.
+         * Only queries if cache is dirty or missing.
          */
         if (!forceWrite && (state.needsHistoryUpdate || !state.cachedGraphHistory)) {
             let client;
@@ -249,7 +251,6 @@ function calculateRealFeel(tempC, humidity) {
         }
 
         // 4. LIVE DASHBOARD CALCULATION
-        // Compare current "un-written" memory peaks against the cached DB peaks
         let { mx_t, mn_t, mx_t_time, mn_t_time, mx_w, mx_w_t, mx_g, mx_g_t, mx_r, mx_r_t, pTrend, tRate, hTrend } = 
             state.cachedTrends || { mx_t: -999, mn_t: 999, mx_t_time: "--:--", mn_t_time: "--:--", mx_w: 0, mx_w_t: "--:--", mx_g: 0, mx_g_t: "--:--", mx_r: 0, mx_r_t: "--:--", pTrend: 0, tRate: 0, hTrend: 0 };
         
@@ -279,30 +280,18 @@ function calculateRealFeel(tempC, humidity) {
     } catch (e) { return { error: e.message }; }
 }
 
-
-
-
 /**
- * ROUTES
+ * UPDATED SYNC ROUTE
+ * No Race Condition. Allows full connection time.
  */
-app.get("/weather", async (req, res) => res.json(await syncWithEcowitt(false)));
-
 app.get("/api/sync", async (req, res) => {
-    const isWrite = req.query.write === 'true';
-    
-    if (isWrite) {
-        // Create a safety timeout slightly shorter than Vercel's limit
-        const timeout = new Promise((resolve) => 
-            setTimeout(() => resolve({ status: "Timeout: DB taking too long" }), 55000)
-        );
-
+    if (req.query.write === 'true') {
         try {
-            // Race the DB write against the clock
-            await Promise.race([syncWithEcowitt(true), timeout]);
-            res.status(200).json({ status: "Sync Complete" });
+            await syncWithEcowitt(true); // Blocking call ensures DB operation completes
+            res.status(200).json({ status: "Sync Success" });
         } catch (err) {
-            console.error("Sync Route Error:", err);
-            res.status(500).json({ error: err.message });
+            console.error("Cron Route Error:", err.message);
+            res.status(200).json({ status: "Caught Error", error: err.message });
         }
     } else {
         res.json(await syncWithEcowitt(false));
@@ -457,7 +446,7 @@ app.get("/", (req, res) => {
                 <div class="label">Wind Dynamics</div>
                 <div class="compass-ui"><div id="needle"></div></div>
                 <div class="main-val"><span id="w">0.0</span><span id="wd_bracket" style="font-size:18px; color:var(--muted); margin-left:8px; font-weight:700">(--)</span><span class="unit">km/h</span></div>
-                <div class="sub-pill">● Live Gust: <span id="wg" style="margin-left:4px">--</span></div>
+                <div class="sub-pill">● Live Gust: <span id="wg" style="margin-left:4px; display:inline-block;">--</span></div>
                 <div class="sub-box-4">
                     <div class="badge"><span class="badge-label">Max Speed</span><span id="mw" class="badge-val">--</span></div>
                     <div class="badge"><span class="badge-label">Max Gust</span><span id="mg" class="badge-val">--</span></div>
