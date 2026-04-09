@@ -1,11 +1,3 @@
-6th time i am asking for a fix
-
-Whats the issue again
-
-No fix for this
-How before it was done
-Any issue in select query or insett query randomly
-
 const express = require("express");
 const fetch = require("node-fetch");
 const { Pool } = require('pg');
