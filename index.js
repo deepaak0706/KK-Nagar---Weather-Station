@@ -12,9 +12,11 @@ const app = express();
     connectionString: process.env.POSTGRES_URL + "?sslmode=require",
     ssl: { rejectUnauthorized: false },
     max: 3,
-    idleTimeoutMillis: 10000, // Kept at 10s to allow a "warm" handoff for dashboard visitors
-    connectionTimeoutMillis: 60000 // Increased to 60s to safely handle Neon Cold Starts
+    idleTimeoutMillis: 10000, 
+    connectionTimeoutMillis: 60000,
+    query_timeout: 60000 // Add this: Stops the DB driver from timing out mid-query
 });
+
 
 
 
@@ -284,19 +286,28 @@ function calculateRealFeel(tempC, humidity) {
  * UPDATED SYNC ROUTE
  * No Race Condition. Allows full connection time.
  */
-app.get("/api/sync", async (req, res) => {
+
+ app.get("/api/sync", async (req, res) => {
     if (req.query.write === 'true') {
+        // We do NOT use Promise.race here.
+        // We wait for syncWithEcowitt to finish its COMMIT or ROLLBACK naturally.
         try {
-            await syncWithEcowitt(true); // Blocking call ensures DB operation completes
+            console.log("CRON: Database write started...");
+            await syncWithEcowitt(true); 
+            console.log("CRON: Database write finished.");
+            
+            // We send the response ONLY after the DB is done.
             res.status(200).json({ status: "Sync Success" });
         } catch (err) {
-            console.error("Cron Route Error:", err.message);
-            res.status(200).json({ status: "Caught Error", error: err.message });
+            // Even if it fails, we let it fail on its own terms.
+            console.error("CRON: Process ended with error:", err.message);
+            res.status(500).json({ status: "Error", message: err.message });
         }
     } else {
         res.json(await syncWithEcowitt(false));
     }
 });
+
 
 
 
