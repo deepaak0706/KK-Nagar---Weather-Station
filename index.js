@@ -24,7 +24,6 @@ const MAC = process.env.MAC;
 
 /**
  * GLOBAL STATE ENGINE
- * Manages caching and buffers peaks between database write intervals.
  */
 let state = { 
     cachedData: null, 
@@ -43,10 +42,11 @@ let state = {
     tMaxT: null, 
     tMinT: null, 
     tRR: null,
+    // --- NEW CACHING PROPERTIES ---
     cachedGraphHistory: null,
     cachedTrends: null,
     needsHistoryUpdate: true,
-    lastArchivedDate: null // Added tracker
+    lastArchivedDate: null 
 };
 
 
@@ -91,10 +91,12 @@ function calculateRealFeel(tempC, humidity) {
  * Daily Archiving, and History Retrieval.
  */
 
-async function syncWithEcowitt(forceWrite = false) {
-    const now = Date.now(); // Defined once at the top
+ async function syncWithEcowitt(forceWrite = false) {
+    const now = Date.now();
     const currentTimeStamp = new Date().toISOString();
 
+    // 1. FRONTEND DEBOUNCE
+    // Prevents the Ecowitt API from being spammed more than once every 40s
     if (!forceWrite && state.cachedData && (now - state.lastFetchTime < 40000)) {
         return state.cachedData;
     }
@@ -107,20 +109,18 @@ async function syncWithEcowitt(forceWrite = false) {
         if (!json.data) throw new Error("Invalid API Response");
         const d = json.data;
 
-        // Metric Conversions
+        // --- START CONVERSIONS (UNTOUCHED) ---
         const liveTemp = parseFloat(((d.outdoor.temperature.value - 32) * 5 / 9).toFixed(1));
         const liveDew = parseFloat(((d.outdoor.dew_point.value - 32) * 5 / 9).toFixed(1));
         const liveHum = d.outdoor.humidity.value || 0;
         const livePress = parseFloat((d.pressure.relative.value * 33.8639).toFixed(1));
         const liveWind = parseFloat((d.wind.wind_speed.value * 1.60934).toFixed(1));
         const liveGust = parseFloat((d.wind.wind_gust.value * 1.60934).toFixed(1));
-        
         const liveRain24h = parseFloat((d.rainfall.daily.value * 25.4).toFixed(1));
         const liveRainWeekly = parseFloat((d.rainfall.weekly.value * 25.4).toFixed(1));
         const liveRainMonthly = parseFloat((d.rainfall.monthly.value * 25.4).toFixed(1));
         const liveRainYearly = parseFloat((d.rainfall.yearly.value * 25.4).toFixed(1));
 
-        // Buffer Logic
         const apiW = parseFloat(d.wind.wind_speed.value);
         const apiG = parseFloat(d.wind.wind_gust.value);
         const apiT = parseFloat(d.outdoor.temperature.value);
@@ -130,10 +130,9 @@ async function syncWithEcowitt(forceWrite = false) {
         if (state.tMaxT === null || apiT > parseFloat(state.bufMaxT)) { state.bufMaxT = apiT; state.tMaxT = currentTimeStamp; }
         if (state.tMinT === null || apiT < parseFloat(state.bufMinT)) { state.bufMinT = apiT; state.tMinT = currentTimeStamp; }
         
-        // Davis Rain Rate Logic (Intact)
+        // --- DAVIS PRO RAIN RATE LOGIC (UNTOUCHED) ---
         const rawDailyInches = d.rainfall.daily.value;
         const rawDailyMM = rawDailyInches * 25.4;
-
         if (state.lastRainRaw !== null) {
             const deltaRainMM = rawDailyMM - (state.lastRainRaw * 25.4);
             if (deltaRainMM > 0) {
@@ -145,14 +144,16 @@ async function syncWithEcowitt(forceWrite = false) {
                 state.lastCalculatedRate = 0;
             }
         } else { state.lastRainTime = now; }
-
         state.lastRainRaw = rawDailyInches; 
         const displayRainRate = parseFloat(state.lastCalculatedRate.toFixed(1));
         const rateInInches = state.lastCalculatedRate / 25.4;
         if (state.tRR === null || rateInInches > state.bufRR) { state.bufRR = rateInInches; state.tRR = currentTimeStamp; }
+        // --- END CONVERSIONS ---
 
-                /**
-         * DATABASE OPERATIONS (Waking the DB for 10-min Sync)
+
+        /**
+         * 2. DATABASE WRITE (CRON ONLY)
+         * Only runs if /api/sync?write=true is called.
          */
         if (forceWrite) {
             let client;
@@ -163,14 +164,10 @@ async function syncWithEcowitt(forceWrite = false) {
                 const minute = nowIST.getMinutes();
                 const todayStr = nowIST.toLocaleDateString('en-CA');
 
-                // FIX: Broaden the window to the first 10 minutes of the day.
-                // If it's between 12:00 and 12:10 AM, push the timestamp back 1 second
-                // to 23:59:59 of the previous day so the archive logic sees it.
                 const dbTimestamp = (hour === 0 && minute < 10) 
                     ? "((CURRENT_DATE AT TIME ZONE 'Asia/Kolkata') - INTERVAL '1 second')" 
                     : "NOW()";
 
-                // --- THE CRITICAL WRITE ---
                 await client.query(`
                     INSERT INTO weather_history 
                     (time, temp_f, humidity, wind_speed_mph, wind_gust_mph, daily_rain_in, solar_radiation, press_rel, rain_rate_in, temp_min_f,
@@ -184,56 +181,32 @@ async function syncWithEcowitt(forceWrite = false) {
                         state.tW || currentTimeStamp, state.tG || currentTimeStamp, state.tRR || currentTimeStamp
                     ]);
                 
-                // Archive Logic: Look for ANY date older than today.
+                // ARCHIVE LOGIC
                 if (hour === 0 && state.lastArchivedDate !== todayStr) {
-                    const dateCheck = await client.query(`
-                        SELECT (time AT TIME ZONE 'Asia/Kolkata')::date as record_date 
-                        FROM weather_history 
-                        WHERE (time AT TIME ZONE 'Asia/Kolkata')::date < (CURRENT_DATE AT TIME ZONE 'Asia/Kolkata')::date 
-                        ORDER BY time ASC LIMIT 1
-                    `);
-
+                    const dateCheck = await client.query(`SELECT (time AT TIME ZONE 'Asia/Kolkata')::date as record_date FROM weather_history WHERE (time AT TIME ZONE 'Asia/Kolkata')::date < (CURRENT_DATE AT TIME ZONE 'Asia/Kolkata')::date ORDER BY time ASC LIMIT 1`);
                     if (dateCheck.rows.length > 0) {
                         const targetDate = new Date(dateCheck.rows[0].record_date).toLocaleDateString('en-CA');
-                        await client.query(`
-                            INSERT INTO daily_max_records (record_date, max_temp_c, min_temp_c, max_wind_kmh, max_gust_kmh, total_rain_mm) 
-                            SELECT $1, MAX((temp_f - 32) * 5/9), MIN((temp_min_f - 32) * 5/9), MAX(wind_speed_mph * 1.60934), MAX(wind_gust_mph * 1.60934), MAX(daily_rain_in * 25.4) 
-                            FROM weather_history 
-                            WHERE (time AT TIME ZONE 'Asia/Kolkata')::date = $1::date;`, [targetDate]);
-                        
+                        await client.query(`INSERT INTO daily_max_records (record_date, max_temp_c, min_temp_c, max_wind_kmh, max_gust_kmh, total_rain_mm) SELECT $1, MAX((temp_f - 32) * 5/9), MIN((temp_min_f - 32) * 5/9), MAX(wind_speed_mph * 1.60934), MAX(wind_gust_mph * 1.60934), MAX(daily_rain_in * 25.4) FROM weather_history WHERE (time AT TIME ZONE 'Asia/Kolkata')::date = $1::date;`, [targetDate]);
                         await client.query(`DELETE FROM weather_history WHERE (time AT TIME ZONE 'Asia/Kolkata')::date = $1::date;`, [targetDate]);
-                        console.log(`Archived data for ${targetDate}`);
                     }
                     state.lastArchivedDate = todayStr;
                 }
 
-
-                // --- SUCCESS GATE ---
-                // We only reach these lines if the INSERT succeeded.
-                state.needsHistoryUpdate = true; 
-                state.lastDbWrite = now; // Update the timestamp of the last successful write
+                state.needsHistoryUpdate = true; // Mark cache as dirty so next UI visit refreshes it
+                state.lastDbWrite = now; 
                 resetStateBuffers();
-                console.log("Sync Success: Memory Cleared.");
-
+                console.log("DB Sync Success: Connections released.");
             } catch (err) { 
-                console.error("Sync Failed:", err.message); 
-                
-                // 20-MINUTE SAFETY VALVE
-                // If the DB is down for more than 20 mins, clear the buffers anyway.
-                // This prevents a 10:00 AM gust from showing up at 4:00 PM if the DB was down all day.
-                if (now - state.lastDbWrite > 1200000) { 
-                    console.warn("Safety Reset: DB unreachable for 20m. Clearing stale peaks.");
-                    resetStateBuffers();
-                    state.lastDbWrite = now; 
-                }
+                console.error("DB Sync Failed:", err.message); 
+                if (now - state.lastDbWrite > 1200000) resetStateBuffers(); 
             } finally {
                 if (client) client.release(); 
             }
         }
 
-     
         /**
-         * SMART CACHING GATE (Waking the DB for Random Visits)
+         * 3. SMART HISTORY CACHE (UI ONLY)
+         * Only queries the DB if the cache is missing or if a new record was just written.
          */
         if (!forceWrite && (state.needsHistoryUpdate || !state.cachedGraphHistory)) {
             let client;
@@ -271,11 +244,12 @@ async function syncWithEcowitt(forceWrite = false) {
                 state.cachedGraphHistory = graphHistory;
                 state.cachedTrends = { mx_t, mn_t, mx_t_time, mn_t_time, mx_w, mx_w_t, mx_g, mx_g_t, mx_r, mx_r_t, pTrend, tRate, hTrend };
                 state.needsHistoryUpdate = false; 
-            } catch (err) { console.error("History Update Error:", err); } 
+            } catch (err) { console.error("History Retrieval Error:", err); } 
             finally { if (client) client.release(); }
         }
 
-        // Dashboard Return logic (Calculates "Live Peaks" against cached DB peaks)
+        // 4. LIVE DASHBOARD CALCULATION
+        // Compare current "un-written" memory peaks against the cached DB peaks
         let { mx_t, mn_t, mx_t_time, mn_t_time, mx_w, mx_w_t, mx_g, mx_g_t, mx_r, mx_r_t, pTrend, tRate, hTrend } = 
             state.cachedTrends || { mx_t: -999, mn_t: 999, mx_t_time: "--:--", mn_t_time: "--:--", mx_w: 0, mx_w_t: "--:--", mx_g: 0, mx_g_t: "--:--", mx_r: 0, mx_r_t: "--:--", pTrend: 0, tRate: 0, hTrend: 0 };
         
@@ -307,39 +281,34 @@ async function syncWithEcowitt(forceWrite = false) {
 
 
 
+
 /**
  * ROUTES
  */
 app.get("/weather", async (req, res) => res.json(await syncWithEcowitt(false)));
 
-app.get("/api/sync", async (req, res) => { // Added 'async' here
+app.get("/api/sync", async (req, res) => {
     const isWrite = req.query.write === 'true';
     
     if (isWrite) {
-        // 1. Create the 25-second "Safety Net" stopwatch
+        // Create a safety timeout slightly shorter than Vercel's limit
         const timeout = new Promise((resolve) => 
-            setTimeout(() => resolve({ status: "Timeout: Moving to background" }), 55000)
+            setTimeout(() => resolve({ status: "Timeout: DB taking too long" }), 55000)
         );
 
         try {
-            /* 2. THE FIX: We 'await' the race. 
-               Vercel will now stay awake until the DB write finishes 
-               OR 25 seconds pass. 
-            */
+            // Race the DB write against the clock
             await Promise.race([syncWithEcowitt(true), timeout]);
-            
-            // 3. ONLY send the response after the race is over
-            res.status(200).json({ status: "Success" });
+            res.status(200).json({ status: "Sync Complete" });
         } catch (err) {
-            console.error("Sync Error:", err);
+            console.error("Sync Route Error:", err);
             res.status(500).json({ error: err.message });
         }
     } else {
-        // Normal dashboard fetch (not a cron job)
-        const data = await syncWithEcowitt(false);
-        res.json(data);
+        res.json(await syncWithEcowitt(false));
     }
 });
+
 
 
 app.get("/", (req, res) => {
