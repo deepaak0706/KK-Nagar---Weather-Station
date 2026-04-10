@@ -82,7 +82,7 @@ function calculateRealFeel(tempC, humidity) {
  * Daily Archiving, and History Retrieval.
  */
 
-async function syncWithEcowitt(forceWrite = false) {
+ async function syncWithEcowitt(forceWrite = false) {
     const now = Date.now();
     const currentTimeStamp = new Date().toISOString();
 
@@ -180,9 +180,8 @@ async function syncWithEcowitt(forceWrite = false) {
             state.tRR = currentTimeStamp; 
         }
 
-                /**
+        /**
          * DATABASE OPERATIONS
-         * Optimized for 10-min Cron. 
          */
         if (forceWrite) {
             const client = await pool.connect();
@@ -253,7 +252,7 @@ async function syncWithEcowitt(forceWrite = false) {
             }
         }
 
-        // 4. HISTORY PROCESSING (Pull data for the graphs)
+        // 4. HISTORY PROCESSING
         const historyRes = await pool.query(`SELECT * FROM weather_history WHERE (time AT TIME ZONE 'Asia/Kolkata')::date = (NOW() AT TIME ZONE 'Asia/Kolkata')::date ORDER BY time ASC`);
         const oneHourAgoRes = await pool.query(`SELECT temp_f, humidity FROM weather_history WHERE time >= NOW() - INTERVAL '1 hour' ORDER BY time ASC LIMIT 1`);
         
@@ -309,16 +308,11 @@ async function syncWithEcowitt(forceWrite = false) {
         return state.cachedData;
 
     } catch (e) { 
+        console.error("Critical API/Process Error:", e.message);
         return { error: e.message }; 
     }
-} // <--- THIS BRACE WAS MISSING
+} 
 
-
-/**
- * SUMMARY LOGIC - ZONE A
- * This function pulls from the daily_max_records table.
- * It groups data by month for the summary view.
- */
 async function getWeatherSummary() {
     try {
         const result = await pool.query(`
@@ -331,7 +325,6 @@ async function getWeatherSummary() {
             ORDER BY record_date DESC
         `);
 
-        // Groups rows by "Month Year" (e.g., "April 2026")
         return result.rows.reduce((acc, row) => {
             const date = new Date(row.record_date);
             const monthYear = date.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
@@ -345,11 +338,6 @@ async function getWeatherSummary() {
     }
 }
 
-// The API endpoint the frontend will call
-app.get("/api/summary", async (req, res) => {
-    const summaryData = await getWeatherSummary();
-    res.json(summaryData);
-});
 
 
 /**
