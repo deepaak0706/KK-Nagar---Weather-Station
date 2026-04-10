@@ -223,31 +223,39 @@ if (forceWrite) {
             ]);
 
         // 2. ARCHIVE (Only at Midnight IST)
-        if (hour === 0 && minute < 5 && state.lastArchivedDate !== todayStr) {
-            // Archive logic remains similar but uses the $1 parameter to ensure date consistency
-            await client.query(`
-                INSERT INTO daily_max_records (record_date, max_temp_c, min_temp_c, max_wind_kmh, max_gust_kmh, total_rain_mm)
-                SELECT 
-                    (time AT TIME ZONE 'Asia/Kolkata')::date as r_date,
-                    MAX((temp_f - 32) * 5/9), 
-                    MIN((temp_min_f - 32) * 5/9), 
-                    MAX(wind_speed_mph * 1.60934), 
-                    MAX(wind_gust_mph * 1.60934), 
-                    MAX(daily_rain_in * 25.4)
-                FROM weather_history 
-                WHERE (time AT TIME ZONE 'Asia/Kolkata')::date < $1::date
-                GROUP BY (time AT TIME ZONE 'Asia/Kolkata')::date
-                ON CONFLICT (record_date) DO UPDATE SET
-                    max_temp_c = EXCLUDED.max_temp_c,
-                    min_temp_c = EXCLUDED.min_temp_c,
-                    max_wind_kmh = EXCLUDED.max_wind_kmh,
-                    max_gust_kmh = EXCLUDED.max_gust_kmh,
-                    total_rain_mm = EXCLUDED.total_rain_mm;
-            `, [todayStr]);
 
-            await client.query(`DELETE FROM weather_history WHERE (time AT TIME ZONE 'Asia/Kolkata')::date < $1::date`, [todayStr]);
-            state.lastArchivedDate = todayStr;
-        }
+        // 2. ARCHIVE (Only at Midnight IST)
+if (hour === 0 && minute < 5 && state.lastArchivedDate !== todayStr) {
+    // We target "Yesterday" specifically by subtracting 1 day from $1
+    await client.query(`
+        INSERT INTO daily_max_records (record_date, max_temp_c, min_temp_c, max_wind_kmh, max_gust_kmh, total_rain_mm)
+        SELECT 
+            (time AT TIME ZONE 'Asia/Kolkata')::date as r_date,
+            MAX((temp_f - 32) * 5/9), 
+            MIN((temp_min_f - 32) * 5/9), 
+            MAX(wind_speed_mph * 1.60934), 
+            MAX(wind_gust_mph * 1.60934), 
+            MAX(daily_rain_in * 25.4)
+        FROM weather_history 
+        WHERE (time AT TIME ZONE 'Asia/Kolkata')::date <= ($1::date - INTERVAL '1 day')::date
+        GROUP BY (time AT TIME ZONE 'Asia/Kolkata')::date
+        ON CONFLICT (record_date) DO UPDATE SET
+            max_temp_c = EXCLUDED.max_temp_c,
+            min_temp_c = EXCLUDED.min_temp_c,
+            max_wind_kmh = EXCLUDED.max_wind_kmh,
+            max_gust_kmh = EXCLUDED.max_gust_kmh,
+            total_rain_mm = EXCLUDED.total_rain_mm;
+    `, [todayStr]);
+
+    // Use the same "Yesterday" logic for the Delete
+    await client.query(`
+        DELETE FROM weather_history 
+        WHERE (time AT TIME ZONE 'Asia/Kolkata')::date <= ($1::date - INTERVAL '1 day')::date
+    `, [todayStr]);
+    
+    state.lastArchivedDate = todayStr;
+}
+
 
         await client.query('COMMIT'); 
         state.lastDbWrite = now;
