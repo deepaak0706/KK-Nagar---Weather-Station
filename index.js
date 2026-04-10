@@ -82,11 +82,15 @@ function calculateRealFeel(tempC, humidity) {
  * Daily Archiving, and History Retrieval.
  */
 
-async function syncWithEcowitt(forceWrite = false) {
+ async function syncWithEcowitt(forceWrite = false) {
     const now = Date.now();
     const currentTimeStamp = new Date().toISOString();
 
-    // Cache check: allow 1-minute cron to bypass cache to update buffers accurately
+    // ---------------------------------------------------------------------
+    // 1. CRITICAL GATEKEEPER FIX
+    // Moving this to the absolute top ensures that if forceWrite is true (from Cron),
+    // the 35-second cache check is bypassed completely.
+    // ---------------------------------------------------------------------
     if (!forceWrite && state.cachedData && (now - state.lastFetchTime < 35000)) {
         return state.cachedData;
     }
@@ -113,7 +117,7 @@ async function syncWithEcowitt(forceWrite = false) {
         const liveRainYearly = parseFloat((d.rainfall.yearly.value * 25.4).toFixed(1));
 
         // ---------------------------------------------------------------------
-        // FIXED BUFFER LOGIC: Compare Raw Numbers to avoid Unit Mismatch
+        // BUFFER LOGIC: Compare Raw Imperial Units to avoid rounding mismatch
         // ---------------------------------------------------------------------
         const apiW = parseFloat(d.wind.wind_speed.value);
         const apiG = parseFloat(d.wind.wind_gust.value);
@@ -137,7 +141,7 @@ async function syncWithEcowitt(forceWrite = false) {
         }
         
         // ---------------------------------------------------------------------
-        // DAVIS-STYLE PRO RAIN RATE CALCULATION
+        // DAVIS-STYLE PRO RAIN RATE CALCULATION (INTACT)
         // ---------------------------------------------------------------------
         let customRateIn = 0;
         const rawDailyInches = d.rainfall.daily.value;
@@ -166,9 +170,9 @@ async function syncWithEcowitt(forceWrite = false) {
                 customRateIn = state.lastCalculatedRate;
             }
         } else {
-          state.lastRainRaw = rawDailyInches;
-          state.lastRainTime = now;
-          state.lastCalculatedRate = 0;
+            state.lastRainRaw = rawDailyInches;
+            state.lastRainTime = now;
+            state.lastCalculatedRate = 0;
         }
 
         state.lastRainRaw = rawDailyInches;
@@ -180,95 +184,88 @@ async function syncWithEcowitt(forceWrite = false) {
             state.tRR = currentTimeStamp; 
         }
 
-        
         // ---------------------------------------------------------------------
-// FIXED DATABASE OPERATIONS
-// ---------------------------------------------------------------------
-if (forceWrite) {
-    const client = await pool.connect();
-    try {
-        await client.query('BEGIN');
+        // DATABASE OPERATIONS
+        // ---------------------------------------------------------------------
+        if (forceWrite) {
+            const client = await pool.connect();
+            try {
+                await client.query('BEGIN');
 
-        // Determine current time in IST for logic checks
-        const nowIST = new Date(new Date().toLocaleString("en-US", {timeZone: "Asia/Kolkata"}));
-        const hour = nowIST.getHours();
-        const minute = nowIST.getMinutes();
-        const todayStr = nowIST.toLocaleDateString('en-CA'); 
+                const nowIST = new Date(new Date().toLocaleString("en-US", {timeZone: "Asia/Kolkata"}));
+                const hour = nowIST.getHours();
+                const minute = nowIST.getMinutes();
+                const todayStr = nowIST.toLocaleDateString('en-CA'); 
 
-        // 1. Snapshot Insertion
-        // We use CURRENT_TIMESTAMP for normal writes. 
-        // For the midnight edge case, we manually calculate the "last second of yesterday" in UTC.
-        let finalTimestamp;
-        if (hour === 0 && minute < 5) {
-            const lastSecondOfYesterday = new Date();
-            lastSecondOfYesterday.setHours(0, 0, 0, 0);
-            lastSecondOfYesterday.setMilliseconds(-1); 
-            finalTimestamp = lastSecondOfYesterday;
-        } else {
-            finalTimestamp = new Date(); // Current UTC time
+                // 1. Snapshot Timestamp Logic (Handles Midnight Backtrack)
+                let finalTimestamp;
+                if (hour === 0 && minute < 5) {
+                    const lastSecondOfYesterday = new Date();
+                    lastSecondOfYesterday.setHours(0, 0, 0, 0);
+                    lastSecondOfYesterday.setMilliseconds(-1); 
+                    finalTimestamp = lastSecondOfYesterday;
+                } else {
+                    finalTimestamp = new Date();
+                }
+
+                await client.query(`
+                    INSERT INTO weather_history 
+                    (time, temp_f, humidity, wind_speed_mph, wind_gust_mph, daily_rain_in, solar_radiation, press_rel, rain_rate_in, temp_min_f,
+                     max_t_time, min_t_time, max_w_time, max_g_time, max_r_time) 
+                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)`, 
+                    [
+                        finalTimestamp,
+                        state.bufMaxT, liveHum, state.bufW, state.bufG, 
+                        d.rainfall.daily.value, d.solar_and_uvi?.solar?.value || 0, 
+                        livePress, state.bufRR, state.bufMinT,
+                        state.tMaxT || currentTimeStamp, state.tMinT || currentTimeStamp, 
+                        state.tW || currentTimeStamp, state.tG || currentTimeStamp, state.tRR || currentTimeStamp
+                    ]);
+
+                // 2. ARCHIVE & DELETE (Only at Midnight IST)
+                if (hour === 0 && minute < 5 && state.lastArchivedDate !== todayStr) {
+                    await client.query(`
+                        INSERT INTO daily_max_records (record_date, max_temp_c, min_temp_c, max_wind_kmh, max_gust_kmh, total_rain_mm)
+                        SELECT 
+                            (time AT TIME ZONE 'Asia/Kolkata')::date as r_date,
+                            MAX((temp_f - 32) * 5/9), 
+                            MIN((temp_min_f - 32) * 5/9), 
+                            MAX(wind_speed_mph * 1.60934), 
+                            MAX(wind_gust_mph * 1.60934), 
+                            MAX(daily_rain_in * 25.4)
+                        FROM weather_history 
+                        WHERE (time AT TIME ZONE 'Asia/Kolkata')::date <= ($1::date - INTERVAL '1 day')::date
+                        GROUP BY (time AT TIME ZONE 'Asia/Kolkata')::date
+                        ON CONFLICT (record_date) DO UPDATE SET
+                            max_temp_c = EXCLUDED.max_temp_c,
+                            min_temp_c = EXCLUDED.min_temp_c,
+                            max_wind_kmh = EXCLUDED.max_wind_kmh,
+                            max_gust_kmh = EXCLUDED.max_gust_kmh,
+                            total_rain_mm = EXCLUDED.total_rain_mm;
+                    `, [todayStr]);
+
+                    await client.query(`
+                        DELETE FROM weather_history 
+                        WHERE (time AT TIME ZONE 'Asia/Kolkata')::date <= ($1::date - INTERVAL '1 day')::date
+                    `, [todayStr]);
+                    
+                    state.lastArchivedDate = todayStr;
+                }
+
+                await client.query('COMMIT'); 
+                state.lastDbWrite = now;
+                
+                // --- RESET HAPPENS ONLY ON SUCCESSFUL COMMIT ---
+                resetStateBuffers(); 
+
+            } catch (err) {
+                await client.query('ROLLBACK');
+                console.error("CRITICAL DB ERROR:", err.message);
+                // We do NOT reset buffers here so that peaks are saved in the next retry
+            } finally {
+                client.release();
+            }
         }
-
-        await client.query(`
-            INSERT INTO weather_history 
-            (time, temp_f, humidity, wind_speed_mph, wind_gust_mph, daily_rain_in, solar_radiation, press_rel, rain_rate_in, temp_min_f,
-             max_t_time, min_t_time, max_w_time, max_g_time, max_r_time) 
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)`, 
-            [
-                finalTimestamp, // Consistent Date object
-                state.bufMaxT, liveHum, state.bufW, state.bufG, 
-                d.rainfall.daily.value, d.solar_and_uvi?.solar?.value || 0, 
-                livePress, state.bufRR, state.bufMinT,
-                state.tMaxT || currentTimeStamp, state.tMinT || currentTimeStamp, 
-                state.tW || currentTimeStamp, state.tG || currentTimeStamp, state.tRR || currentTimeStamp
-            ]);
-
-        // 2. ARCHIVE (Only at Midnight IST)
-
-        // 2. ARCHIVE (Only at Midnight IST)
-if (hour === 0 && minute < 5 && state.lastArchivedDate !== todayStr) {
-    // We target "Yesterday" specifically by subtracting 1 day from $1
-    await client.query(`
-        INSERT INTO daily_max_records (record_date, max_temp_c, min_temp_c, max_wind_kmh, max_gust_kmh, total_rain_mm)
-        SELECT 
-            (time AT TIME ZONE 'Asia/Kolkata')::date as r_date,
-            MAX((temp_f - 32) * 5/9), 
-            MIN((temp_min_f - 32) * 5/9), 
-            MAX(wind_speed_mph * 1.60934), 
-            MAX(wind_gust_mph * 1.60934), 
-            MAX(daily_rain_in * 25.4)
-        FROM weather_history 
-        WHERE (time AT TIME ZONE 'Asia/Kolkata')::date <= ($1::date - INTERVAL '1 day')::date
-        GROUP BY (time AT TIME ZONE 'Asia/Kolkata')::date
-        ON CONFLICT (record_date) DO UPDATE SET
-            max_temp_c = EXCLUDED.max_temp_c,
-            min_temp_c = EXCLUDED.min_temp_c,
-            max_wind_kmh = EXCLUDED.max_wind_kmh,
-            max_gust_kmh = EXCLUDED.max_gust_kmh,
-            total_rain_mm = EXCLUDED.total_rain_mm;
-    `, [todayStr]);
-
-    // Use the same "Yesterday" logic for the Delete
-    await client.query(`
-        DELETE FROM weather_history 
-        WHERE (time AT TIME ZONE 'Asia/Kolkata')::date <= ($1::date - INTERVAL '1 day')::date
-    `, [todayStr]);
-    
-    state.lastArchivedDate = todayStr;
-}
-
-
-        await client.query('COMMIT'); 
-        state.lastDbWrite = now;
-        resetStateBuffers(); 
-    } catch (err) {
-        await client.query('ROLLBACK');
-        console.error("CRITICAL DB ERROR:", err.message);
-    } finally {
-        client.release();
-    }
-}
-
-        
 
         // History Processing
         const historyRes = await pool.query(`SELECT * FROM weather_history WHERE (time AT TIME ZONE 'Asia/Kolkata')::date = (NOW() AT TIME ZONE 'Asia/Kolkata')::date ORDER BY time ASC`);
@@ -850,9 +847,6 @@ async function fetchMonthlySummary() {
         content.innerHTML = '<div class="card" style="color:#ef4444">Error loading summary.</div>';
     }
 }
-
-
-
 
         
     </script>
