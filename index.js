@@ -277,8 +277,8 @@ if (hour === 0 && minute < 5 && state.lastArchivedDate !== todayStr) {
         let mx_t = -999, mn_t = 999, mx_t_time = "--:--", mn_t_time = "--:--", mx_w = 0, mx_w_t = "--:--", mx_g = 0, mx_g_t = "--:--", mx_r = 0, mx_r_t = "--:--", pTrend = 0, tRate = 0, hTrend = 0, graphHistory = [];
 
         if (historyRes.rows.length > 0) {
-            const lastRow = historyRes.rows[historyRes.rows.length - 1];
-            pTrend = parseFloat((livePress - (lastRow.press_rel || livePress)).toFixed(1));
+            const lastRow = historyRes.rows.length > 0 ? historyRes.rows[historyRes.rows.length - 1] : null;
+            pTrend = lastRow ? parseFloat((livePress - (lastRow.press_rel || livePress)).toFixed(1)) : 0;
             const baseTempF = oneHourAgoRes.rows.length > 0 ? oneHourAgoRes.rows[0].temp_f : (historyRes.rows[0].temp_f || d.outdoor.temperature.value);
             const baseHum = oneHourAgoRes.rows.length > 0 ? oneHourAgoRes.rows[0].humidity : (historyRes.rows[0].humidity || liveHum);
             tRate = parseFloat((liveTemp - parseFloat(((baseTempF - 32) * 5 / 9).toFixed(1))).toFixed(1));
