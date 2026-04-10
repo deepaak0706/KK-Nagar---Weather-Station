@@ -336,31 +336,34 @@ async function syncWithEcowitt(forceWrite = false) {
  * This function pulls from the daily_max_records table.
  * It groups data by month for the summary view.
  */
+
+// Replacement for getWeatherSummary to reduce Node.js memory usage
 async function getWeatherSummary() {
     try {
         const result = await pool.query(`
             SELECT 
-                record_date, 
-                max_temp_c, min_temp_c, 
-                max_wind_kmh, max_gust_kmh, 
-                total_rain_mm 
+                TO_CHAR(record_date, 'Month YYYY') as month_year,
+                json_agg(json_build_object(
+                    'record_date', record_date,
+                    'max_temp_c', max_temp_c,
+                    'min_temp_c', min_temp_c,
+                    'max_wind_kmh', max_wind_kmh,
+                    'max_gust_kmh', max_gust_kmh,
+                    'total_rain_mm', total_rain_mm
+                ) ORDER BY record_date DESC) as days
             FROM daily_max_records 
-            ORDER BY record_date DESC
+            GROUP BY month_year, TO_CHAR(record_date, 'YYYY-MM')
+            ORDER BY TO_CHAR(record_date, 'YYYY-MM') DESC
         `);
-
-        // Groups rows by "Month Year" (e.g., "April 2026")
-        return result.rows.reduce((acc, row) => {
-            const date = new Date(row.record_date);
-            const monthYear = date.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
-            if (!acc[monthYear]) acc[monthYear] = [];
-            acc[monthYear].push(row);
-            return acc;
-        }, {});
+        
+        // This returns a much cleaner structure directly from the DB
+        return result.rows; 
     } catch (err) {
         console.error("Summary Fetch Failed:", err);
         return { error: err.message };
     }
 }
+
 
 // The API endpoint the frontend will call
 app.get("/api/summary", async (req, res) => {
