@@ -82,7 +82,7 @@ function calculateRealFeel(tempC, humidity) {
  * Daily Archiving, and History Retrieval.
  */
 
- async function syncWithEcowitt(forceWrite = false) {
+async function syncWithEcowitt(forceWrite = false) {
     const now = Date.now();
     const currentTimeStamp = new Date().toISOString();
 
@@ -183,21 +183,31 @@ function calculateRealFeel(tempC, humidity) {
         /**
          * DATABASE OPERATIONS
          */
+
+             /**
+         * DATABASE OPERATIONS
+         * Optimized for 10-min Cron. 
+         * Includes IST-safe Backdating, Resilience, and Davis Rain Logic.
+         */
         if (forceWrite) {
             const client = await pool.connect();
             try {
-                await client.query('BEGIN'); 
+                await client.query('BEGIN'); // Start Transaction
 
                 const nowIST = new Date(new Date().toLocaleString("en-US", {timeZone: "Asia/Kolkata"}));
                 const hour = nowIST.getHours();
                 const minute = nowIST.getMinutes();
-                const todayStr = nowIST.toLocaleDateString('en-CA'); 
+                const todayStr = nowIST.toLocaleDateString('en-CA'); // YYYY-MM-DD
 
+                // 1. THE 12 AM "CLEAN SWEEP" BACKDATE
+                // If the midnight cron is delayed, we force the timestamp to 23:59:59 
+                // of "Yesterday" so it is captured in the archive properly.
                 let timestampSQL = "NOW() AT TIME ZONE 'Asia/Kolkata'";
                 if (hour === 0 && minute <= 5) {
                     timestampSQL = "(CURRENT_DATE AT TIME ZONE 'Asia/Kolkata') - INTERVAL '1 second'";
                 }
 
+                // 2. WRITE CURRENT BUFFERED DATA
                 await client.query(`
                     INSERT INTO weather_history 
                     (time, temp_f, humidity, wind_speed_mph, wind_gust_mph, daily_rain_in, solar_radiation, press_rel, rain_rate_in, temp_min_f,
@@ -211,7 +221,10 @@ function calculateRealFeel(tempC, humidity) {
                         state.tW || currentTimeStamp, state.tG || currentTimeStamp, state.tRR || currentTimeStamp
                     ]);
 
+                // 3. ARCHIVE LOGIC (The "Any Time" Resilience)
+                // Sweeps any data older than TODAY into the archive table.
                 if (hour === 0 && minute < 25 && state.lastArchivedDate !== todayStr) {
+                    
                     await client.query(`
                         INSERT INTO daily_max_records (record_date, max_temp_c, min_temp_c, max_wind_kmh, max_gust_kmh, total_rain_mm)
                         SELECT 
@@ -241,18 +254,23 @@ function calculateRealFeel(tempC, humidity) {
                 }
 
                 await client.query('COMMIT'); 
+                
+                // Success: Update timestamp and clear memory peaks
                 state.lastDbWrite = now;
                 resetStateBuffers();
 
             } catch (err) {
                 await client.query('ROLLBACK'); 
-                console.error("DB TRANSACTION FAILED:", err.message);
+                console.error("DB TRANSACTION FAILED - Peaks retained in memory:", err.message);
+                // We DO NOT call resetStateBuffers() here. Peaks stay for next 10-min retry.
             } finally {
                 client.release();
             }
         }
 
-        // 4. HISTORY PROCESSING
+        
+
+        // History Processing
         const historyRes = await pool.query(`SELECT * FROM weather_history WHERE (time AT TIME ZONE 'Asia/Kolkata')::date = (NOW() AT TIME ZONE 'Asia/Kolkata')::date ORDER BY time ASC`);
         const oneHourAgoRes = await pool.query(`SELECT temp_f, humidity FROM weather_history WHERE time >= NOW() - INTERVAL '1 hour' ORDER BY time ASC LIMIT 1`);
         
@@ -268,6 +286,7 @@ function calculateRealFeel(tempC, humidity) {
 
             historyRes.rows.forEach(r => {
                 const formatTime = (iso) => iso ? new Date(iso).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' }) : new Date(r.time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' });
+                
                 const r_temp = parseFloat(((r.temp_f - 32) * 5 / 9).toFixed(1));
                 const r_min_temp = parseFloat(((r.temp_min_f - 32) * 5 / 9).toFixed(1));
                 const r_wind = parseFloat((r.wind_speed_mph * 1.60934).toFixed(1));
@@ -279,11 +298,14 @@ function calculateRealFeel(tempC, humidity) {
                 if (r_wind > mx_w) { mx_w = r_wind; mx_w_t = formatTime(r.max_w_time); }
                 if (r_gust > mx_g) { mx_g = r_gust; mx_g_t = formatTime(r.max_g_time); }
                 if (r_rain_rate > mx_r) { mx_r = r_rain_rate; mx_r_t = formatTime(r.max_r_time); }
+                
                 graphHistory.push({ time: r.time, temp: r_temp, hum: r.humidity, wind: r_wind, rain: parseFloat((r.daily_rain_in * 25.4).toFixed(1)) });
             });
         }
 
+        // --- DASHBOARD DISPLAY: Convert to KM/H locally only ---
         const formatLiveTime = (iso) => iso ? new Date(iso).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' }) : "--:--";
+        
         const displayBufTMax = parseFloat(((state.bufMaxT - 32) * 5 / 9).toFixed(1));
         const displayBufTMin = parseFloat(((state.bufMinT - 32) * 5 / 9).toFixed(1));
         const displayBufWind = parseFloat((state.bufW * 1.60934).toFixed(1));
@@ -306,13 +328,14 @@ function calculateRealFeel(tempC, humidity) {
         };
         state.lastFetchTime = now;
         return state.cachedData;
+    } catch (e) { return { error: e.message }; }
+}
 
-    } catch (e) { 
-        console.error("Critical API/Process Error:", e.message);
-        return { error: e.message }; 
-    }
-} 
-
+/**
+ * SUMMARY LOGIC - ZONE A
+ * This function pulls from the daily_max_records table.
+ * It groups data by month for the summary view.
+ */
 async function getWeatherSummary() {
     try {
         const result = await pool.query(`
@@ -325,6 +348,7 @@ async function getWeatherSummary() {
             ORDER BY record_date DESC
         `);
 
+        // Groups rows by "Month Year" (e.g., "April 2026")
         return result.rows.reduce((acc, row) => {
             const date = new Date(row.record_date);
             const monthYear = date.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
@@ -338,6 +362,11 @@ async function getWeatherSummary() {
     }
 }
 
+// The API endpoint the frontend will call
+app.get("/api/summary", async (req, res) => {
+    const summaryData = await getWeatherSummary();
+    res.json(summaryData);
+});
 
 
 /**
@@ -345,7 +374,6 @@ async function getWeatherSummary() {
  */
 app.get("/weather", async (req, res) => res.json(await syncWithEcowitt(false)));
 app.get("/api/sync", async (req, res) => res.json(await syncWithEcowitt(req.query.write === 'true')));
-app.get("/api/summary", async (req, res) => res.json(await getWeatherSummary()));
 
 app.get("/", (req, res) => {
     res.send(`
@@ -459,38 +487,6 @@ app.get("/", (req, res) => {
         .time-mark { font-size: 9px; color: var(--muted); font-weight: 600; margin-left: 2px; background: rgba(0,0,0,0.04); padding: 1px 4px; border-radius: 4px; }
         body.is-night .time-mark { background: rgba(255,255,255,0.1); }
 
-        body.is-night .time-mark { background: rgba(255,255,255,0.1); }
-
-        /* --- STEP 3: MOBILE-FIRST HORIZONTAL SCROLL --- */
-        .summary-table-wrapper { 
-            overflow-x: auto; 
-            -webkit-overflow-scrolling: touch; 
-            background: var(--card); 
-            border-radius: 24px; 
-            border: 1px solid var(--border); 
-            box-shadow: var(--glow);
-            margin-top: 10px;
-        }
-
-        .summary-table { 
-            width: 100%; 
-            border-collapse: collapse; 
-            min-width: 500px; 
-        }
-
-        .summary-table-wrapper::-webkit-scrollbar {
-            height: 4px;
-        }
-        .summary-table-wrapper::-webkit-scrollbar-thumb {
-            background: var(--accent);
-            border-radius: 10px;
-        }
-
-        /* SUMMARY SYSTEM - ZONE B */
-        .nav-tabs { display: flex; gap: 8px; margin-bottom: 25px; }
-
-
-
         /* SUMMARY SYSTEM - ZONE B */
 .nav-tabs { display: flex; gap: 8px; margin-bottom: 25px; }
 .tab-btn { 
@@ -503,7 +499,8 @@ app.get("/", (req, res) => {
 .month-header { font-size: 20px; font-weight: 800; margin: 25px 0 15px 0; color: var(--accent); display: flex; align-items: center; gap: 10px; }
 .month-header::after { content: ""; height: 2px; flex-grow: 1; background: var(--border); }
 
-
+.summary-table-wrapper { overflow-x: auto; background: var(--card); border-radius: 24px; border: 1px solid var(--border); box-shadow: var(--glow); }
+.summary-table { width: 100%; border-collapse: collapse; min-width: 600px; }
 .summary-table th { padding: 16px; background: var(--badge); text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); }
 .summary-table td { padding: 16px; border-top: 1px solid var(--border); font-size: 14px; }
 .summary-table tr:hover { background: var(--badge); }
@@ -592,39 +589,9 @@ app.get("/", (req, res) => {
                 <div class="graph-card"><div class="label" style="margin-bottom: 8px;">Precipitation</div><canvas id="cR"></canvas></div>
             </div>
             
-        <div id="page-summary" style="display: none;">
-    <div class="card" style="margin-bottom: 20px; display: flex; gap: 15px; align-items: center; flex-wrap: wrap;">
-        <div>
-            <label class="badge-label">Select Year</label>
-            <select id="yearSelect" class="tab-btn" style="padding: 8px; width: 120px;">
-                <option value="2026">2026</option>
-                <option value="2025">2025</option>
-                <option value="2016">2016</option>
-            </select>
+        </div> <div id="page-summary" style="display: none;">
+            <div id="summary-content"></div>
         </div>
-        <div>
-            <label class="badge-label">Select Month</label>
-            <select id="monthSelect" class="tab-btn" style="padding: 8px; width: 150px;">
-                <option value="January">January</option>
-                <option value="February">February</option>
-                <option value="March">March</option>
-                <option value="April" selected>April</option>
-                <option value="May">May</option>
-                <option value="June">June</option>
-                <option value="July">July</option>
-                <option value="August">August</option>
-                <option value="September">September</option>
-                <option value="October">October</option>
-                <option value="November">November</option>
-                <option value="December">December</option>
-            </select>
-        </div>
-        <button onclick="fetchMonthlySummary()" class="tab-btn active" style="margin-top: 18px;">Load Data</button>
-    </div>
-
-    <div id="summary-content"></div>
-</div>
-
 
     </div>
 
@@ -839,58 +806,46 @@ function showPage(pageId) {
 
 async function fetchMonthlySummary() {
     const content = document.getElementById('summary-content');
-    const selectedYear = document.getElementById('yearSelect').value;
-    const selectedMonth = document.getElementById('monthSelect').value;
-    const targetKey = `${selectedMonth} ${selectedYear}`; // e.g., "April 2026"
-
-    content.innerHTML = '<div class="card" style="text-align:center; padding:40px;">Searching records...</div>';
+    content.innerHTML = '<div class="card" style="text-align:center; padding:40px;">Generating Summary Report...</div>';
     
     try {
         const res = await fetch('/api/summary');
         const groups = await res.json();
         
-        // Filter data based on dropdowns
-        const days = groups[targetKey];
-
-        if (!days || days.length === 0) {
-            content.innerHTML = `<div class="card" style="text-align:center; padding:40px;">No records found for ${targetKey}.</div>`;
-            return;
-        }
-
-        let html = `
-            <div class="month-section">
-                <div class="month-header">${targetKey}</div>
-                <div class="summary-table-wrapper">
-                    <table class="summary-table">
-                        <thead>
-                            <tr>
-                                <th>Date</th>
-                                <th>Temp (Max/Min)</th>
-                                <th>Wind (Spd/Gust)</th>
-                                <th>Rain</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${days.map(d => `
+        let html = '';
+        // We use \` and \${ to ensure the server doesn't try to run this code
+        for (const [month, days] of Object.entries(groups)) {
+            html += \`
+                <div class="month-section">
+                    <div class="month-header">\${month}</div>
+                    <div class="summary-table-wrapper">
+                        <table class="summary-table">
+                            <thead>
                                 <tr>
-                                    <td><b>${new Date(d.record_date).getDate()}</b></td>
-                                    <td>
-                                        <span style="color:#ef4444; font-weight:700;">${d.max_temp_c}°</span> / 
-                                        <span style="color:#0ea5e9; font-weight:700;">${d.min_temp_c}°</span>
-                                    </td>
-                                    <td>
-                                        ${d.max_wind_kmh} <small>km/h</small><br>
-                                        <span style="font-size:11px; color:var(--muted)">Gust: ${d.max_gust_kmh}</span>
-                                    </td>
-                                    <td style="font-weight:800;">${d.total_rain_mm} mm</td>
+                                    <th>Date</th>
+                                    <th>Max Temp</th>
+                                    <th>Min Temp</th>
+                                    <th>Wind/Gust</th>
+                                    <th>Total Rain</th>
                                 </tr>
-                            `).join('')}
-                        </tbody>
-                    </table>
+                            </thead>
+                            <tbody>
+                                \${days.map(d => \`
+                                    <tr>
+                                        <td><b>\${new Date(d.record_date).getDate()}</b></td>
+                                        <td style="color:#ef4444; font-weight:700;">\${d.max_temp_c}°C</td>
+                                        <td style="color:#0ea5e9; font-weight:700;">\${d.min_temp_c}°C</td>
+                                        <td>\${d.max_wind_kmh} / \${d.max_gust_kmh} <small>km/h</small></td>
+                                        <td style="font-weight:800;">\${d.total_rain_mm} mm</td>
+                                    </tr>
+                                \`).join('')}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
-            </div>`;
-        
-        content.innerHTML = html;
+            \`;
+        }
+        content.innerHTML = html || '<div class="card" style="text-align:center; padding:40px;">No archived records found yet.</div>';
     } catch (e) {
         content.innerHTML = '<div class="card" style="color:#ef4444">Error loading summary.</div>';
     }
