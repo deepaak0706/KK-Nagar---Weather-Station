@@ -184,41 +184,34 @@ async function syncWithEcowitt(forceWrite = false) {
          /**
          * DATABASE OPERATIONS
          * Optimized for 10-min Cron. 
+         * Includes IST-safe Backdating, Resilience, and Davis Rain Logic.
+         */
 
-         // ---------------------------------------------------------------------
-// FIXED DATABASE OPERATIONS
-// ---------------------------------------------------------------------
-if (forceWrite) {
+         if (forceWrite) {
     const client = await pool.connect();
     try {
         await client.query('BEGIN');
 
-        // Determine current time in IST for logic checks
         const nowIST = new Date(new Date().toLocaleString("en-US", {timeZone: "Asia/Kolkata"}));
+        const todayStr = nowIST.toLocaleDateString('en-CA'); 
         const hour = nowIST.getHours();
         const minute = nowIST.getMinutes();
-        const todayStr = nowIST.toLocaleDateString('en-CA'); 
-
-        // 1. Snapshot Insertion
-        // We use CURRENT_TIMESTAMP for normal writes. 
-        // For the midnight edge case, we manually calculate the "last second of yesterday" in UTC.
-        let finalTimestamp;
+        
+        // --- THE FIX: ONLY BACKDATE AT MIDNIGHT ---
+        // If it's the 12:00 AM cron (we check first 5 mins for safety), 
+        // we force it to 23:59:59 of the day that just ended.
+        let timestampSQL = "NOW() AT TIME ZONE 'Asia/Kolkata'";
         if (hour === 0 && minute < 5) {
-            const lastSecondOfYesterday = new Date();
-            lastSecondOfYesterday.setHours(0, 0, 0, 0);
-            lastSecondOfYesterday.setMilliseconds(-1); 
-            finalTimestamp = lastSecondOfYesterday;
-        } else {
-            finalTimestamp = new Date(); // Current UTC time
+            timestampSQL = "(CURRENT_DATE AT TIME ZONE 'Asia/Kolkata') - INTERVAL '1 second'";
         }
 
+        // 1. Write the snapshot
         await client.query(`
             INSERT INTO weather_history 
             (time, temp_f, humidity, wind_speed_mph, wind_gust_mph, daily_rain_in, solar_radiation, press_rel, rain_rate_in, temp_min_f,
              max_t_time, min_t_time, max_w_time, max_g_time, max_r_time) 
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)`, 
+            VALUES (${timestampSQL}, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`, 
             [
-                finalTimestamp, // Consistent Date object
                 state.bufMaxT, liveHum, state.bufW, state.bufG, 
                 d.rainfall.daily.value, d.solar_and_uvi?.solar?.value || 0, 
                 livePress, state.bufRR, state.bufMinT,
@@ -226,9 +219,8 @@ if (forceWrite) {
                 state.tW || currentTimeStamp, state.tG || currentTimeStamp, state.tRR || currentTimeStamp
             ]);
 
-        // 2. ARCHIVE (Only at Midnight IST)
+        // 2. ARCHIVE (Only at Midnight)
         if (hour === 0 && minute < 5 && state.lastArchivedDate !== todayStr) {
-            // Archive logic remains similar but uses the $1 parameter to ensure date consistency
             await client.query(`
                 INSERT INTO daily_max_records (record_date, max_temp_c, min_temp_c, max_wind_kmh, max_gust_kmh, total_rain_mm)
                 SELECT 
@@ -249,21 +241,25 @@ if (forceWrite) {
                     total_rain_mm = EXCLUDED.total_rain_mm;
             `, [todayStr]);
 
-            await client.query(`DELETE FROM weather_history WHERE (time AT TIME ZONE 'Asia/Kolkata')::date < $1::date`, [todayStr]);
+            await client.query(`
+                DELETE FROM weather_history 
+                WHERE (time AT TIME ZONE 'Asia/Kolkata')::date < $1::date;
+            `, [todayStr]);
+            
             state.lastArchivedDate = todayStr;
         }
 
         await client.query('COMMIT'); 
         state.lastDbWrite = now;
         resetStateBuffers(); 
+
     } catch (err) {
-        await client.query('ROLLBACK');
-        console.error("CRITICAL DB ERROR:", err.message);
+        await client.query('ROLLBACK'); 
+        console.error("DB SYNC ERROR:", err.message);
     } finally {
         client.release();
     }
 }
-
 
 
 
