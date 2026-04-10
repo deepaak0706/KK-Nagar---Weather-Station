@@ -337,6 +337,39 @@ async function syncWithEcowitt(forceWrite = false) {
  * It groups data by month for the summary view.
  */
 
+
+/** * SUMMARY LOGIC - Fixed rendering loop and backtick escaping
+ */
+async function getWeatherSummary() {
+    try {
+        const result = await pool.query(`
+            SELECT 
+                record_date, 
+                ROUND(max_temp_c::numeric, 1) as max_temp_c, 
+                ROUND(min_temp_c::numeric, 1) as min_temp_c, 
+                ROUND(max_wind_kmh::numeric, 1) as max_wind_kmh, 
+                ROUND(max_gust_kmh::numeric, 1) as max_gust_kmh, 
+                ROUND(total_rain_mm::numeric, 1) as total_rain_mm 
+            FROM daily_max_records 
+            ORDER BY record_date DESC
+        `);
+
+        // Groups rows by "Month Year" (e.g., "April 2026")
+        return result.rows.reduce((acc, row) => {
+            const date = new Date(row.record_date);
+            const monthYear = date.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
+            if (!acc[monthYear]) acc[monthYear] = [];
+            acc[monthYear].push(row);
+            return acc;
+        }, {});
+    } catch (err) {
+        console.error("Summary Fetch Failed:", err);
+        return { error: err.message };
+    }
+}
+
+// ... inside your app.get("/") HTML section, replace fetchMonthlySummary with this:
+
 async function fetchMonthlySummary() {
     const content = document.getElementById('summary-content');
     content.innerHTML = '<div class="card" style="text-align:center; padding:40px;">Generating Summary Report...</div>';
@@ -345,19 +378,17 @@ async function fetchMonthlySummary() {
         const res = await fetch('/api/summary');
         const groups = await res.json();
         
-        console.log("Summary Data Received:", groups); // Check F12 Console
-
-        if (!groups || groups.length === 0 || groups.error) {
+        if (!groups || Object.keys(groups).length === 0) {
             content.innerHTML = '<div class="card" style="text-align:center; padding:40px;">No archived records found yet.</div>';
             return;
         }
 
         let html = '';
-        // 'groups' is an array of { month_year, days: [] }
-        groups.forEach(group => {
+        // Iterate through each Month group
+        for (const [month, days] of Object.entries(groups)) {
             html += `
                 <div class="month-section">
-                    <div class="month-header">${group.month_year}</div>
+                    <div class="month-header">${month}</div>
                     <div class="summary-table-wrapper">
                         <table class="summary-table">
                             <thead>
@@ -366,17 +397,17 @@ async function fetchMonthlySummary() {
                                     <th>Max Temp</th>
                                     <th>Min Temp</th>
                                     <th>Wind / Gust</th>
-                                    <th>Rain</th>
+                                    <th>Rainfall</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                ${group.days.map(d => `
+                                ${days.map(d => `
                                     <tr>
                                         <td><b>${new Date(d.record_date).getDate()}</b></td>
-                                        <td style="color:#ef4444; font-weight:700;">${parseFloat(d.max_temp_c).toFixed(1)}°C</td>
-                                        <td style="color:#0ea5e9; font-weight:700;">${parseFloat(d.min_temp_c).toFixed(1)}°C</td>
-                                        <td>${parseFloat(d.max_wind_kmh).toFixed(1)} / ${parseFloat(d.max_gust_kmh).toFixed(1)} <small>km/h</small></td>
-                                        <td style="font-weight:800;">${parseFloat(d.total_rain_mm).toFixed(1)} mm</td>
+                                        <td style="color:#ef4444; font-weight:700;">${d.max_temp_c}°C</td>
+                                        <td style="color:#0ea5e9; font-weight:700;">${d.min_temp_c}°C</td>
+                                        <td>${d.max_wind_kmh} / ${d.max_gust_kmh} <small>km/h</small></td>
+                                        <td style="font-weight:800;">${d.total_rain_mm} mm</td>
                                     </tr>
                                 `).join('')}
                             </tbody>
@@ -384,22 +415,14 @@ async function fetchMonthlySummary() {
                     </div>
                 </div>
             `;
-        });
-        
+        }
         content.innerHTML = html;
     } catch (e) {
-        console.error("Fetch Error:", e);
-        content.innerHTML = '<div class="card" style="color:#ef4444; text-align:center; padding:40px;">Error loading summary. Make sure the database has data in daily_max_records.</div>';
+        console.error("Summary UI Error:", e);
+        content.innerHTML = '<div class="card" style="color:#ef4444; text-align:center; padding:40px;">Error loading summary data.</div>';
     }
 }
 
-
-
-// The API endpoint the frontend will call
-app.get("/api/summary", async (req, res) => {
-    const summaryData = await getWeatherSummary();
-    res.json(summaryData);
-});
 
 
 /**
