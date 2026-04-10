@@ -343,11 +343,17 @@ async function fetchMonthlySummary() {
     
     try {
         const res = await fetch('/api/summary');
-        const groups = await res.json(); // This is an Array [ {month_year, days}, ... ]
+        const groups = await res.json();
         
+        console.log("Summary Data Received:", groups); // Check F12 Console
+
+        if (!groups || groups.length === 0 || groups.error) {
+            content.innerHTML = '<div class="card" style="text-align:center; padding:40px;">No archived records found yet.</div>';
+            return;
+        }
+
         let html = '';
-        
-        // Loop through the array directly
+        // 'groups' is an array of { month_year, days: [] }
         groups.forEach(group => {
             html += `
                 <div class="month-section">
@@ -359,8 +365,8 @@ async function fetchMonthlySummary() {
                                     <th>Date</th>
                                     <th>Max Temp</th>
                                     <th>Min Temp</th>
-                                    <th>Wind/Gust</th>
-                                    <th>Total Rain</th>
+                                    <th>Wind / Gust</th>
+                                    <th>Rain</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -380,12 +386,13 @@ async function fetchMonthlySummary() {
             `;
         });
         
-        content.innerHTML = html || '<div class="card" style="text-align:center; padding:40px;">No archived records found yet.</div>';
+        content.innerHTML = html;
     } catch (e) {
-        console.error(e);
-        content.innerHTML = '<div class="card" style="color:#ef4444; text-align:center; padding:40px;">Error loading summary data. Check console for details.</div>';
+        console.error("Fetch Error:", e);
+        content.innerHTML = '<div class="card" style="color:#ef4444; text-align:center; padding:40px;">Error loading summary. Make sure the database has data in daily_max_records.</div>';
     }
 }
+
 
 
 // The API endpoint the frontend will call
