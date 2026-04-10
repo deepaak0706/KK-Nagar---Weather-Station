@@ -180,34 +180,25 @@ async function syncWithEcowitt(forceWrite = false) {
             state.tRR = currentTimeStamp; 
         }
 
-        /**
-         * DATABASE OPERATIONS
-         */
-
-             /**
+                /**
          * DATABASE OPERATIONS
          * Optimized for 10-min Cron. 
-         * Includes IST-safe Backdating, Resilience, and Davis Rain Logic.
          */
         if (forceWrite) {
             const client = await pool.connect();
             try {
-                await client.query('BEGIN'); // Start Transaction
+                await client.query('BEGIN'); 
 
                 const nowIST = new Date(new Date().toLocaleString("en-US", {timeZone: "Asia/Kolkata"}));
                 const hour = nowIST.getHours();
                 const minute = nowIST.getMinutes();
-                const todayStr = nowIST.toLocaleDateString('en-CA'); // YYYY-MM-DD
+                const todayStr = nowIST.toLocaleDateString('en-CA'); 
 
-                // 1. THE 12 AM "CLEAN SWEEP" BACKDATE
-                // If the midnight cron is delayed, we force the timestamp to 23:59:59 
-                // of "Yesterday" so it is captured in the archive properly.
                 let timestampSQL = "NOW() AT TIME ZONE 'Asia/Kolkata'";
                 if (hour === 0 && minute <= 5) {
                     timestampSQL = "(CURRENT_DATE AT TIME ZONE 'Asia/Kolkata') - INTERVAL '1 second'";
                 }
 
-                // 2. WRITE CURRENT BUFFERED DATA
                 await client.query(`
                     INSERT INTO weather_history 
                     (time, temp_f, humidity, wind_speed_mph, wind_gust_mph, daily_rain_in, solar_radiation, press_rel, rain_rate_in, temp_min_f,
@@ -221,10 +212,7 @@ async function syncWithEcowitt(forceWrite = false) {
                         state.tW || currentTimeStamp, state.tG || currentTimeStamp, state.tRR || currentTimeStamp
                     ]);
 
-                // 3. ARCHIVE LOGIC (The "Any Time" Resilience)
-                // Sweeps any data older than TODAY into the archive table.
                 if (hour === 0 && minute < 25 && state.lastArchivedDate !== todayStr) {
-                    
                     await client.query(`
                         INSERT INTO daily_max_records (record_date, max_temp_c, min_temp_c, max_wind_kmh, max_gust_kmh, total_rain_mm)
                         SELECT 
@@ -254,23 +242,18 @@ async function syncWithEcowitt(forceWrite = false) {
                 }
 
                 await client.query('COMMIT'); 
-                
-                // Success: Update timestamp and clear memory peaks
                 state.lastDbWrite = now;
                 resetStateBuffers();
 
             } catch (err) {
                 await client.query('ROLLBACK'); 
-                console.error("DB TRANSACTION FAILED - Peaks retained in memory:", err.message);
-                // We DO NOT call resetStateBuffers() here. Peaks stay for next 10-min retry.
+                console.error("DB TRANSACTION FAILED:", err.message);
             } finally {
                 client.release();
             }
         }
 
-        
-
-        // History Processing
+        // 4. HISTORY PROCESSING (Pull data for the graphs)
         const historyRes = await pool.query(`SELECT * FROM weather_history WHERE (time AT TIME ZONE 'Asia/Kolkata')::date = (NOW() AT TIME ZONE 'Asia/Kolkata')::date ORDER BY time ASC`);
         const oneHourAgoRes = await pool.query(`SELECT temp_f, humidity FROM weather_history WHERE time >= NOW() - INTERVAL '1 hour' ORDER BY time ASC LIMIT 1`);
         
@@ -286,7 +269,6 @@ async function syncWithEcowitt(forceWrite = false) {
 
             historyRes.rows.forEach(r => {
                 const formatTime = (iso) => iso ? new Date(iso).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' }) : new Date(r.time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' });
-                
                 const r_temp = parseFloat(((r.temp_f - 32) * 5 / 9).toFixed(1));
                 const r_min_temp = parseFloat(((r.temp_min_f - 32) * 5 / 9).toFixed(1));
                 const r_wind = parseFloat((r.wind_speed_mph * 1.60934).toFixed(1));
@@ -298,14 +280,11 @@ async function syncWithEcowitt(forceWrite = false) {
                 if (r_wind > mx_w) { mx_w = r_wind; mx_w_t = formatTime(r.max_w_time); }
                 if (r_gust > mx_g) { mx_g = r_gust; mx_g_t = formatTime(r.max_g_time); }
                 if (r_rain_rate > mx_r) { mx_r = r_rain_rate; mx_r_t = formatTime(r.max_r_time); }
-                
                 graphHistory.push({ time: r.time, temp: r_temp, hum: r.humidity, wind: r_wind, rain: parseFloat((r.daily_rain_in * 25.4).toFixed(1)) });
             });
         }
 
-        // --- DASHBOARD DISPLAY: Convert to KM/H locally only ---
         const formatLiveTime = (iso) => iso ? new Date(iso).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' }) : "--:--";
-        
         const displayBufTMax = parseFloat(((state.bufMaxT - 32) * 5 / 9).toFixed(1));
         const displayBufTMin = parseFloat(((state.bufMinT - 32) * 5 / 9).toFixed(1));
         const displayBufWind = parseFloat((state.bufW * 1.60934).toFixed(1));
@@ -328,8 +307,12 @@ async function syncWithEcowitt(forceWrite = false) {
         };
         state.lastFetchTime = now;
         return state.cachedData;
-    } catch (e) { return { error: e.message }; }
-}
+
+    } catch (e) { 
+        return { error: e.message }; 
+    }
+} // <--- THIS BRACE WAS MISSING
+
 
 /**
  * SUMMARY LOGIC - ZONE A
