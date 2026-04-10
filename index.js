@@ -795,15 +795,12 @@ app.get("/", (req, res) => {
 
         /* SUMMARY CONTROLLER - ZONE D */
 function showPage(pageId) {
-    // Switch visibility
     document.getElementById('page-dashboard').style.display = pageId === 'dashboard' ? 'block' : 'none';
     document.getElementById('page-summary').style.display = pageId === 'summary' ? 'block' : 'none';
     
-    // Update button styles
     document.getElementById('tab-dash').classList.toggle('active', pageId === 'dashboard');
     document.getElementById('tab-sum').classList.toggle('active', pageId === 'summary');
 
-    // Load data if switching to summary
     if (pageId === 'summary') fetchMonthlySummary();
 }
 
@@ -816,10 +813,11 @@ async function fetchMonthlySummary() {
         const groups = await res.json();
         
         let html = '';
+        // We use \` and \${ to ensure the server doesn't try to run this code
         for (const [month, days] of Object.entries(groups)) {
-            html += `
+            html += \`
                 <div class="month-section">
-                    <div class="month-header">${month}</div>
+                    <div class="month-header">\${month}</div>
                     <div class="summary-table-wrapper">
                         <table class="summary-table">
                             <thead>
@@ -832,26 +830,27 @@ async function fetchMonthlySummary() {
                                 </tr>
                             </thead>
                             <tbody>
-                                ${days.map(d => `
+                                \${days.map(d => \`
                                     <tr>
-                                        <td><b>${new Date(d.record_date).getDate()}</b></td>
-                                        <td style="color:#ef4444; font-weight:700;">${d.max_temp_c}°C</td>
-                                        <td style="color:#0ea5e9; font-weight:700;">${d.min_temp_c}°C</td>
-                                        <td>${d.max_wind_kmh} / ${d.max_gust_kmh} <small>km/h</small></td>
-                                        <td style="font-weight:800;">${d.total_rain_mm} mm</td>
+                                        <td><b>\${new Date(d.record_date).getDate()}</b></td>
+                                        <td style="color:#ef4444; font-weight:700;">\${d.max_temp_c}°C</td>
+                                        <td style="color:#0ea5e9; font-weight:700;">\${d.min_temp_c}°C</td>
+                                        <td>\${d.max_wind_kmh} / \${d.max_gust_kmh} <small>km/h</small></td>
+                                        <td style="font-weight:800;">\${d.total_rain_mm} mm</td>
                                     </tr>
-                                `).join('')}
+                                \`).join('')}
                             </tbody>
                         </table>
                     </div>
                 </div>
-            `;
+            \`;
         }
         content.innerHTML = html || '<div class="card" style="text-align:center; padding:40px;">No archived records found yet.</div>';
     } catch (e) {
         content.innerHTML = '<div class="card" style="color:#ef4444">Error loading summary.</div>';
     }
 }
+
 
 
 
