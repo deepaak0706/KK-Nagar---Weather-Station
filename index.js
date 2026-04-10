@@ -337,30 +337,53 @@ async function syncWithEcowitt(forceWrite = false) {
  * It groups data by month for the summary view.
  */
 
-// Replacement for getWeatherSummary to reduce Node.js memory usage
-async function getWeatherSummary() {
+async function fetchMonthlySummary() {
+    const content = document.getElementById('summary-content');
+    content.innerHTML = '<div class="card" style="text-align:center; padding:40px;">Generating Summary Report...</div>';
+    
     try {
-        const result = await pool.query(`
-            SELECT 
-                TO_CHAR(record_date, 'Month YYYY') as month_year,
-                json_agg(json_build_object(
-                    'record_date', record_date,
-                    'max_temp_c', max_temp_c,
-                    'min_temp_c', min_temp_c,
-                    'max_wind_kmh', max_wind_kmh,
-                    'max_gust_kmh', max_gust_kmh,
-                    'total_rain_mm', total_rain_mm
-                ) ORDER BY record_date DESC) as days
-            FROM daily_max_records 
-            GROUP BY month_year, TO_CHAR(record_date, 'YYYY-MM')
-            ORDER BY TO_CHAR(record_date, 'YYYY-MM') DESC
-        `);
+        const res = await fetch('/api/summary');
+        const groups = await res.json(); // This is an Array [ {month_year, days}, ... ]
         
-        // This returns a much cleaner structure directly from the DB
-        return result.rows; 
-    } catch (err) {
-        console.error("Summary Fetch Failed:", err);
-        return { error: err.message };
+        let html = '';
+        
+        // Loop through the array directly
+        groups.forEach(group => {
+            html += `
+                <div class="month-section">
+                    <div class="month-header">${group.month_year}</div>
+                    <div class="summary-table-wrapper">
+                        <table class="summary-table">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Max Temp</th>
+                                    <th>Min Temp</th>
+                                    <th>Wind/Gust</th>
+                                    <th>Total Rain</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${group.days.map(d => `
+                                    <tr>
+                                        <td><b>${new Date(d.record_date).getDate()}</b></td>
+                                        <td style="color:#ef4444; font-weight:700;">${parseFloat(d.max_temp_c).toFixed(1)}°C</td>
+                                        <td style="color:#0ea5e9; font-weight:700;">${parseFloat(d.min_temp_c).toFixed(1)}°C</td>
+                                        <td>${parseFloat(d.max_wind_kmh).toFixed(1)} / ${parseFloat(d.max_gust_kmh).toFixed(1)} <small>km/h</small></td>
+                                        <td style="font-weight:800;">${parseFloat(d.total_rain_mm).toFixed(1)} mm</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+        });
+        
+        content.innerHTML = html || '<div class="card" style="text-align:center; padding:40px;">No archived records found yet.</div>';
+    } catch (e) {
+        console.error(e);
+        content.innerHTML = '<div class="card" style="color:#ef4444; text-align:center; padding:40px;">Error loading summary data. Check console for details.</div>';
     }
 }
 
