@@ -345,6 +345,7 @@ async function getWeatherSummary() {
  */
 app.get("/weather", async (req, res) => res.json(await syncWithEcowitt(false)));
 app.get("/api/sync", async (req, res) => res.json(await syncWithEcowitt(req.query.write === 'true')));
+app.get("/api/summary", async (req, res) => res.json(await getWeatherSummary()));
 
 app.get("/", (req, res) => {
     res.send(`
