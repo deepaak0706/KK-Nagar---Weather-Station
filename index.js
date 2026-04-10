@@ -331,6 +331,43 @@ async function syncWithEcowitt(forceWrite = false) {
     } catch (e) { return { error: e.message }; }
 }
 
+/**
+ * SUMMARY LOGIC - ZONE A
+ * This function pulls from the daily_max_records table.
+ * It groups data by month for the summary view.
+ */
+async function getWeatherSummary() {
+    try {
+        const result = await pool.query(`
+            SELECT 
+                record_date, 
+                max_temp_c, min_temp_c, 
+                max_wind_kmh, max_gust_kmh, 
+                total_rain_mm 
+            FROM daily_max_records 
+            ORDER BY record_date DESC
+        `);
+
+        // Groups rows by "Month Year" (e.g., "April 2026")
+        return result.rows.reduce((acc, row) => {
+            const date = new Date(row.record_date);
+            const monthYear = date.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
+            if (!acc[monthYear]) acc[monthYear] = [];
+            acc[monthYear].push(row);
+            return acc;
+        }, {});
+    } catch (err) {
+        console.error("Summary Fetch Failed:", err);
+        return { error: err.message };
+    }
+}
+
+// The API endpoint the frontend will call
+app.get("/api/summary", async (req, res) => {
+    const summaryData = await getWeatherSummary();
+    res.json(summaryData);
+});
+
 
 /**
  * ROUTES
@@ -449,6 +486,31 @@ app.get("/", (req, res) => {
         .trend-up { color: #f43f5e; } .trend-down { color: #0ea5e9; }
         .time-mark { font-size: 9px; color: var(--muted); font-weight: 600; margin-left: 2px; background: rgba(0,0,0,0.04); padding: 1px 4px; border-radius: 4px; }
         body.is-night .time-mark { background: rgba(255,255,255,0.1); }
+
+        /* SUMMARY SYSTEM - ZONE B */
+.nav-tabs { display: flex; gap: 8px; margin-bottom: 25px; }
+.tab-btn { 
+    background: var(--card); border: 1px solid var(--border); padding: 12px 24px; 
+    border-radius: 16px; color: var(--text); font-weight: 700; cursor: pointer; transition: 0.3s; 
+}
+.tab-btn.active { background: var(--accent); color: white; border-color: var(--accent); box-shadow: var(--glow); }
+
+.month-section { margin-bottom: 35px; animation: fadeIn 0.5s ease; }
+.month-header { font-size: 20px; font-weight: 800; margin: 25px 0 15px 0; color: var(--accent); display: flex; align-items: center; gap: 10px; }
+.month-header::after { content: ""; height: 2px; flex-grow: 1; background: var(--border); }
+
+.summary-table-wrapper { overflow-x: auto; background: var(--card); border-radius: 24px; border: 1px solid var(--border); box-shadow: var(--glow); }
+.summary-table { width: 100%; border-collapse: collapse; min-width: 600px; }
+.summary-table th { padding: 16px; background: var(--badge); text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); }
+.summary-table td { padding: 16px; border-top: 1px solid var(--border); font-size: 14px; }
+.summary-table tr:hover { background: var(--badge); }
+
+@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+
+
+
+        
     </style>
 </head>
 <body>
@@ -465,61 +527,74 @@ app.get("/", (req, res) => {
             </div>
         </div>
 
-        <div class="grid-system">
-            <div class="card">
-                <div class="label">Temperature</div>
-                <div class="main-val"><span id="t">0.0</span><span class="unit">°C</span></div>
-                <div id="tTrendBox" class="sub-pill">--</div>
-                <div class="sub-box-4">
-                    <div class="badge"><span class="badge-label">Today High</span><span id="mx" class="badge-val" style="color:#ef4444">--</span></div>
-                    <div class="badge"><span class="badge-label">Today Low</span><span id="mn" class="badge-val" style="color:#0ea5e9">--</span></div>
-                    <div class="badge"><span class="badge-label">Humidity</span><span id="h_val" class="badge-val">--</span></div>
-                    <div class="badge"><span class="badge-label">Dew Point</span><span id="d_val" class="badge-val">--</span></div>
-                    <div class="badge" style="grid-column: span 2;"><span class="badge-label">Feels Like</span><span id="rf" class="badge-val">--</span></div>
-                </div>
-            </div>
-
-            <div class="card">
-                <canvas id="windCanvas"></canvas>
-                <div class="label">Wind Dynamics</div>
-                <div class="compass-ui"><div id="needle"></div></div>
-                <div class="main-val"><span id="w">0.0</span><span id="wd_bracket" style="font-size:18px; color:var(--muted); margin-left:8px; font-weight:700">(--)</span><span class="unit">km/h</span></div>
-                <div class="sub-pill">● Live Gust: <span id="wg" style="margin-left:4px">--</span></div>
-                <div class="sub-box-4">
-                    <div class="badge"><span class="badge-label">Max Speed</span><span id="mw" class="badge-val">--</span></div>
-                    <div class="badge"><span class="badge-label">Max Gust</span><span id="mg" class="badge-val">--</span></div>
-                </div>
-            </div>
-
-            <div class="card">
-                <div class="label">Rain Realm</div>
-                <div class="main-val"><span id="r_tot">0.0</span><span class="unit">mm</span></div>
-                <div class="sub-pill">● Rain Rate: <span id="r_rate">0.0</span> mm/h</div>
-                <div class="sub-box-4">
-                    <div class="badge" style="grid-column: span 2;"><span class="badge-label">Max Rate Today</span><span id="mr" class="badge-val">--</span></div>
-                    <div class="badge"><span class="badge-label">Weekly</span><span id="r_week" class="badge-val">--</span></div>
-                    <div class="badge"><span class="badge-label">Monthly</span><span id="r_month" class="badge-val">--</span></div>
-                    <div class="badge" style="grid-column: span 2;"><span class="badge-label">Yearly</span><span id="r_year" class="badge-val">--</span></div>
-                </div>
-            </div>
-
-            <div class="card">
-                <div class="label">Atmospheric <span id="pIcon"></span></div>
-                <div class="main-val"><span id="pr">--</span><span class="unit">hPa</span></div>
-                <div class="sub-box-4">
-                    <div class="badge"><span class="badge-label">Solar Rad</span><span id="sol" class="badge-val">--</span></div>
-                    <div class="badge"><span class="badge-label">UV Index</span><span id="uv" class="badge-val">--</span></div>
-                </div>
-            </div>
+        <div class="nav-tabs">
+            <button onclick="showPage('dashboard')" id="tab-dash" class="tab-btn active">Live Dashboard</button>
+            <button onclick="showPage('summary')" id="tab-sum" class="tab-btn">Monthly Summary</button>
         </div>
 
-        <div class="graphs-wrapper">
-            <div class="graph-card"><div class="label" style="margin-bottom: 8px;">Temperature Trend</div><canvas id="cT"></canvas></div>
-            <div class="graph-card"><div class="label" style="margin-bottom: 8px;">Humidity Levels</div><canvas id="cH"></canvas></div>
-            <div class="graph-card"><div class="label" style="margin-bottom: 8px;">Wind Velocity</div><canvas id="cW"></canvas></div>
-            <div class="graph-card"><div class="label" style="margin-bottom: 8px;">Precipitation</div><canvas id="cR"></canvas></div>
+        <div id="page-dashboard">
+            
+            <div class="grid-system">
+                <div class="card">
+                    <div class="label">Temperature</div>
+                    <div class="main-val"><span id="t">0.0</span><span class="unit">°C</span></div>
+                    <div id="tTrendBox" class="sub-pill">--</div>
+                    <div class="sub-box-4">
+                        <div class="badge"><span class="badge-label">Today High</span><span id="mx" class="badge-val" style="color:#ef4444">--</span></div>
+                        <div class="badge"><span class="badge-label">Today Low</span><span id="mn" class="badge-val" style="color:#0ea5e9">--</span></div>
+                        <div class="badge"><span class="badge-label">Humidity</span><span id="h_val" class="badge-val">--</span></div>
+                        <div class="badge"><span class="badge-label">Dew Point</span><span id="d_val" class="badge-val">--</span></div>
+                        <div class="badge" style="grid-column: span 2;"><span class="badge-label">Feels Like</span><span id="rf" class="badge-val">--</span></div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <canvas id="windCanvas"></canvas>
+                    <div class="label">Wind Dynamics</div>
+                    <div class="compass-ui"><div id="needle"></div></div>
+                    <div class="main-val"><span id="w">0.0</span><span id="wd_bracket" style="font-size:18px; color:var(--muted); margin-left:8px; font-weight:700">(--)</span><span class="unit">km/h</span></div>
+                    <div class="sub-pill">● Live Gust: <span id="wg" style="margin-left:4px">--</span></div>
+                    <div class="sub-box-4">
+                        <div class="badge"><span class="badge-label">Max Speed</span><span id="mw" class="badge-val">--</span></div>
+                        <div class="badge"><span class="badge-label">Max Gust</span><span id="mg" class="badge-val">--</span></div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="label">Rain Realm</div>
+                    <div class="main-val"><span id="r_tot">0.0</span><span class="unit">mm</span></div>
+                    <div class="sub-pill">● Rain Rate: <span id="r_rate">0.0</span> mm/h</div>
+                    <div class="sub-box-4">
+                        <div class="badge" style="grid-column: span 2;"><span class="badge-label">Max Rate Today</span><span id="mr" class="badge-val">--</span></div>
+                        <div class="badge"><span class="badge-label">Weekly</span><span id="r_week" class="badge-val">--</span></div>
+                        <div class="badge"><span class="badge-label">Monthly</span><span id="r_month" class="badge-val">--</span></div>
+                        <div class="badge" style="grid-column: span 2;"><span class="badge-label">Yearly</span><span id="r_year" class="badge-val">--</span></div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="label">Atmospheric <span id="pIcon"></span></div>
+                    <div class="main-val"><span id="pr">--</span><span class="unit">hPa</span></div>
+                    <div class="sub-box-4">
+                        <div class="badge"><span class="badge-label">Solar Rad</span><span id="sol" class="badge-val">--</span></div>
+                        <div class="badge"><span class="badge-label">UV Index</span><span id="uv" class="badge-val">--</span></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="graphs-wrapper">
+                <div class="graph-card"><div class="label" style="margin-bottom: 8px;">Temperature Trend</div><canvas id="cT"></canvas></div>
+                <div class="graph-card"><div class="label" style="margin-bottom: 8px;">Humidity Levels</div><canvas id="cH"></canvas></div>
+                <div class="graph-card"><div class="label" style="margin-bottom: 8px;">Wind Velocity</div><canvas id="cW"></canvas></div>
+                <div class="graph-card"><div class="label" style="margin-bottom: 8px;">Precipitation</div><canvas id="cR"></canvas></div>
+            </div>
+            
+        </div> <div id="page-summary" style="display: none;">
+            <div id="summary-content"></div>
         </div>
+
     </div>
+
 
     <script>
         let currentMode = localStorage.getItem('weatherMode') || 'auto';
@@ -717,6 +792,70 @@ app.get("/", (req, res) => {
         }
 
         applyTheme(); animateWind(); setInterval(update, 45000); update();
+
+        /* SUMMARY CONTROLLER - ZONE D */
+function showPage(pageId) {
+    // Switch visibility
+    document.getElementById('page-dashboard').style.display = pageId === 'dashboard' ? 'block' : 'none';
+    document.getElementById('page-summary').style.display = pageId === 'summary' ? 'block' : 'none';
+    
+    // Update button styles
+    document.getElementById('tab-dash').classList.toggle('active', pageId === 'dashboard');
+    document.getElementById('tab-sum').classList.toggle('active', pageId === 'summary');
+
+    // Load data if switching to summary
+    if (pageId === 'summary') fetchMonthlySummary();
+}
+
+async function fetchMonthlySummary() {
+    const content = document.getElementById('summary-content');
+    content.innerHTML = '<div class="card" style="text-align:center; padding:40px;">Generating Summary Report...</div>';
+    
+    try {
+        const res = await fetch('/api/summary');
+        const groups = await res.json();
+        
+        let html = '';
+        for (const [month, days] of Object.entries(groups)) {
+            html += `
+                <div class="month-section">
+                    <div class="month-header">${month}</div>
+                    <div class="summary-table-wrapper">
+                        <table class="summary-table">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Max Temp</th>
+                                    <th>Min Temp</th>
+                                    <th>Wind/Gust</th>
+                                    <th>Total Rain</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${days.map(d => `
+                                    <tr>
+                                        <td><b>${new Date(d.record_date).getDate()}</b></td>
+                                        <td style="color:#ef4444; font-weight:700;">${d.max_temp_c}°C</td>
+                                        <td style="color:#0ea5e9; font-weight:700;">${d.min_temp_c}°C</td>
+                                        <td>${d.max_wind_kmh} / ${d.max_gust_kmh} <small>km/h</small></td>
+                                        <td style="font-weight:800;">${d.total_rain_mm} mm</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+        }
+        content.innerHTML = html || '<div class="card" style="text-align:center; padding:40px;">No archived records found yet.</div>';
+    } catch (e) {
+        content.innerHTML = '<div class="card" style="color:#ef4444">Error loading summary.</div>';
+    }
+}
+
+
+
+        
     </script>
 </body>
 </html>
