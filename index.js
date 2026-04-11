@@ -37,6 +37,8 @@ let state = {
     tMaxT: null, 
     tMinT: null, 
     tRR: null,
+    summaryCache: null,
+    lastSummaryFetchDate: null,
     lastArchivedDate: null // Added tracker
 };
 
@@ -218,6 +220,7 @@ async function syncWithEcowitt(forceWrite = false) {
 
                     await client.query(`DELETE FROM weather_history WHERE (time AT TIME ZONE 'Asia/Kolkata')::date <= ($1::date - INTERVAL '1 day')::date`, [todayStr]);
                     state.lastArchivedDate = todayStr;
+                    state.lastSummaryFetchDate = null; // This "invalidates" the cache for the new day
                 }
                 await client.query('COMMIT'); 
                 state.lastDbWrite = now;
@@ -295,12 +298,19 @@ async function syncWithEcowitt(forceWrite = false) {
 }
 
 /**
- * SUMMARY LOGIC - ZONE A
- * This function pulls from the daily_max_records table.
- * It groups data by month for the summary view.
+ * OPTIMIZED SUMMARY LOGIC
+ * Only queries the DB once per day.
  */
 async function getWeatherSummary() {
+    const todayStr = new Date().toLocaleDateString('en-CA', {timeZone: 'Asia/Kolkata'});
+
+    // If cache exists and belongs to today, return it immediately (No DB hit)
+    if (state.summaryCache && state.lastSummaryFetchDate === todayStr) {
+        return state.summaryCache;
+    }
+
     try {
+        console.log("Fetching Summary from DB..."); // For your logs to see it's working
         const result = await pool.query(`
             SELECT 
                 record_date, 
@@ -311,19 +321,27 @@ async function getWeatherSummary() {
             ORDER BY record_date DESC
         `);
 
-        // Groups rows by "Month Year" (e.g., "April 2026")
-        return result.rows.reduce((acc, row) => {
+        const formattedData = result.rows.reduce((acc, row) => {
             const date = new Date(row.record_date);
             const monthYear = date.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
             if (!acc[monthYear]) acc[monthYear] = [];
             acc[monthYear].push(row);
             return acc;
         }, {});
+
+        // Save to memory
+        state.summaryCache = formattedData;
+        state.lastSummaryFetchDate = todayStr;
+
+        return formattedData;
     } catch (err) {
         console.error("Summary Fetch Failed:", err);
         return { error: err.message };
     }
 }
+
+
+ 
 
 // The API endpoint the frontend will call
 app.get("/api/summary", async (req, res) => {
