@@ -117,40 +117,59 @@ async function bufferOnlyUpdate() {
 /**
  * MAIN SYNC: Handles Dashboard, 10-Min DB Write, and Midnight Reset
  */
+
 async function syncWithEcowitt(forceWrite = false) {
     const now = Date.now();
     const currentTimeStamp = new Date().toISOString();
 
-    // Skip DB/API if data is fresh and not a force-write
-    if (!forceWrite && state.cachedData && !state.dataChangedSinceLastRead && (now - state.lastFetchTime < 35000)) {
-        return state.cachedData;
+    // --- PART 1: THE "VISITOR" PATH (DB STAYS ASLEEP) ---
+    if (!forceWrite && state.cachedData && (now - state.lastFetchTime < 540000)) {
+        try {
+            const url = `https://api.ecowitt.net/api/v3/device/real_time?application_key=${APPLICATION_KEY}&api_key=${API_KEY}&mac=${MAC}`;
+            const response = await fetch(url);
+            const json = await response.json();
+            const d = json.data;
+
+            const liveTemp = parseFloat(((d.outdoor.temperature.value - 32) * 5 / 9).toFixed(1));
+            const liveWind = parseFloat((d.wind.wind_speed.value * 1.60934).toFixed(1));
+            const liveGust = parseFloat((d.wind.wind_gust.value * 1.60934).toFixed(1));
+            const liveHum = d.outdoor.humidity.value || 0;
+
+            // THE RACE: Update the Maxes in RAM so the user sees spikes immediately
+            const fmtL = () => new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' });
+            if (liveTemp > state.cachedData.temp.max) { state.cachedData.temp.max = liveTemp; state.cachedData.temp.maxTime = fmtL(); }
+            if (liveTemp < state.cachedData.temp.min) { state.cachedData.temp.min = liveTemp; state.cachedData.temp.minTime = fmtL(); }
+            if (liveWind > state.cachedData.wind.maxS) { state.cachedData.wind.maxS = liveWind; state.cachedData.wind.maxSTime = fmtL(); }
+            // Add Gust to the race
+            if (liveGust > state.cachedData.wind.maxG) { state.cachedData.wind.maxG = liveGust; state.cachedData.wind.maxGTime = fmtL(); }
+            // Add Rain Rate to the race
+            const liveRR = parseFloat((state.lastCalculatedRate * 25.4).toFixed(1));
+            if (liveRR > state.cachedData.rain.maxR) { state.cachedData.rain.maxR = liveRR; state.cachedData.rain.maxRTime = fmtL(); }
+
+
+            // Refresh the "Live" part of the cache
+            state.cachedData.temp.current = liveTemp;
+            state.cachedData.wind.speed = liveWind;
+            state.cachedData.wind.gust = liveGust;
+            state.cachedData.atmo.hum = liveHum;
+            state.cachedData.lastSync = new Date().toISOString();
+            
+            state.lastFetchTime = now;
+            return state.cachedData;
+        } catch (e) { return state.cachedData; }
     }
 
+    // --- PART 2: THE "WRITER/REFRESH" PATH (DB WAKES UP) ---
     try {
         const url = `https://api.ecowitt.net/api/v3/device/real_time?application_key=${APPLICATION_KEY}&api_key=${API_KEY}&mac=${MAC}`;
         const response = await fetch(url);
         const json = await response.json();
-        if (!json.data) throw new Error("Invalid API Response");
         const d = json.data;
 
-        // Metric Conversions for Current Display
         const liveTemp = parseFloat(((d.outdoor.temperature.value - 32) * 5 / 9).toFixed(1));
         const liveHum = d.outdoor.humidity.value || 0;
         const livePress = parseFloat((d.pressure.relative.value * 33.8639).toFixed(1));
-        const liveWind = parseFloat((d.wind.wind_speed.value * 1.60934).toFixed(1));
-        const liveGust = parseFloat((d.wind.wind_gust.value * 1.60934).toFixed(1));
-        const liveRain24h = parseFloat((d.rainfall.daily.value * 25.4).toFixed(1));
 
-        // Update RAM Buffers immediately
-        const apiW = parseFloat(d.wind.wind_speed.value);
-        const apiG = parseFloat(d.wind.wind_gust.value);
-        const apiT = parseFloat(d.outdoor.temperature.value);
-        if (state.tW === null || apiW > state.bufW)       { state.bufW = apiW; state.tW = currentTimeStamp; }
-        if (state.tG === null || apiG > state.bufG)       { state.bufG = apiG; state.tG = currentTimeStamp; }
-        if (state.tMaxT === null || apiT > state.bufMaxT) { state.bufMaxT = apiT; state.tMaxT = currentTimeStamp; }
-        if (state.tMinT === null || apiT < state.bufMinT) { state.bufMinT = apiT; state.tMinT = currentTimeStamp; }
-
-        // DB WRITE LOGIC (10-Min Cron)
         if (forceWrite) {
             const client = await pool.connect();
             try {
@@ -160,7 +179,7 @@ async function syncWithEcowitt(forceWrite = false) {
                 const minute = nowIST.getMinutes();
                 const todayISTStr = nowIST.toLocaleDateString('en-CA');
 
-                // Midnight Backtrack Logic (IST)
+                // MIDNIGHT LOGIC: Backtrack 1ms if it's the first few mins of the day
                 let finalTimestamp = new Date();
                 if (hour === 0 && minute < 5) {
                     const midnightIST = new Date(nowIST);
@@ -175,116 +194,63 @@ async function syncWithEcowitt(forceWrite = false) {
                     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)`,
                     [finalTimestamp, state.bufMaxT, liveHum, state.bufW, state.bufG, d.rainfall.daily.value, d.solar_and_uvi?.solar?.value || 0, livePress, state.bufRR, state.bufMinT, state.tMaxT || currentTimeStamp, state.tMinT || currentTimeStamp, state.tW || currentTimeStamp, state.tG || currentTimeStamp, state.tRR || currentTimeStamp]);
 
-                // Archive Logic
+                // ARCHIVE LOGIC: Run at midnight
                 if (hour === 0 && minute < 5 && state.lastArchivedDate !== todayISTStr) {
-                    await client.query(`
+                    await client.query(\`
                         INSERT INTO daily_max_records (record_date, max_temp_c, min_temp_c, max_wind_kmh, max_gust_kmh, total_rain_mm)
                         SELECT (time AT TIME ZONE 'Asia/Kolkata')::date, MAX((temp_f - 32) * 5/9), MIN((temp_min_f - 32) * 5/9), MAX(wind_speed_mph * 1.60934), MAX(wind_gust_mph * 1.60934), MAX(daily_rain_in * 25.4)
                         FROM weather_history WHERE (time AT TIME ZONE 'Asia/Kolkata')::date <= ($1::date - INTERVAL '1 day')::date
                         GROUP BY 1 ON CONFLICT (record_date) DO UPDATE SET max_temp_c=EXCLUDED.max_temp_c, min_temp_c=EXCLUDED.min_temp_c, max_wind_kmh=EXCLUDED.max_wind_kmh, max_gust_kmh=EXCLUDED.max_gust_kmh, total_rain_mm=EXCLUDED.total_rain_mm;
-                    `, [todayISTStr]);
-                    await client.query(`DELETE FROM weather_history WHERE (time AT TIME ZONE 'Asia/Kolkata')::date <= ($1::date - INTERVAL '1 day')::date`, [todayISTStr]);
+                    \`, [todayISTStr]);
+                    await client.query(\`DELETE FROM weather_history WHERE (time AT TIME ZONE 'Asia/Kolkata')::date <= ($1::date - INTERVAL '1 day')::date\`, [todayISTStr]);
                     state.lastArchivedDate = todayISTStr;
                 }
                 await client.query('COMMIT');
-                state.lastDbWrite = now;
-                state.dataChangedSinceLastRead = true;
                 resetStateBuffers();
-            } catch (err) {
-                await client.query('ROLLBACK');
-                console.error("DB WRITE ERROR:", err.message);
-            } finally { client.release(); }
+            } catch (err) { await client.query('ROLLBACK'); console.error(err); } finally { client.release(); }
         }
 
-        // DB READ: Get Today's Maxes and Graph History
+        // DB READ: Refresh the graph and the baseline Maxes
         const historyRes = await pool.query(`SELECT * FROM weather_history WHERE (time AT TIME ZONE 'Asia/Kolkata')::date = (NOW() AT TIME ZONE 'Asia/Kolkata')::date ORDER BY time ASC`);
-        const oneHourRes = await pool.query(`SELECT temp_f, humidity FROM weather_history WHERE time >= NOW() - INTERVAL '1 hour' ORDER BY time ASC LIMIT 1`);
+        const oneHourRes = await pool.query(`SELECT temp_f FROM weather_history WHERE time >= NOW() - INTERVAL '1 hour' ORDER BY time ASC LIMIT 1`);
         
         let mx_t = -999, mn_t = 999, mx_t_time = "--:--", mn_t_time = "--:--", mx_w = 0, mx_w_t = "--:--", mx_g = 0, mx_g_t = "--:--", mx_r = 0, mx_r_t = "--:--", graphHistory = [];
 
-        if (historyRes.rows.length > 0) {
-            historyRes.rows.forEach(r => {
-                const fmt = (iso) => new Date(iso || r.time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' });
-                const r_max_t = parseFloat(((r.temp_f - 32) * 5 / 9).toFixed(1));
-                const r_min_t = parseFloat(((r.temp_min_f - 32) * 5 / 9).toFixed(1));
-                const r_w = parseFloat((r.wind_speed_mph * 1.60934).toFixed(1));
-                const r_g = parseFloat((r.wind_gust_mph * 1.60934).toFixed(1));
-                const r_rr = parseFloat((r.rain_rate_in * 25.4).toFixed(1));
+        historyRes.rows.forEach(r => {
+            const fmt = (iso) => new Date(iso || r.time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' });
+            const r_max_t = parseFloat(((r.temp_f - 32) * 5 / 9).toFixed(1));
+            const r_min_t = parseFloat(((r.temp_min_f - 32) * 5 / 9).toFixed(1));
+            const r_w = parseFloat((r.wind_speed_mph * 1.60934).toFixed(1));
+            const r_rr = parseFloat((r.rain_rate_in * 25.4).toFixed(1));
 
-                if (r_max_t > mx_t) { mx_t = r_max_t; mx_t_time = fmt(r.max_t_time); }
-                if (r_min_t < mn_t || mn_t === 999) { mn_t = r_min_t; mn_t_time = fmt(r.min_t_time); }
-                if (r_w > mx_w) { mx_w = r_w; mx_w_t = fmt(r.max_w_time); }
-                if (r_g > mx_g) { mx_g = r_g; mx_g_t = fmt(r.max_g_time); }
-                if (r_rr > mx_r) { mx_r = r_rr; mx_r_t = fmt(r.max_r_time); }
-                graphHistory.push({ time: r.time, temp: r_max_t, hum: r.humidity, wind: r_w, rain: parseFloat((r.daily_rain_in * 25.4).toFixed(1)) });
-            });
-        }
+            if (r_max_t > mx_t) { mx_t = r_max_t; mx_t_time = fmt(r.max_t_time); }
+            if (r_min_t < mn_t || mn_t === 999) { mn_t = r_min_t; mn_t_time = fmt(r.min_t_time); }
+            if (r_w > mx_w) { mx_w = r_w; mx_w_t = fmt(r.max_w_time); }
+            if (r_rr > mx_r) { mx_r = r_rr; mx_r_t = fmt(r.max_r_time); }
+            graphHistory.push({ time: r.time, temp: r_max_t, hum: r.humidity, wind: r_w, rain: parseFloat((r.daily_rain_in * 25.4).toFixed(1)) });
+        });
 
-        // THE RACE: Compare DB Max against 1-Min RAM Buffer
-        const fmtLive = (iso) => iso ? new Date(iso).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' }) : "--:--";
-        const bufTMax = parseFloat(((state.bufMaxT - 32) * 5 / 9).toFixed(1));
-        const bufTMin = parseFloat(((state.bufMinT - 32) * 5 / 9).toFixed(1));
-        const bufW = parseFloat((state.bufW * 1.60934).toFixed(1));
-        const bufG = parseFloat((state.bufG * 1.60934).toFixed(1));
-        const bufR = parseFloat((state.bufRR * 25.4).toFixed(1));
-
-        if (bufTMax > mx_t || mx_t === -999) { mx_t = bufTMax; mx_t_time = fmtLive(state.tMaxT); }
-        if (bufTMin < mn_t || mn_t === 999)  { mn_t = bufTMin; mn_t_time = fmtLive(state.tMinT); }
-        if (bufW > mx_w) { mx_w = bufW; mx_w_t = fmtLive(state.tW); }
-        if (bufG > mx_g) { mx_g = bufG; mx_g_t = fmtLive(state.tG); }
-        if (bufR > mx_r) { mx_r = bufR; mx_r_t = fmtLive(state.tRR); }
-
-       // --- ADD THIS BLOCK HERE (Right after "The Race" logic and before state.cachedData) ---
         let tempRate = 0;
         if (oneHourRes.rows.length > 0) {
-            const currentTempC = liveTemp;
             const oldTempC = parseFloat(((oneHourRes.rows[0].temp_f - 32) * 5 / 9).toFixed(1));
-            tempRate = parseFloat((currentTempC - oldTempC).toFixed(1));
+            tempRate = parseFloat((liveTemp - oldTempC).toFixed(1));
         }
-        // -------------------------------------------------------------------------------------
 
-    
-        // Inside syncWithEcowitt...
-state.cachedData = {
-    temp: { 
-        current: liveTemp, 
-        max: mx_t, 
-        maxTime: mx_t_time, 
-        min: mn_t, 
-        minTime: mn_t_time, 
-        realFeel: calculateRealFeel(liveTemp, liveHum),
-        rate: tempRate,
-        dew: parseFloat((liveTemp - ((100 - liveHum) / 5)).toFixed(1)) // Simple Dew Point Calc
-    },
-    atmo: { 
-        hum: liveHum, 
-        press: livePress, 
-        sol: d.solar_and_uvi?.solar?.value || 0, 
-        uv: d.solar_and_uvi?.uvi?.value || 0,
-        pTrend: 0, // Placeholder or calculate from historyRes
-        hTrend: 0  // Placeholder or calculate from historyRes
-    },
-    wind: { speed: liveWind, gust: liveGust, maxS: mx_w, maxSTime: mx_w_t, maxG: mx_g, maxGTime: mx_g_t, deg: d.wind.wind_direction.value, card: getCard(d.wind.wind_direction.value) },
-    rain: { 
-        total: liveRain24h, 
-        rate: parseFloat((state.lastCalculatedRate * 25.4).toFixed(1)), 
-        maxR: mx_r, 
-        maxRTime: mx_r_t,
-        weekly: parseFloat((d.rainfall.weekly.value * 25.4).toFixed(1)), // From API
-        monthly: parseFloat((d.rainfall.monthly.value * 25.4).toFixed(1)), // From API
-        yearly: parseFloat((d.rainfall.yearly.value * 25.4).toFixed(1))  // From API
-    },
-    history: graphHistory, 
-    lastSync: new Date().toISOString()
-};
-
-
+        // Build the final cachedData object
+        state.cachedData = {
+            temp: { current: liveTemp, max: mx_t, maxTime: mx_t_time, min: mn_t, minTime: mn_t_time, realFeel: calculateRealFeel(liveTemp, liveHum), rate: tempRate, dew: parseFloat((liveTemp - ((100 - liveHum) / 5)).toFixed(1)) },
+            atmo: { hum: liveHum, press: livePress, sol: d.solar_and_uvi?.solar?.value || 0, uv: d.solar_and_uvi?.uvi?.value || 0 },
+            wind: { speed: parseFloat((d.wind.wind_speed.value * 1.60934).toFixed(1)), gust: parseFloat((d.wind.wind_gust.value * 1.60934).toFixed(1)), maxS: mx_w, maxSTime: mx_w_t, maxG: mx_g, maxGTime: mx_g_t, deg: d.wind.wind_direction.value, card: getCard(d.wind.wind_direction.value) },
+            rain: { total: parseFloat((d.rainfall.daily.value * 25.4).toFixed(1)), rate: parseFloat((state.lastCalculatedRate * 25.4).toFixed(1)), maxR: mx_r, maxRTime: mx_r_t, weekly: parseFloat((d.rainfall.weekly.value * 25.4).toFixed(1)), monthly: parseFloat((d.rainfall.monthly.value * 25.4).toFixed(1)), yearly: parseFloat((d.rainfall.yearly.value * 25.4).toFixed(1)) },
+            history: graphHistory, 
+            lastSync: new Date().toISOString()
+        };
 
         state.lastFetchTime = now;
-        state.dataChangedSinceLastRead = false;
         return state.cachedData;
     } catch (e) { return { error: e.message }; }
 }
+
 
 async function getWeatherSummary() {
     const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
