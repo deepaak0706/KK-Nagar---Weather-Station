@@ -1,5 +1,3 @@
-Before db optimisation 
-
 const express = require("express");
 const fetch = require("node-fetch");
 const { Pool } = require('pg');
