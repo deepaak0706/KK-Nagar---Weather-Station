@@ -251,24 +251,45 @@ async function syncWithEcowitt(forceWrite = false) {
         const historyRes = await pool.query(`SELECT * FROM weather_history WHERE (time AT TIME ZONE 'Asia/Kolkata')::date = (NOW() AT TIME ZONE 'Asia/Kolkata')::date ORDER BY time ASC`);
         const oneHourRes = await pool.query(`SELECT temp_f FROM weather_history WHERE time >= NOW() - INTERVAL '1 hour' ORDER BY time ASC LIMIT 1`);
         
-        let mx_t = -999, mn_t = 999, mx_t_time = "--:--", mn_t_time = "--:--", mx_w = 0, mx_w_t = "--:--", mx_g = 0, mx_g_t = "--:--", mx_r = 0, mx_r_t = "--:--", graphHistory = [];
+        // --- Inside syncWithEcowitt Part 2 ---
 
-                historyRes.rows.forEach(r => {
-            const fmt = (iso) => new Date(iso || r.time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' });
-            const r_max_t = parseFloat(((r.temp_f - 32) * 5 / 9).toFixed(1));
-            const r_min_t = parseFloat(((r.temp_min_f - 32) * 5 / 9).toFixed(1));
-            const r_w = parseFloat((r.wind_speed_mph * 1.60934).toFixed(1));
-            const r_g = parseFloat((r.wind_gust_mph * 1.60934).toFixed(1)); // Add this
-            const r_rr = parseFloat((r.rain_rate_in * 25.4).toFixed(1));
+// 1. Get current live values for initialization
+const liveWind = parseFloat((d.wind.wind_speed.value * 1.60934).toFixed(1));
+const liveGust = parseFloat((d.wind.wind_gust.value * 1.60934).toFixed(1));
+const liveRainRate = parseFloat((state.lastCalculatedRate * 25.4).toFixed(1));
 
-            if (r_max_t > mx_t) { mx_t = r_max_t; mx_t_time = fmt(r.max_t_time); }
-            if (r_min_t < mn_t || mn_t === 999) { mn_t = r_min_t; mn_t_time = fmt(r.min_t_time); }
-            if (r_w > mx_w) { mx_w = r_w; mx_w_t = fmt(r.max_w_time); }
-            if (r_g > mx_g) { mx_g = r_g; mx_g_t = fmt(r.max_g_time); } // Add this
-            if (r_rr > mx_r) { mx_r = r_rr; mx_r_t = fmt(r.max_r_time); }
-            
-            graphHistory.push({ time: r.time, temp: r_max_t, hum: r.humidity, wind: r_w, rain: parseFloat((r.daily_rain_in * 25.4).toFixed(1)) });
-        });
+// 2. INITIALIZE with either 1-min Buffer or current Live fetch
+let mx_t = state.bufMaxT === -999 ? liveTemp : parseFloat(((state.bufMaxT - 32) * 5 / 9).toFixed(1));
+let mn_t = state.bufMinT === 999 ? liveTemp : parseFloat(((state.bufMinT - 32) * 5 / 9).toFixed(1));
+let mx_w = Math.max(liveWind, parseFloat((state.bufW * 1.60934).toFixed(1)));
+let mx_g = Math.max(liveGust, parseFloat((state.bufG * 1.60934).toFixed(1)));
+let mx_r = Math.max(liveRainRate, parseFloat((state.bufRR * 25.4).toFixed(1)));
+
+const fmtL = () => new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' });
+let mx_t_time = state.tMaxT ? new Date(state.tMaxT).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' }) : fmtL();
+let mn_t_time = state.tMinT ? new Date(state.tMinT).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' }) : fmtL();
+let mx_w_t = mx_t_time, mx_g_t = mx_t_time, mx_r_t = mx_t_time;
+
+let graphHistory = [];
+
+// 3. Update from DB if records are higher than current live/buffer data
+historyRes.rows.forEach(r => {
+    const fmt = (iso) => new Date(iso || r.time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' });
+    const r_max_t = parseFloat(((r.temp_f - 32) * 5 / 9).toFixed(1));
+    const r_min_t = parseFloat(((r.temp_min_f - 32) * 5 / 9).toFixed(1));
+    const r_w = parseFloat((r.wind_speed_mph * 1.60934).toFixed(1));
+    const r_g = parseFloat((r.wind_gust_mph * 1.60934).toFixed(1));
+    const r_rr = parseFloat((r.rain_rate_in * 25.4).toFixed(1));
+
+    if (r_max_t > mx_t) { mx_t = r_max_t; mx_t_time = fmt(r.max_t_time); }
+    if (r_min_t < mn_t) { mn_t = r_min_t; mn_t_time = fmt(r.min_t_time); }
+    if (r_w > mx_w) { mx_w = r_w; mx_w_t = fmt(r.max_w_time); }
+    if (r_g > mx_g) { mx_g = r_g; mx_g_t = fmt(r.max_g_time); }
+    if (r_rr > mx_r) { mx_r = r_rr; mx_r_t = fmt(r.max_r_time); }
+    
+    graphHistory.push({ time: r.time, temp: r_max_t, hum: r.humidity, wind: r_w, rain: parseFloat((r.daily_rain_in * 25.4).toFixed(1)) });
+});
+
 
 
         let tempRate = 0;
