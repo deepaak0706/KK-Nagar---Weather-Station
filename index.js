@@ -134,6 +134,7 @@ async function syncWithEcowitt(forceWrite = false) {
             const liveWind = parseFloat((d.wind.wind_speed.value * 1.60934).toFixed(1));
             const liveGust = parseFloat((d.wind.wind_gust.value * 1.60934).toFixed(1));
             const liveHum = d.outdoor.humidity.value || 0;
+            state.cachedData.temp.realFeel = calculateRealFeel(liveTemp, liveHum);
 
             // THE RACE: Update the Maxes in RAM so the user sees spikes immediately
             const fmtL = () => new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' });
