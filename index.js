@@ -181,14 +181,16 @@ async function syncWithEcowitt(forceWrite = false) {
         const minute = nowIST.getMinutes();
         const todayISTStr = nowIST.toLocaleDateString('en-CA');
 
-        // --- MIDNIGHT BACKTRACK LOGIC ---
-        let finalTimestamp = new Date(); 
+                // --- MIDNIGHT BACKTRACK LOGIC ---
+        let finalTimestamp = new Date(); // True current UTC time
         if (hour === 0 && minute < 5) {
-            // If it's 12:00 AM - 12:04 AM, save this data as 11:59:59 PM yesterday
-            const midnightIST = new Date(nowIST);
-            midnightIST.setHours(0, 0, 0, 0);
-            finalTimestamp = new Date(midnightIST.getTime() - 1000); 
+            // Calculate exactly how many milliseconds we are into the new day
+            const msPastMidnight = (minute * 60 * 1000) + (finalTimestamp.getSeconds() * 1000) + finalTimestamp.getMilliseconds();
+            
+            // Roll the clock back by that amount, minus 1 extra second to hit 23:59:59 yesterday
+            finalTimestamp = new Date(finalTimestamp.getTime() - msPastMidnight - 1000); 
         }
+
 
         // --- MISSING STEP: SAVE CURRENT DATA TO HISTORY ---
         await client.query(`
