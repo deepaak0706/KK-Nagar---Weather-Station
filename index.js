@@ -192,14 +192,19 @@ async function syncWithEcowitt(forceWrite = false) {
 
         // --- MISSING STEP: SAVE CURRENT DATA TO HISTORY ---
         await client.query(`
-            INSERT INTO weather_history 
-            (time, temp_f, temp_min_f, humidity, wind_speed_mph, wind_gust_mph, rain_rate_in, daily_rain_in, max_w_time, max_t_time, min_t_time, max_r_time, max_g_time)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
-        `, [
-            finalTimestamp, state.bufMaxT, state.bufMinT, liveHum, 
-            state.bufW, state.bufG, state.bufRR, d.rainfall.daily.value,
-            state.tW, state.tMaxT, state.tMinT, state.tRR, state.tG
-        ]);
+    INSERT INTO weather_history 
+    (time, temp_f, temp_min_f, humidity, wind_speed_mph, wind_gust_mph, rain_rate_in, daily_rain_in, 
+     max_w_time, max_t_time, min_t_time, max_r_time, max_g_time, 
+     solar_radiation, press_rel) -- Added these
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15) -- Added two more placeholders
+`, [
+    finalTimestamp, state.bufMaxT, state.bufMinT, liveHum, 
+    state.bufW, state.bufG, state.bufRR, d.rainfall.daily.value,
+    state.tW, state.tMaxT, state.tMinT, state.tRR, state.tG,
+    d.solar_and_uvi?.solar?.value || 0, // Value for $14
+    d.pressure.relative.value || 0      // Value for $15
+]);
+
 
         // --- ARCHIVE LOGIC (Runs only once a day at midnight) ---
         if (state.lastArchivedDate !== todayISTStr) {
