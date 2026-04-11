@@ -78,19 +78,13 @@ function calculateRealFeel(tempC, humidity) {
 
 /**
  * CORE SYNC LOGIC
- * Handles Ecowitt API fetching, Unit Conversion, State Buffering, 
- * Daily Archiving, and History Retrieval.
+ * Optimized Decoupling: 1-min Buffer Update vs 10-min DB Write
  */
-
- async function syncWithEcowitt(forceWrite = false) {
+async function syncWithEcowitt(forceWrite = false) {
     const now = Date.now();
     const currentTimeStamp = new Date().toISOString();
 
-    // ---------------------------------------------------------------------
-    // 1. CRITICAL GATEKEEPER FIX
-    // Moving this to the absolute top ensures that if forceWrite is true (from Cron),
-    // the 35-second cache check is bypassed completely.
-    // ---------------------------------------------------------------------
+    // 1. GATEKEEPER: Bypass cache only for the 10-min DB cron
     if (!forceWrite && state.cachedData && (now - state.lastFetchTime < 35000)) {
         return state.cachedData;
     }
@@ -103,7 +97,7 @@ function calculateRealFeel(tempC, humidity) {
         if (!json.data) throw new Error("Invalid API Response");
         const d = json.data;
 
-        // Metric Conversions for Live Display
+        // Metric Conversions
         const liveTemp = parseFloat(((d.outdoor.temperature.value - 32) * 5 / 9).toFixed(1));
         const liveDew = parseFloat(((d.outdoor.dew_point.value - 32) * 5 / 9).toFixed(1));
         const liveHum = d.outdoor.humidity.value || 0;
@@ -117,31 +111,31 @@ function calculateRealFeel(tempC, humidity) {
         const liveRainYearly = parseFloat((d.rainfall.yearly.value * 25.4).toFixed(1));
 
         // ---------------------------------------------------------------------
-        // BUFFER LOGIC: Compare Raw Imperial Units to avoid rounding mismatch
+        // BUFFER LOGIC: Comparison against memory state (No DB Query for 1-min cron)
         // ---------------------------------------------------------------------
         const apiW = parseFloat(d.wind.wind_speed.value);
         const apiG = parseFloat(d.wind.wind_gust.value);
         const apiT = parseFloat(d.outdoor.temperature.value);
 
-        if (state.tW === null || apiW > parseFloat(state.bufW)) { 
+        if (state.tW === null || apiW > state.bufW) { 
             state.bufW = apiW; 
             state.tW = currentTimeStamp; 
         }
-        if (state.tG === null || apiG > parseFloat(state.bufG)) { 
+        if (state.tG === null || apiG > state.bufG) { 
             state.bufG = apiG; 
             state.tG = currentTimeStamp; 
         }
-        if (state.tMaxT === null || apiT > parseFloat(state.bufMaxT)) { 
+        if (state.tMaxT === null || apiT > state.bufMaxT) { 
             state.bufMaxT = apiT; 
             state.tMaxT = currentTimeStamp; 
         }
-        if (state.tMinT === null || apiT < parseFloat(state.bufMinT)) { 
+        if (state.tMinT === null || apiT < state.bufMinT) { 
             state.bufMinT = apiT; 
             state.tMinT = currentTimeStamp; 
         }
         
         // ---------------------------------------------------------------------
-        // DAVIS-STYLE PRO RAIN RATE CALCULATION (INTACT)
+        // DAVIS-STYLE PRO RAIN RATE CALCULATION (UNCHANGED)
         // ---------------------------------------------------------------------
         let customRateIn = 0;
         const rawDailyInches = d.rainfall.daily.value;
@@ -149,7 +143,6 @@ function calculateRealFeel(tempC, humidity) {
 
         if (state.lastRainRaw !== null && timeElapsedSec > 0) {
             const deltaRain = rawDailyInches - state.lastRainRaw;
-            
             if (deltaRain < 0) {
                 state.lastRainTime = now;
                 state.lastCalculatedRate = 0;
@@ -161,7 +154,6 @@ function calculateRealFeel(tempC, humidity) {
             } else if (state.lastCalculatedRate > 0) {
                 const timeSinceLastRain = (now - state.lastRainTime) / 1000;
                 const decayRate = 0.01 * (3600 / timeSinceLastRain);
-                
                 if (timeSinceLastRain > 900) { 
                     state.lastCalculatedRate = 0;
                 } else if (decayRate < state.lastCalculatedRate) {
@@ -178,35 +170,25 @@ function calculateRealFeel(tempC, humidity) {
         state.lastRainRaw = rawDailyInches;
         const displayRainRate = parseFloat((customRateIn * 25.4).toFixed(1));
         
-        // Update Rain Rate Buffer
         if (state.tRR === null || customRateIn > state.bufRR) { 
             state.bufRR = customRateIn; 
             state.tRR = currentTimeStamp; 
         }
 
         // ---------------------------------------------------------------------
-        // DATABASE OPERATIONS
+        // DATABASE OPERATIONS: Strict 10-Min Write and Midnight Reset Only
         // ---------------------------------------------------------------------
         if (forceWrite) {
             const client = await pool.connect();
             try {
                 await client.query('BEGIN');
-
                 const nowIST = new Date(new Date().toLocaleString("en-US", {timeZone: "Asia/Kolkata"}));
                 const hour = nowIST.getHours();
                 const minute = nowIST.getMinutes();
                 const todayStr = nowIST.toLocaleDateString('en-CA'); 
 
-                // 1. Snapshot Timestamp Logic (Handles Midnight Backtrack)
-                let finalTimestamp;
-                if (hour === 0 && minute < 5) {
-                    const lastSecondOfYesterday = new Date();
-                    lastSecondOfYesterday.setHours(0, 0, 0, 0);
-                    lastSecondOfYesterday.setMilliseconds(-1); 
-                    finalTimestamp = lastSecondOfYesterday;
-                } else {
-                    finalTimestamp = new Date();
-                }
+                let finalTimestamp = (hour === 0 && minute < 5) ? 
+                    new Date(new Date().setHours(0, 0, 0, 0) - 1) : new Date();
 
                 await client.query(`
                     INSERT INTO weather_history 
@@ -214,106 +196,90 @@ function calculateRealFeel(tempC, humidity) {
                      max_t_time, min_t_time, max_w_time, max_g_time, max_r_time) 
                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)`, 
                     [
-                        finalTimestamp,
-                        state.bufMaxT, liveHum, state.bufW, state.bufG, 
+                        finalTimestamp, state.bufMaxT, liveHum, state.bufW, state.bufG, 
                         d.rainfall.daily.value, d.solar_and_uvi?.solar?.value || 0, 
                         livePress, state.bufRR, state.bufMinT,
                         state.tMaxT || currentTimeStamp, state.tMinT || currentTimeStamp, 
                         state.tW || currentTimeStamp, state.tG || currentTimeStamp, state.tRR || currentTimeStamp
                     ]);
 
-                // 2. ARCHIVE & DELETE (Only at Midnight IST)
+                // Midnight Reset/Archive Logic (UNCHANGED)
                 if (hour === 0 && minute < 5 && state.lastArchivedDate !== todayStr) {
                     await client.query(`
                         INSERT INTO daily_max_records (record_date, max_temp_c, min_temp_c, max_wind_kmh, max_gust_kmh, total_rain_mm)
-                        SELECT 
-                            (time AT TIME ZONE 'Asia/Kolkata')::date as r_date,
-                            MAX((temp_f - 32) * 5/9), 
-                            MIN((temp_min_f - 32) * 5/9), 
-                            MAX(wind_speed_mph * 1.60934), 
-                            MAX(wind_gust_mph * 1.60934), 
-                            MAX(daily_rain_in * 25.4)
-                        FROM weather_history 
-                        WHERE (time AT TIME ZONE 'Asia/Kolkata')::date <= ($1::date - INTERVAL '1 day')::date
-                        GROUP BY (time AT TIME ZONE 'Asia/Kolkata')::date
-                        ON CONFLICT (record_date) DO UPDATE SET
-                            max_temp_c = EXCLUDED.max_temp_c,
-                            min_temp_c = EXCLUDED.min_temp_c,
-                            max_wind_kmh = EXCLUDED.max_wind_kmh,
-                            max_gust_kmh = EXCLUDED.max_gust_kmh,
-                            total_rain_mm = EXCLUDED.total_rain_mm;
+                        SELECT (time AT TIME ZONE 'Asia/Kolkata')::date,
+                            MAX((temp_f - 32) * 5/9), MIN((temp_min_f - 32) * 5/9), 
+                            MAX(wind_speed_mph * 1.60934), MAX(wind_gust_mph * 1.60934), MAX(daily_rain_in * 25.4)
+                        FROM weather_history WHERE (time AT TIME ZONE 'Asia/Kolkata')::date <= ($1::date - INTERVAL '1 day')::date
+                        GROUP BY 1 ON CONFLICT (record_date) DO UPDATE SET
+                            max_temp_c = EXCLUDED.max_temp_c, min_temp_c = EXCLUDED.min_temp_c,
+                            max_wind_kmh = EXCLUDED.max_wind_kmh, max_gust_kmh = EXCLUDED.max_gust_kmh, total_rain_mm = EXCLUDED.total_rain_mm;
                     `, [todayStr]);
 
-                    await client.query(`
-                        DELETE FROM weather_history 
-                        WHERE (time AT TIME ZONE 'Asia/Kolkata')::date <= ($1::date - INTERVAL '1 day')::date
-                    `, [todayStr]);
-                    
+                    await client.query(`DELETE FROM weather_history WHERE (time AT TIME ZONE 'Asia/Kolkata')::date <= ($1::date - INTERVAL '1 day')::date`, [todayStr]);
                     state.lastArchivedDate = todayStr;
                 }
-
                 await client.query('COMMIT'); 
                 state.lastDbWrite = now;
-                
-                // --- RESET HAPPENS ONLY ON SUCCESSFUL COMMIT ---
                 resetStateBuffers(); 
-
             } catch (err) {
                 await client.query('ROLLBACK');
-                console.error("CRITICAL DB ERROR:", err.message);
-                // We do NOT reset buffers here so that peaks are saved in the next retry
+                console.error("10-MIN WRITE FAILED:", err.message);
             } finally {
                 client.release();
             }
         }
 
-        // History Processing
-        const historyRes = await pool.query(`SELECT * FROM weather_history WHERE (time AT TIME ZONE 'Asia/Kolkata')::date = (NOW() AT TIME ZONE 'Asia/Kolkata')::date ORDER BY time ASC`);
-        const oneHourAgoRes = await pool.query(`SELECT temp_f, humidity FROM weather_history WHERE time >= NOW() - INTERVAL '1 hour' ORDER BY time ASC LIMIT 1`);
-        
-        let mx_t = -999, mn_t = 999, mx_t_time = "--:--", mn_t_time = "--:--", mx_w = 0, mx_w_t = "--:--", mx_g = 0, mx_g_t = "--:--", mx_r = 0, mx_r_t = "--:--", pTrend = 0, tRate = 0, hTrend = 0, graphHistory = [];
+        // ---------------------------------------------------------------------
+        // DATA PROCESSING: History/Graph Queries only for real User requests
+        // ---------------------------------------------------------------------
+        let mx_t = -999, mn_t = 999, mx_t_time = "--:--", mn_t_time = "--:--", 
+            mx_w = 0, mx_w_t = "--:--", mx_g = 0, mx_g_t = "--:--", 
+            mx_r = 0, mx_r_t = "--:--", pTrend = 0, tRate = 0, hTrend = 0, graphHistory = [];
 
-        if (historyRes.rows.length > 0) {
-            const lastRow = historyRes.rows.length > 0 ? historyRes.rows[historyRes.rows.length - 1] : null;
-            pTrend = lastRow ? parseFloat((livePress - (lastRow.press_rel || livePress)).toFixed(1)) : 0;
-            const baseTempF = oneHourAgoRes.rows.length > 0 ? oneHourAgoRes.rows[0].temp_f : (historyRes.rows[0].temp_f || d.outdoor.temperature.value);
-            const baseHum = oneHourAgoRes.rows.length > 0 ? oneHourAgoRes.rows[0].humidity : (historyRes.rows[0].humidity || liveHum);
-            tRate = parseFloat((liveTemp - parseFloat(((baseTempF - 32) * 5 / 9).toFixed(1))).toFixed(1));
-            hTrend = liveHum - baseHum;
+        if (!forceWrite) {
+            const historyRes = await pool.query(`SELECT * FROM weather_history WHERE (time AT TIME ZONE 'Asia/Kolkata')::date = (NOW() AT TIME ZONE 'Asia/Kolkata')::date ORDER BY time ASC`);
+            const oneHourAgoRes = await pool.query(`SELECT temp_f, humidity FROM weather_history WHERE time >= NOW() - INTERVAL '1 hour' ORDER BY time ASC LIMIT 1`);
+            
+            if (historyRes.rows.length > 0) {
+                const lastRow = historyRes.rows[historyRes.rows.length - 1];
+                pTrend = parseFloat((livePress - (lastRow.press_rel || livePress)).toFixed(1));
+                const baseTempF = oneHourAgoRes.rows.length > 0 ? oneHourAgoRes.rows[0].temp_f : historyRes.rows[0].temp_f;
+                const baseHum = oneHourAgoRes.rows.length > 0 ? oneHourAgoRes.rows[0].humidity : historyRes.rows[0].humidity;
+                tRate = parseFloat((liveTemp - parseFloat(((baseTempF - 32) * 5 / 9).toFixed(1))).toFixed(1));
+                hTrend = liveHum - baseHum;
 
-            historyRes.rows.forEach(r => {
-                const formatTime = (iso) => iso ? new Date(iso).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' }) : new Date(r.time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' });
-                
-                const r_temp = parseFloat(((r.temp_f - 32) * 5 / 9).toFixed(1));
-                const r_min_temp = parseFloat(((r.temp_min_f - 32) * 5 / 9).toFixed(1));
-                const r_wind = parseFloat((r.wind_speed_mph * 1.60934).toFixed(1));
-                const r_gust = parseFloat((r.wind_gust_mph * 1.60934).toFixed(1));
-                const r_rain_rate = parseFloat((r.rain_rate_in * 25.4).toFixed(1));
+                historyRes.rows.forEach(r => {
+                    const formatTime = (iso) => new Date(iso || r.time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' });
+                    const r_temp = parseFloat(((r.temp_f - 32) * 5 / 9).toFixed(1));
+                    const r_min_temp = parseFloat(((r.temp_min_f - 32) * 5 / 9).toFixed(1));
+                    const r_wind = parseFloat((r.wind_speed_mph * 1.60934).toFixed(1));
+                    const r_gust = parseFloat((r.wind_gust_mph * 1.60934).toFixed(1));
+                    const r_rain_rate = parseFloat((r.rain_rate_in * 25.4).toFixed(1));
 
-                if (r_temp > mx_t) { mx_t = r_temp; mx_t_time = formatTime(r.max_t_time); }
-                if (r_min_temp < mn_t || mn_t === 999) { mn_t = r_min_temp; mn_t_time = formatTime(r.min_t_time); }
-                if (r_wind > mx_w) { mx_w = r_wind; mx_w_t = formatTime(r.max_w_time); }
-                if (r_gust > mx_g) { mx_g = r_gust; mx_g_t = formatTime(r.max_g_time); }
-                if (r_rain_rate > mx_r) { mx_r = r_rain_rate; mx_r_t = formatTime(r.max_r_time); }
-                
-                graphHistory.push({ time: r.time, temp: r_temp, hum: r.humidity, wind: r_wind, rain: parseFloat((r.daily_rain_in * 25.4).toFixed(1)) });
-            });
+                    if (r_temp > mx_t) { mx_t = r_temp; mx_t_time = formatTime(r.max_t_time); }
+                    if (r_min_temp < mn_t || mn_t === 999) { mn_t = r_min_temp; mn_t_time = formatTime(r.min_t_time); }
+                    if (r_wind > mx_w) { mx_w = r_wind; mx_w_t = formatTime(r.max_w_time); }
+                    if (r_gust > mx_g) { mx_g = r_gust; mx_g_t = formatTime(r.max_g_time); }
+                    if (r_rain_rate > mx_r) { mx_r = r_rain_rate; mx_r_t = formatTime(r.max_r_time); }
+                    graphHistory.push({ time: r.time, temp: r_temp, hum: r.humidity, wind: r_wind, rain: parseFloat((r.daily_rain_in * 25.4).toFixed(1)) });
+                });
+            }
         }
 
-        // --- DASHBOARD DISPLAY: Convert to KM/H locally only ---
+        // Overlay Current Buffers onto Peaks for Live Display
         const formatLiveTime = (iso) => iso ? new Date(iso).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' }) : "--:--";
-        
-        const displayBufTMax = parseFloat(((state.bufMaxT - 32) * 5 / 9).toFixed(1));
-        const displayBufTMin = parseFloat(((state.bufMinT - 32) * 5 / 9).toFixed(1));
-        const displayBufWind = parseFloat((state.bufW * 1.60934).toFixed(1));
-        const displayBufGust = parseFloat((state.bufG * 1.60934).toFixed(1));
-        const displayBufRain = parseFloat((state.bufRR * 25.4).toFixed(1));
+        const curBufTMax = parseFloat(((state.bufMaxT - 32) * 5 / 9).toFixed(1));
+        const curBufTMin = parseFloat(((state.bufMinT - 32) * 5 / 9).toFixed(1));
+        const curBufW = parseFloat((state.bufW * 1.60934).toFixed(1));
+        const curBufG = parseFloat((state.bufG * 1.60934).toFixed(1));
+        const curBufR = parseFloat((state.bufRR * 25.4).toFixed(1));
 
-        if (displayBufTMax > mx_t || mx_t === -999) { mx_t = displayBufTMax; mx_t_time = formatLiveTime(state.tMaxT); }
-        if (displayBufTMin < mn_t || mn_t === 999) { mn_t = displayBufTMin; mn_t_time = formatLiveTime(state.tMinT); }
-        if (displayBufWind > mx_w) { mx_w = displayBufWind; mx_w_t = formatLiveTime(state.tW); }
-        if (displayBufGust > mx_g) { mx_g = displayBufGust; mx_g_t = formatLiveTime(state.tG); }
-        if (displayBufRain > mx_r) { mx_r = displayBufRain; mx_r_t = formatLiveTime(state.tRR); }
+        if (curBufTMax > mx_t || mx_t === -999) { mx_t = curBufTMax; mx_t_time = formatLiveTime(state.tMaxT); }
+        if (curBufTMin < mn_t || mn_t === 999) { mn_t = curBufTMin; mn_t_time = formatLiveTime(state.tMinT); }
+        if (curBufW > mx_w) { mx_w = curBufW; mx_w_t = formatLiveTime(state.tW); }
+        if (curBufG > mx_g) { mx_g = curBufG; mx_g_t = formatLiveTime(state.tG); }
+        if (curBufR > mx_r) { mx_r = curBufR; mx_r_t = formatLiveTime(state.tRR); }
 
         state.cachedData = {
             temp: { current: liveTemp, dew: liveDew, max: mx_t, maxTime: mx_t_time, min: mn_t, minTime: mn_t_time, realFeel: calculateRealFeel(liveTemp, liveHum), rate: tRate },
