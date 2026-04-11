@@ -1,12 +1,9 @@
 const express = require("express");
 const fetch = require("node-fetch");
 const { Pool } = require('pg');
+const path = require("path");
 const app = express();
 
-/**
- * DATABASE CONFIGURATION
- * Using connection pooling for high-frequency writes and history lookups.
- */
 const pool = new Pool({
     connectionString: process.env.POSTGRES_URL + "?sslmode=require",
     ssl: { rejectUnauthorized: false }
@@ -18,7 +15,6 @@ const MAC = process.env.MAC;
 
 /**
  * GLOBAL STATE ENGINE
- * Manages caching and buffers peaks between database write intervals.
  */
 let state = { 
     cachedData: null, 
@@ -37,25 +33,15 @@ let state = {
     tMaxT: null, 
     tMinT: null, 
     tRR: null,
-    lastArchivedDate: null // Added tracker
+    lastArchivedDate: null,
+    dataChangedSinceLastRead: false,
+    summaryCache: null,
+    lastSummaryFetchDate: null,
 };
 
-
-/**
- * RESET LOGIC
- * Clears memory buffers after a successful DB commit to prevent "ghost" peaks.
- */
 function resetStateBuffers() {
-    state.bufW = 0; 
-    state.bufG = 0; 
-    state.bufMaxT = -999; 
-    state.bufMinT = 999; 
-    state.bufRR = 0;
-    state.tW = null; 
-    state.tG = null; 
-    state.tMaxT = null; 
-    state.tMinT = null; 
-    state.tRR = null;
+    state.bufW = 0; state.bufG = 0; state.bufMaxT = -999; state.bufMinT = 999; state.bufRR = 0;
+    state.tW = null; state.tG = null; state.tMaxT = null; state.tMinT = null; state.tRR = null;
 }
 
 const getCard = (a) => {
@@ -63,35 +49,80 @@ const getCard = (a) => {
     return directions[Math.round(a / 22.5) % 16];
 };
 
-/**
- * NOAA HEAT INDEX CALCULATION
- */
 function calculateRealFeel(tempC, humidity) {
     const T = (tempC * 9/5) + 32;
     const R = humidity;
     let hi = 0.5 * (T + 61.0 + ((T - 68.0) * 1.2) + (R * 0.094));
     if (hi > 79) {
-        hi = -42.379 + 2.04901523 * T + 10.14333127 * R - 0.22475541 * T * R - 0.00683783 * T * T - 0.05481717 * R * R + 0.00122874 * T * T * R + 0.00085282 * T * R * R - 0.00000199 * T * T * R * R;
+        hi = -42.379 + 2.04901523*T + 10.14333127*R - 0.22475541*T*R - 0.00683783*T*T - 0.05481717*R*R + 0.00122874*T*T*R + 0.00085282*T*R*R - 0.00000199*T*T*R*R;
     }
     return parseFloat(((hi - 32) * 5 / 9).toFixed(1));
 }
 
 /**
- * CORE SYNC LOGIC
- * Handles Ecowitt API fetching, Unit Conversion, State Buffering, 
- * Daily Archiving, and History Retrieval.
+ * 1-MIN CRON: Memory Buffer Only (No DB)
+ * Hits Ecowitt, updates high-frequency peaks in RAM.
  */
-
- async function syncWithEcowitt(forceWrite = false) {
+async function bufferOnlyUpdate() {
     const now = Date.now();
     const currentTimeStamp = new Date().toISOString();
 
-    // ---------------------------------------------------------------------
-    // 1. CRITICAL GATEKEEPER FIX
-    // Moving this to the absolute top ensures that if forceWrite is true (from Cron),
-    // the 35-second cache check is bypassed completely.
-    // ---------------------------------------------------------------------
-    if (!forceWrite && state.cachedData && (now - state.lastFetchTime < 35000)) {
+    try {
+        const url = `https://api.ecowitt.net/api/v3/device/real_time?application_key=${APPLICATION_KEY}&api_key=${API_KEY}&mac=${MAC}`;
+        const response = await fetch(url);
+        const json = await response.json();
+        if (!json.data) throw new Error("Invalid API Response");
+        const d = json.data;
+
+        // Peak Detection (Imperial for accuracy)
+        const apiW = parseFloat(d.wind.wind_speed.value);
+        const apiG = parseFloat(d.wind.wind_gust.value);
+        const apiT = parseFloat(d.outdoor.temperature.value);
+
+        if (state.tW === null || apiW > state.bufW)       { state.bufW = apiW; state.tW = currentTimeStamp; }
+        if (state.tG === null || apiG > state.bufG)       { state.bufG = apiG; state.tG = currentTimeStamp; }
+        if (state.tMaxT === null || apiT > state.bufMaxT) { state.bufMaxT = apiT; state.tMaxT = currentTimeStamp; }
+        if (state.tMinT === null || apiT < state.bufMinT) { state.bufMinT = apiT; state.tMinT = currentTimeStamp; }
+
+        // DAVIS PRO 2 RAIN LOGIC (INTACT)
+        const rawDailyInches = d.rainfall.daily.value;
+        const timeElapsedSec = state.lastFetchTime ? (now - state.lastFetchTime) / 1000 : 0;
+        let customRateIn = 0;
+
+        if (state.lastRainRaw !== null && timeElapsedSec > 0) {
+            const deltaRain = rawDailyInches - state.lastRainRaw;
+            if (deltaRain < 0) {
+                state.lastRainTime = now; state.lastCalculatedRate = 0; state.lastRainRaw = rawDailyInches;
+            } else if (deltaRain > 0 && timeElapsedSec >= 30) {
+                customRateIn = deltaRain * (3600 / timeElapsedSec);
+                state.lastCalculatedRate = customRateIn; state.lastRainTime = now;
+            } else if (state.lastCalculatedRate > 0) {
+                const timeSinceLastRain = (now - state.lastRainTime) / 1000;
+                const decayRate = 0.01 * (3600 / timeSinceLastRain);
+                if (timeSinceLastRain > 900) { state.lastCalculatedRate = 0; }
+                else if (decayRate < state.lastCalculatedRate) { state.lastCalculatedRate = decayRate; }
+                customRateIn = state.lastCalculatedRate;
+            }
+        } else {
+            state.lastRainRaw = rawDailyInches; state.lastRainTime = now; state.lastCalculatedRate = 0;
+        }
+        state.lastRainRaw = rawDailyInches;
+        if (state.tRR === null || customRateIn > state.bufRR) { state.bufRR = customRateIn; state.tRR = currentTimeStamp; }
+
+        state.lastFetchTime = now;
+        return { ok: true, buffered: true };
+    } catch (e) { return { error: e.message }; }
+}
+
+/**
+ * MAIN SYNC: Handles Dashboard, 10-Min DB Write, and Midnight Reset
+ */
+async function syncWithEcowitt(forceWrite = false) {
+    const now = Date.now();
+    const currentTimeStamp = new Date().toISOString();
+
+    // Skip DB/API if data is fresh and not a force-write
+    if (!forceWrite && state.cachedData && !state.dataChangedSinceLastRead && (now - state.lastFetchTime < 35000)) {
         return state.cachedData;
     }
 
@@ -99,279 +130,159 @@ function calculateRealFeel(tempC, humidity) {
         const url = `https://api.ecowitt.net/api/v3/device/real_time?application_key=${APPLICATION_KEY}&api_key=${API_KEY}&mac=${MAC}`;
         const response = await fetch(url);
         const json = await response.json();
-        
         if (!json.data) throw new Error("Invalid API Response");
         const d = json.data;
 
-        // Metric Conversions for Live Display
+        // Metric Conversions for Current Display
         const liveTemp = parseFloat(((d.outdoor.temperature.value - 32) * 5 / 9).toFixed(1));
-        const liveDew = parseFloat(((d.outdoor.dew_point.value - 32) * 5 / 9).toFixed(1));
         const liveHum = d.outdoor.humidity.value || 0;
         const livePress = parseFloat((d.pressure.relative.value * 33.8639).toFixed(1));
         const liveWind = parseFloat((d.wind.wind_speed.value * 1.60934).toFixed(1));
         const liveGust = parseFloat((d.wind.wind_gust.value * 1.60934).toFixed(1));
-        
         const liveRain24h = parseFloat((d.rainfall.daily.value * 25.4).toFixed(1));
-        const liveRainWeekly = parseFloat((d.rainfall.weekly.value * 25.4).toFixed(1));
-        const liveRainMonthly = parseFloat((d.rainfall.monthly.value * 25.4).toFixed(1));
-        const liveRainYearly = parseFloat((d.rainfall.yearly.value * 25.4).toFixed(1));
 
-        // ---------------------------------------------------------------------
-        // BUFFER LOGIC: Compare Raw Imperial Units to avoid rounding mismatch
-        // ---------------------------------------------------------------------
+        // Update RAM Buffers immediately
         const apiW = parseFloat(d.wind.wind_speed.value);
         const apiG = parseFloat(d.wind.wind_gust.value);
         const apiT = parseFloat(d.outdoor.temperature.value);
+        if (state.tW === null || apiW > state.bufW)       { state.bufW = apiW; state.tW = currentTimeStamp; }
+        if (state.tG === null || apiG > state.bufG)       { state.bufG = apiG; state.tG = currentTimeStamp; }
+        if (state.tMaxT === null || apiT > state.bufMaxT) { state.bufMaxT = apiT; state.tMaxT = currentTimeStamp; }
+        if (state.tMinT === null || apiT < state.bufMinT) { state.bufMinT = apiT; state.tMinT = currentTimeStamp; }
 
-        if (state.tW === null || apiW > parseFloat(state.bufW)) { 
-            state.bufW = apiW; 
-            state.tW = currentTimeStamp; 
-        }
-        if (state.tG === null || apiG > parseFloat(state.bufG)) { 
-            state.bufG = apiG; 
-            state.tG = currentTimeStamp; 
-        }
-        if (state.tMaxT === null || apiT > parseFloat(state.bufMaxT)) { 
-            state.bufMaxT = apiT; 
-            state.tMaxT = currentTimeStamp; 
-        }
-        if (state.tMinT === null || apiT < parseFloat(state.bufMinT)) { 
-            state.bufMinT = apiT; 
-            state.tMinT = currentTimeStamp; 
-        }
-        
-        // ---------------------------------------------------------------------
-        // DAVIS-STYLE PRO RAIN RATE CALCULATION (INTACT)
-        // ---------------------------------------------------------------------
-        let customRateIn = 0;
-        const rawDailyInches = d.rainfall.daily.value;
-        const timeElapsedSec = state.lastFetchTime ? (now - state.lastFetchTime) / 1000 : 0;
-
-        if (state.lastRainRaw !== null && timeElapsedSec > 0) {
-            const deltaRain = rawDailyInches - state.lastRainRaw;
-            
-            if (deltaRain < 0) {
-                state.lastRainTime = now;
-                state.lastCalculatedRate = 0;
-                state.lastRainRaw = rawDailyInches;
-            } else if (deltaRain > 0 && timeElapsedSec >= 30) {
-                customRateIn = deltaRain * (3600 / timeElapsedSec);
-                state.lastCalculatedRate = customRateIn;
-                state.lastRainTime = now;
-            } else if (state.lastCalculatedRate > 0) {
-                const timeSinceLastRain = (now - state.lastRainTime) / 1000;
-                const decayRate = 0.01 * (3600 / timeSinceLastRain);
-                
-                if (timeSinceLastRain > 900) { 
-                    state.lastCalculatedRate = 0;
-                } else if (decayRate < state.lastCalculatedRate) {
-                    state.lastCalculatedRate = decayRate; 
-                }
-                customRateIn = state.lastCalculatedRate;
-            }
-        } else {
-            state.lastRainRaw = rawDailyInches;
-            state.lastRainTime = now;
-            state.lastCalculatedRate = 0;
-        }
-
-        state.lastRainRaw = rawDailyInches;
-        const displayRainRate = parseFloat((customRateIn * 25.4).toFixed(1));
-        
-        // Update Rain Rate Buffer
-        if (state.tRR === null || customRateIn > state.bufRR) { 
-            state.bufRR = customRateIn; 
-            state.tRR = currentTimeStamp; 
-        }
-
-        // ---------------------------------------------------------------------
-        // DATABASE OPERATIONS
-        // ---------------------------------------------------------------------
+        // DB WRITE LOGIC (10-Min Cron)
         if (forceWrite) {
             const client = await pool.connect();
             try {
                 await client.query('BEGIN');
-
-                const nowIST = new Date(new Date().toLocaleString("en-US", {timeZone: "Asia/Kolkata"}));
+                const nowIST = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" }));
                 const hour = nowIST.getHours();
                 const minute = nowIST.getMinutes();
-                const todayStr = nowIST.toLocaleDateString('en-CA'); 
+                const todayISTStr = nowIST.toLocaleDateString('en-CA');
 
-                // 1. Snapshot Timestamp Logic (Handles Midnight Backtrack)
-                let finalTimestamp;
+                // Midnight Backtrack Logic (IST)
+                let finalTimestamp = new Date();
                 if (hour === 0 && minute < 5) {
-                    const lastSecondOfYesterday = new Date();
-                    lastSecondOfYesterday.setHours(0, 0, 0, 0);
-                    lastSecondOfYesterday.setMilliseconds(-1); 
-                    finalTimestamp = lastSecondOfYesterday;
-                } else {
-                    finalTimestamp = new Date();
+                    const midnightIST = new Date(nowIST);
+                    midnightIST.setHours(0, 0, 0, 0);
+                    finalTimestamp = new Date(midnightIST.getTime() - 1);
                 }
 
                 await client.query(`
                     INSERT INTO weather_history 
                     (time, temp_f, humidity, wind_speed_mph, wind_gust_mph, daily_rain_in, solar_radiation, press_rel, rain_rate_in, temp_min_f,
                      max_t_time, min_t_time, max_w_time, max_g_time, max_r_time) 
-                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)`, 
-                    [
-                        finalTimestamp,
-                        state.bufMaxT, liveHum, state.bufW, state.bufG, 
-                        d.rainfall.daily.value, d.solar_and_uvi?.solar?.value || 0, 
-                        livePress, state.bufRR, state.bufMinT,
-                        state.tMaxT || currentTimeStamp, state.tMinT || currentTimeStamp, 
-                        state.tW || currentTimeStamp, state.tG || currentTimeStamp, state.tRR || currentTimeStamp
-                    ]);
+                    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)`,
+                    [finalTimestamp, state.bufMaxT, liveHum, state.bufW, state.bufG, d.rainfall.daily.value, d.solar_and_uvi?.solar?.value || 0, livePress, state.bufRR, state.bufMinT, state.tMaxT || currentTimeStamp, state.tMinT || currentTimeStamp, state.tW || currentTimeStamp, state.tG || currentTimeStamp, state.tRR || currentTimeStamp]);
 
-                // 2. ARCHIVE & DELETE (Only at Midnight IST)
-                if (hour === 0 && minute < 5 && state.lastArchivedDate !== todayStr) {
+                // Archive Logic
+                if (hour === 0 && minute < 5 && state.lastArchivedDate !== todayISTStr) {
                     await client.query(`
                         INSERT INTO daily_max_records (record_date, max_temp_c, min_temp_c, max_wind_kmh, max_gust_kmh, total_rain_mm)
-                        SELECT 
-                            (time AT TIME ZONE 'Asia/Kolkata')::date as r_date,
-                            MAX((temp_f - 32) * 5/9), 
-                            MIN((temp_min_f - 32) * 5/9), 
-                            MAX(wind_speed_mph * 1.60934), 
-                            MAX(wind_gust_mph * 1.60934), 
-                            MAX(daily_rain_in * 25.4)
-                        FROM weather_history 
-                        WHERE (time AT TIME ZONE 'Asia/Kolkata')::date <= ($1::date - INTERVAL '1 day')::date
-                        GROUP BY (time AT TIME ZONE 'Asia/Kolkata')::date
-                        ON CONFLICT (record_date) DO UPDATE SET
-                            max_temp_c = EXCLUDED.max_temp_c,
-                            min_temp_c = EXCLUDED.min_temp_c,
-                            max_wind_kmh = EXCLUDED.max_wind_kmh,
-                            max_gust_kmh = EXCLUDED.max_gust_kmh,
-                            total_rain_mm = EXCLUDED.total_rain_mm;
-                    `, [todayStr]);
-
-                    await client.query(`
-                        DELETE FROM weather_history 
-                        WHERE (time AT TIME ZONE 'Asia/Kolkata')::date <= ($1::date - INTERVAL '1 day')::date
-                    `, [todayStr]);
-                    
-                    state.lastArchivedDate = todayStr;
+                        SELECT (time AT TIME ZONE 'Asia/Kolkata')::date, MAX((temp_f - 32) * 5/9), MIN((temp_min_f - 32) * 5/9), MAX(wind_speed_mph * 1.60934), MAX(wind_gust_mph * 1.60934), MAX(daily_rain_in * 25.4)
+                        FROM weather_history WHERE (time AT TIME ZONE 'Asia/Kolkata')::date <= ($1::date - INTERVAL '1 day')::date
+                        GROUP BY 1 ON CONFLICT (record_date) DO UPDATE SET max_temp_c=EXCLUDED.max_temp_c, min_temp_c=EXCLUDED.min_temp_c, max_wind_kmh=EXCLUDED.max_wind_kmh, max_gust_kmh=EXCLUDED.max_gust_kmh, total_rain_mm=EXCLUDED.total_rain_mm;
+                    `, [todayISTStr]);
+                    await client.query(`DELETE FROM weather_history WHERE (time AT TIME ZONE 'Asia/Kolkata')::date <= ($1::date - INTERVAL '1 day')::date`, [todayISTStr]);
+                    state.lastArchivedDate = todayISTStr;
                 }
-
-                await client.query('COMMIT'); 
+                await client.query('COMMIT');
                 state.lastDbWrite = now;
-                
-                // --- RESET HAPPENS ONLY ON SUCCESSFUL COMMIT ---
-                resetStateBuffers(); 
-
+                state.dataChangedSinceLastRead = true;
+                resetStateBuffers();
             } catch (err) {
                 await client.query('ROLLBACK');
-                console.error("CRITICAL DB ERROR:", err.message);
-                // We do NOT reset buffers here so that peaks are saved in the next retry
-            } finally {
-                client.release();
-            }
+                console.error("DB WRITE ERROR:", err.message);
+            } finally { client.release(); }
         }
 
-        // History Processing
+        // DB READ: Get Today's Maxes and Graph History
         const historyRes = await pool.query(`SELECT * FROM weather_history WHERE (time AT TIME ZONE 'Asia/Kolkata')::date = (NOW() AT TIME ZONE 'Asia/Kolkata')::date ORDER BY time ASC`);
-        const oneHourAgoRes = await pool.query(`SELECT temp_f, humidity FROM weather_history WHERE time >= NOW() - INTERVAL '1 hour' ORDER BY time ASC LIMIT 1`);
+        const oneHourRes = await pool.query(`SELECT temp_f, humidity FROM weather_history WHERE time >= NOW() - INTERVAL '1 hour' ORDER BY time ASC LIMIT 1`);
         
-        let mx_t = -999, mn_t = 999, mx_t_time = "--:--", mn_t_time = "--:--", mx_w = 0, mx_w_t = "--:--", mx_g = 0, mx_g_t = "--:--", mx_r = 0, mx_r_t = "--:--", pTrend = 0, tRate = 0, hTrend = 0, graphHistory = [];
+        let mx_t = -999, mn_t = 999, mx_t_time = "--:--", mn_t_time = "--:--", mx_w = 0, mx_w_t = "--:--", mx_g = 0, mx_g_t = "--:--", mx_r = 0, mx_r_t = "--:--", graphHistory = [];
 
         if (historyRes.rows.length > 0) {
-            const lastRow = historyRes.rows.length > 0 ? historyRes.rows[historyRes.rows.length - 1] : null;
-            pTrend = lastRow ? parseFloat((livePress - (lastRow.press_rel || livePress)).toFixed(1)) : 0;
-            const baseTempF = oneHourAgoRes.rows.length > 0 ? oneHourAgoRes.rows[0].temp_f : (historyRes.rows[0].temp_f || d.outdoor.temperature.value);
-            const baseHum = oneHourAgoRes.rows.length > 0 ? oneHourAgoRes.rows[0].humidity : (historyRes.rows[0].humidity || liveHum);
-            tRate = parseFloat((liveTemp - parseFloat(((baseTempF - 32) * 5 / 9).toFixed(1))).toFixed(1));
-            hTrend = liveHum - baseHum;
-
             historyRes.rows.forEach(r => {
-                const formatTime = (iso) => iso ? new Date(iso).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' }) : new Date(r.time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' });
-                
-                const r_temp = parseFloat(((r.temp_f - 32) * 5 / 9).toFixed(1));
-                const r_min_temp = parseFloat(((r.temp_min_f - 32) * 5 / 9).toFixed(1));
-                const r_wind = parseFloat((r.wind_speed_mph * 1.60934).toFixed(1));
-                const r_gust = parseFloat((r.wind_gust_mph * 1.60934).toFixed(1));
-                const r_rain_rate = parseFloat((r.rain_rate_in * 25.4).toFixed(1));
+                const fmt = (iso) => new Date(iso || r.time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' });
+                const r_max_t = parseFloat(((r.temp_f - 32) * 5 / 9).toFixed(1));
+                const r_min_t = parseFloat(((r.temp_min_f - 32) * 5 / 9).toFixed(1));
+                const r_w = parseFloat((r.wind_speed_mph * 1.60934).toFixed(1));
+                const r_g = parseFloat((r.wind_gust_mph * 1.60934).toFixed(1));
+                const r_rr = parseFloat((r.rain_rate_in * 25.4).toFixed(1));
 
-                if (r_temp > mx_t) { mx_t = r_temp; mx_t_time = formatTime(r.max_t_time); }
-                if (r_min_temp < mn_t || mn_t === 999) { mn_t = r_min_temp; mn_t_time = formatTime(r.min_t_time); }
-                if (r_wind > mx_w) { mx_w = r_wind; mx_w_t = formatTime(r.max_w_time); }
-                if (r_gust > mx_g) { mx_g = r_gust; mx_g_t = formatTime(r.max_g_time); }
-                if (r_rain_rate > mx_r) { mx_r = r_rain_rate; mx_r_t = formatTime(r.max_r_time); }
-                
-                graphHistory.push({ time: r.time, temp: r_temp, hum: r.humidity, wind: r_wind, rain: parseFloat((r.daily_rain_in * 25.4).toFixed(1)) });
+                if (r_max_t > mx_t) { mx_t = r_max_t; mx_t_time = fmt(r.max_t_time); }
+                if (r_min_t < mn_t || mn_t === 999) { mn_t = r_min_t; mn_t_time = fmt(r.min_t_time); }
+                if (r_w > mx_w) { mx_w = r_w; mx_w_t = fmt(r.max_w_time); }
+                if (r_g > mx_g) { mx_g = r_g; mx_g_t = fmt(r.max_g_time); }
+                if (r_rr > mx_r) { mx_r = r_rr; mx_r_t = fmt(r.max_r_time); }
+                graphHistory.push({ time: r.time, temp: r_max_t, hum: r.humidity, wind: r_w, rain: parseFloat((r.daily_rain_in * 25.4).toFixed(1)) });
             });
         }
 
-        // --- DASHBOARD DISPLAY: Convert to KM/H locally only ---
-        const formatLiveTime = (iso) => iso ? new Date(iso).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' }) : "--:--";
-        
-        const displayBufTMax = parseFloat(((state.bufMaxT - 32) * 5 / 9).toFixed(1));
-        const displayBufTMin = parseFloat(((state.bufMinT - 32) * 5 / 9).toFixed(1));
-        const displayBufWind = parseFloat((state.bufW * 1.60934).toFixed(1));
-        const displayBufGust = parseFloat((state.bufG * 1.60934).toFixed(1));
-        const displayBufRain = parseFloat((state.bufRR * 25.4).toFixed(1));
+        // THE RACE: Compare DB Max against 1-Min RAM Buffer
+        const fmtLive = (iso) => iso ? new Date(iso).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' }) : "--:--";
+        const bufTMax = parseFloat(((state.bufMaxT - 32) * 5 / 9).toFixed(1));
+        const bufTMin = parseFloat(((state.bufMinT - 32) * 5 / 9).toFixed(1));
+        const bufW = parseFloat((state.bufW * 1.60934).toFixed(1));
+        const bufG = parseFloat((state.bufG * 1.60934).toFixed(1));
+        const bufR = parseFloat((state.bufRR * 25.4).toFixed(1));
 
-        if (displayBufTMax > mx_t || mx_t === -999) { mx_t = displayBufTMax; mx_t_time = formatLiveTime(state.tMaxT); }
-        if (displayBufTMin < mn_t || mn_t === 999) { mn_t = displayBufTMin; mn_t_time = formatLiveTime(state.tMinT); }
-        if (displayBufWind > mx_w) { mx_w = displayBufWind; mx_w_t = formatLiveTime(state.tW); }
-        if (displayBufGust > mx_g) { mx_g = displayBufGust; mx_g_t = formatLiveTime(state.tG); }
-        if (displayBufRain > mx_r) { mx_r = displayBufRain; mx_r_t = formatLiveTime(state.tRR); }
+        if (bufTMax > mx_t || mx_t === -999) { mx_t = bufTMax; mx_t_time = fmtLive(state.tMaxT); }
+        if (bufTMin < mn_t || mn_t === 999)  { mn_t = bufTMin; mn_t_time = fmtLive(state.tMinT); }
+        if (bufW > mx_w) { mx_w = bufW; mx_w_t = fmtLive(state.tW); }
+        if (bufG > mx_g) { mx_g = bufG; mx_g_t = fmtLive(state.tG); }
+        if (bufR > mx_r) { mx_r = bufR; mx_r_t = fmtLive(state.tRR); }
 
         state.cachedData = {
-            temp: { current: liveTemp, dew: liveDew, max: mx_t, maxTime: mx_t_time, min: mn_t, minTime: mn_t_time, realFeel: calculateRealFeel(liveTemp, liveHum), rate: tRate },
-            atmo: { hum: liveHum, hTrend: hTrend, press: livePress, pTrend, sol: d.solar_and_uvi?.solar?.value || 0, uv: d.solar_and_uvi?.uvi?.value || 0 },
+            temp: { current: liveTemp, max: mx_t, maxTime: mx_t_time, min: mn_t, minTime: mn_t_time, realFeel: calculateRealFeel(liveTemp, liveHum) },
+            atmo: { hum: liveHum, press: livePress, sol: d.solar_and_uvi?.solar?.value || 0, uv: d.solar_and_uvi?.uvi?.value || 0 },
             wind: { speed: liveWind, gust: liveGust, maxS: mx_w, maxSTime: mx_w_t, maxG: mx_g, maxGTime: mx_g_t, deg: d.wind.wind_direction.value, card: getCard(d.wind.wind_direction.value) },
-            rain: { total: liveRain24h, weekly: liveRainWeekly, monthly: liveRainMonthly, yearly: liveRainYearly, rate: displayRainRate, maxR: mx_r, maxRTime: mx_r_t },
-            history: graphHistory,
-            lastSync: new Date().toISOString()
+            rain: { total: liveRain24h, rate: parseFloat((state.lastCalculatedRate * 25.4).toFixed(1)), maxR: mx_r, maxRTime: mx_r_t },
+            history: graphHistory, lastSync: new Date().toISOString()
         };
+
         state.lastFetchTime = now;
+        state.dataChangedSinceLastRead = false;
         return state.cachedData;
     } catch (e) { return { error: e.message }; }
 }
 
-/**
- * SUMMARY LOGIC - ZONE A
- * This function pulls from the daily_max_records table.
- * It groups data by month for the summary view.
- */
 async function getWeatherSummary() {
+    const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+    if (state.summaryCache && state.lastSummaryFetchDate === today) return state.summaryCache;
     try {
-        const result = await pool.query(`
-            SELECT 
-                record_date, 
-                max_temp_c, min_temp_c, 
-                max_wind_kmh, max_gust_kmh, 
-                total_rain_mm 
-            FROM daily_max_records 
-            ORDER BY record_date DESC
-        `);
-
-        // Groups rows by "Month Year" (e.g., "April 2026")
-        return result.rows.reduce((acc, row) => {
-            const date = new Date(row.record_date);
-            const monthYear = date.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
-            if (!acc[monthYear]) acc[monthYear] = [];
-            acc[monthYear].push(row);
+        const res = await pool.query(`SELECT * FROM daily_max_records ORDER BY record_date DESC`);
+        const formatted = res.rows.reduce((acc, row) => {
+            const mY = new Date(row.record_date).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
+            if (!acc[mY]) acc[mY] = [];
+            acc[mY].push(row);
             return acc;
         }, {});
-    } catch (err) {
-        console.error("Summary Fetch Failed:", err);
-        return { error: err.message };
-    }
+        state.summaryCache = formatted; state.lastSummaryFetchDate = today;
+        return formatted;
+    } catch (err) { return { error: err.message }; }
 }
 
-// The API endpoint the frontend will call
-app.get("/api/summary", async (req, res) => {
-    const summaryData = await getWeatherSummary();
-    res.json(summaryData);
-});
-
+// Routes
 
 /**
  * ROUTES
  */
-app.get("/weather", async (req, res) => res.json(await syncWithEcowitt(false)));
-app.get("/api/sync", async (req, res) => res.json(await syncWithEcowitt(req.query.write === 'true')));
 
+// 1. API for the dashboard data
+app.get("/weather", async (req, res) => res.json(await syncWithEcowitt(false)));
+
+// 2. API for the historical summary table
+app.get("/api/summary", async (req, res) => res.json(await getWeatherSummary()));
+
+// 3. The Cron Job endpoint (handles buffer-only or full DB writes)
+app.get("/api/sync", async (req, res) => {
+    if (req.query.buffer === 'true') return res.json(await bufferOnlyUpdate());
+    res.json(await syncWithEcowitt(req.query.write === 'true'));
+});
+
+// 4. The User Interface (Your HTML)
 app.get("/", (req, res) => {
     res.send(`
 <!DOCTYPE html>
