@@ -234,13 +234,51 @@ async function syncWithEcowitt(forceWrite = false) {
         if (bufG > mx_g) { mx_g = bufG; mx_g_t = fmtLive(state.tG); }
         if (bufR > mx_r) { mx_r = bufR; mx_r_t = fmtLive(state.tRR); }
 
-        state.cachedData = {
-            temp: { current: liveTemp, max: mx_t, maxTime: mx_t_time, min: mn_t, minTime: mn_t_time, realFeel: calculateRealFeel(liveTemp, liveHum) },
-            atmo: { hum: liveHum, press: livePress, sol: d.solar_and_uvi?.solar?.value || 0, uv: d.solar_and_uvi?.uvi?.value || 0 },
-            wind: { speed: liveWind, gust: liveGust, maxS: mx_w, maxSTime: mx_w_t, maxG: mx_g, maxGTime: mx_g_t, deg: d.wind.wind_direction.value, card: getCard(d.wind.wind_direction.value) },
-            rain: { total: liveRain24h, rate: parseFloat((state.lastCalculatedRate * 25.4).toFixed(1)), maxR: mx_r, maxRTime: mx_r_t },
-            history: graphHistory, lastSync: new Date().toISOString()
-        };
+       // --- ADD THIS BLOCK HERE (Right after "The Race" logic and before state.cachedData) ---
+        let tempRate = 0;
+        if (oneHourRes.rows.length > 0) {
+            const currentTempC = liveTemp;
+            const oldTempC = parseFloat(((oneHourRes.rows[0].temp_f - 32) * 5 / 9).toFixed(1));
+            tempRate = parseFloat((currentTempC - oldTempC).toFixed(1));
+        }
+        // -------------------------------------------------------------------------------------
+
+    
+        // Inside syncWithEcowitt...
+state.cachedData = {
+    temp: { 
+        current: liveTemp, 
+        max: mx_t, 
+        maxTime: mx_t_time, 
+        min: mn_t, 
+        minTime: mn_t_time, 
+        realFeel: calculateRealFeel(liveTemp, liveHum),
+        rate: tempRate,
+        dew: parseFloat((liveTemp - ((100 - liveHum) / 5)).toFixed(1)) // Simple Dew Point Calc
+    },
+    atmo: { 
+        hum: liveHum, 
+        press: livePress, 
+        sol: d.solar_and_uvi?.solar?.value || 0, 
+        uv: d.solar_and_uvi?.uvi?.value || 0,
+        pTrend: 0, // Placeholder or calculate from historyRes
+        hTrend: 0  // Placeholder or calculate from historyRes
+    },
+    wind: { speed: liveWind, gust: liveGust, maxS: mx_w, maxSTime: mx_w_t, maxG: mx_g, maxGTime: mx_g_t, deg: d.wind.wind_direction.value, card: getCard(d.wind.wind_direction.value) },
+    rain: { 
+        total: liveRain24h, 
+        rate: parseFloat((state.lastCalculatedRate * 25.4).toFixed(1)), 
+        maxR: mx_r, 
+        maxRTime: mx_r_t,
+        weekly: parseFloat((d.rainfall.weekly.value * 25.4).toFixed(1)), // From API
+        monthly: parseFloat((d.rainfall.monthly.value * 25.4).toFixed(1)), // From API
+        yearly: parseFloat((d.rainfall.yearly.value * 25.4).toFixed(1))  // From API
+    },
+    history: graphHistory, 
+    lastSync: new Date().toISOString()
+};
+
+
 
         state.lastFetchTime = now;
         state.dataChangedSinceLastRead = false;
