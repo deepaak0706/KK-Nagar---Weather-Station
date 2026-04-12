@@ -120,21 +120,17 @@ async function bufferOnlyUpdate() {
 
  async function syncWithEcowitt(forceWrite = false) {
     const now = Date.now();
-    
-    // Get current date string in IST
     const nowIST = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" }));
-    const todayISTStr = nowIST.toLocaleDateString('en-CA'); // "YYYY-MM-DD"
+    const todayISTStr = nowIST.toLocaleDateString('en-CA'); 
     const hour = nowIST.getHours();
     const minute = nowIST.getMinutes();
 
-    // --- MIDNIGHT WATCHDOG (Visitor Path) ---
-    // If the date changed but we haven't archived yet, clear the peaks in memory
-    // so the visitor doesn't see yesterday's Max Temp/Wind.
+    // Reset cache if day changed for a visitor
     if (state.lastArchivedDate && state.lastArchivedDate !== todayISTStr) {
         state.cachedData = null;
     }
 
-    // --- PART 1: THE "VISITOR" PATH (DB STAYS ASLEEP) ---
+    // --- PART 1: VISITOR PATH ---
     if (!forceWrite && state.cachedData && (now - state.lastFetchTime < 540000)) {
         try {
             const url = `https://api.ecowitt.net/api/v3/device/real_time?application_key=${APPLICATION_KEY}&api_key=${API_KEY}&mac=${MAC}`;
@@ -164,7 +160,6 @@ async function bufferOnlyUpdate() {
             state.cachedData.temp.current = liveTemp;
             state.cachedData.wind.speed = liveWind;
             state.cachedData.wind.gust = liveGust;
-            state.cachedData.atmo.hum = liveHum;
             state.cachedData.lastSync = new Date().toISOString();
             
             state.lastFetchTime = now;
@@ -172,7 +167,7 @@ async function bufferOnlyUpdate() {
         } catch (e) { return state.cachedData; }
     }
 
-    // --- PART 2: THE "WRITER/REFRESH" PATH (DB WAKES UP) ---
+    // --- PART 2: WRITER PATH ---
     try {
         const url = `https://api.ecowitt.net/api/v3/device/real_time?application_key=${APPLICATION_KEY}&api_key=${API_KEY}&mac=${MAC}`;
         const response = await fetch(url);
@@ -188,11 +183,9 @@ async function bufferOnlyUpdate() {
             try {
                 await client.query('BEGIN');
 
-                // FIX 1: The "Backtrack" SQL. 
-                // If it's the 12:00 AM cron, we force the timestamp to be 11:59:59 of "Yesterday"
-                // inside the database logic itself to ensure the archive traps it.
                 let timeSql = 'NOW()';
                 if (hour === 0 && minute < 5) {
+                    // This creates the 11:59:59 PM (18:29:59 UTC) timestamp
                     timeSql = "((NOW() AT TIME ZONE 'Asia/Kolkata')::date - INTERVAL '1 second')";
                 }
 
@@ -214,9 +207,8 @@ async function bufferOnlyUpdate() {
                     state.tG || new Date().toISOString(), d.solar_and_uvi?.solar?.value || 0, d.pressure.relative.value || 0
                 ]);
 
-                // FIX 2: ARCHIVE LOGIC
-                // We archive anything where the IST date is older than "Today"
                 if (state.lastArchivedDate !== todayISTStr) {
+                    // Archive logic...
                     await client.query(`
                         INSERT INTO daily_max_records (record_date, max_temp_c, min_temp_c, max_wind_kmh, max_gust_kmh, total_rain_mm)
                         SELECT 
@@ -236,20 +228,21 @@ async function bufferOnlyUpdate() {
                     await client.query(`DELETE FROM weather_history WHERE (time AT TIME ZONE 'Asia/Kolkata')::date < $1::date`, [todayISTStr]);
                     
                     state.lastArchivedDate = todayISTStr;
-                    state.cachedData = null; // Kill the memory cache to force a fresh day UI
-                    resetStateBuffers();     // Reset peak detection for the new day
+                    state.cachedData = null; // Reset RAM for new day
+                    resetStateBuffers();     // WIPE MAX/MIN values
                 }
 
                 await client.query('COMMIT');
                 state.dataChangedSinceLastRead = true;
-                if (hour !== 0 || minute >= 5) resetStateBuffers(); // Normal 10-min reset
+                // Only reset buffers if it's NOT the midnight window (since archive handled midnight)
+                if (hour !== 0 || minute >= 5) resetStateBuffers(); 
             } catch (err) { 
                 await client.query('ROLLBACK'); 
                 console.error("DB Error:", err); 
             } finally { client.release(); }
         }
 
-        // --- DASHBOARD DATA PREPARATION ---
+        // Dashboard logic remains unchanged...
         let graphHistory = state.cachedData?.history || [];
         let tempRate = state.cachedData?.temp?.rate || 0, humRate = state.cachedData?.atmo?.hTrend || 0, pressRate = state.cachedData?.atmo?.pTrend || 0;
         let mx_t = state.cachedData?.temp?.max || liveTemp, mn_t = state.cachedData?.temp?.min || liveTemp;
@@ -261,16 +254,12 @@ async function bufferOnlyUpdate() {
 
         if (forceWrite || state.dataChangedSinceLastRead || !state.cachedData) {
             try {
-                // FIX 3: Graph Start Time. 
-                // We query using the explicit todayISTStr to ensure we don't pick up UTC leftovers.
                 const historyRes = await pool.query(`
                     SELECT * FROM weather_history 
                     WHERE (time AT TIME ZONE 'Asia/Kolkata')::date = $1::date 
                     ORDER BY time ASC
                 `, [todayISTStr]);
                 
-                const oneHourRes = await pool.query(`SELECT temp_f, humidity, press_rel FROM weather_history WHERE time >= NOW() - INTERVAL '1 hour' ORDER BY time ASC LIMIT 1`);
-
                 graphHistory = [];
                 historyRes.rows.forEach(r => {
                     const fmt = (iso) => new Date(iso || r.time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' });
@@ -288,15 +277,8 @@ async function bufferOnlyUpdate() {
                     
                     graphHistory.push({ time: r.time, temp: r_max_t, hum: r.humidity, wind: r_w, rain: parseFloat((r.daily_rain_in * 25.4).toFixed(1)) });
                 });
-
-                if (oneHourRes.rows.length > 0) {
-                    const oldData = oneHourRes.rows[0];
-                    tempRate = parseFloat((liveTemp - parseFloat(((oldData.temp_f - 32) * 5 / 9).toFixed(1))).toFixed(1));
-                    humRate = liveHum - (oldData.humidity || 0);
-                    pressRate = parseFloat((livePress - parseFloat((oldData.press_rel * 33.8639).toFixed(1))).toFixed(1));
-                }
                 state.dataChangedSinceLastRead = false;
-            } catch (dbError) { console.error("Dashboard DB Prep Error:", dbError); }
+            } catch (dbError) { console.error("DB Prep Error:", dbError); }
         }
 
         const liveWind = parseFloat((d.wind.wind_speed.value * 1.60934).toFixed(1));
@@ -320,8 +302,9 @@ async function bufferOnlyUpdate() {
 
         state.lastFetchTime = now;
         return state.cachedData;
-    } catch (e) { console.error("Critical Sync Error:", e); return state.cachedData; }
+    } catch (e) { console.error("Sync Error:", e); return state.cachedData; }
 }
+
 
 
 
