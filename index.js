@@ -708,12 +708,13 @@ app.get("/", (req, res) => {
                 updateValueWithFade('r_rate', d.rain.rate, 1);
                 updateValueWithFade('wg', d.wind.gust, 1, ' km/h'); // This handles it now!
 
-document.getElementById('tTrendBox').innerHTML = d.temp.rate > 0 ? '<span class="trend-up">▲</span> +' + d.temp.rate + '°C /hr' : d.temp.rate < 0 ? '<span class="trend-down">▼</span> ' + d.temp.rate + '°C /hr' : '● Steady';
+                document.getElementById('tTrendBox').innerHTML = d.temp.rate > 0 ? '<span class="trend-up">▲</span> +' + d.temp.rate + '°C /hr' : d.temp.rate < 0 ? '<span class="trend-down">▼</span> ' + d.temp.rate + '°C /hr' : '● Steady';
 document.getElementById('mx').innerHTML = d.temp.max + '°C <span class="time-mark">' + d.temp.maxTime + '</span>';
 document.getElementById('mn').innerHTML = d.temp.min + '°C <span class="time-mark">' + d.temp.minTime + '</span>';
 const feels = d.temp.realFeel;
-const heatDot = feels >= 54 ? ' 🔴' : feels >= 41 ? ' 🟠' : feels >= 32 ? ' 🟡' : '';
-document.getElementById('rf').innerText = feels + '°C' + heatDot;
+const heatColor = feels >= 54 ? '#ef4444' : feels >= 41 ? '#f97316' : feels >= 32 ? '#eab308' : 'var(--text)';
+document.getElementById('rf').style.color = heatColor;
+document.getElementById('rf').innerText = feels + '°C';
 document.getElementById('h_val').innerHTML = d.atmo.hum + '% ' + (d.atmo.hTrend > 0 ? '▲' : d.atmo.hTrend < 0 ? '▼' : '●');
 document.getElementById('d_val').innerText = d.temp.dew + '°C';
 
