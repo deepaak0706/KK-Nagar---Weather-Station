@@ -172,125 +172,123 @@ async function syncWithEcowitt(forceWrite = false) {
         const livePress = parseFloat((d.pressure.relative.value * 33.8639).toFixed(1));
 
         if (forceWrite) {
-    const client = await pool.connect();
-    try {
-        await client.query('BEGIN');
-        
-        const nowIST = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" }));
-        const hour = nowIST.getHours();
-        const minute = nowIST.getMinutes();
-        const todayISTStr = nowIST.toLocaleDateString('en-CA');
+            const client = await pool.connect();
+            try {
+                await client.query('BEGIN');
+                
+                const nowIST = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" }));
+                const hour = nowIST.getHours();
+                const minute = nowIST.getMinutes();
+                const todayISTStr = nowIST.toLocaleDateString('en-CA');
 
                 // --- MIDNIGHT BACKTRACK LOGIC ---
-        let finalTimestamp = new Date(); // True current UTC time
-        if (hour === 0 && minute < 5) {
-            // Calculate exactly how many milliseconds we are into the new day
-            const msPastMidnight = (minute * 60 * 1000) + (finalTimestamp.getSeconds() * 1000) + finalTimestamp.getMilliseconds();
-            
-            // Roll the clock back by that amount, minus 1 extra second to hit 23:59:59 yesterday
-            finalTimestamp = new Date(finalTimestamp.getTime() - msPastMidnight - 1000); 
+                let finalTimestamp = new Date();
+                if (hour === 0 && minute < 5) {
+                    const msPastMidnight = (minute * 60 * 1000) + (finalTimestamp.getSeconds() * 1000) + finalTimestamp.getMilliseconds();
+                    finalTimestamp = new Date(finalTimestamp.getTime() - msPastMidnight - 1000); 
+                }
+
+                // --- SANITIZE BUFFER DATA (Avoids -999 writes) ---
+                const dbMaxT = state.bufMaxT === -999 ? d.outdoor.temperature.value : state.bufMaxT;
+                const dbMinT = state.bufMinT === 999 ? d.outdoor.temperature.value : state.bufMinT;
+                const dbW = state.tW === null ? d.wind.wind_speed.value : state.bufW;
+                const dbG = state.tG === null ? d.wind.wind_gust.value : state.bufG;
+                const dbRR = state.tRR === null ? (state.lastCalculatedRate || 0) : state.bufRR;
+
+                // --- SAVE CURRENT DATA TO HISTORY ---
+                await client.query(`
+                    INSERT INTO weather_history 
+                    (time, temp_f, temp_min_f, humidity, wind_speed_mph, wind_gust_mph, rain_rate_in, daily_rain_in, 
+                     max_w_time, max_t_time, min_t_time, max_r_time, max_g_time, 
+                     solar_radiation, press_rel)
+                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+                `, [
+                    finalTimestamp, dbMaxT, dbMinT, liveHum, 
+                    dbW, dbG, dbRR, d.rainfall.daily.value,
+                    state.tW || finalTimestamp.toISOString(), 
+                    state.tMaxT || finalTimestamp.toISOString(), 
+                    state.tMinT || finalTimestamp.toISOString(), 
+                    state.tRR || finalTimestamp.toISOString(), 
+                    state.tG || finalTimestamp.toISOString(),
+                    d.solar_and_uvi?.solar?.value || 0,
+                    d.pressure.relative.value || 0
+                ]);
+
+                // --- ARCHIVE LOGIC ---
+                if (state.lastArchivedDate !== todayISTStr) {
+                    await client.query(`
+                        INSERT INTO daily_max_records (record_date, max_temp_c, min_temp_c, max_wind_kmh, max_gust_kmh, total_rain_mm)
+                        SELECT 
+                            (time AT TIME ZONE 'Asia/Kolkata')::date, 
+                            MAX((temp_f - 32) * 5/9), 
+                            MIN((temp_min_f - 32) * 5/9), 
+                            MAX(wind_speed_mph * 1.60934), 
+                            MAX(wind_gust_mph * 1.60934), 
+                            MAX(daily_rain_in * 25.4)
+                        FROM weather_history 
+                        WHERE (time AT TIME ZONE 'Asia/Kolkata')::date < $1::date
+                        GROUP BY 1 
+                        ON CONFLICT (record_date) DO UPDATE SET 
+                            max_temp_c=EXCLUDED.max_temp_c, 
+                            min_temp_c=EXCLUDED.min_temp_c, 
+                            max_wind_kmh=EXCLUDED.max_wind_kmh, 
+                            max_gust_kmh=EXCLUDED.max_gust_kmh, 
+                            total_rain_mm=EXCLUDED.total_rain_mm;
+                    `, [todayISTStr]);
+
+                    await client.query(`DELETE FROM weather_history WHERE (time AT TIME ZONE 'Asia/Kolkata')::date < $1::date`, [todayISTStr]);
+                    state.lastArchivedDate = todayISTStr;
+                }
+
+                await client.query('COMMIT');
+                resetStateBuffers(); // Reset only after successful 10-min write
+            } catch (err) { 
+                await client.query('ROLLBACK'); 
+                console.error("DB Error:", err); 
+            } finally { 
+                client.release(); 
+            }
         }
 
-
-        // --- MISSING STEP: SAVE CURRENT DATA TO HISTORY ---
-        await client.query(`
-    INSERT INTO weather_history 
-    (time, temp_f, temp_min_f, humidity, wind_speed_mph, wind_gust_mph, rain_rate_in, daily_rain_in, 
-     max_w_time, max_t_time, min_t_time, max_r_time, max_g_time, 
-     solar_radiation, press_rel) -- Added these
-    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15) -- Added two more placeholders
-`, [
-    finalTimestamp, state.bufMaxT, state.bufMinT, liveHum, 
-    state.bufW, state.bufG, state.bufRR, d.rainfall.daily.value,
-    state.tW, state.tMaxT, state.tMinT, state.tRR, state.tG,
-    d.solar_and_uvi?.solar?.value || 0, // Value for $14
-    d.pressure.relative.value || 0      // Value for $15
-]);
-
-
-        // --- ARCHIVE LOGIC (Runs only once a day at midnight) ---
-        if (state.lastArchivedDate !== todayISTStr) {
-            await client.query(`
-                INSERT INTO daily_max_records (record_date, max_temp_c, min_temp_c, max_wind_kmh, max_gust_kmh, total_rain_mm)
-                SELECT 
-                    (time AT TIME ZONE 'Asia/Kolkata')::date, 
-                    MAX((temp_f - 32) * 5/9), 
-                    MIN((temp_min_f - 32) * 5/9), 
-                    MAX(wind_speed_mph * 1.60934), 
-                    MAX(wind_gust_mph * 1.60934), 
-                    MAX(daily_rain_in * 25.4)
-                FROM weather_history 
-                WHERE (time AT TIME ZONE 'Asia/Kolkata')::date < $1::date
-                GROUP BY 1 
-                ON CONFLICT (record_date) DO UPDATE SET 
-                    max_temp_c=EXCLUDED.max_temp_c, 
-                    min_temp_c=EXCLUDED.min_temp_c, 
-                    max_wind_kmh=EXCLUDED.max_wind_kmh, 
-                    max_gust_kmh=EXCLUDED.max_gust_kmh, 
-                    total_rain_mm=EXCLUDED.total_rain_mm;
-            `, [todayISTStr]);
-
-            // Clear out the old data now that it's archived
-            await client.query(`DELETE FROM weather_history WHERE (time AT TIME ZONE 'Asia/Kolkata')::date < $1::date`, [todayISTStr]);
-            state.lastArchivedDate = todayISTStr;
-        }
-
-        await client.query('COMMIT');
-        resetStateBuffers();
-    } catch (err) { 
-        await client.query('ROLLBACK'); 
-        console.error("DB Error:", err); 
-    } finally { 
-        client.release(); 
-    }
-}
-
-
-
-        // DB READ: Refresh the graph and the baseline Maxes
+        // --- DASHBOARD DATA PREPARATION ---
         const historyRes = await pool.query(`SELECT * FROM weather_history WHERE (time AT TIME ZONE 'Asia/Kolkata')::date = (NOW() AT TIME ZONE 'Asia/Kolkata')::date ORDER BY time ASC`);
         const oneHourRes = await pool.query(`SELECT temp_f FROM weather_history WHERE time >= NOW() - INTERVAL '1 hour' ORDER BY time ASC LIMIT 1`);
         
-        // --- Inside syncWithEcowitt Part 2 ---
+        const liveWind = parseFloat((d.wind.wind_speed.value * 1.60934).toFixed(1));
+        const liveGust = parseFloat((d.wind.wind_gust.value * 1.60934).toFixed(1));
+        const liveRainRate = parseFloat((state.lastCalculatedRate * 25.4).toFixed(1));
 
-// 1. Get current live values for initialization
-const liveWind = parseFloat((d.wind.wind_speed.value * 1.60934).toFixed(1));
-const liveGust = parseFloat((d.wind.wind_gust.value * 1.60934).toFixed(1));
-const liveRainRate = parseFloat((state.lastCalculatedRate * 25.4).toFixed(1));
+        // INITIALIZE with current Live or 1-min Buffer
+        let mx_t = state.bufMaxT === -999 ? liveTemp : parseFloat(((state.bufMaxT - 32) * 5 / 9).toFixed(1));
+        let mn_t = state.bufMinT === 999 ? liveTemp : parseFloat(((state.bufMinT - 32) * 5 / 9).toFixed(1));
+        let mx_w = Math.max(liveWind, parseFloat((state.bufW * 1.60934).toFixed(1)));
+        let mx_g = Math.max(liveGust, parseFloat((state.bufG * 1.60934).toFixed(1)));
+        let mx_r = Math.max(liveRainRate, parseFloat((state.bufRR * 25.4).toFixed(1)));
 
-// 2. INITIALIZE with either 1-min Buffer or current Live fetch
-let mx_t = state.bufMaxT === -999 ? liveTemp : parseFloat(((state.bufMaxT - 32) * 5 / 9).toFixed(1));
-let mn_t = state.bufMinT === 999 ? liveTemp : parseFloat(((state.bufMinT - 32) * 5 / 9).toFixed(1));
-let mx_w = Math.max(liveWind, parseFloat((state.bufW * 1.60934).toFixed(1)));
-let mx_g = Math.max(liveGust, parseFloat((state.bufG * 1.60934).toFixed(1)));
-let mx_r = Math.max(liveRainRate, parseFloat((state.bufRR * 25.4).toFixed(1)));
+        const fmtL = () => new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' });
+        let mx_t_time = state.tMaxT ? new Date(state.tMaxT).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' }) : fmtL();
+        let mn_t_time = state.tMinT ? new Date(state.tMinT).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' }) : fmtL();
+        let mx_w_t = mx_t_time, mx_g_t = mx_t_time, mx_r_t = mx_t_time;
 
-const fmtL = () => new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' });
-let mx_t_time = state.tMaxT ? new Date(state.tMaxT).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' }) : fmtL();
-let mn_t_time = state.tMinT ? new Date(state.tMinT).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' }) : fmtL();
-let mx_w_t = mx_t_time, mx_g_t = mx_t_time, mx_r_t = mx_t_time;
+        let graphHistory = [];
 
-let graphHistory = [];
+        // Update from DB to find absolute day peaks (The 3-Way Race)
+        historyRes.rows.forEach(r => {
+            const fmt = (iso) => new Date(iso || r.time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' });
+            const r_max_t = parseFloat(((r.temp_f - 32) * 5 / 9).toFixed(1));
+            const r_min_t = parseFloat(((r.temp_min_f - 32) * 5 / 9).toFixed(1));
+            const r_w = parseFloat((r.wind_speed_mph * 1.60934).toFixed(1));
+            const r_g = parseFloat((r.wind_gust_mph * 1.60934).toFixed(1));
+            const r_rr = parseFloat((r.rain_rate_in * 25.4).toFixed(1));
 
-// 3. Update from DB if records are higher than current live/buffer data
-historyRes.rows.forEach(r => {
-    const fmt = (iso) => new Date(iso || r.time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' });
-    const r_max_t = parseFloat(((r.temp_f - 32) * 5 / 9).toFixed(1));
-    const r_min_t = parseFloat(((r.temp_min_f - 32) * 5 / 9).toFixed(1));
-    const r_w = parseFloat((r.wind_speed_mph * 1.60934).toFixed(1));
-    const r_g = parseFloat((r.wind_gust_mph * 1.60934).toFixed(1));
-    const r_rr = parseFloat((r.rain_rate_in * 25.4).toFixed(1));
-
-    if (r_max_t > mx_t) { mx_t = r_max_t; mx_t_time = fmt(r.max_t_time); }
-    if (r_min_t < mn_t) { mn_t = r_min_t; mn_t_time = fmt(r.min_t_time); }
-    if (r_w > mx_w) { mx_w = r_w; mx_w_t = fmt(r.max_w_time); }
-    if (r_g > mx_g) { mx_g = r_g; mx_g_t = fmt(r.max_g_time); }
-    if (r_rr > mx_r) { mx_r = r_rr; mx_r_t = fmt(r.max_r_time); }
-    
-    graphHistory.push({ time: r.time, temp: r_max_t, hum: r.humidity, wind: r_w, rain: parseFloat((r.daily_rain_in * 25.4).toFixed(1)) });
-});
-
-
+            if (r_max_t > mx_t) { mx_t = r_max_t; mx_t_time = fmt(r.max_t_time); }
+            if (r_min_t < mn_t) { mn_t = r_min_t; mn_t_time = fmt(r.min_t_time); }
+            if (r_w > mx_w) { mx_w = r_w; mx_w_t = fmt(r.max_w_time); }
+            if (r_g > mx_g) { mx_g = r_g; mx_g_t = fmt(r.max_g_time); }
+            if (r_rr > mx_r) { mx_r = r_rr; mx_r_t = fmt(r.max_r_time); }
+            
+            graphHistory.push({ time: r.time, temp: r_max_t, hum: r.humidity, wind: r_w, rain: parseFloat((r.daily_rain_in * 25.4).toFixed(1)) });
+        });
 
         let tempRate = 0;
         if (oneHourRes.rows.length > 0) {
@@ -298,7 +296,6 @@ historyRes.rows.forEach(r => {
             tempRate = parseFloat((liveTemp - oldTempC).toFixed(1));
         }
 
-        // Build the final cachedData object
         state.cachedData = {
             temp: { current: liveTemp, max: mx_t, maxTime: mx_t_time, min: mn_t, minTime: mn_t_time, realFeel: calculateRealFeel(liveTemp, liveHum), rate: tempRate, dew: parseFloat((liveTemp - ((100 - liveHum) / 5)).toFixed(1)) },
             atmo: { hum: liveHum, press: livePress, sol: d.solar_and_uvi?.solar?.value || 0, uv: d.solar_and_uvi?.uvi?.value || 0 },
@@ -311,7 +308,6 @@ historyRes.rows.forEach(r => {
         state.lastFetchTime = now;
         return state.cachedData;
     } catch (e) { return { error: e.message }; }
-}
 
 
 async function getWeatherSummary() {
