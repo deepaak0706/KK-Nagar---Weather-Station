@@ -727,7 +727,22 @@ app.get("/", (req, res) => {
                 updateValueWithFade('r_rate', d.rain.rate, 1);
                 updateValueWithFade('wg', d.wind.gust, 1, ' km/h'); // This handles it now!
 
-                document.getElementById('tTrendBox').innerHTML = d.temp.rate > 0 ? '<span class="trend-up">▲</span> +' + d.temp.rate + '°C /hr' : d.temp.rate < 0 ? '<span class="trend-down">▼</span> ' + d.temp.rate + '°C /hr' : '● Steady';
+                // --- TEMPERATURE TREND (ZIGZAG STYLE) ---
+const tRate = d.temp.rate;
+let tIcon = '●';
+let tColor = 'var(--muted)';
+
+if (tRate > 0) {
+    tIcon = '📈'; // Red Increase
+    tColor = '#ef4444'; 
+} else if (tRate < 0) {
+    tIcon = '📉'; // Blue Decrease
+    tColor = '#3b82f6'; 
+}
+
+document.getElementById('tTrendBox').innerHTML = 
+    `<span style="color:${tColor}; margin-right:4px;">${tIcon}</span> ${tRate > 0 ? '+' : ''}${tRate}°C /hr`;
+
 document.getElementById('mx').innerHTML = d.temp.max + '°C <span class="time-mark">' + d.temp.maxTime + '</span>';
 document.getElementById('mn').innerHTML = d.temp.min + '°C <span class="time-mark">' + d.temp.minTime + '</span>';
 const feels = d.temp.realFeel;
