@@ -181,12 +181,20 @@ async function syncWithEcowitt(forceWrite = false) {
                 const minute = nowIST.getMinutes();
                 const todayISTStr = nowIST.toLocaleDateString('en-CA');
 
-                // --- MIDNIGHT BACKTRACK LOGIC ---
-                let finalTimestamp = new Date();
-                if (hour === 0 && minute < 5) {
-                    const msPastMidnight = (minute * 60 * 1000) + (finalTimestamp.getSeconds() * 1000) + finalTimestamp.getMilliseconds();
-                    finalTimestamp = new Date(finalTimestamp.getTime() - msPastMidnight - 1000); 
-                }
+                let finalTimestamp = new Date(); // This is UTC
+
+if (hour === 0 && minute < 5) {
+    // 1. Create a date object representing the current moment in IST
+    const midnightIST = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" }));
+    
+    // 2. Snap it to exactly 00:00:00.000 today
+    midnightIST.setHours(0, 0, 0, 0);
+    
+    // 3. Subtract 1 millisecond to get 23:59:59.999 of the previous day
+    // 4. Convert it back to a standard Date object for the DB
+    finalTimestamp = new Date(midnightIST.getTime() - 1);
+}
+
 
                 // --- SANITIZE BUFFER DATA (Avoids -999 writes) ---
                 const dbMaxT = state.bufMaxT === -999 ? d.outdoor.temperature.value : state.bufMaxT;
