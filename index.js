@@ -118,9 +118,21 @@ async function bufferOnlyUpdate() {
  * MAIN SYNC: Handles Dashboard, 10-Min DB Write, and Midnight Reset
  */
 
-async function syncWithEcowitt(forceWrite = false) {
+ async function syncWithEcowitt(forceWrite = false) {
     const now = Date.now();
-    const currentTimeStamp = new Date().toISOString();
+    
+    // Get current date string in IST
+    const nowIST = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" }));
+    const todayISTStr = nowIST.toLocaleDateString('en-CA'); // "YYYY-MM-DD"
+    const hour = nowIST.getHours();
+    const minute = nowIST.getMinutes();
+
+    // --- MIDNIGHT WATCHDOG (Visitor Path) ---
+    // If the date changed but we haven't archived yet, clear the peaks in memory
+    // so the visitor doesn't see yesterday's Max Temp/Wind.
+    if (state.lastArchivedDate && state.lastArchivedDate !== todayISTStr) {
+        state.cachedData = null;
+    }
 
     // --- PART 1: THE "VISITOR" PATH (DB STAYS ASLEEP) ---
     if (!forceWrite && state.cachedData && (now - state.lastFetchTime < 540000)) {
@@ -135,23 +147,20 @@ async function syncWithEcowitt(forceWrite = false) {
             const liveGust = parseFloat((d.wind.wind_gust.value * 1.60934).toFixed(1));
             const liveHum = d.outdoor.humidity.value || 0;
             const livePress = parseFloat((d.pressure.relative.value * 33.8639).toFixed(1));
+            
             state.cachedData.atmo.press = livePress;
             state.cachedData.atmo.hum = liveHum;
             state.cachedData.temp.realFeel = calculateRealFeel(liveTemp, liveHum);
 
-            // THE RACE: Update the Maxes in RAM so the user sees spikes immediately
             const fmtL = () => new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' });
             if (liveTemp > state.cachedData.temp.max) { state.cachedData.temp.max = liveTemp; state.cachedData.temp.maxTime = fmtL(); }
             if (liveTemp < state.cachedData.temp.min) { state.cachedData.temp.min = liveTemp; state.cachedData.temp.minTime = fmtL(); }
             if (liveWind > state.cachedData.wind.maxS) { state.cachedData.wind.maxS = liveWind; state.cachedData.wind.maxSTime = fmtL(); }
-            // Add Gust to the race
             if (liveGust > state.cachedData.wind.maxG) { state.cachedData.wind.maxG = liveGust; state.cachedData.wind.maxGTime = fmtL(); }
-            // Add Rain Rate to the race
+            
             const liveRR = parseFloat((state.lastCalculatedRate * 25.4).toFixed(1));
             if (liveRR > state.cachedData.rain.maxR) { state.cachedData.rain.maxR = liveRR; state.cachedData.rain.maxRTime = fmtL(); }
 
-
-            // Refresh the "Live" part of the cache
             state.cachedData.temp.current = liveTemp;
             state.cachedData.wind.speed = liveWind;
             state.cachedData.wind.gust = liveGust;
@@ -178,117 +187,90 @@ async function syncWithEcowitt(forceWrite = false) {
             const client = await pool.connect();
             try {
                 await client.query('BEGIN');
-                
-                const nowIST = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" }));
-                const hour = nowIST.getHours();
-                const minute = nowIST.getMinutes();
-                const todayISTStr = nowIST.toLocaleDateString('en-CA');
 
-                let finalTimestamp = new Date(); // This is UTC
+                // FIX 1: The "Backtrack" SQL. 
+                // If it's the 12:00 AM cron, we force the timestamp to be 11:59:59 of "Yesterday"
+                // inside the database logic itself to ensure the archive traps it.
+                let timeSql = 'NOW()';
+                if (hour === 0 && minute < 5) {
+                    timeSql = "((NOW() AT TIME ZONE 'Asia/Kolkata')::date - INTERVAL '1 second')";
+                }
 
-if (hour === 0 && minute < 5) {
-    // 1. Create a date object representing the current moment in IST
-    const midnightIST = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" }));
-    
-    // 2. Snap it to exactly 00:00:00.000 today
-    midnightIST.setHours(0, 0, 0, 0);
-    
-    // 3. Subtract 1 millisecond to get 23:59:59.999 of the previous day
-    // 4. Convert it back to a standard Date object for the DB
-    finalTimestamp = new Date(midnightIST.getTime() - 1);
-}
-
-
-                // --- SANITIZE BUFFER DATA (Avoids -999 writes) ---
                 const dbMaxT = state.bufMaxT === -999 ? d.outdoor.temperature.value : state.bufMaxT;
                 const dbMinT = state.bufMinT === 999 ? d.outdoor.temperature.value : state.bufMinT;
                 const dbW = state.tW === null ? d.wind.wind_speed.value : state.bufW;
                 const dbG = state.tG === null ? d.wind.wind_gust.value : state.bufG;
                 const dbRR = state.tRR === null ? (state.lastCalculatedRate || 0) : state.bufRR;
 
-                // --- SAVE CURRENT DATA TO HISTORY ---
                 await client.query(`
                     INSERT INTO weather_history 
                     (time, temp_f, temp_min_f, humidity, wind_speed_mph, wind_gust_mph, rain_rate_in, daily_rain_in, 
-                     max_w_time, max_t_time, min_t_time, max_r_time, max_g_time, 
-                     solar_radiation, press_rel)
-                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+                     max_w_time, max_t_time, min_t_time, max_r_time, max_g_time, solar_radiation, press_rel)
+                    VALUES (${timeSql}, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
                 `, [
-                    finalTimestamp, dbMaxT, dbMinT, liveHum, 
-                    dbW, dbG, dbRR, d.rainfall.daily.value,
-                    state.tW || finalTimestamp.toISOString(), 
-                    state.tMaxT || finalTimestamp.toISOString(), 
-                    state.tMinT || finalTimestamp.toISOString(), 
-                    state.tRR || finalTimestamp.toISOString(), 
-                    state.tG || finalTimestamp.toISOString(),
-                    d.solar_and_uvi?.solar?.value || 0,
-                    d.pressure.relative.value || 0
+                    dbMaxT, dbMinT, liveHum, dbW, dbG, dbRR, d.rainfall.daily.value,
+                    state.tW || new Date().toISOString(), state.tMaxT || new Date().toISOString(), 
+                    state.tMinT || new Date().toISOString(), state.tRR || new Date().toISOString(), 
+                    state.tG || new Date().toISOString(), d.solar_and_uvi?.solar?.value || 0, d.pressure.relative.value || 0
                 ]);
 
-                // --- ARCHIVE LOGIC ---
+                // FIX 2: ARCHIVE LOGIC
+                // We archive anything where the IST date is older than "Today"
                 if (state.lastArchivedDate !== todayISTStr) {
                     await client.query(`
                         INSERT INTO daily_max_records (record_date, max_temp_c, min_temp_c, max_wind_kmh, max_gust_kmh, total_rain_mm)
                         SELECT 
                             (time AT TIME ZONE 'Asia/Kolkata')::date, 
-                            MAX((temp_f - 32) * 5/9), 
-                            MIN((temp_min_f - 32) * 5/9), 
-                            MAX(wind_speed_mph * 1.60934), 
-                            MAX(wind_gust_mph * 1.60934), 
+                            MAX((temp_f - 32) * 5/9), MIN((temp_min_f - 32) * 5/9), 
+                            MAX(wind_speed_mph * 1.60934), MAX(wind_gust_mph * 1.60934), 
                             MAX(daily_rain_in * 25.4)
                         FROM weather_history 
                         WHERE (time AT TIME ZONE 'Asia/Kolkata')::date < $1::date
                         GROUP BY 1 
                         ON CONFLICT (record_date) DO UPDATE SET 
-                            max_temp_c=EXCLUDED.max_temp_c, 
-                            min_temp_c=EXCLUDED.min_temp_c, 
-                            max_wind_kmh=EXCLUDED.max_wind_kmh, 
-                            max_gust_kmh=EXCLUDED.max_gust_kmh, 
+                            max_temp_c=EXCLUDED.max_temp_c, min_temp_c=EXCLUDED.min_temp_c, 
+                            max_wind_kmh=EXCLUDED.max_wind_kmh, max_gust_kmh=EXCLUDED.max_gust_kmh, 
                             total_rain_mm=EXCLUDED.total_rain_mm;
                     `, [todayISTStr]);
 
                     await client.query(`DELETE FROM weather_history WHERE (time AT TIME ZONE 'Asia/Kolkata')::date < $1::date`, [todayISTStr]);
+                    
                     state.lastArchivedDate = todayISTStr;
+                    state.cachedData = null; // Kill the memory cache to force a fresh day UI
+                    resetStateBuffers();     // Reset peak detection for the new day
                 }
 
                 await client.query('COMMIT');
                 state.dataChangedSinceLastRead = true;
-                resetStateBuffers(); // Reset only after successful 10-min write
+                if (hour !== 0 || minute >= 5) resetStateBuffers(); // Normal 10-min reset
             } catch (err) { 
                 await client.query('ROLLBACK'); 
                 console.error("DB Error:", err); 
-            } finally { 
-                client.release(); 
-            }
+            } finally { client.release(); }
         }
 
-                // --- DASHBOARD DATA PREPARATION ---
-
-        // 1. DEFAULT: Pull existing trends/history from RAM (The Safety Net)
+        // --- DASHBOARD DATA PREPARATION ---
         let graphHistory = state.cachedData?.history || [];
-        let tempRate = state.cachedData?.temp?.rate || 0;
-        let humRate = state.cachedData?.atmo?.hTrend || 0;
-        let pressRate = state.cachedData?.atmo?.pTrend || 0;
-
-        // Start with current peaks from memory or current live values
-        let mx_t = state.cachedData?.temp?.max || liveTemp;
-        let mn_t = state.cachedData?.temp?.min || liveTemp;
-        let mx_w = state.cachedData?.wind?.maxS || 0;
-        let mx_g = state.cachedData?.wind?.maxG || 0;
-        let mx_r = state.cachedData?.rain?.maxR || 0;
+        let tempRate = state.cachedData?.temp?.rate || 0, humRate = state.cachedData?.atmo?.hTrend || 0, pressRate = state.cachedData?.atmo?.pTrend || 0;
+        let mx_t = state.cachedData?.temp?.max || liveTemp, mn_t = state.cachedData?.temp?.min || liveTemp;
+        let mx_w = state.cachedData?.wind?.maxS || 0, mx_g = state.cachedData?.wind?.maxG || 0, mx_r = state.cachedData?.rain?.maxR || 0;
 
         const fmtL = () => new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' });
-        let mx_t_time = state.cachedData?.temp?.maxTime || fmtL();
-        let mn_t_time = state.cachedData?.temp?.minTime || fmtL();
+        let mx_t_time = state.cachedData?.temp?.maxTime || fmtL(), mn_t_time = state.cachedData?.temp?.minTime || fmtL();
         let mx_w_t = mx_t_time, mx_g_t = mx_t_time, mx_r_t = mx_t_time;
 
-        // 2. THE FIREWALL: Only wake the DB if forced or if data actually changed
         if (forceWrite || state.dataChangedSinceLastRead || !state.cachedData) {
             try {
-                const historyRes = await pool.query(`SELECT * FROM weather_history WHERE (time AT TIME ZONE 'Asia/Kolkata')::date = (NOW() AT TIME ZONE 'Asia/Kolkata')::date ORDER BY time ASC`);
+                // FIX 3: Graph Start Time. 
+                // We query using the explicit todayISTStr to ensure we don't pick up UTC leftovers.
+                const historyRes = await pool.query(`
+                    SELECT * FROM weather_history 
+                    WHERE (time AT TIME ZONE 'Asia/Kolkata')::date = $1::date 
+                    ORDER BY time ASC
+                `, [todayISTStr]);
+                
                 const oneHourRes = await pool.query(`SELECT temp_f, humidity, press_rel FROM weather_history WHERE time >= NOW() - INTERVAL '1 hour' ORDER BY time ASC LIMIT 1`);
 
-                // Re-calculate absolute day peaks and graph data from DB
                 graphHistory = [];
                 historyRes.rows.forEach(r => {
                     const fmt = (iso) => new Date(iso || r.time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' });
@@ -309,22 +291,14 @@ if (hour === 0 && minute < 5) {
 
                 if (oneHourRes.rows.length > 0) {
                     const oldData = oneHourRes.rows[0];
-                    const oldTempC = parseFloat(((oldData.temp_f - 32) * 5 / 9).toFixed(1));
-                    tempRate = parseFloat((liveTemp - oldTempC).toFixed(1));
+                    tempRate = parseFloat((liveTemp - parseFloat(((oldData.temp_f - 32) * 5 / 9).toFixed(1))).toFixed(1));
                     humRate = liveHum - (oldData.humidity || 0);
-                    const oldPress = parseFloat((oldData.press_rel * 33.8639).toFixed(1));
-                    pressRate = parseFloat((livePress - oldPress).toFixed(1));
+                    pressRate = parseFloat((livePress - parseFloat((oldData.press_rel * 33.8639).toFixed(1))).toFixed(1));
                 }
-
-                // Reset flag so next visitor stays on RAM only
                 state.dataChangedSinceLastRead = false;
-            } catch (dbError) {
-                console.error("Dashboard DB Prep Error:", dbError);
-                // On error, we just keep using the RAM-based defaults
-            }
+            } catch (dbError) { console.error("Dashboard DB Prep Error:", dbError); }
         }
 
-        // 3. THE LIVE RACE: Always check current API live values against peaks
         const liveWind = parseFloat((d.wind.wind_speed.value * 1.60934).toFixed(1));
         const liveGust = parseFloat((d.wind.wind_gust.value * 1.60934).toFixed(1));
         const liveRR = parseFloat((state.lastCalculatedRate * 25.4).toFixed(1));
@@ -335,7 +309,6 @@ if (hour === 0 && minute < 5) {
         if (liveGust > mx_g) { mx_g = liveGust; mx_g_t = fmtL(); }
         if (liveRR > mx_r) { mx_r = liveRR; mx_r_t = fmtL(); }
 
-        // 4. UPDATE GLOBAL CACHE
         state.cachedData = {
             temp: { current: liveTemp, max: mx_t, maxTime: mx_t_time, min: mn_t, minTime: mn_t_time, realFeel: calculateRealFeel(liveTemp, liveHum), rate: tempRate, dew: parseFloat((liveTemp - ((100 - liveHum) / 5)).toFixed(1)) },
             atmo: { hum: liveHum, hTrend: humRate, press: livePress, pTrend: pressRate, sol: d.solar_and_uvi?.solar?.value || 0, uv: d.solar_and_uvi?.uvi?.value || 0 },
@@ -345,14 +318,10 @@ if (hour === 0 && minute < 5) {
             lastSync: new Date().toISOString()
         };
 
-                state.lastFetchTime = now;
+        state.lastFetchTime = now;
         return state.cachedData;
-    } catch (e) {
-        console.error("Critical Sync Error:", e);
-        return state.cachedData;
-    }
-} // <--- ADD THIS BRACE TO CLOSE syncWithEcowitt
-
+    } catch (e) { console.error("Critical Sync Error:", e); return state.cachedData; }
+}
 
 
 
