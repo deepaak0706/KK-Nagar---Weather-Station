@@ -252,6 +252,7 @@ if (hour === 0 && minute < 5) {
                 }
 
                 await client.query('COMMIT');
+                state.dataChangedSinceLastRead = true;
                 resetStateBuffers(); // Reset only after successful 10-min write
             } catch (err) { 
                 await client.query('ROLLBACK'); 
@@ -261,81 +262,92 @@ if (hour === 0 && minute < 5) {
             }
         }
 
-        // --- DASHBOARD DATA PREPARATION ---
-        const historyRes = await pool.query(`SELECT * FROM weather_history WHERE (time AT TIME ZONE 'Asia/Kolkata')::date = (NOW() AT TIME ZONE 'Asia/Kolkata')::date ORDER BY time ASC`);
-        const oneHourRes = await pool.query(`SELECT temp_f, humidity, press_rel FROM weather_history WHERE time >= NOW() - INTERVAL '1 hour' ORDER BY time ASC LIMIT 1`);
+                // --- DASHBOARD DATA PREPARATION ---
 
-        
-        const liveWind = parseFloat((d.wind.wind_speed.value * 1.60934).toFixed(1));
-        const liveGust = parseFloat((d.wind.wind_gust.value * 1.60934).toFixed(1));
-        const liveRainRate = parseFloat((state.lastCalculatedRate * 25.4).toFixed(1));
+        // 1. DEFAULT: Pull existing trends/history from RAM (The Safety Net)
+        let graphHistory = state.cachedData?.history || [];
+        let tempRate = state.cachedData?.temp?.rate || 0;
+        let humRate = state.cachedData?.atmo?.hTrend || 0;
+        let pressRate = state.cachedData?.atmo?.pTrend || 0;
 
-        // INITIALIZE with current Live or 1-min Buffer
-        let mx_t = state.bufMaxT === -999 ? liveTemp : parseFloat(((state.bufMaxT - 32) * 5 / 9).toFixed(1));
-        let mn_t = state.bufMinT === 999 ? liveTemp : parseFloat(((state.bufMinT - 32) * 5 / 9).toFixed(1));
-        let mx_w = Math.max(liveWind, parseFloat((state.bufW * 1.60934).toFixed(1)));
-        let mx_g = Math.max(liveGust, parseFloat((state.bufG * 1.60934).toFixed(1)));
-        let mx_r = Math.max(liveRainRate, parseFloat((state.bufRR * 25.4).toFixed(1)));
+        // Start with current peaks from memory or current live values
+        let mx_t = state.cachedData?.temp?.max || liveTemp;
+        let mn_t = state.cachedData?.temp?.min || liveTemp;
+        let mx_w = state.cachedData?.wind?.maxS || 0;
+        let mx_g = state.cachedData?.wind?.maxG || 0;
+        let mx_r = state.cachedData?.rain?.maxR || 0;
 
         const fmtL = () => new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' });
-        let mx_t_time = state.tMaxT ? new Date(state.tMaxT).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' }) : fmtL();
-        let mn_t_time = state.tMinT ? new Date(state.tMinT).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' }) : fmtL();
+        let mx_t_time = state.cachedData?.temp?.maxTime || fmtL();
+        let mn_t_time = state.cachedData?.temp?.minTime || fmtL();
         let mx_w_t = mx_t_time, mx_g_t = mx_t_time, mx_r_t = mx_t_time;
 
-        let graphHistory = [];
+        // 2. THE FIREWALL: Only wake the DB if forced or if data actually changed
+        if (forceWrite || state.dataChangedSinceLastRead || !state.cachedData) {
+            try {
+                const historyRes = await pool.query(`SELECT * FROM weather_history WHERE (time AT TIME ZONE 'Asia/Kolkata')::date = (NOW() AT TIME ZONE 'Asia/Kolkata')::date ORDER BY time ASC`);
+                const oneHourRes = await pool.query(`SELECT temp_f, humidity, press_rel FROM weather_history WHERE time >= NOW() - INTERVAL '1 hour' ORDER BY time ASC LIMIT 1`);
 
-        // Update from DB to find absolute day peaks (The 3-Way Race)
-        historyRes.rows.forEach(r => {
-            const fmt = (iso) => new Date(iso || r.time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' });
-            const r_max_t = parseFloat(((r.temp_f - 32) * 5 / 9).toFixed(1));
-            const r_min_t = parseFloat(((r.temp_min_f - 32) * 5 / 9).toFixed(1));
-            const r_w = parseFloat((r.wind_speed_mph * 1.60934).toFixed(1));
-            const r_g = parseFloat((r.wind_gust_mph * 1.60934).toFixed(1));
-            const r_rr = parseFloat((r.rain_rate_in * 25.4).toFixed(1));
+                // Re-calculate absolute day peaks and graph data from DB
+                graphHistory = [];
+                historyRes.rows.forEach(r => {
+                    const fmt = (iso) => new Date(iso || r.time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' });
+                    const r_max_t = parseFloat(((r.temp_f - 32) * 5 / 9).toFixed(1));
+                    const r_min_t = parseFloat(((r.temp_min_f - 32) * 5 / 9).toFixed(1));
+                    const r_w = parseFloat((r.wind_speed_mph * 1.60934).toFixed(1));
+                    const r_g = parseFloat((r.wind_gust_mph * 1.60934).toFixed(1));
+                    const r_rr = parseFloat((r.rain_rate_in * 25.4).toFixed(1));
 
-            if (r_max_t > mx_t) { mx_t = r_max_t; mx_t_time = fmt(r.max_t_time); }
-            if (r_min_t < mn_t) { mn_t = r_min_t; mn_t_time = fmt(r.min_t_time); }
-            if (r_w > mx_w) { mx_w = r_w; mx_w_t = fmt(r.max_w_time); }
-            if (r_g > mx_g) { mx_g = r_g; mx_g_t = fmt(r.max_g_time); }
-            if (r_rr > mx_r) { mx_r = r_rr; mx_r_t = fmt(r.max_r_time); }
-            
-            graphHistory.push({ time: r.time, temp: r_max_t, hum: r.humidity, wind: r_w, rain: parseFloat((r.daily_rain_in * 25.4).toFixed(1)) });
-        });
+                    if (r_max_t > mx_t) { mx_t = r_max_t; mx_t_time = fmt(r.max_t_time); }
+                    if (r_min_t < mn_t) { mn_t = r_min_t; mn_t_time = fmt(r.min_t_time); }
+                    if (r_w > mx_w) { mx_w = r_w; mx_w_t = fmt(r.max_w_time); }
+                    if (r_g > mx_g) { mx_g = r_g; mx_g_t = fmt(r.max_g_time); }
+                    if (r_rr > mx_r) { mx_r = r_rr; mx_r_t = fmt(r.max_r_time); }
+                    
+                    graphHistory.push({ time: r.time, temp: r_max_t, hum: r.humidity, wind: r_w, rain: parseFloat((r.daily_rain_in * 25.4).toFixed(1)) });
+                });
 
-                let tempRate = 0;
-        let humRate = 0;
-        let pressRate = 0;
+                if (oneHourRes.rows.length > 0) {
+                    const oldData = oneHourRes.rows[0];
+                    const oldTempC = parseFloat(((oldData.temp_f - 32) * 5 / 9).toFixed(1));
+                    tempRate = parseFloat((liveTemp - oldTempC).toFixed(1));
+                    humRate = liveHum - (oldData.humidity || 0);
+                    const oldPress = parseFloat((oldData.press_rel * 33.8639).toFixed(1));
+                    pressRate = parseFloat((livePress - oldPress).toFixed(1));
+                }
 
-        if (oneHourRes.rows.length > 0) {
-            const oldData = oneHourRes.rows[0];
-            
-            // Temperature Trend
-            const oldTempC = parseFloat(((oldData.temp_f - 32) * 5 / 9).toFixed(1));
-            tempRate = parseFloat((liveTemp - oldTempC).toFixed(1));
-
-            // Humidity Trend
-            humRate = liveHum - (oldData.humidity || 0);
-
-            // Pressure Trend (Convert old imperial pressure to hPa)
-            const oldPress = parseFloat((oldData.press_rel * 33.8639).toFixed(1));
-            pressRate = parseFloat((livePress - oldPress).toFixed(1));
+                // Reset flag so next visitor stays on RAM only
+                state.dataChangedSinceLastRead = false;
+            } catch (dbError) {
+                console.error("Dashboard DB Prep Error:", dbError);
+                // On error, we just keep using the RAM-based defaults
+            }
         }
 
+        // 3. THE LIVE RACE: Always check current API live values against peaks
+        const liveWind = parseFloat((d.wind.wind_speed.value * 1.60934).toFixed(1));
+        const liveGust = parseFloat((d.wind.wind_gust.value * 1.60934).toFixed(1));
+        const liveRR = parseFloat((state.lastCalculatedRate * 25.4).toFixed(1));
 
+        if (liveTemp > mx_t) { mx_t = liveTemp; mx_t_time = fmtL(); }
+        if (liveTemp < mn_t) { mn_t = liveTemp; mn_t_time = fmtL(); }
+        if (liveWind > mx_w) { mx_w = liveWind; mx_w_t = fmtL(); }
+        if (liveGust > mx_g) { mx_g = liveGust; mx_g_t = fmtL(); }
+        if (liveRR > mx_r) { mx_r = liveRR; mx_r_t = fmtL(); }
+
+        // 4. UPDATE GLOBAL CACHE
         state.cachedData = {
             temp: { current: liveTemp, max: mx_t, maxTime: mx_t_time, min: mn_t, minTime: mn_t_time, realFeel: calculateRealFeel(liveTemp, liveHum), rate: tempRate, dew: parseFloat((liveTemp - ((100 - liveHum) / 5)).toFixed(1)) },
-            // Change this line inside state.cachedData:
             atmo: { hum: liveHum, hTrend: humRate, press: livePress, pTrend: pressRate, sol: d.solar_and_uvi?.solar?.value || 0, uv: d.solar_and_uvi?.uvi?.value || 0 },
-            wind: { speed: parseFloat((d.wind.wind_speed.value * 1.60934).toFixed(1)), gust: parseFloat((d.wind.wind_gust.value * 1.60934).toFixed(1)), maxS: mx_w, maxSTime: mx_w_t, maxG: mx_g, maxGTime: mx_g_t, deg: d.wind.wind_direction.value, card: getCard(d.wind.wind_direction.value) },
-            rain: { total: parseFloat((d.rainfall.daily.value * 25.4).toFixed(1)), rate: parseFloat((state.lastCalculatedRate * 25.4).toFixed(1)), maxR: mx_r, maxRTime: mx_r_t, weekly: parseFloat((d.rainfall.weekly.value * 25.4).toFixed(1)), monthly: parseFloat((d.rainfall.monthly.value * 25.4).toFixed(1)), yearly: parseFloat((d.rainfall.yearly.value * 25.4).toFixed(1)) },
+            wind: { speed: liveWind, gust: liveGust, maxS: mx_w, maxSTime: mx_w_t, maxG: mx_g, maxGTime: mx_g_t, deg: d.wind.wind_direction.value, card: getCard(d.wind.wind_direction.value) },
+            rain: { total: parseFloat((d.rainfall.daily.value * 25.4).toFixed(1)), rate: liveRR, maxR: mx_r, maxRTime: mx_r_t, weekly: parseFloat((d.rainfall.weekly.value * 25.4).toFixed(1)), monthly: parseFloat((d.rainfall.monthly.value * 25.4).toFixed(1)), yearly: parseFloat((d.rainfall.yearly.value * 25.4).toFixed(1)) },
             history: graphHistory, 
             lastSync: new Date().toISOString()
         };
 
         state.lastFetchTime = now;
         return state.cachedData;
-    } catch (e) { return { error: e.message }; }
-}
+
 
 
 async function getWeatherSummary() {
