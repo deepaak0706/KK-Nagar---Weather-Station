@@ -712,9 +712,11 @@ app.get("/", (req, res) => {
                 document.getElementById('tTrendBox').innerHTML = d.temp.rate > 0 ? '<span class="trend-up">▲</span> +' + d.temp.rate + '°C /hr' : d.temp.rate < 0 ? '<span class="trend-down">▼</span> ' + d.temp.rate + '°C /hr' : '● Steady';
                 document.getElementById('mx').innerHTML = d.temp.max + '°C <span class="time-mark">' + d.temp.maxTime + '</span>';
                 document.getElementById('mn').innerHTML = d.temp.min + '°C <span class="time-mark">' + d.temp.minTime + '</span>';
+                const feels = d.temp.realFeel;
+                const heatLabel = feels >= 54 ? '🔴 Danger' : feels >= 41 ? '🟠 Extreme' : feels >= 32 ? '🟡 Caution' : '';
                 document.getElementById('rf').innerText = d.temp.realFeel + '°C'; 
                 document.getElementById('h_val').innerHTML = d.atmo.hum + '% ' + (d.atmo.hTrend > 0 ? '▲' : d.atmo.hTrend < 0 ? '▼' : '●');
-                document.getElementById('d_val').innerText = d.temp.dew + '°C';
+                document.getElementById('d_val').innerText = d.temp.dew + '°C'+ heatLabel;
                 
                 document.getElementById('wd_bracket').innerText = '(' + d.wind.card + ')';
                 document.getElementById('mw').innerHTML = d.wind.maxS + ' km/h <span class="time-mark">' + d.wind.maxSTime + '</span>';
