@@ -308,6 +308,7 @@ async function syncWithEcowitt(forceWrite = false) {
         state.lastFetchTime = now;
         return state.cachedData;
     } catch (e) { return { error: e.message }; }
+}
 
 
 async function getWeatherSummary() {
