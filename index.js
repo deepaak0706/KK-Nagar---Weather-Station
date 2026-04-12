@@ -345,8 +345,14 @@ if (hour === 0 && minute < 5) {
             lastSync: new Date().toISOString()
         };
 
-        state.lastFetchTime = now;
+                state.lastFetchTime = now;
         return state.cachedData;
+    } catch (e) {
+        console.error("Critical Sync Error:", e);
+        return state.cachedData;
+    }
+} // <--- ADD THIS BRACE TO CLOSE syncWithEcowitt
+
 
 
 
