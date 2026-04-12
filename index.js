@@ -134,6 +134,9 @@ async function syncWithEcowitt(forceWrite = false) {
             const liveWind = parseFloat((d.wind.wind_speed.value * 1.60934).toFixed(1));
             const liveGust = parseFloat((d.wind.wind_gust.value * 1.60934).toFixed(1));
             const liveHum = d.outdoor.humidity.value || 0;
+            const livePress = parseFloat((d.pressure.relative.value * 33.8639).toFixed(1));
+            state.cachedData.atmo.press = livePress;
+            state.cachedData.atmo.hum = liveHum;
             state.cachedData.temp.realFeel = calculateRealFeel(liveTemp, liveHum);
 
             // THE RACE: Update the Maxes in RAM so the user sees spikes immediately
@@ -260,7 +263,8 @@ if (hour === 0 && minute < 5) {
 
         // --- DASHBOARD DATA PREPARATION ---
         const historyRes = await pool.query(`SELECT * FROM weather_history WHERE (time AT TIME ZONE 'Asia/Kolkata')::date = (NOW() AT TIME ZONE 'Asia/Kolkata')::date ORDER BY time ASC`);
-        const oneHourRes = await pool.query(`SELECT temp_f FROM weather_history WHERE time >= NOW() - INTERVAL '1 hour' ORDER BY time ASC LIMIT 1`);
+        const oneHourRes = await pool.query(`SELECT temp_f, humidity, press_rel FROM weather_history WHERE time >= NOW() - INTERVAL '1 hour' ORDER BY time ASC LIMIT 1`);
+
         
         const liveWind = parseFloat((d.wind.wind_speed.value * 1.60934).toFixed(1));
         const liveGust = parseFloat((d.wind.wind_gust.value * 1.60934).toFixed(1));
@@ -298,15 +302,30 @@ if (hour === 0 && minute < 5) {
             graphHistory.push({ time: r.time, temp: r_max_t, hum: r.humidity, wind: r_w, rain: parseFloat((r.daily_rain_in * 25.4).toFixed(1)) });
         });
 
-        let tempRate = 0;
+                let tempRate = 0;
+        let humRate = 0;
+        let pressRate = 0;
+
         if (oneHourRes.rows.length > 0) {
-            const oldTempC = parseFloat(((oneHourRes.rows[0].temp_f - 32) * 5 / 9).toFixed(1));
+            const oldData = oneHourRes.rows[0];
+            
+            // Temperature Trend
+            const oldTempC = parseFloat(((oldData.temp_f - 32) * 5 / 9).toFixed(1));
             tempRate = parseFloat((liveTemp - oldTempC).toFixed(1));
+
+            // Humidity Trend
+            humRate = liveHum - (oldData.humidity || 0);
+
+            // Pressure Trend (Convert old imperial pressure to hPa)
+            const oldPress = parseFloat((oldData.press_rel * 33.8639).toFixed(1));
+            pressRate = parseFloat((livePress - oldPress).toFixed(1));
         }
+
 
         state.cachedData = {
             temp: { current: liveTemp, max: mx_t, maxTime: mx_t_time, min: mn_t, minTime: mn_t_time, realFeel: calculateRealFeel(liveTemp, liveHum), rate: tempRate, dew: parseFloat((liveTemp - ((100 - liveHum) / 5)).toFixed(1)) },
-            atmo: { hum: liveHum, hTrend: 0, press: livePress, pTrend: 0, sol: d.solar_and_uvi?.solar?.value || 0, uv: d.solar_and_uvi?.uvi?.value || 0 },
+            // Change this line inside state.cachedData:
+            atmo: { hum: liveHum, hTrend: humRate, press: livePress, pTrend: pressRate, sol: d.solar_and_uvi?.solar?.value || 0, uv: d.solar_and_uvi?.uvi?.value || 0 },
             wind: { speed: parseFloat((d.wind.wind_speed.value * 1.60934).toFixed(1)), gust: parseFloat((d.wind.wind_gust.value * 1.60934).toFixed(1)), maxS: mx_w, maxSTime: mx_w_t, maxG: mx_g, maxGTime: mx_g_t, deg: d.wind.wind_direction.value, card: getCard(d.wind.wind_direction.value) },
             rain: { total: parseFloat((d.rainfall.daily.value * 25.4).toFixed(1)), rate: parseFloat((state.lastCalculatedRate * 25.4).toFixed(1)), maxR: mx_r, maxRTime: mx_r_t, weekly: parseFloat((d.rainfall.weekly.value * 25.4).toFixed(1)), monthly: parseFloat((d.rainfall.monthly.value * 25.4).toFixed(1)), yearly: parseFloat((d.rainfall.yearly.value * 25.4).toFixed(1)) },
             history: graphHistory, 
