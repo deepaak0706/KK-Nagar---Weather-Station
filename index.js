@@ -738,7 +738,8 @@ app.get("/", (req, res) => {
                 document.getElementById('uv').innerText = d.atmo.uv;
                 document.getElementById('ts').innerText = new Date(d.lastSync).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 
-                const labels = d.history.map(h => new Date(h.time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: false }));
+              if (d.history && d.history.length > 0) {  
+                  const labels = d.history.map(h => new Date(h.time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: false }));       
                 if(!charts.cT) { 
                     charts.cT = setupChart('cT', 'Temp °C', '#ef4444'); 
                     charts.cH = setupChart('cH', 'Humidity %', '#10b981'); 
@@ -750,6 +751,7 @@ app.get("/", (req, res) => {
                 charts.cH.data.labels = labels; charts.cH.data.datasets[0].data = d.history.map(h => h.hum); charts.cH.update('none');
                 charts.cW.data.labels = labels; charts.cW.data.datasets[0].data = d.history.map(h => h.wind); charts.cW.update('none');
                 charts.cR.data.labels = labels; charts.cR.data.datasets[0].data = d.history.map(h => h.rain); charts.cR.update('none');
+              }
             } catch (e) { console.error(e); }
         }
 
