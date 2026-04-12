@@ -713,7 +713,7 @@ app.get("/", (req, res) => {
                 document.getElementById('mx').innerHTML = d.temp.max + '°C <span class="time-mark">' + d.temp.maxTime + '</span>';
                 document.getElementById('mn').innerHTML = d.temp.min + '°C <span class="time-mark">' + d.temp.minTime + '</span>';
                 document.getElementById('rf').innerText = d.temp.realFeel + '°C'; 
-                document.getElementById('h_val').innerHTML = d.atmo.hum + '% ' + (d.atmo.hTrend > 0 ? '▲' : '▼');
+                document.getElementById('h_val').innerHTML = d.atmo.hum + '% ' + (d.atmo.hTrend > 0 ? '▲' : d.atmo.hTrend < 0 ? '▼' : '●');
                 document.getElementById('d_val').innerText = d.temp.dew + '°C';
                 
                 document.getElementById('wd_bracket').innerText = '(' + d.wind.card + ')';
