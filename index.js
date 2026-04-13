@@ -262,7 +262,7 @@ async function bufferOnlyUpdate() {
         let mx_t_time = state.cachedData?.temp?.maxTime || fmtL(), mn_t_time = state.cachedData?.temp?.minTime || fmtL();
         let mx_w_t = mx_t_time, mx_g_t = mx_t_time, mx_r_t = mx_t_time;
 
-        if (!forceWrite && (state.dataChangedSinceLastRead || !state.cachedData)) {
+        if (state.dataChangedSinceLastRead || !state.cachedData) {
             try {
                 const historyRes = await pool.query(`
                     SELECT * FROM weather_history 
