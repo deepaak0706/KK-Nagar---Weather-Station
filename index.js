@@ -185,8 +185,8 @@ async function bufferOnlyUpdate() {
 
                 let timeSql = 'NOW()';
                 if (hour === 0 && minute < 5) {
-                    // This creates the 11:59:59 PM (18:29:59 UTC) timestamp
-                    timeSql = "((NOW() AT TIME ZONE 'Asia/Kolkata')::date - INTERVAL '1 second')";
+                    timeSql = "(date_trunc('day', NOW() AT TIME ZONE 'Asia/Kolkata') AT TIME ZONE 'Asia/Kolkata') - INTERVAL '1 second'";
+
                 }
 
                 const dbMaxT = state.bufMaxT === -999 ? d.outdoor.temperature.value : state.bufMaxT;
