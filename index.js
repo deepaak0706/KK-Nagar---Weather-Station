@@ -275,13 +275,38 @@ async function bufferOnlyUpdate() {
                     if (r_g > mx_g) { mx_g = r_g; mx_g_t = fmt(r.max_g_time); }
                     if (r_rr > mx_r) { mx_r = r_rr; mx_r_t = fmt(r.max_r_time); }
                     
-                    graphHistory.push({ time: r.time, temp: r_max_t, hum: r.humidity, wind: r_w, rain: parseFloat((r.daily_rain_in * 25.4).toFixed(1)) });
+                                        // Change 1: Added 'press' to the history push so we can calculate its trend
+                    graphHistory.push({ 
+                        time: r.time, 
+                        temp: r_max_t, 
+                        hum: r.humidity, 
+                        wind: r_w, 
+                        rain: parseFloat((r.daily_rain_in * 25.4).toFixed(1)),
+                        press: r.press_rel ? parseFloat((r.press_rel * 33.8639).toFixed(1)) : livePress
+                    });
                 });
                 state.dataChangedSinceLastRead = false;
             } catch (dbError) { console.error("DB Prep Error:", dbError); }
         }
 
+        // Change 2: NEW RATE CALCULATION LOGIC FOR ALL 3 METRICS
+        if (graphHistory.length > 0) {
+            const oneHourAgo = Date.now() - 3600000; // 1 hour in milliseconds
+            
+            // Find the closest record to exactly 1 hour ago
+            let pastRecord = graphHistory.find(r => new Date(r.time).getTime() >= oneHourAgo);
+            if (!pastRecord) pastRecord = graphHistory[0]; // Fallback to oldest daily record
+            
+            // Calculate the trends (Current Value - Past Value)
+            tempRate = parseFloat((liveTemp - pastRecord.temp).toFixed(1));
+            humRate = parseFloat((liveHum - pastRecord.hum).toFixed(1));
+            if (pastRecord.press) {
+                pressRate = parseFloat((livePress - pastRecord.press).toFixed(1));
+            }
+        }
+
         const liveWind = parseFloat((d.wind.wind_speed.value * 1.60934).toFixed(1));
+
         const liveGust = parseFloat((d.wind.wind_gust.value * 1.60934).toFixed(1));
         const liveRR = parseFloat((state.lastCalculatedRate * 25.4).toFixed(1));
 
