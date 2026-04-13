@@ -167,7 +167,7 @@ async function bufferOnlyUpdate() {
         } catch (e) { return state.cachedData; }
     }
 
-    // --- PART 2: WRITER PATH ---
+        // --- PART 2: WRITER PATH ---
     try {
         const url = `https://api.ecowitt.net/api/v3/device/real_time?application_key=${APPLICATION_KEY}&api_key=${API_KEY}&mac=${MAC}`;
         const response = await fetch(url);
@@ -183,10 +183,11 @@ async function bufferOnlyUpdate() {
             try {
                 await client.query('BEGIN');
 
+                // IST BACKTRACK: If it's the 12:00 AM sync, stamp it as 23:59:59 of yesterday 
+                // so the Archive query (which looks for date < today) catches this final peak.
                 let timeSql = 'NOW()';
                 if (hour === 0 && minute < 5) {
                     timeSql = "(date_trunc('day', NOW() AT TIME ZONE 'Asia/Kolkata') AT TIME ZONE 'Asia/Kolkata') - INTERVAL '1 second'";
-
                 }
 
                 const dbMaxT = state.bufMaxT === -999 ? d.outdoor.temperature.value : state.bufMaxT;
@@ -207,8 +208,8 @@ async function bufferOnlyUpdate() {
                     state.tG || new Date().toISOString(), d.solar_and_uvi?.solar?.value || 0, d.pressure.relative.value || 0
                 ]);
 
+                // ARCHIVE LOGIC: Happens once per day between 00:00 and 00:30 IST
                 if (hour === 0 && minute < 30 && state.lastArchivedDate !== todayISTStr) {
-                    // Archive logic...
                     await client.query(`
                         INSERT INTO daily_max_records (record_date, max_temp_c, min_temp_c, max_wind_kmh, max_gust_kmh, total_rain_mm)
                         SELECT 
@@ -228,14 +229,23 @@ async function bufferOnlyUpdate() {
                     await client.query(`DELETE FROM weather_history WHERE (time AT TIME ZONE 'Asia/Kolkata')::date < $1::date`, [todayISTStr]);
                     
                     state.lastArchivedDate = todayISTStr;
-                    state.cachedData = null; // Reset RAM for new day
-                    resetStateBuffers();     // WIPE MAX/MIN values
+                    state.cachedData = null; 
+                    resetStateBuffers(); // Correctly reset peak buffers for the new day only during archive
                 }
 
                 await client.query('COMMIT');
                 state.dataChangedSinceLastRead = true;
-                // Only reset buffers if it's NOT the midnight window (since archive handled midnight)
-                if (hour !== 0 || minute >= 5) resetStateBuffers(); 
+                
+                // FIXED: We no longer resetStateBuffers() here. 
+                // This ensures peaks like "Today's Max Temp" stay visible all day.
+                if (hour !== 0 || minute >= 5) {
+                    // We only reset the minute-by-minute high-frequency tracking buffers, 
+                    // not the overall daily records.
+                    state.bufW = 0; state.bufG = 0; state.bufRR = 0;
+                    state.tW = null; state.tG = null; state.tRR = null;
+                    // Max/Min Temp buffers are kept until midnight archive.
+                }
+
             } catch (err) { 
                 await client.query('ROLLBACK'); 
                 console.error("DB Error:", err); 
@@ -275,7 +285,6 @@ async function bufferOnlyUpdate() {
                     if (r_g > mx_g) { mx_g = r_g; mx_g_t = fmt(r.max_g_time); }
                     if (r_rr > mx_r) { mx_r = r_rr; mx_r_t = fmt(r.max_r_time); }
                     
-                                        // Change 1: Added 'press' to the history push so we can calculate its trend
                     graphHistory.push({ 
                         time: r.time, 
                         temp: r_max_t, 
@@ -289,15 +298,11 @@ async function bufferOnlyUpdate() {
             } catch (dbError) { console.error("DB Prep Error:", dbError); }
         }
 
-        // Change 2: NEW RATE CALCULATION LOGIC FOR ALL 3 METRICS
         if (graphHistory.length > 0) {
-            const oneHourAgo = Date.now() - 3600000; // 1 hour in milliseconds
-            
-            // Find the closest record to exactly 1 hour ago
+            const oneHourAgo = Date.now() - 3600000;
             let pastRecord = graphHistory.find(r => new Date(r.time).getTime() >= oneHourAgo);
-            if (!pastRecord) pastRecord = graphHistory[0]; // Fallback to oldest daily record
+            if (!pastRecord) pastRecord = graphHistory[0];
             
-            // Calculate the trends (Current Value - Past Value)
             tempRate = parseFloat((liveTemp - pastRecord.temp).toFixed(1));
             humRate = parseFloat((liveHum - pastRecord.hum).toFixed(1));
             if (pastRecord.press) {
@@ -306,7 +311,6 @@ async function bufferOnlyUpdate() {
         }
 
         const liveWind = parseFloat((d.wind.wind_speed.value * 1.60934).toFixed(1));
-
         const liveGust = parseFloat((d.wind.wind_gust.value * 1.60934).toFixed(1));
         const liveRR = parseFloat((state.lastCalculatedRate * 25.4).toFixed(1));
 
@@ -328,6 +332,7 @@ async function bufferOnlyUpdate() {
         state.lastFetchTime = now;
         return state.cachedData;
     } catch (e) { console.error("Sync Error:", e); return state.cachedData; }
+
 }
 
 
