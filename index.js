@@ -120,10 +120,24 @@ async function bufferOnlyUpdate() {
 
  async function syncWithEcowitt(forceWrite = false) {
     const now = Date.now();
-    const nowIST = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" }));
-    const todayISTStr = nowIST.toLocaleDateString('en-CA'); 
-    const hour = nowIST.getHours();
-    const minute = nowIST.getMinutes();
+    const actualNow = new Date(); // Native UTC Date
+
+// 1. Get exact YYYY-MM-DD in IST directly
+const todayISTStr = new Intl.DateTimeFormat('en-CA', { 
+    timeZone: 'Asia/Kolkata' 
+}).format(actualNow);
+
+// 2. Get accurate IST hour (0-23) and minute (0-59)
+const hourStr = new Intl.DateTimeFormat('en-US', { 
+    hour: 'numeric', hour12: false, timeZone: 'Asia/Kolkata' 
+}).format(actualNow);
+// NOTE: 24:00 is returned as "24" by some node versions for midnight, so we handle it:
+const hour = parseInt(hourStr) === 24 ? 0 : parseInt(hourStr); 
+
+const minute = parseInt(new Intl.DateTimeFormat('en-US', { 
+    minute: 'numeric', timeZone: 'Asia/Kolkata' 
+}).format(actualNow));
+
 
     // Reset cache if day changed for a visitor
     if (state.lastArchivedDate && state.lastArchivedDate !== todayISTStr) {
