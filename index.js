@@ -207,7 +207,7 @@ async function bufferOnlyUpdate() {
                     state.tG || new Date().toISOString(), d.solar_and_uvi?.solar?.value || 0, d.pressure.relative.value || 0
                 ]);
 
-                if (state.lastArchivedDate !== todayISTStr) {
+                if (hour === 0 && minute < 30 && state.lastArchivedDate !== todayISTStr) {
                     // Archive logic...
                     await client.query(`
                         INSERT INTO daily_max_records (record_date, max_temp_c, min_temp_c, max_wind_kmh, max_gust_kmh, total_rain_mm)
