@@ -167,7 +167,7 @@ async function bufferOnlyUpdate() {
         } catch (e) { return state.cachedData; }
     }
 
-        // --- PART 2: WRITER PATH ---
+    // --- PART 2: WRITER PATH ---
     try {
         const url = `https://api.ecowitt.net/api/v3/device/real_time?application_key=${APPLICATION_KEY}&api_key=${API_KEY}&mac=${MAC}`;
         const response = await fetch(url);
@@ -183,8 +183,6 @@ async function bufferOnlyUpdate() {
             try {
                 await client.query('BEGIN');
 
-                // IST BACKTRACK: If it's the 12:00 AM sync, stamp it as 23:59:59 of yesterday 
-                // so the Archive query (which looks for date < today) catches this final peak.
                 let timeSql = 'NOW()';
                 if (hour === 0 && minute < 5) {
                     timeSql = "(date_trunc('day', NOW() AT TIME ZONE 'Asia/Kolkata') AT TIME ZONE 'Asia/Kolkata') - INTERVAL '1 second'";
@@ -208,7 +206,6 @@ async function bufferOnlyUpdate() {
                     state.tG || new Date().toISOString(), d.solar_and_uvi?.solar?.value || 0, d.pressure.relative.value || 0
                 ]);
 
-                // ARCHIVE LOGIC: Happens once per day between 00:00 and 00:30 IST
                 if (hour === 0 && minute < 30 && state.lastArchivedDate !== todayISTStr) {
                     await client.query(`
                         INSERT INTO daily_max_records (record_date, max_temp_c, min_temp_c, max_wind_kmh, max_gust_kmh, total_rain_mm)
@@ -230,29 +227,22 @@ async function bufferOnlyUpdate() {
                     
                     state.lastArchivedDate = todayISTStr;
                     state.cachedData = null; 
-                    resetStateBuffers(); // Correctly reset peak buffers for the new day only during archive
+                    resetStateBuffers(); // Midnight reset preserved
                 }
 
                 await client.query('COMMIT');
                 state.dataChangedSinceLastRead = true;
                 
-                // FIXED: We no longer resetStateBuffers() here. 
-                // This ensures peaks like "Today's Max Temp" stay visible all day.
-                if (hour !== 0 || minute >= 5) {
-                    // We only reset the minute-by-minute high-frequency tracking buffers, 
-                    // not the overall daily records.
-                    state.bufW = 0; state.bufG = 0; state.bufRR = 0;
-                    state.tW = null; state.tG = null; state.tRR = null;
-                    // Max/Min Temp buffers are kept until midnight archive.
-                }
+                // Every 10 min write successful: reset buffer.
+                // If COMMIT fails, this is skipped and the buffer is held.
+                resetStateBuffers();
 
             } catch (err) { 
                 await client.query('ROLLBACK'); 
-                console.error("DB Error:", err); 
+                console.error("DB Error - Buffer Held:", err); 
             } finally { client.release(); }
         }
 
-        // Dashboard logic remains unchanged...
         let graphHistory = state.cachedData?.history || [];
         let tempRate = state.cachedData?.temp?.rate || 0, humRate = state.cachedData?.atmo?.hTrend || 0, pressRate = state.cachedData?.atmo?.pTrend || 0;
         let mx_t = state.cachedData?.temp?.max || liveTemp, mn_t = state.cachedData?.temp?.min || liveTemp;
@@ -332,7 +322,6 @@ async function bufferOnlyUpdate() {
         state.lastFetchTime = now;
         return state.cachedData;
     } catch (e) { console.error("Sync Error:", e); return state.cachedData; }
-
 }
 
 
