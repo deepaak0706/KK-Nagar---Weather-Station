@@ -71,27 +71,36 @@ async function bufferOnlyUpdate() {
         const apiW = parseFloat(d.wind.wind_speed.value);
         const apiG = parseFloat(d.wind.wind_gust.value);
         const apiT = parseFloat(d.outdoor.temperature.value);
+
         if (state.tW === null || apiW > state.bufW) { state.bufW = apiW; state.tW = currentTimeStamp; }
         if (state.tG === null || apiG > state.bufG) { state.bufG = apiG; state.tG = currentTimeStamp; }
         if (state.tMaxT === null || apiT > state.bufMaxT) { state.bufMaxT = apiT; state.tMaxT = currentTimeStamp; }
         if (state.tMinT === null || apiT < state.bufMinT) { state.bufMinT = apiT; state.tMinT = currentTimeStamp; }
+
         const rawDailyInches = d.rainfall.daily.value;
         const timeElapsedSec = state.lastFetchTime ? (now - state.lastFetchTime) / 1000 : 0;
         let customRateIn = 0;
+
         if (state.lastRainRaw !== null && timeElapsedSec > 0) {
             const deltaRain = rawDailyInches - state.lastRainRaw;
-            if (deltaRain < 0) { state.lastRainTime = now; state.lastCalculatedRate = 0; state.lastRainRaw = rawDailyInches; }
-            else if (deltaRain > 0 && timeElapsedSec >= 30) { customRateIn = deltaRain * (3600 / timeElapsedSec); state.lastCalculatedRate = customRateIn; state.lastRainTime = now; }
-            else if (state.lastCalculatedRate > 0) {
+            if (deltaRain < 0) {
+                state.lastRainTime = now; state.lastCalculatedRate = 0; state.lastRainRaw = rawDailyInches;
+            } else if (deltaRain > 0 && timeElapsedSec >= 30) {
+                customRateIn = deltaRain * (3600 / timeElapsedSec);
+                state.lastCalculatedRate = customRateIn; state.lastRainTime = now;
+            } else if (state.lastCalculatedRate > 0) {
                 const timeSinceLastRain = (now - state.lastRainTime) / 1000;
                 const decayRate = 0.01 * (3600 / timeSinceLastRain);
                 if (timeSinceLastRain > 900) { state.lastCalculatedRate = 0; }
                 else if (decayRate < state.lastCalculatedRate) { state.lastCalculatedRate = decayRate; }
                 customRateIn = state.lastCalculatedRate;
             }
-        } else { state.lastRainRaw = rawDailyInches; state.lastRainTime = now; state.lastCalculatedRate = 0; }
+        } else {
+            state.lastRainRaw = rawDailyInches; state.lastRainTime = now; state.lastCalculatedRate = 0;
+        }
         state.lastRainRaw = rawDailyInches;
         if (state.tRR === null || customRateIn > state.bufRR) { state.bufRR = customRateIn; state.tRR = currentTimeStamp; }
+
         state.lastFetchTime = now;
         return { ok: true, buffered: true };
     } catch (e) { return { error: e.message }; }
@@ -104,7 +113,9 @@ async function syncWithEcowitt(forceWrite = false) {
     const hour = nowIST.getHours();
     const minute = nowIST.getMinutes();
 
-    if (state.lastArchivedDate && state.lastArchivedDate !== todayISTStr) { state.cachedData = null; }
+    if (state.lastArchivedDate && state.lastArchivedDate !== todayISTStr) {
+        state.cachedData = null;
+    }
 
     if (!forceWrite && state.cachedData && (now - state.lastFetchTime < 540000)) {
         try {
@@ -117,16 +128,20 @@ async function syncWithEcowitt(forceWrite = false) {
             const liveGust = parseFloat((d.wind.wind_gust.value * 1.60934).toFixed(1));
             const liveHum = d.outdoor.humidity.value || 0;
             const livePress = parseFloat((d.pressure.relative.value * 33.8639).toFixed(1));
+            
             state.cachedData.atmo.press = livePress;
             state.cachedData.atmo.hum = liveHum;
             state.cachedData.temp.realFeel = calculateRealFeel(liveTemp, liveHum);
+
             const fmtL = () => new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' });
             if (liveTemp > state.cachedData.temp.max) { state.cachedData.temp.max = liveTemp; state.cachedData.temp.maxTime = fmtL(); }
             if (liveTemp < state.cachedData.temp.min) { state.cachedData.temp.min = liveTemp; state.cachedData.temp.minTime = fmtL(); }
             if (liveWind > state.cachedData.wind.maxS) { state.cachedData.wind.maxS = liveWind; state.cachedData.wind.maxSTime = fmtL(); }
             if (liveGust > state.cachedData.wind.maxG) { state.cachedData.wind.maxG = liveGust; state.cachedData.wind.maxGTime = fmtL(); }
+            
             const liveRR = parseFloat((state.lastCalculatedRate * 25.4).toFixed(1));
             if (liveRR > state.cachedData.rain.maxR) { state.cachedData.rain.maxR = liveRR; state.cachedData.rain.maxRTime = fmtL(); }
+
             state.cachedData.temp.current = liveTemp;
             state.cachedData.wind.speed = liveWind;
             state.cachedData.wind.gust = liveGust;
@@ -150,18 +165,22 @@ async function syncWithEcowitt(forceWrite = false) {
             try {
                 await client.query('BEGIN');
                 let timeSql = 'NOW()';
-                if (hour === 0 && minute < 5) { timeSql = "(date_trunc('day', NOW() AT TIME ZONE 'Asia/Kolkata') AT TIME ZONE 'Asia/Kolkata') - INTERVAL '1 second'"; }
+                if (hour === 0 && minute < 5) {
+                    timeSql = "(date_trunc('day', NOW() AT TIME ZONE 'Asia/Kolkata') AT TIME ZONE 'Asia/Kolkata') - INTERVAL '1 second'";
+                }
                 const dbMaxT = state.bufMaxT === -999 ? d.outdoor.temperature.value : state.bufMaxT;
                 const dbMinT = state.bufMinT === 999 ? d.outdoor.temperature.value : state.bufMinT;
                 const dbW = state.tW === null ? d.wind.wind_speed.value : state.bufW;
                 const dbG = state.tG === null ? d.wind.wind_gust.value : state.bufG;
                 const dbRR = state.tRR === null ? (state.lastCalculatedRate || 0) : state.bufRR;
+
                 await client.query(`
                     INSERT INTO weather_history 
                     (time, temp_f, temp_min_f, humidity, wind_speed_mph, wind_gust_mph, rain_rate_in, daily_rain_in, 
                      max_w_time, max_t_time, min_t_time, max_r_time, max_g_time, solar_radiation, press_rel)
                     VALUES (${timeSql}, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
                 `, [dbMaxT, dbMinT, liveHum, dbW, dbG, dbRR, d.rainfall.daily.value, state.tW || new Date().toISOString(), state.tMaxT || new Date().toISOString(), state.tMinT || new Date().toISOString(), state.tRR || new Date().toISOString(), state.tG || new Date().toISOString(), d.solar_and_uvi?.solar?.value || 0, d.pressure.relative.value || 0]);
+
                 if (hour === 0 && minute < 30 && state.lastArchivedDate !== todayISTStr) {
                     await client.query(`
                         INSERT INTO daily_max_records (record_date, max_temp_c, min_temp_c, max_wind_kmh, max_gust_kmh, total_rain_mm)
@@ -176,15 +195,47 @@ async function syncWithEcowitt(forceWrite = false) {
             } catch (err) { await client.query('ROLLBACK'); } finally { client.release(); }
         }
 
+        let graphHistory = state.cachedData?.history || [];
+        let tempRate = state.cachedData?.temp?.rate || 0, humRate = state.cachedData?.atmo?.hTrend || 0, pressRate = state.cachedData?.atmo?.pTrend || 0;
         let mx_t = state.cachedData?.temp?.max || liveTemp, mn_t = state.cachedData?.temp?.min || liveTemp;
         let mx_w = state.cachedData?.wind?.maxS || 0, mx_g = state.cachedData?.wind?.maxG || 0, mx_r = state.cachedData?.rain?.maxR || 0;
         const fmtL = () => new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' });
         let mx_t_time = state.cachedData?.temp?.maxTime || fmtL(), mn_t_time = state.cachedData?.temp?.minTime || fmtL(), mx_w_t = mx_t_time, mx_g_t = mx_t_time, mx_r_t = mx_t_time;
 
+        if (state.dataChangedSinceLastRead || !state.cachedData) {
+            try {
+                const historyRes = await pool.query(`SELECT * FROM weather_history WHERE (time AT TIME ZONE 'Asia/Kolkata')::date = $1::date ORDER BY time ASC`, [todayISTStr]);
+                graphHistory = [];
+                historyRes.rows.forEach(r => {
+                    const fmt = (iso) => new Date(iso || r.time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' });
+                    const r_max_t = parseFloat(((r.temp_f - 32) * 5 / 9).toFixed(1));
+                    const r_min_t = parseFloat(((r.temp_min_f - 32) * 5 / 9).toFixed(1));
+                    const r_w = parseFloat((r.wind_speed_mph * 1.60934).toFixed(1));
+                    const r_g = parseFloat((r.wind_gust_mph * 1.60934).toFixed(1));
+                    const r_rr = parseFloat((r.rain_rate_in * 25.4).toFixed(1));
+                    if (r_max_t > mx_t) { mx_t = r_max_t; mx_t_time = fmt(r.max_t_time); }
+                    if (r_min_t < mn_t) { mn_t = r_min_t; mn_t_time = fmt(r.min_t_time); }
+                    if (r_w > mx_w) { mx_w = r_w; mx_w_t = fmt(r.max_w_time); }
+                    if (r_g > mx_g) { mx_g = r_g; mx_g_t = fmt(r.max_g_time); }
+                    if (r_rr > mx_r) { mx_r = r_rr; mx_r_t = fmt(r.max_r_time); }
+                    graphHistory.push({ time: r.time, temp: r_max_t, hum: r.humidity, wind: r_w, rain: parseFloat((r.daily_rain_in * 25.4).toFixed(1)), press: r.press_rel ? parseFloat((r.press_rel * 33.8639).toFixed(1)) : livePress });
+                });
+                state.dataChangedSinceLastRead = false;
+            } catch (dbError) { console.error("DB Prep Error:", dbError); }
+        }
+
+        if (graphHistory.length > 0) {
+            const oneHourAgo = Date.now() - 3600000;
+            let pastRecord = graphHistory.find(r => new Date(r.time).getTime() >= oneHourAgo);
+            if (!pastRecord) pastRecord = graphHistory[0];
+            tempRate = parseFloat((liveTemp - pastRecord.temp).toFixed(1));
+            humRate = parseFloat((liveHum - pastRecord.hum).toFixed(1));
+            if (pastRecord.press) { pressRate = parseFloat((livePress - pastRecord.press).toFixed(1)); }
+        }
+
         const liveWind = parseFloat((d.wind.wind_speed.value * 1.60934).toFixed(1));
         const liveGust = parseFloat((d.wind.wind_gust.value * 1.60934).toFixed(1));
         const liveRR = parseFloat((state.lastCalculatedRate * 25.4).toFixed(1));
-
         if (liveTemp > mx_t) { mx_t = liveTemp; mx_t_time = fmtL(); }
         if (liveTemp < mn_t) { mn_t = liveTemp; mn_t_time = fmtL(); }
         if (liveWind > mx_w) { mx_w = liveWind; mx_w_t = fmtL(); }
@@ -192,11 +243,11 @@ async function syncWithEcowitt(forceWrite = false) {
         if (liveRR > mx_r) { mx_r = liveRR; mx_r_t = fmtL(); }
 
         state.cachedData = {
-            temp: { current: liveTemp, max: mx_t, maxTime: mx_t_time, min: mn_t, minTime: mn_t_time, realFeel: calculateRealFeel(liveTemp, liveHum), rate: state.cachedData?.temp?.rate || 0, dew: parseFloat((liveTemp - ((100 - liveHum) / 5)).toFixed(1)) },
-            atmo: { hum: liveHum, hTrend: state.cachedData?.atmo?.hTrend || 0, press: livePress, pTrend: state.cachedData?.atmo?.pTrend || 0, sol: d.solar_and_uvi?.solar?.value || 0, uv: d.solar_and_uvi?.uvi?.value || 0 },
+            temp: { current: liveTemp, max: mx_t, maxTime: mx_t_time, min: mn_t, minTime: mn_t_time, realFeel: calculateRealFeel(liveTemp, liveHum), rate: tempRate, dew: parseFloat((liveTemp - ((100 - liveHum) / 5)).toFixed(1)) },
+            atmo: { hum: liveHum, hTrend: humRate, press: livePress, pTrend: pressRate, sol: d.solar_and_uvi?.solar?.value || 0, uv: d.solar_and_uvi?.uvi?.value || 0 },
             wind: { speed: liveWind, gust: liveGust, maxS: mx_w, maxSTime: mx_w_t, maxG: mx_g, maxGTime: mx_g_t, deg: d.wind.wind_direction.value, card: getCard(d.wind.wind_direction.value) },
             rain: { total: parseFloat((d.rainfall.daily.value * 25.4).toFixed(1)), rate: liveRR, maxR: mx_r, maxRTime: mx_r_t, weekly: parseFloat((d.rainfall.weekly.value * 25.4).toFixed(1)), monthly: parseFloat((d.rainfall.monthly.value * 25.4).toFixed(1)), yearly: parseFloat((d.rainfall.yearly.value * 25.4).toFixed(1)) },
-            lastSync: new Date().toISOString()
+            history: graphHistory, lastSync: new Date().toISOString()
         };
         state.lastFetchTime = now;
         return state.cachedData;
@@ -219,20 +270,8 @@ async function getWeatherSummary() {
     } catch (err) { return { error: err.message }; }
 }
 
-// Routes
 app.get("/weather", async (req, res) => res.json(await syncWithEcowitt(false)));
 app.get("/api/summary", async (req, res) => res.json(await getWeatherSummary()));
-app.get("/api/history", async (req, res) => {
-    const todayISTStr = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" })).toLocaleDateString('en-CA');
-    try {
-        const historyRes = await pool.query(`SELECT * FROM weather_history WHERE (time AT TIME ZONE 'Asia/Kolkata')::date = $1::date ORDER BY time ASC`, [todayISTStr]);
-        const history = historyRes.rows.map(r => ({
-            time: r.time, temp: parseFloat(((r.temp_f - 32) * 5 / 9).toFixed(1)), hum: r.humidity, wind: parseFloat((r.wind_speed_mph * 1.60934).toFixed(1)), 
-            rain: parseFloat((r.daily_rain_in * 25.4).toFixed(1))
-        }));
-        res.json(history);
-    } catch (e) { res.status(500).json({ error: e.message }); }
-});
 app.get("/api/sync", async (req, res) => {
     if (req.query.buffer === 'true') return res.json(await bufferOnlyUpdate());
     res.json(await syncWithEcowitt(req.query.write === 'true'));
@@ -275,24 +314,24 @@ app.get("/", (req, res) => {
         .badge-label { font-size: 9px; color: var(--muted); text-transform: uppercase; font-weight: 800; }
         .badge-val { font-size: 16px; font-weight: 800; }
         
-        /* INLINE 24H SECTION */
-        .history-panel { margin-top: 40px; }
-        .history-controls { display: flex; gap: 10px; margin-bottom: 20px; justify-content: center; }
-        .hist-btn { background: var(--card); border: 1px solid var(--border); padding: 10px 24px; border-radius: 14px; color: var(--text); font-weight: 700; cursor: pointer; transition: 0.3s; }
-        .hist-btn.active { background: var(--accent); color: white; border-color: var(--accent); }
-        .graph-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
-        .graph-card { background: var(--card); padding: 20px; border-radius: 24px; border: 1px solid var(--border); height: 260px; }
+        .compass-ui { position: absolute; top: 28px; right: 28px; width: 50px; height: 50px; border: 2px solid var(--border); border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+        #needle { width: 3px; height: 32px; background: linear-gradient(to bottom, #ef4444 50%, var(--muted) 50%); clip-path: polygon(50% 0%, 100% 100%, 50% 85%, 0% 100%); transition: 2s; }
         
-        /* MONTHLY SUMMARY STYLES */
+        /* 24H SECTION */
+        .history-panel { margin-top: 40px; }
+        .panel-controls { display: flex; gap: 10px; margin-bottom: 20px; justify-content: center; }
+        .p-btn { background: var(--card); border: 1px solid var(--border); padding: 10px 24px; border-radius: 14px; color: var(--text); font-weight: 700; cursor: pointer; }
+        .p-btn.active { background: var(--accent); color: white; border-color: var(--accent); }
+        .graph-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
+        .graph-card { background: var(--card); padding: 24px; border-radius: 32px; border: 1px solid var(--border); height: 300px; display: flex; flex-direction: column; }
+        
+        /* SUMMARY TABLE */
         .month-header { font-size: 20px; font-weight: 800; margin: 25px 0 15px 0; color: var(--accent); }
         .summary-table-wrapper { overflow-x: auto; background: var(--card); border-radius: 24px; border: 1px solid var(--border); }
         .summary-table { width: 100%; border-collapse: collapse; min-width: 600px; }
         .summary-table th { padding: 16px; background: var(--badge); text-align: left; font-size: 11px; text-transform: uppercase; color: var(--muted); }
         .summary-table td { padding: 16px; border-top: 1px solid var(--border); font-size: 14px; }
         
-        canvas#windCanvas { position: absolute; top:0; left:0; width:100%; height:100%; pointer-events:none; }
-        #needle { width: 3px; height: 32px; background: linear-gradient(to bottom, #ef4444 50%, var(--muted) 50%); clip-path: polygon(50% 0%, 100% 100%, 50% 85%, 0% 100%); transition: 2s; }
-        .compass-ui { position: absolute; top: 28px; right: 28px; width: 50px; height: 50px; border: 2px solid var(--border); border-radius: 50%; display: flex; align-items: center; justify-content: center; }
         @keyframes magicFade { 0% { opacity: 0; filter: blur(8px); transform: translateY(5px); } 100% { opacity: 1; filter: blur(0); transform: translateY(0); } }
         .fade-update { animation: magicFade 0.8s ease; }
     </style>
@@ -323,11 +362,10 @@ app.get("/", (req, res) => {
                     </div>
                 </div>
                 <div class="card">
-                    <canvas id="windCanvas"></canvas>
                     <div class="label">Wind Dynamics</div>
                     <div class="compass-ui"><div id="needle"></div></div>
-                    <div class="main-val"><span id="w">0.0</span><span class="unit">km/h</span></div>
-                    <div class="sub-pill">● Gust: <span id="wg">--</span></div>
+                    <div class="main-val"><span id="w">0.0</span><span id="wd_card" style="font-size:18px; color:var(--muted); margin-left:8px;">(--)</span><span class="unit">km/h</span></div>
+                    <div class="sub-pill">● Live Gust: <span id="wg">--</span></div>
                     <div class="sub-box-4">
                         <div class="badge"><span class="badge-label">Max Speed</span><span id="mw" class="badge-val">--</span></div>
                         <div class="badge"><span class="badge-label">Max Gust</span><span id="mg" class="badge-val">--</span></div>
@@ -336,15 +374,15 @@ app.get("/", (req, res) => {
                 <div class="card">
                     <div class="label">Rain Realm</div>
                     <div class="main-val"><span id="r_tot">0.0</span><span class="unit">mm</span></div>
-                    <div class="sub-pill">● Rate: <span id="r_rate">0.0</span> mm/h</div>
+                    <div class="sub-pill">● Rain Rate: <span id="r_rate">0.0</span> mm/h</div>
                     <div class="sub-box-4">
-                        <div class="badge" style="grid-column: span 2;"><span class="badge-label">Peak Rate Today</span><span id="mr" class="badge-val">--</span></div>
+                        <div class="badge" style="grid-column: span 2;"><span class="badge-label">Max Rate Today</span><span id="mr" class="badge-val">--</span></div>
                         <div class="badge"><span class="badge-label">Weekly</span><span id="r_week" class="badge-val">--</span></div>
                         <div class="badge"><span class="badge-label">Monthly</span><span id="r_month" class="badge-val">--</span></div>
                     </div>
                 </div>
                 <div class="card">
-                    <div class="label">Atmospheric</div>
+                    <div class="label">Atmospheric <span id="pIcon"></span></div>
                     <div class="main-val"><span id="pr">--</span><span class="unit">hPa</span></div>
                     <div class="sub-box-4">
                         <div class="badge"><span class="badge-label">Solar Rad</span><span id="sol" class="badge-val">--</span></div>
@@ -354,22 +392,21 @@ app.get("/", (req, res) => {
             </div>
 
             <div class="history-panel">
-                <div class="history-controls">
-                    <button onclick="toggleHist('summary')" id="btn-sum-24" class="hist-btn active">24H Summary</button>
-                    <button onclick="toggleHist('graphs')" id="btn-graph-24" class="hist-btn">24H Graphs</button>
+                <div class="panel-controls">
+                    <button onclick="toggle24H('summary')" id="btn-24-sum" class="p-btn active">24H Summary</button>
+                    <button onclick="toggle24H('graphs')" id="btn-24-graph" class="p-btn">24H Graphs</button>
                 </div>
-                <div id="panel-summary" class="card" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; text-align:center;">
-                    <div class="badge"><span class="badge-label">Peak Temp</span><span id="sum-mx" class="badge-val" style="color:#ef4444">--</span></div>
-                    <div class="badge"><span class="badge-label">Low Temp</span><span id="sum-mn" class="badge-val" style="color:#0ea5e9">--</span></div>
-                    <div class="badge"><span class="badge-label">Max Wind</span><span id="sum-mw" class="badge-val">--</span></div>
-                    <div class="badge"><span class="badge-label">Max Rate</span><span id="sum-mr" class="badge-val">--</span></div>
-                    <div class="badge"><span class="badge-label">Total Rain</span><span id="sum-rt" class="badge-val">--</span></div>
+                <div id="24h-summary" class="grid-system" style="grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));">
+                    <div class="badge" style="text-align:center;"><span class="badge-label">Peak Temp</span><span id="s-mx" class="badge-val">--</span></div>
+                    <div class="badge" style="text-align:center;"><span class="badge-label">Min Temp</span><span id="s-mn" class="badge-val">--</span></div>
+                    <div class="badge" style="text-align:center;"><span class="badge-label">Max Wind</span><span id="s-mw" class="badge-val">--</span></div>
+                    <div class="badge" style="text-align:center;"><span class="badge-label">Total Rain</span><span id="s-rt" class="badge-val">--</span></div>
                 </div>
-                <div id="panel-graphs" class="graph-grid" style="display: none;">
-                    <div class="graph-card"><canvas id="cT"></canvas></div>
-                    <div class="graph-card"><canvas id="cH"></canvas></div>
-                    <div class="graph-card"><canvas id="cW"></canvas></div>
-                    <div class="graph-card"><canvas id="cR"></canvas></div>
+                <div id="24h-graphs" class="graph-grid" style="display: none; margin-top:20px;">
+                    <div class="graph-card"><div class="label">Temperature</div><canvas id="cT"></canvas></div>
+                    <div class="graph-card"><div class="label">Humidity</div><canvas id="cH"></canvas></div>
+                    <div class="graph-card"><div class="label">Wind</div><canvas id="cW"></canvas></div>
+                    <div class="graph-card"><div class="label">Rain</div><canvas id="cR"></canvas></div>
                 </div>
             </div>
         </div>
@@ -393,7 +430,7 @@ app.get("/", (req, res) => {
 
         async function fetchMonthlySummary() {
             const content = document.getElementById('summary-content');
-            content.innerHTML = '<div class="card" style="text-align:center; padding:40px;">Generating Report...</div>';
+            content.innerHTML = '<div class="card" style="text-align:center; padding:40px;">Generating...</div>';
             try {
                 const res = await fetch('/api/summary');
                 const groups = await res.json();
@@ -401,8 +438,8 @@ app.get("/", (req, res) => {
                 for (const [month, days] of Object.entries(groups)) {
                     html += \`<div class="month-header">\${month}</div><div class="summary-table-wrapper"><table class="summary-table"><thead><tr><th>Date</th><th>Max Temp</th><th>Min Temp</th><th>Wind/Gust</th><th>Rain</th></tr></thead><tbody>\${days.map(d => \`<tr><td><b>\${new Date(d.record_date).getDate()}</b></td><td style="color:#ef4444;">\${d.max_temp_c}°C</td><td style="color:#0ea5e9;">\${d.min_temp_c}°C</td><td>\${d.max_wind_kmh}/\${d.max_gust_kmh}</td><td>\${d.total_rain_mm}mm</td></tr>\`).join('')}</tbody></table></div>\`;
                 }
-                content.innerHTML = html || 'No records found.';
-            } catch (e) { content.innerHTML = 'Error loading summary.'; }
+                content.innerHTML = html;
+            } catch (e) { content.innerHTML = 'Error.'; }
         }
 
         function setupChart(id, label, color) {
@@ -412,46 +449,49 @@ app.get("/", (req, res) => {
             });
         }
 
-        async function toggleHist(type) {
-            document.getElementById('panel-summary').style.display = type === 'summary' ? 'grid' : 'none';
-            document.getElementById('panel-graphs').style.display = type === 'graphs' ? 'grid' : 'none';
-            document.getElementById('btn-sum-24').classList.toggle('active', type === 'summary');
-            document.getElementById('btn-graph-24').classList.toggle('active', type === 'graphs');
-            if(type === 'graphs') {
-                const res = await fetch('/api/history');
-                const data = await res.json();
-                const labels = data.map(h => new Date(h.time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }));
-                if(!charts.cT) { charts.cT = setupChart('cT', 'Temp', '#ef4444'); charts.cH = setupChart('cH', 'Hum', '#10b981'); charts.cW = setupChart('cW', 'Wind', '#f59e0b'); charts.cR = setupChart('cR', 'Rain', '#3b82f6'); }
-                charts.cT.data.labels = labels; charts.cT.data.datasets[0].data = data.map(h => h.temp); charts.cT.update();
-                charts.cH.data.labels = labels; charts.cH.data.datasets[0].data = data.map(h => h.hum); charts.cH.update();
-                charts.cW.data.labels = labels; charts.cW.data.datasets[0].data = data.map(h => h.wind); charts.cW.update();
-                charts.cR.data.labels = labels; charts.cR.data.datasets[0].data = data.map(h => h.rain); charts.cR.update();
-            }
+        async function toggle24H(type) {
+            document.getElementById('24h-summary').style.display = type === 'summary' ? 'grid' : 'none';
+            document.getElementById('24h-graphs').style.display = type === 'graphs' ? 'grid' : 'none';
+            document.getElementById('btn-24-sum').classList.toggle('active', type === 'summary');
+            document.getElementById('btn-24-graph').classList.toggle('active', type === 'graphs');
+            if(type === 'graphs') update();
         }
 
         function updateUI(id, val) { 
             const el = document.getElementById(id); 
-            if(el.innerText != val) { el.classList.remove('fade-update'); void el.offsetWidth; el.innerText = val; el.classList.add('fade-update'); }
+            if(el && el.innerText != val) { el.classList.remove('fade-update'); void el.offsetWidth; el.innerText = val; el.classList.add('fade-update'); }
         }
 
         async function update() {
-            const res = await fetch('/weather'); const d = await res.json();
-            updateUI('t', d.temp.current.toFixed(1)); updateUI('w', d.wind.speed.toFixed(1));
-            updateUI('mx', d.temp.max + '°C'); updateUI('mn', d.temp.min + '°C');
-            updateUI('h_val', d.atmo.hum + '%'); updateUI('rf', d.temp.realFeel + '°C');
-            updateUI('wg', d.wind.gust + ' km/h'); updateUI('mw', d.wind.maxS + ' km/h');
-            updateUI('mg', d.wind.maxG + ' km/h'); updateUI('r_tot', d.rain.total.toFixed(1));
-            updateUI('r_rate', d.rain.rate.toFixed(1)); updateUI('mr', d.rain.maxR + ' mm/h');
-            updateUI('r_week', d.rain.weekly + ' mm'); updateUI('r_month', d.rain.monthly + ' mm');
-            updateUI('pr', d.atmo.press); updateUI('sol', d.atmo.sol); updateUI('uv', d.atmo.uv);
-            document.getElementById('ts').innerText = new Date(d.lastSync).toLocaleTimeString();
-            document.getElementById('needle').style.transform = \`rotate(\${d.wind.deg}deg)\`;
-            // Sync RAM Summary
-            document.getElementById('sum-mx').innerText = d.temp.max + '°C';
-            document.getElementById('sum-mn').innerText = d.temp.min + '°C';
-            document.getElementById('sum-mw').innerText = d.wind.maxS + ' km/h';
-            document.getElementById('sum-mr').innerText = d.rain.maxR + ' mm/h';
-            document.getElementById('sum-rt').innerText = d.rain.total + ' mm';
+            try {
+                const res = await fetch('/weather'); const d = await res.json();
+                updateUI('t', d.temp.current.toFixed(1)); 
+                updateUI('w', d.wind.speed.toFixed(1));
+                updateUI('mx', d.temp.max + '°C'); updateUI('mn', d.temp.min + '°C');
+                updateUI('h_val', d.atmo.hum + '% ' + (d.atmo.hTrend > 0 ? '▲' : d.atmo.hTrend < 0 ? '▼' : '●'));
+                updateUI('rf', d.temp.realFeel + '°C');
+                updateUI('wg', d.wind.gust.toFixed(1) + ' km/h'); 
+                updateUI('mw', d.wind.maxS + ' km/h'); updateUI('mg', d.wind.maxG + ' km/h');
+                updateUI('r_tot', d.rain.total.toFixed(1)); updateUI('r_rate', d.rain.rate.toFixed(1));
+                updateUI('r_week', d.rain.weekly + ' mm'); updateUI('r_month', d.rain.monthly + ' mm');
+                updateUI('pr', d.atmo.press); updateUI('sol', d.atmo.sol + ' W/m²'); updateUI('uv', d.atmo.uv);
+                updateUI('ts', new Date(d.lastSync).toLocaleTimeString());
+                document.getElementById('tTrend').innerHTML = d.temp.rate > 0 ? '▲ +' + d.temp.rate : d.temp.rate < 0 ? '▼ ' + d.temp.rate : '● Steady';
+                document.getElementById('pIcon').innerHTML = d.atmo.pTrend >= 0.1 ? '▲' : d.atmo.pTrend <= -0.1 ? '▼' : '●';
+                document.getElementById('needle').style.transform = 'rotate(' + d.wind.deg + 'deg)';
+                
+                updateUI('s-mx', d.temp.max + '°C'); updateUI('s-mn', d.temp.min + '°C');
+                updateUI('s-mw', d.wind.maxS + ' km/h'); updateUI('s-rt', d.rain.total + ' mm');
+
+                if (d.history && document.getElementById('24h-graphs').style.display !== 'none') {
+                    const labels = d.history.map(h => new Date(h.time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: false }));
+                    if(!charts.cT) { charts.cT = setupChart('cT', 'Temp', '#ef4444'); charts.cH = setupChart('cH', 'Hum', '#10b981'); charts.cW = setupChart('cW', 'Wind', '#f59e0b'); charts.cR = setupChart('cR', 'Rain', '#3b82f6'); }
+                    charts.cT.data.labels = labels; charts.cT.data.datasets[0].data = d.history.map(h => h.temp); charts.cT.update();
+                    charts.cH.data.labels = labels; charts.cH.data.datasets[0].data = d.history.map(h => h.hum); charts.cH.update();
+                    charts.cW.data.labels = labels; charts.cW.data.datasets[0].data = d.history.map(h => h.wind); charts.cW.update();
+                    charts.cR.data.labels = labels; charts.cR.data.datasets[0].data = d.history.map(h => h.rain); charts.cR.update();
+                }
+            } catch (e) {}
         }
 
         applyTheme(); setInterval(update, 30000); update();
