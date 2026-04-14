@@ -179,22 +179,25 @@ async function bufferOnlyUpdate() {
         const liveHum = d.outdoor.humidity.value || 0;
         const livePress = parseFloat((d.pressure.relative.value * 33.8639).toFixed(1));
 
-        if (forceWrite) {
+                if (forceWrite) {
             const client = await pool.connect();
             try {
                 await client.query('BEGIN');
 
+                // 1. TIMING LOGIC: Handles the midnight overlap
                 let timeSql = 'NOW()';
                 if (hour === 0 && minute < 5) {
                     timeSql = "(date_trunc('day', NOW() AT TIME ZONE 'Asia/Kolkata') AT TIME ZONE 'Asia/Kolkata') - INTERVAL '1 second'";
                 }
 
+                // 2. DATA SANITIZATION: Prioritize Buffer > Live > Default (Prevents DB Rejection)
                 const dbMaxT = state.bufMaxT === -999 ? d.outdoor.temperature.value : state.bufMaxT;
                 const dbMinT = state.bufMinT === 999 ? d.outdoor.temperature.value : state.bufMinT;
                 const dbW = state.tW === null ? d.wind.wind_speed.value : state.bufW;
                 const dbG = state.tG === null ? d.wind.wind_gust.value : state.bufG;
                 const dbRR = state.tRR === null ? (state.lastCalculatedRate || 0) : state.bufRR;
 
+                // 3. THE HEARTBEAT INSERT
                 await client.query(`
                     INSERT INTO weather_history 
                     (time, temp_f, temp_min_f, humidity, wind_speed_mph, wind_gust_mph, rain_rate_in, daily_rain_in, 
@@ -202,11 +205,16 @@ async function bufferOnlyUpdate() {
                     VALUES (${timeSql}, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
                 `, [
                     dbMaxT, dbMinT, liveHum, dbW, dbG, dbRR, d.rainfall.daily.value,
-                    state.tW || new Date().toISOString(), state.tMaxT || new Date().toISOString(), 
-                    state.tMinT || new Date().toISOString(), state.tRR || new Date().toISOString(), 
-                    state.tG || new Date().toISOString(), d.solar_and_uvi?.solar?.value || 0, d.pressure.relative.value || 0
+                    state.tW || new Date().toISOString(), 
+                    state.tMaxT || new Date().toISOString(), 
+                    state.tMinT || new Date().toISOString(), 
+                    state.tRR || new Date().toISOString(), 
+                    state.tG || new Date().toISOString(), 
+                    d.solar_and_uvi?.solar?.value || 0, 
+                    d.pressure.relative.value || 0
                 ]);
 
+                // --- PART 3: MIDNIGHT ARCHIVE (LEAVE UNTOUCHED) ---
                 if (hour === 0 && minute < 30 && state.lastArchivedDate !== todayISTStr) {
                     await client.query(`
                         INSERT INTO daily_max_records (record_date, max_temp_c, min_temp_c, max_wind_kmh, max_gust_kmh, total_rain_mm)
@@ -228,21 +236,21 @@ async function bufferOnlyUpdate() {
                     
                     state.lastArchivedDate = todayISTStr;
                     state.cachedData = null; 
-                    resetStateBuffers(); // Midnight reset preserved
+                    resetStateBuffers(); 
                 }
 
                 await client.query('COMMIT');
-                state.dataChangedSinceLastRead = true;
-                
-                // Every 10 min write successful: reset buffer.
-                // If COMMIT fails, this is skipped and the buffer is held.
-                resetStateBuffers();
+
+                // 4. POST-SUCCESS ACTIONS
+                state.dataChangedSinceLastRead = true; // Forces graph refresh
+                resetStateBuffers(); // Only happens if COMMIT succeeded
 
             } catch (err) { 
                 await client.query('ROLLBACK'); 
-                console.error("DB Error - Buffer Held:", err); 
+                console.error("CRITICAL: DB Write Failed. Buffer held for next attempt.", err); 
             } finally { client.release(); }
         }
+
 
         let graphHistory = state.cachedData?.history || [];
         let tempRate = state.cachedData?.temp?.rate || 0, humRate = state.cachedData?.atmo?.hTrend || 0, pressRate = state.cachedData?.atmo?.pTrend || 0;
