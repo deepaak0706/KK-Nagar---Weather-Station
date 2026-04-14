@@ -14,7 +14,7 @@ const API_KEY = process.env.API_KEY;
 const MAC = process.env.MAC;
 
 /**
- * GLOBAL STATE ENGINE
+ * GLOBAL STATE ENGINE - EXACTLY AS PROVIDED
  */
 let state = { 
     cachedData: null, 
@@ -59,6 +59,9 @@ function calculateRealFeel(tempC, humidity) {
     return parseFloat(((hi - 32) * 5 / 9).toFixed(1));
 }
 
+/**
+ * 1-MIN CRON: Memory Buffer Only
+ */
 async function bufferOnlyUpdate() {
     const now = Date.now();
     const currentTimeStamp = new Date().toISOString();
@@ -68,12 +71,13 @@ async function bufferOnlyUpdate() {
         const json = await response.json();
         if (!json.data) throw new Error("Invalid API Response");
         const d = json.data;
+
         const apiW = parseFloat(d.wind.wind_speed.value);
         const apiG = parseFloat(d.wind.wind_gust.value);
         const apiT = parseFloat(d.outdoor.temperature.value);
 
-        if (state.tW === null || apiW > state.bufW) { state.bufW = apiW; state.tW = currentTimeStamp; }
-        if (state.tG === null || apiG > state.bufG) { state.bufG = apiG; state.tG = currentTimeStamp; }
+        if (state.tW === null || apiW > state.bufW)       { state.bufW = apiW; state.tW = currentTimeStamp; }
+        if (state.tG === null || apiG > state.bufG)       { state.bufG = apiG; state.tG = currentTimeStamp; }
         if (state.tMaxT === null || apiT > state.bufMaxT) { state.bufMaxT = apiT; state.tMaxT = currentTimeStamp; }
         if (state.tMinT === null || apiT < state.bufMinT) { state.bufMinT = apiT; state.tMinT = currentTimeStamp; }
 
@@ -106,6 +110,9 @@ async function bufferOnlyUpdate() {
     } catch (e) { return { error: e.message }; }
 }
 
+/**
+ * MAIN SYNC: Handles Dashboard, 10-Min DB Write, and Midnight Reset
+ */
 async function syncWithEcowitt(forceWrite = false) {
     const now = Date.now();
     const nowIST = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" }));
@@ -113,10 +120,9 @@ async function syncWithEcowitt(forceWrite = false) {
     const hour = nowIST.getHours();
     const minute = nowIST.getMinutes();
 
-    if (state.lastArchivedDate && state.lastArchivedDate !== todayISTStr) {
-        state.cachedData = null;
-    }
+    if (state.lastArchivedDate && state.lastArchivedDate !== todayISTStr) { state.cachedData = null; }
 
+    // --- PART 1: VISITOR PATH ---
     if (!forceWrite && state.cachedData && (now - state.lastFetchTime < 540000)) {
         try {
             const url = `https://api.ecowitt.net/api/v3/device/real_time?application_key=${APPLICATION_KEY}&api_key=${API_KEY}&mac=${MAC}`;
@@ -151,11 +157,13 @@ async function syncWithEcowitt(forceWrite = false) {
         } catch (e) { return state.cachedData; }
     }
 
+    // --- PART 2: WRITER PATH ---
     try {
         const url = `https://api.ecowitt.net/api/v3/device/real_time?application_key=${APPLICATION_KEY}&api_key=${API_KEY}&mac=${MAC}`;
         const response = await fetch(url);
         const json = await response.json();
         const d = json.data;
+
         const liveTemp = parseFloat(((d.outdoor.temperature.value - 32) * 5 / 9).toFixed(1));
         const liveHum = d.outdoor.humidity.value || 0;
         const livePress = parseFloat((d.pressure.relative.value * 33.8639).toFixed(1));
@@ -179,7 +187,16 @@ async function syncWithEcowitt(forceWrite = false) {
                     (time, temp_f, temp_min_f, humidity, wind_speed_mph, wind_gust_mph, rain_rate_in, daily_rain_in, 
                      max_w_time, max_t_time, min_t_time, max_r_time, max_g_time, solar_radiation, press_rel)
                     VALUES (${timeSql}, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
-                `, [dbMaxT, dbMinT, liveHum, dbW, dbG, dbRR, d.rainfall.daily.value, state.tW || new Date().toISOString(), state.tMaxT || new Date().toISOString(), state.tMinT || new Date().toISOString(), state.tRR || new Date().toISOString(), state.tG || new Date().toISOString(), d.solar_and_uvi?.solar?.value || 0, d.pressure.relative.value || 0]);
+                `, [
+                    dbMaxT, dbMinT, liveHum, dbW, dbG, dbRR, d.rainfall.daily.value,
+                    state.tW || new Date().toISOString(), 
+                    state.tMaxT || new Date().toISOString(), 
+                    state.tMinT || new Date().toISOString(), 
+                    state.tRR || new Date().toISOString(), 
+                    state.tG || new Date().toISOString(), 
+                    d.solar_and_uvi?.solar?.value || 0, 
+                    d.pressure.relative.value || 0
+                ]);
 
                 if (hour === 0 && minute < 30 && state.lastArchivedDate !== todayISTStr) {
                     await client.query(`
@@ -298,22 +315,27 @@ app.get("/", (req, res) => {
         .live-dot { width: 6px; height: 6px; background: #10b981; border-radius: 50%; animation: blink 2s infinite; }
         @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
         
-        /* TABS */
         .nav-tabs { display: flex; gap: 8px; margin-bottom: 25px; }
         .tab-btn { background: var(--card); border: 1px solid var(--border); padding: 12px 24px; border-radius: 16px; color: var(--text); font-weight: 700; cursor: pointer; transition: 0.3s; }
         .tab-btn.active { background: var(--accent); color: white; border-color: var(--accent); box-shadow: var(--glow); }
 
         .grid-system { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
         .card { background: var(--card); padding: 28px; border-radius: 32px; border: 1px solid var(--border); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); box-shadow: var(--glow); position: relative; overflow: hidden; }
+        #windCanvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; }
+        .card > *:not(canvas) { position: relative; z-index: 5; }
+
         .label { color: var(--accent); font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 6px; }
         .main-val { font-size: 56px; font-weight: 900; margin: 0; letter-spacing: -2px; display: flex; align-items: baseline; line-height: 1.1; }
         .unit { font-size: 20px; font-weight: 600; color: var(--muted); margin-left: 4px; }
         .sub-pill { font-size: 12px; font-weight: 800; padding: 6px 12px; border-radius: 10px; background: var(--badge); display: inline-flex; align-items: center; gap: 4px; margin: 12px 0 20px 0; }
+        
         .sub-box-4 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding-top: 20px; border-top: 1px solid var(--border); }
         .badge { padding: 12px; border-radius: 18px; background: var(--badge); display: flex; flex-direction: column; gap: 2px; }
         .badge-label { font-size: 9px; color: var(--muted); text-transform: uppercase; font-weight: 800; }
         .badge-val { font-size: 16px; font-weight: 800; }
-        
+        .time-mark { font-size: 9px; color: var(--muted); font-weight: 600; margin-left: 2px; background: rgba(0,0,0,0.04); padding: 1px 4px; border-radius: 4px; }
+        body.is-night .time-mark { background: rgba(255,255,255,0.1); }
+
         .compass-ui { position: absolute; top: 28px; right: 28px; width: 50px; height: 50px; border: 2px solid var(--border); border-radius: 50%; display: flex; align-items: center; justify-content: center; }
         #needle { width: 3px; height: 32px; background: linear-gradient(to bottom, #ef4444 50%, var(--muted) 50%); clip-path: polygon(50% 0%, 100% 100%, 50% 85%, 0% 100%); transition: 2s; }
         
@@ -325,13 +347,13 @@ app.get("/", (req, res) => {
         .graph-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
         .graph-card { background: var(--card); padding: 24px; border-radius: 32px; border: 1px solid var(--border); height: 300px; display: flex; flex-direction: column; }
         
-        /* SUMMARY TABLE */
-        .month-header { font-size: 20px; font-weight: 800; margin: 25px 0 15px 0; color: var(--accent); }
-        .summary-table-wrapper { overflow-x: auto; background: var(--card); border-radius: 24px; border: 1px solid var(--border); }
-        .summary-table { width: 100%; border-collapse: collapse; min-width: 600px; }
-        .summary-table th { padding: 16px; background: var(--badge); text-align: left; font-size: 11px; text-transform: uppercase; color: var(--muted); }
-        .summary-table td { padding: 16px; border-top: 1px solid var(--border); font-size: 14px; }
-        
+        /* SUMMARY TABLE (Daily & Monthly) */
+        .summary-table-wrapper { overflow-x: auto; background: var(--card); border-radius: 24px; border: 1px solid var(--border); box-shadow: var(--glow); }
+        .summary-table { width: 100%; border-collapse: collapse; min-width: 400px; }
+        .summary-table th { padding: 14px; background: var(--badge); text-align: left; font-size: 11px; text-transform: uppercase; color: var(--muted); }
+        .summary-table td { padding: 14px; border-top: 1px solid var(--border); font-size: 14px; font-weight: 600; }
+        .trend-up { color: #ef4444; } .trend-down { color: #0ea5e9; }
+
         @keyframes magicFade { 0% { opacity: 0; filter: blur(8px); transform: translateY(5px); } 100% { opacity: 1; filter: blur(0); transform: translateY(0); } }
         .fade-update { animation: magicFade 0.8s ease; }
     </style>
@@ -362,6 +384,7 @@ app.get("/", (req, res) => {
                     </div>
                 </div>
                 <div class="card">
+                    <canvas id="windCanvas"></canvas>
                     <div class="label">Wind Dynamics</div>
                     <div class="compass-ui"><div id="needle"></div></div>
                     <div class="main-val"><span id="w">0.0</span><span id="wd_card" style="font-size:18px; color:var(--muted); margin-left:8px;">(--)</span><span class="unit">km/h</span></div>
@@ -384,6 +407,7 @@ app.get("/", (req, res) => {
                 <div class="card">
                     <div class="label">Atmospheric <span id="pIcon"></span></div>
                     <div class="main-val"><span id="pr">--</span><span class="unit">hPa</span></div>
+                    <div id="pTrend" class="sub-pill">--</div>
                     <div class="sub-box-4">
                         <div class="badge"><span class="badge-label">Solar Rad</span><span id="sol" class="badge-val">--</span></div>
                         <div class="badge"><span class="badge-label">UV Index</span><span id="uv" class="badge-val">--</span></div>
@@ -396,17 +420,23 @@ app.get("/", (req, res) => {
                     <button onclick="toggle24H('summary')" id="btn-24-sum" class="p-btn active">24H Summary</button>
                     <button onclick="toggle24H('graphs')" id="btn-24-graph" class="p-btn">24H Graphs</button>
                 </div>
-                <div id="24h-summary" class="grid-system" style="grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));">
-                    <div class="badge" style="text-align:center;"><span class="badge-label">Peak Temp</span><span id="s-mx" class="badge-val">--</span></div>
-                    <div class="badge" style="text-align:center;"><span class="badge-label">Min Temp</span><span id="s-mn" class="badge-val">--</span></div>
-                    <div class="badge" style="text-align:center;"><span class="badge-label">Max Wind</span><span id="s-mw" class="badge-val">--</span></div>
-                    <div class="badge" style="text-align:center;"><span class="badge-label">Total Rain</span><span id="s-rt" class="badge-val">--</span></div>
+                
+                <div id="24h-summary" class="summary-table-wrapper">
+                    <table class="summary-table">
+                        <thead><tr><th>Metric</th><th>Today's High</th><th>Today's Low</th></tr></thead>
+                        <tbody>
+                            <tr><td>Temperature</td><td id="s-mx" style="color:#ef4444">--</td><td id="s-mn" style="color:#0ea5e9">--</td></tr>
+                            <tr><td>Wind / Gust</td><td id="s-mw">--</td><td id="s-ml">--</td></tr>
+                            <tr><td>Rainfall</td><td id="s-rt" colspan="2" style="text-align:center">--</td></tr>
+                        </tbody>
+                    </table>
                 </div>
+
                 <div id="24h-graphs" class="graph-grid" style="display: none; margin-top:20px;">
-                    <div class="graph-card"><div class="label">Temperature</div><canvas id="cT"></canvas></div>
-                    <div class="graph-card"><div class="label">Humidity</div><canvas id="cH"></canvas></div>
-                    <div class="graph-card"><div class="label">Wind</div><canvas id="cW"></canvas></div>
-                    <div class="graph-card"><div class="label">Rain</div><canvas id="cR"></canvas></div>
+                    <div class="graph-card"><div class="label">Temperature Trend</div><canvas id="cT"></canvas></div>
+                    <div class="graph-card"><div class="label">Humidity Trend</div><canvas id="cH"></canvas></div>
+                    <div class="graph-card"><div class="label">Wind Velocity</div><canvas id="cW"></canvas></div>
+                    <div class="graph-card"><div class="label">Precipitation</div><canvas id="cR"></canvas></div>
                 </div>
             </div>
         </div>
@@ -418,6 +448,11 @@ app.get("/", (req, res) => {
 
     <script>
         let charts = {};
+        let liveWindSpeed = 0, liveWindDeg = 0, particles = [];
+        const wCanvas = document.getElementById('windCanvas');
+        const ctxW = wCanvas.getContext('2d');
+        for(let i=0; i<40; i++) { particles.push({ x: Math.random() * 800, y: Math.random() * 800, s: 0.6 + Math.random() }); }
+
         function applyTheme() { const h = new Date().getHours(); if(h>=18 || h<6) document.body.classList.add('is-night'); }
         
         function showPage(p) {
@@ -436,65 +471,97 @@ app.get("/", (req, res) => {
                 const groups = await res.json();
                 let html = '';
                 for (const [month, days] of Object.entries(groups)) {
-                    html += \`<div class="month-header">\${month}</div><div class="summary-table-wrapper"><table class="summary-table"><thead><tr><th>Date</th><th>Max Temp</th><th>Min Temp</th><th>Wind/Gust</th><th>Rain</th></tr></thead><tbody>\${days.map(d => \`<tr><td><b>\${new Date(d.record_date).getDate()}</b></td><td style="color:#ef4444;">\${d.max_temp_c}°C</td><td style="color:#0ea5e9;">\${d.min_temp_c}°C</td><td>\${d.max_wind_kmh}/\${d.max_gust_kmh}</td><td>\${d.total_rain_mm}mm</td></tr>\`).join('')}</tbody></table></div>\`;
+                    html += \`<div style="font-size:20px; font-weight:800; margin:20px 0 10px; color:var(--accent);">\${month}</div><div class="summary-table-wrapper"><table class="summary-table"><thead><tr><th>Date</th><th>Max Temp</th><th>Min Temp</th><th>Wind/Gust</th><th>Rain</th></tr></thead><tbody>\${days.map(d => \`<tr><td><b>\${new Date(d.record_date).getDate()}</b></td><td style="color:#ef4444;">\${d.max_temp_c}°C</td><td style="color:#0ea5e9;">\${d.min_temp_c}°C</td><td>\${d.max_wind_kmh}/\${d.max_gust_kmh}</td><td>\${d.total_rain_mm}mm</td></tr>\`).join('')}</tbody></table></div>\`;
                 }
                 content.innerHTML = html;
             } catch (e) { content.innerHTML = 'Error.'; }
         }
 
         function setupChart(id, label, color) {
-            return new Chart(document.getElementById(id).getContext('2d'), {
-                type: 'line', data: { labels: [], datasets: [{ label, data: [], borderColor: color, tension: 0.4, pointRadius: 0, borderWidth: 2 }] },
+            const ctx = document.getElementById(id).getContext('2d');
+            const grad = ctx.createLinearGradient(0,0,0,300); grad.addColorStop(0, color+'40'); grad.addColorStop(1, color+'00');
+            return new Chart(ctx, {
+                type: 'line', data: { labels: [], datasets: [{ label, data: [], borderColor: color, backgroundColor: grad, fill:true, tension: 0.4, pointRadius: 0, borderWidth: 2 }] },
                 options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { ticks: { maxTicksLimit: 6 } } } }
             });
         }
 
+        function animateWind() {
+            wCanvas.width = wCanvas.offsetWidth; wCanvas.height = wCanvas.offsetHeight;
+            ctxW.clearRect(0,0,wCanvas.width,wCanvas.height);
+            const rad = (liveWindDeg - 90) * (Math.PI/180);
+            const dx = -Math.cos(rad) * Math.max(0.5, liveWindSpeed * 0.5);
+            const dy = -Math.sin(rad) * Math.max(0.5, liveWindSpeed * 0.5);
+            ctxW.strokeStyle = document.body.classList.contains('is-night') ? 'rgba(255,255,255,0.1)' : 'rgba(2,132,199,0.08)';
+            ctxW.beginPath();
+            particles.forEach(p => {
+                p.x += dx*p.s; p.y += dy*p.s;
+                if(p.x>wCanvas.width) p.x=0; else if(p.x<0) p.x=wCanvas.width;
+                if(p.y>wCanvas.height) p.y=0; else if(p.y<0) p.y=wCanvas.height;
+                ctxW.moveTo(p.x, p.y); ctxW.lineTo(p.x-dx, p.y-dy);
+            });
+            ctxW.stroke(); requestAnimationFrame(animateWind);
+        }
+
         async function toggle24H(type) {
-            document.getElementById('24h-summary').style.display = type === 'summary' ? 'grid' : 'none';
+            document.getElementById('24h-summary').style.display = type === 'summary' ? 'block' : 'none';
             document.getElementById('24h-graphs').style.display = type === 'graphs' ? 'grid' : 'none';
             document.getElementById('btn-24-sum').classList.toggle('active', type === 'summary');
             document.getElementById('btn-24-graph').classList.toggle('active', type === 'graphs');
             if(type === 'graphs') update();
         }
 
-        function updateUI(id, val) { 
+        function updateUI(id, val, html=false) { 
             const el = document.getElementById(id); 
-            if(el && el.innerText != val) { el.classList.remove('fade-update'); void el.offsetWidth; el.innerText = val; el.classList.add('fade-update'); }
+            if(!el) return;
+            const current = html ? el.innerHTML : el.innerText;
+            if(current != val) { 
+                el.classList.remove('fade-update'); void el.offsetWidth; 
+                if(html) el.innerHTML = val; else el.innerText = val;
+                el.classList.add('fade-update'); 
+            }
         }
 
         async function update() {
             try {
-                const res = await fetch('/weather'); const d = await res.json();
+                const res = await fetch('/weather?v='+Date.now()); const d = await res.json();
                 updateUI('t', d.temp.current.toFixed(1)); 
                 updateUI('w', d.wind.speed.toFixed(1));
-                updateUI('mx', d.temp.max + '°C'); updateUI('mn', d.temp.min + '°C');
+                updateUI('mx', d.temp.max + '°C <span class="time-mark">' + d.temp.maxTime + '</span>', true); 
+                updateUI('mn', d.temp.min + '°C <span class="time-mark">' + d.temp.minTime + '</span>', true);
                 updateUI('h_val', d.atmo.hum + '% ' + (d.atmo.hTrend > 0 ? '▲' : d.atmo.hTrend < 0 ? '▼' : '●'));
                 updateUI('rf', d.temp.realFeel + '°C');
                 updateUI('wg', d.wind.gust.toFixed(1) + ' km/h'); 
-                updateUI('mw', d.wind.maxS + ' km/h'); updateUI('mg', d.wind.maxG + ' km/h');
+                updateUI('mw', d.wind.maxS + ' km/h <span class="time-mark">' + d.wind.maxSTime + '</span>', true); 
+                updateUI('mg', d.wind.maxG + ' km/h <span class="time-mark">' + d.wind.maxGTime + '</span>', true);
                 updateUI('r_tot', d.rain.total.toFixed(1)); updateUI('r_rate', d.rain.rate.toFixed(1));
                 updateUI('r_week', d.rain.weekly + ' mm'); updateUI('r_month', d.rain.monthly + ' mm');
                 updateUI('pr', d.atmo.press); updateUI('sol', d.atmo.sol + ' W/m²'); updateUI('uv', d.atmo.uv);
-                updateUI('ts', new Date(d.lastSync).toLocaleTimeString());
-                document.getElementById('tTrend').innerHTML = d.temp.rate > 0 ? '▲ +' + d.temp.rate : d.temp.rate < 0 ? '▼ ' + d.temp.rate : '● Steady';
-                document.getElementById('pIcon').innerHTML = d.atmo.pTrend >= 0.1 ? '▲' : d.atmo.pTrend <= -0.1 ? '▼' : '●';
+                updateUI('ts', new Date(d.lastSync).toLocaleTimeString('en-IN'));
+                
+                updateUI('tTrend', (d.temp.rate > 0 ? '<span class="trend-up">▲</span> +' : d.temp.rate < 0 ? '<span class="trend-down">▼</span> ' : '● ') + d.temp.rate + '°C /hr', true);
+                updateUI('pTrend', (d.atmo.pTrend >= 0.1 ? '▲ Rising' : d.atmo.pTrend <= -0.1 ? '▼ Falling' : '● Steady'));
+                
                 document.getElementById('needle').style.transform = 'rotate(' + d.wind.deg + 'deg)';
+                liveWindSpeed = d.wind.speed; liveWindDeg = d.wind.deg;
                 
                 updateUI('s-mx', d.temp.max + '°C'); updateUI('s-mn', d.temp.min + '°C');
-                updateUI('s-mw', d.wind.maxS + ' km/h'); updateUI('s-rt', d.rain.total + ' mm');
+                updateUI('s-mw', d.wind.maxS + ' / ' + d.wind.maxG + ' km/h'); 
+                updateUI('s-ml', d.wind.speed.toFixed(1) + ' km/h');
+                updateUI('s-rt', d.rain.total + ' mm');
 
                 if (d.history && document.getElementById('24h-graphs').style.display !== 'none') {
                     const labels = d.history.map(h => new Date(h.time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: false }));
                     if(!charts.cT) { charts.cT = setupChart('cT', 'Temp', '#ef4444'); charts.cH = setupChart('cH', 'Hum', '#10b981'); charts.cW = setupChart('cW', 'Wind', '#f59e0b'); charts.cR = setupChart('cR', 'Rain', '#3b82f6'); }
-                    charts.cT.data.labels = labels; charts.cT.data.datasets[0].data = d.history.map(h => h.temp); charts.cT.update();
-                    charts.cH.data.labels = labels; charts.cH.data.datasets[0].data = d.history.map(h => h.hum); charts.cH.update();
-                    charts.cW.data.labels = labels; charts.cW.data.datasets[0].data = d.history.map(h => h.wind); charts.cW.update();
-                    charts.cR.data.labels = labels; charts.cR.data.datasets[0].data = d.history.map(h => h.rain); charts.cR.update();
+                    charts.cT.data.labels = labels; charts.cT.data.datasets[0].data = d.history.map(h => h.temp); charts.cT.update('none');
+                    charts.cH.data.labels = labels; charts.cH.data.datasets[0].data = d.history.map(h => h.hum); charts.cH.update('none');
+                    charts.cW.data.labels = labels; charts.cW.data.datasets[0].data = d.history.map(h => h.wind); charts.cW.update('none');
+                    charts.cR.data.labels = labels; charts.cR.data.datasets[0].data = d.history.map(h => h.rain); charts.cR.update('none');
                 }
             } catch (e) {}
         }
 
-        applyTheme(); setInterval(update, 30000); update();
+        applyTheme(); animateWind(); setInterval(update, 45000); update();
     </script>
 </body>
 </html>
