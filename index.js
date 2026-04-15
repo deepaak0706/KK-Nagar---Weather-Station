@@ -118,8 +118,7 @@ async function bufferOnlyUpdate() {
 /**
  * MAIN SYNC: Handles Dashboard, 10-Min DB Write, and Midnight Reset
  */
-
- async function syncWithEcowitt(forceWrite = false) {
+async function syncWithEcowitt(forceWrite = false) {
     const now = Date.now();
     const nowIST = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" }));
     const todayISTStr = nowIST.toLocaleDateString('en-CA'); 
@@ -132,7 +131,8 @@ async function bufferOnlyUpdate() {
     }
 
     // --- PART 1: VISITOR PATH ---
-    if (!forceWrite && state.cachedData && (now - state.lastFetchTime < 540000)) {
+    // OPTIMIZATION: Added !state.dataChangedSinceLastRead so visitors skip cache if the Cron just wrote new DB data
+    if (!forceWrite && state.cachedData && !state.dataChangedSinceLastRead && (now - state.lastFetchTime < 540000)) {
         try {
             const url = `https://api.ecowitt.net/api/v3/device/real_time?application_key=${APPLICATION_KEY}&api_key=${API_KEY}&mac=${MAC}`;
             const response = await fetch(url);
@@ -168,7 +168,7 @@ async function bufferOnlyUpdate() {
         } catch (e) { return state.cachedData; }
     }
 
-    // --- PART 2: WRITER PATH ---
+    // --- PART 2: WRITER PATH / GRAPH REBUILDER ---
     try {
         const url = `https://api.ecowitt.net/api/v3/device/real_time?application_key=${APPLICATION_KEY}&api_key=${API_KEY}&mac=${MAC}`;
         const response = await fetch(url);
@@ -179,25 +179,24 @@ async function bufferOnlyUpdate() {
         const liveHum = d.outdoor.humidity.value || 0;
         const livePress = parseFloat((d.pressure.relative.value * 33.8639).toFixed(1));
 
-                if (forceWrite) {
+        let writeSuccess = false;
+
+        if (forceWrite) {
             const client = await pool.connect();
             try {
                 await client.query('BEGIN');
 
-                // 1. TIMING LOGIC: Handles the midnight overlap
                 let timeSql = 'NOW()';
                 if (hour === 0 && minute < 5) {
                     timeSql = "(date_trunc('day', NOW() AT TIME ZONE 'Asia/Kolkata') AT TIME ZONE 'Asia/Kolkata') - INTERVAL '1 second'";
                 }
 
-                // 2. DATA SANITIZATION: Prioritize Buffer > Live > Default (Prevents DB Rejection)
                 const dbMaxT = state.bufMaxT === -999 ? d.outdoor.temperature.value : state.bufMaxT;
                 const dbMinT = state.bufMinT === 999 ? d.outdoor.temperature.value : state.bufMinT;
                 const dbW = state.tW === null ? d.wind.wind_speed.value : state.bufW;
                 const dbG = state.tG === null ? d.wind.wind_gust.value : state.bufG;
                 const dbRR = state.tRR === null ? (state.lastCalculatedRate || 0) : state.bufRR;
 
-                // 3. THE HEARTBEAT INSERT
                 await client.query(`
                     INSERT INTO weather_history 
                     (time, temp_f, temp_min_f, humidity, wind_speed_mph, wind_gust_mph, rain_rate_in, daily_rain_in, 
@@ -214,7 +213,6 @@ async function bufferOnlyUpdate() {
                     d.pressure.relative.value || 0
                 ]);
 
-                // --- PART 3: MIDNIGHT ARCHIVE (LEAVE UNTOUCHED) ---
                 if (hour === 0 && minute < 30 && state.lastArchivedDate !== todayISTStr) {
                     await client.query(`
                         INSERT INTO daily_max_records (record_date, max_temp_c, min_temp_c, max_wind_kmh, max_gust_kmh, total_rain_mm)
@@ -241,16 +239,24 @@ async function bufferOnlyUpdate() {
 
                 await client.query('COMMIT');
 
-                // 4. POST-SUCCESS ACTIONS
-                state.dataChangedSinceLastRead = true; // Forces graph refresh
-                resetStateBuffers(); // Only happens if COMMIT succeeded
+                state.dataChangedSinceLastRead = true; 
+                resetStateBuffers(); 
+                writeSuccess = true;
 
             } catch (err) { 
                 await client.query('ROLLBACK'); 
-                console.error("CRITICAL: DB Write Failed. Buffer held for next attempt.", err); 
-            } finally { client.release(); }
+                console.error("CRITICAL: DB Write Failed.", err); 
+            } finally { 
+                client.release(); 
+            }
+
+            // OPTIMIZATION: Stop execution here if called via Cron! 
+            // We do NOT run the expensive SELECT query below until a user actually visits.
+            state.lastFetchTime = now;
+            return writeSuccess ? { status: "success", msg: "DB write complete. Read deferred." } : { status: "error", msg: "Write failed." };
         }
 
+        // --- PART 3: THE GRAPH REBUILDER (Only runs for visitors when DB has new data) ---
 
         let graphHistory = state.cachedData?.history || [];
         let tempRate = state.cachedData?.temp?.rate || 0, humRate = state.cachedData?.atmo?.hTrend || 0, pressRate = state.cachedData?.atmo?.pTrend || 0;
@@ -293,7 +299,7 @@ async function bufferOnlyUpdate() {
                         press: r.press_rel ? parseFloat((r.press_rel * 33.8639).toFixed(1)) : livePress
                     });
                 });
-                state.dataChangedSinceLastRead = false;
+                state.dataChangedSinceLastRead = false; // Reset the flag so next visitors hit the cache
             } catch (dbError) { console.error("DB Prep Error:", dbError); }
         }
 
@@ -332,6 +338,7 @@ async function bufferOnlyUpdate() {
         return state.cachedData;
     } catch (e) { console.error("Sync Error:", e); return state.cachedData; }
 }
+
 
 
 
