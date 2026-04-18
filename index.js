@@ -267,7 +267,8 @@ async function syncWithEcowitt(forceWrite = false) {
         let mx_t_time = state.cachedData?.temp?.maxTime || fmtL(), mn_t_time = state.cachedData?.temp?.minTime || fmtL();
         let mx_w_t = mx_t_time, mx_g_t = mx_t_time, mx_r_t = mx_t_time;
 
-        if (state.dataChangedSinceLastRead || !state.cachedData) {
+        // This ensures that if the cache is empty (first load), it MUST hit the DB once to fill the dashes.
+        if (!state.cachedData || state.dataChangedSinceLastRead) {
             try {
                 const historyRes = await pool.query(`
                     SELECT * FROM weather_history 
@@ -331,6 +332,14 @@ async function syncWithEcowitt(forceWrite = false) {
             wind: { speed: liveWind, gust: liveGust, maxS: mx_w, maxSTime: mx_w_t, maxG: mx_g, maxGTime: mx_g_t, deg: d.wind.wind_direction.value, card: getCard(d.wind.wind_direction.value) },
             rain: { total: parseFloat((d.rainfall.daily.value * 25.4).toFixed(1)), rate: liveRR, maxR: mx_r, maxRTime: mx_r_t, weekly: parseFloat((d.rainfall.weekly.value * 25.4).toFixed(1)), monthly: parseFloat((d.rainfall.monthly.value * 25.4).toFixed(1)), yearly: parseFloat((d.rainfall.yearly.value * 25.4).toFixed(1)) },
             history: graphHistory, 
+            summary24h: {
+                tempMax: mx_t,
+                tempMin: mn_t,
+                windMax: mx_w,
+                gustMax: mx_g,
+                rainTotal: parseFloat((d.rainfall.daily.value * 25.4).toFixed(1))
+            },
+        };
             lastSync: new Date().toISOString()
         };
 
@@ -366,7 +375,11 @@ async function getWeatherSummary() {
  */
 
 // 1. API for the dashboard data
-app.get("/weather", async (req, res) => res.json(await syncWithEcowitt(false)));
+app.get("/weather", async (req, res) => {
+    // We pass true for the second 'isVisitor' param to ensure 
+    // it builds the cache if it's currently null
+    res.json(await syncWithEcowitt(false)); 
+});
 
 // 2. API for the historical summary table
 app.get("/api/summary", async (req, res) => res.json(await getWeatherSummary()));
