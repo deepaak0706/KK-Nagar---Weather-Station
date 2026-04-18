@@ -369,10 +369,15 @@ async function getWeatherSummary() {
 // 1. API for the dashboard data
 app.get("/weather", async (req, res) => {
     try {
-        // Just return the cache, or an empty object if the station hasn't pinged yet
-        res.json(state.cachedData || {}); 
-    } catch (e) { 
-        res.status(500).json({ error: e.message }); 
+        // If we have data, send it. If not, trigger a fetch (false means don't force a DB write)
+        if (state.cachedData) {
+            res.json(state.cachedData);
+        } else {
+            const data = await syncWithEcowitt(false);
+            res.json(data);
+        }
+    } catch (e) {
+        res.status(500).json({ error: e.message });
     }
 });
 
@@ -560,8 +565,12 @@ app.get("/", (req, res) => {
         </div>
 
         <div class="nav-tabs">
-            <button onclick="showPage('dashboard')" id="tab-dash" class="tab-btn active">Live Dashboard</button>
-            <button onclick="showPage('summary')" id="tab-sum" class="tab-btn">Monthly Summary</button>
+            <div class="nav-tabs">
+             <button onclick="showPage('dashboard')" class="tab-btn active">Live Dashboard</button>
+             <button onclick="toggle24H('summary')" id="btn-24-sum" class="tab-btn">24H Summary</button>
+             <button onclick="toggle24H('graphs')" id="btn-24-graph" class="tab-btn">24H Graphs</button>
+             <button onclick="showPage('summary')" class="tab-btn">Monthly History</button>
+</div>
         </div>
 
         <div id="page-dashboard">
@@ -689,7 +698,7 @@ app.get("/", (req, res) => {
                 const d = await res.json();
                 
                 // SAFETY: If server just started and has no data yet, stop here.
-                if (!d || !d.temp) return; 
+                if (!d || d.error || d.status === "success" || !d.temp) return;
 
                 // Update Main Display
                 document.getElementById('temp').innerText = d.temp.current + '°C';
