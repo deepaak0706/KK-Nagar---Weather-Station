@@ -377,6 +377,27 @@ app.get("/api/sync", async (req, res) => {
     res.json(await syncWithEcowitt(req.query.write === 'true'));
 });
 
+// NEW: Dedicated API just for fetching graph data when the user clicks the button
+app.get("/api/history", async (req, res) => {
+    const todayISTStr = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" })).toLocaleDateString('en-CA');
+    try {
+        const historyRes = await pool.query(`
+            SELECT * FROM weather_history 
+            WHERE (time AT TIME ZONE 'Asia/Kolkata')::date = $1::date 
+            ORDER BY time ASC
+        `, [todayISTStr]);
+        
+        const history = historyRes.rows.map(r => ({
+            time: r.time, 
+            temp: parseFloat(((r.temp_f - 32) * 5 / 9).toFixed(1)), 
+            hum: r.humidity, 
+            wind: parseFloat((r.wind_speed_mph * 1.60934).toFixed(1)), 
+            rain: parseFloat((r.daily_rain_in * 25.4).toFixed(1))
+        }));
+        res.json(history);
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 // 4. The User Interface (Your HTML)
 app.get("/", (req, res) => {
     res.send(`
@@ -585,11 +606,29 @@ app.get("/", (req, res) => {
                 </div>
             </div>
 
-            <div class="graphs-wrapper">
-                <div class="graph-card"><div class="label" style="margin-bottom: 8px;">Temperature Trend</div><canvas id="cT"></canvas></div>
-                <div class="graph-card"><div class="label" style="margin-bottom: 8px;">Humidity Levels</div><canvas id="cH"></canvas></div>
-                <div class="graph-card"><div class="label" style="margin-bottom: 8px;">Wind Velocity</div><canvas id="cW"></canvas></div>
-                <div class="graph-card"><div class="label" style="margin-bottom: 8px;">Precipitation</div><canvas id="cR"></canvas></div>
+            <div class="history-panel" style="margin-top: 30px; border-top: 1px solid var(--border); padding-top: 20px;">
+                <div style="display: flex; gap: 10px; margin-bottom: 20px; justify-content: center;">
+                    <button onclick="toggle24H('summary')" id="btn-24-sum" class="tab-btn active">24H Summary</button>
+                    <button onclick="toggle24H('graphs')" id="btn-24-graph" class="tab-btn">24H Graphs</button>
+                </div>
+                
+                <div id="24h-summary" class="summary-table-wrapper">
+                    <table class="summary-table">
+                        <thead><tr><th>Metric</th><th>Today's High</th><th>Today's Low</th></tr></thead>
+                        <tbody>
+                            <tr><td><b>Temperature</b></td><td id="s-mx" style="color:#ef4444">--</td><td id="s-mn" style="color:#0ea5e9">--</td></tr>
+                            <tr><td><b>Wind / Gust</b></td><td id="s-mw">--</td><td id="s-mg">--</td></tr>
+                            <tr><td><b>Total Rain</b></td><td id="s-rt" colspan="2" style="text-align:center; font-weight:900;">--</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div id="24h-graphs" class="graphs-wrapper" style="display: none;">
+                    <div class="graph-card"><div class="label" style="margin-bottom: 8px;">Temperature Trend</div><canvas id="cT"></canvas></div>
+                    <div class="graph-card"><div class="label" style="margin-bottom: 8px;">Humidity Levels</div><canvas id="cH"></canvas></div>
+                    <div class="graph-card"><div class="label" style="margin-bottom: 8px;">Wind Velocity</div><canvas id="cW"></canvas></div>
+                    <div class="graph-card"><div class="label" style="margin-bottom: 8px;">Precipitation</div><canvas id="cR"></canvas></div>
+                </div>
             </div>
             
         </div> <div id="page-summary" style="display: none;">
@@ -765,15 +804,12 @@ document.getElementById('d_val').innerText = d.temp.dew + '°C';
                 document.getElementById('uv').innerText = d.atmo.uv;
                 document.getElementById('ts').innerText = new Date(d.lastSync).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 
-              if (d.history && d.history.length > 0) {  
-                  const labels = d.history.map(h => new Date(h.time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: false }));       
-                if(!charts.cT) { 
-                    charts.cT = setupChart('cT', 'Temp °C', '#ef4444'); 
-                    charts.cH = setupChart('cH', 'Humidity %', '#10b981'); 
-                    charts.cW = setupChart('cW', 'Wind km/h', '#f59e0b'); 
-                    charts.cR = setupChart('cR', 'Rain mm', '#3b82f6', 0); 
-                    applyTheme(); 
-                }
+              // Update new 24H Summary Table
+                document.getElementById('s-mx').innerText = d.temp.max + '°C';
+                document.getElementById('s-mn').innerText = d.temp.min + '°C';
+                document.getElementById('s-mw').innerText = d.wind.maxS + ' km/h';
+                document.getElementById('s-mg').innerText = d.wind.maxG + ' km/h (Gust)';
+                document.getElementById('s-rt').innerText = d.rain.total + ' mm';
                 charts.cT.data.labels = labels; charts.cT.data.datasets[0].data = d.history.map(h => h.temp); charts.cT.update('none');
                 charts.cH.data.labels = labels; charts.cH.data.datasets[0].data = d.history.map(h => h.hum); charts.cH.update('none');
                 charts.cW.data.labels = labels; charts.cW.data.datasets[0].data = d.history.map(h => h.wind); charts.cW.update('none');
@@ -811,6 +847,32 @@ function showPage(pageId) {
 
     if (pageId === 'summary') fetchMonthlySummary();
 }
+
+async function toggle24H(type) {
+            document.getElementById('24h-summary').style.display = type === 'summary' ? 'block' : 'none';
+            document.getElementById('24h-graphs').style.display = type === 'graphs' ? 'grid' : 'none';
+            document.getElementById('btn-24-sum').classList.toggle('active', type === 'summary');
+            document.getElementById('btn-24-graph').classList.toggle('active', type === 'graphs');
+            
+            if(type === 'graphs') {
+                const res = await fetch('/api/history');
+                const data = await res.json();
+                if(data.length > 0) {
+                    const labels = data.map(h => new Date(h.time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: false }));
+                    if(!charts.cT) { 
+                        charts.cT = setupChart('cT', 'Temp °C', '#ef4444'); 
+                        charts.cH = setupChart('cH', 'Humidity %', '#10b981'); 
+                        charts.cW = setupChart('cW', 'Wind km/h', '#f59e0b'); 
+                        charts.cR = setupChart('cR', 'Rain mm', '#3b82f6', 0); 
+                        applyTheme(); 
+                    }
+                    charts.cT.data.labels = labels; charts.cT.data.datasets[0].data = data.map(h => h.temp); charts.cT.update('none');
+                    charts.cH.data.labels = labels; charts.cH.data.datasets[0].data = data.map(h => h.hum); charts.cH.update('none');
+                    charts.cW.data.labels = labels; charts.cW.data.datasets[0].data = data.map(h => h.wind); charts.cW.update('none');
+                    charts.cR.data.labels = labels; charts.cR.data.datasets[0].data = data.map(h => h.rain); charts.cR.update('none');
+                }
+            }
+        }
 
 async function fetchMonthlySummary() {
     const content = document.getElementById('summary-content');
