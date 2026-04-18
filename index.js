@@ -647,288 +647,94 @@ app.get("/", (req, res) => {
 
 
     <script>
-        let currentMode = localStorage.getItem('weatherMode') || 'auto';
-        let charts = {};
-        let liveWindSpeed = 0, liveWindDeg = 0, particles = [];
-        const wCanvas = document.getElementById('windCanvas');
-        const ctxW = wCanvas.getContext('2d');
+        let charts = { cT: null, cH: null, cW: null, cR: null };
 
-        for(let i=0; i<40; i++) { particles.push({ x: Math.random() * 800, y: Math.random() * 800, s: 0.6 + Math.random() }); }
-
-        Chart.register({
-            id: 'customChartEnhancements',
-            afterDraw: (chart) => {
-                if (chart.tooltip?._active?.length) {
-                    const x = chart.tooltip._active[0].element.x;
-                    const yAxis = chart.scales.y;
-                    const ctx = chart.ctx;
-                    ctx.save(); ctx.setLineDash([5, 5]); ctx.beginPath(); ctx.moveTo(x, yAxis.top); ctx.lineTo(x, yAxis.bottom);
-                    ctx.lineWidth = 1; ctx.strokeStyle = document.body.classList.contains('is-night') ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.1)';
-                    ctx.stroke(); ctx.restore();
-                }
-            },
-            afterDatasetsDraw: (chart) => {
-                const { ctx, data } = chart;
-                const dataset = data.datasets[0];
-                if (!dataset || !dataset.data || dataset.data.length < 2) return;
-                const maxVal = Math.max(...dataset.data);
-                const maxIndex = dataset.data.lastIndexOf(maxVal);
-                const meta = chart.getDatasetMeta(0);
-                const point = meta.data[maxIndex];
-                if (point && maxVal > -50) { 
-                    ctx.save(); ctx.beginPath(); ctx.arc(point.x, point.y, 5, 0, 2 * Math.PI); ctx.strokeStyle = dataset.borderColor; ctx.lineWidth = 2; ctx.stroke();
-                    ctx.beginPath(); ctx.arc(point.x, point.y, 2, 0, 2 * Math.PI); ctx.fillStyle = '#fff'; ctx.fill();
-                    ctx.fillStyle = document.body.classList.contains('is-night') ? '#94a3b8' : '#475569'; ctx.font = 'bold 10px Outfit'; ctx.textAlign = 'center'; ctx.fillText('MAX', point.x, point.y - 12); ctx.restore();
-                }
-            }
-        });
-
-        function applyTheme() {
-    const hour = new Date().getHours();
-    const isDark = currentMode === 'dark' || (currentMode === 'auto' && (hour >= 18 || hour < 6));
-    
-    // 1. Change the actual colors of the page
-    if (isDark) {
-        document.body.classList.add('is-night');
-    } else {
-        document.body.classList.remove('is-night');
-    }
-
-    // 2. MOVE THE HIGHLIGHT (The fix)
-    // First, remove the highlight from ALL buttons
-    document.querySelectorAll('.theme-btn').forEach(btn => btn.classList.remove('active'));
-    
-    // Then, add it only to the one the user actually chose
-    if (currentMode === 'light') document.getElementById('btn-light').classList.add('active');
-    else if (currentMode === 'dark') document.getElementById('btn-dark').classList.add('active');
-    else document.getElementById('btn-auto').classList.add('active');
-
-    if (charts.cT) updateChartColors();
-}
-
-
-
-        document.getElementById('btn-light').onclick = () => { currentMode = 'light'; localStorage.setItem('weatherMode', 'light'); applyTheme(); };
-        document.getElementById('btn-dark').onclick = () => { currentMode = 'dark'; localStorage.setItem('weatherMode', 'dark'); applyTheme(); };
-        document.getElementById('btn-auto').onclick = () => { currentMode = 'auto'; localStorage.setItem('weatherMode', 'auto'); applyTheme(); };
-
-        function updateChartColors() {
-            const gridColor = document.body.classList.contains('is-night') ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)';
-            const textColor = document.body.classList.contains('is-night') ? '#94a3b8' : '#64748b';
-            Object.values(charts).forEach(chart => {
-                chart.options.scales.y.grid.color = gridColor;
-                chart.options.scales.y.ticks.color = textColor;
-                chart.options.scales.x.ticks.color = textColor;
-                chart.update('none');
-            });
-        }
-
-        function setupChart(id, label, color, minVal = null) {
-            const canvas = document.getElementById(id);
-            const ctx = canvas.getContext('2d');
-            const gradient = ctx.createLinearGradient(0, 0, 0, 300);
-            gradient.addColorStop(0, color + '40'); gradient.addColorStop(1, color + '00');
-            return new Chart(ctx, { 
-                type: 'line', 
-                data: { labels: [], datasets: [{ label: label, data: [], borderColor: color, backgroundColor: gradient, fill: true, tension: 0.4, pointRadius: 0, borderWidth: 2 }] }, 
-                options: { 
-                    responsive: true, maintainAspectRatio: false, 
-                    interaction: { intersect: false, mode: 'index' },
-                    plugins: { tooltip: { enabled: true }, legend: { display: false } }, 
-                    scales: { y: { min: minVal }, x: { ticks: { maxTicksLimit: 8 } } } 
-                } 
-            });
-        }
-        
-        function updateValueWithFade(id, newValue, decimals = 1, suffix = "") {
-    const obj = document.getElementById(id);
-    if (!obj) return;
-    
-    // Safety check for null/undefined data
-    const val = newValue !== undefined && newValue !== null ? newValue : 0;
-    const formattedValue = parseFloat(val).toFixed(decimals) + suffix;
-
-    // Only trigger if the value actually changed
-    if (obj.innerText !== formattedValue) {
-        obj.classList.remove('fade-update');
-        
-        // Brief invisible pause makes the "Magic" pop more
-        obj.style.opacity = "0"; 
-        
-        setTimeout(() => {
-            void obj.offsetWidth; // Force CSS refresh
-            obj.innerText = formattedValue;
-            obj.style.opacity = "1";
-            obj.classList.add('fade-update');
-        }, 50); 
-    }
-}
-
-     
-
-        async function update() {
-            try {
-                const res = await fetch('/weather?v=' + Date.now()); 
-                const d = await res.json(); 
-                if (!d || d.error) return;
-
-                // Fade Value Updates
-                updateValueWithFade('t', d.temp.current, 1);
-                updateValueWithFade('w', d.wind.speed, 1);
-                updateValueWithFade('r_tot', d.rain.total, 1);
-                updateValueWithFade('r_rate', d.rain.rate, 1);
-                updateValueWithFade('wg', d.wind.gust, 1, ' km/h'); // This handles it now!
-
-                document.getElementById('tTrendBox').innerHTML = d.temp.rate > 0 ? '<span class="trend-up">▲</span> +' + d.temp.rate + '°C /hr' : d.temp.rate < 0 ? '<span class="trend-down">▼</span> ' + d.temp.rate + '°C /hr' : '● Steady';
-document.getElementById('mx').innerHTML = d.temp.max + '°C <span class="time-mark">' + d.temp.maxTime + '</span>';
-document.getElementById('mn').innerHTML = d.temp.min + '°C <span class="time-mark">' + d.temp.minTime + '</span>';
-const feels = d.temp.realFeel;
-const heatColor = feels >= 54 ? '#ef4444' : feels >= 41 ? '#f97316' : feels >= 32 ? '#eab308' : 'var(--text)';
-document.getElementById('rf').style.color = heatColor;
-document.getElementById('rf').innerText = feels + '°C';
-document.getElementById('h_val').innerHTML = d.atmo.hum + '% ' + (d.atmo.hTrend > 0 ? '▲' : d.atmo.hTrend < 0 ? '▼' : '●');
-document.getElementById('d_val').innerText = d.temp.dew + '°C';
-
-                
-                document.getElementById('wd_bracket').innerText = '(' + d.wind.card + ')';
-                document.getElementById('mw').innerHTML = d.wind.maxS + ' km/h <span class="time-mark">' + d.wind.maxSTime + '</span>';
-                document.getElementById('mg').innerHTML = d.wind.maxG + ' km/h <span class="time-mark">' + d.wind.maxGTime + '</span>';
-                document.getElementById('needle').style.transform = 'rotate(' + d.wind.deg + 'deg)';
-                liveWindSpeed = d.wind.speed; liveWindDeg = d.wind.deg;
-                
-                document.getElementById('r_week').innerText = d.rain.weekly + ' mm';
-                document.getElementById('r_month').innerText = d.rain.monthly + ' mm';
-                document.getElementById('r_year').innerText = d.rain.yearly + ' mm';
-                document.getElementById('mr').innerHTML = d.rain.maxR > 0 ? d.rain.maxR + ' mm/h <span class="time-mark">' + d.rain.maxRTime + '</span>' : '0 mm/h';
-
-                const pTrend = d.atmo.pTrend;
-                let pArrow = '●';
-                if (pTrend >= 0.1) pArrow = '<span class="trend-up" style="color:#ef4444">▲</span>';
-                if (pTrend <= -0.1) pArrow = '<span class="trend-down" style="color:#0ea5e9">▼</span>';
-                document.getElementById('pIcon').innerHTML = pArrow;
-                
-                document.getElementById('pr').innerText = d.atmo.press;
-                document.getElementById('sol').innerText = d.atmo.sol + ' W/m²'; 
-                document.getElementById('uv').innerText = d.atmo.uv;
-                document.getElementById('ts').innerText = new Date(d.lastSync).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-
-              // Update new 24H Summary Table
-                // Update new 24H Summary Table Safely
-                if (d && d.temp && d.wind && d.rain) {
-                    document.getElementById('s-mx').innerText = (d.temp.max !== undefined ? d.temp.max : '--') + '°C';
-                    document.getElementById('s-mn').innerText = (d.temp.min !== undefined ? d.temp.min : '--') + '°C';
-                    document.getElementById('s-mw').innerText = (d.wind.maxS !== undefined ? d.wind.maxS : '--') + ' km/h';
-                    document.getElementById('s-mg').innerText = (d.wind.maxG !== undefined ? d.wind.maxG : '--') + ' km/h (Gust)';
-                    document.getElementById('s-rt').innerText = (d.rain.total !== undefined ? d.rain.total : '--') + ' mm';
-                }
-              }
-            } catch (e) { console.error(e); }
-        }
-
-        function animateWind() {
-            wCanvas.width = wCanvas.offsetWidth; wCanvas.height = wCanvas.offsetHeight;
-            ctxW.clearRect(0, 0, wCanvas.width, wCanvas.height);
-            const rad = (liveWindDeg - 90) * (Math.PI / 180);
-            const dx = -Math.cos(rad) * Math.max(0.5, liveWindSpeed * 0.5);
-            const dy = -Math.sin(rad) * Math.max(0.5, liveWindSpeed * 0.5);
-            ctxW.strokeStyle = document.body.classList.contains('is-night') ? 'rgba(255,255,255,0.1)' : 'rgba(2,132,199,0.08)';
-            ctxW.beginPath();
-            particles.forEach(p => {
-                p.x += dx * p.s; p.y += dy * p.s;
-                if (p.x > wCanvas.width) p.x = 0; else if (p.x < 0) p.x = wCanvas.width;
-                if (p.y > wCanvas.height) p.y = 0; else if (p.y < 0) p.y = wCanvas.height;
-                ctxW.moveTo(p.x, p.y); ctxW.lineTo(p.x - dx, p.y - dy);
-            });
-            ctxW.stroke(); requestAnimationFrame(animateWind);
-        }
-
-        applyTheme(); animateWind(); setInterval(update, 45000); update();
-
-        /* SUMMARY CONTROLLER - ZONE D */
-function showPage(pageId) {
-    document.getElementById('page-dashboard').style.display = pageId === 'dashboard' ? 'block' : 'none';
-    document.getElementById('page-summary').style.display = pageId === 'summary' ? 'block' : 'none';
-    
-    document.getElementById('tab-dash').classList.toggle('active', pageId === 'dashboard');
-    document.getElementById('tab-sum').classList.toggle('active', pageId === 'summary');
-
-    if (pageId === 'summary') fetchMonthlySummary();
-}
-
-async function toggle24H(type) {
+        // 1. FIXED: Lazy Load function (Only hits DB when clicked)
+        async function toggle24H(type) {
             document.getElementById('24h-summary').style.display = type === 'summary' ? 'block' : 'none';
             document.getElementById('24h-graphs').style.display = type === 'graphs' ? 'grid' : 'none';
             document.getElementById('btn-24-sum').classList.toggle('active', type === 'summary');
             document.getElementById('btn-24-graph').classList.toggle('active', type === 'graphs');
             
             if(type === 'graphs') {
-                const res = await fetch('/api/history');
-                const data = await res.json();
-                if(data.length > 0) {
-                    const labels = data.map(h => new Date(h.time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: false }));
-                    if(!charts.cT) { 
-                        charts.cT = setupChart('cT', 'Temp °C', '#ef4444'); 
-                        charts.cH = setupChart('cH', 'Humidity %', '#10b981'); 
-                        charts.cW = setupChart('cW', 'Wind km/h', '#f59e0b'); 
-                        charts.cR = setupChart('cR', 'Rain mm', '#3b82f6', 0); 
-                        applyTheme(); 
+                try {
+                    const res = await fetch('/api/history');
+                    const data = await res.json();
+                    if(data && data.length > 0) {
+                        const labels = data.map(h => new Date(h.time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: false }));
+                        
+                        // Initialize charts if they don't exist
+                        if(!charts.cT) { 
+                            charts.cT = setupChart('cT', 'Temp °C', '#ef4444'); 
+                            charts.cH = setupChart('cH', 'Humidity %', '#10b981'); 
+                            charts.cW = setupChart('cW', 'Wind km/h', '#f59e0b'); 
+                            charts.cR = setupChart('cR', 'Rain mm', '#3b82f6', 0); 
+                            if(typeof applyTheme === 'function') applyTheme(); 
+                        }
+
+                        // Feed data to charts
+                        charts.cT.data.labels = labels; charts.cT.data.datasets[0].data = data.map(h => h.temp); charts.cT.update('none');
+                        charts.cH.data.labels = labels; charts.cH.data.datasets[0].data = data.map(h => h.hum); charts.cH.update('none');
+                        charts.cW.data.labels = labels; charts.cW.data.datasets[0].data = data.map(h => h.wind); charts.cW.update('none');
+                        charts.cR.data.labels = labels; charts.cR.data.datasets[0].data = data.map(h => h.rain); charts.cR.update('none');
                     }
-                    charts.cT.data.labels = labels; charts.cT.data.datasets[0].data = data.map(h => h.temp); charts.cT.update('none');
-                    charts.cH.data.labels = labels; charts.cH.data.datasets[0].data = data.map(h => h.hum); charts.cH.update('none');
-                    charts.cW.data.labels = labels; charts.cW.data.datasets[0].data = data.map(h => h.wind); charts.cW.update('none');
-                    charts.cR.data.labels = labels; charts.cR.data.datasets[0].data = data.map(h => h.rain); charts.cR.update('none');
-                }
+                } catch (e) { console.error("Graph fetch failed:", e); }
             }
         }
 
-async function fetchMonthlySummary() {
-    const content = document.getElementById('summary-content');
-    content.innerHTML = '<div class="card" style="text-align:center; padding:40px;">Generating Summary Report...</div>';
-    
-    try {
-        const res = await fetch('/api/summary');
-        const groups = await res.json();
-        
-        let html = '';
-        // We use \` and \${ to ensure the server doesn't try to run this code
-        for (const [month, days] of Object.entries(groups)) {
-            html += \`
-                <div class="month-section">
-                    <div class="month-header">\${month}</div>
-                    <div class="summary-table-wrapper">
-                        <table class="summary-table">
-                            <thead>
-                                <tr>
-                                    <th>Date</th>
-                                    <th>Max Temp</th>
-                                    <th>Min Temp</th>
-                                    <th>Wind/Gust</th>
-                                    <th>Total Rain</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                \${days.map(d => \`
-                                    <tr>
-                                        <td><b>\${new Date(d.record_date).getDate()}</b></td>
-                                        <td style="color:#ef4444; font-weight:700;">\${d.max_temp_c}°C</td>
-                                        <td style="color:#0ea5e9; font-weight:700;">\${d.min_temp_c}°C</td>
-                                        <td>\${d.max_wind_kmh} / \${d.max_gust_kmh} <small>km/h</small></td>
-                                        <td style="font-weight:800;">\${d.total_rain_mm} mm</td>
-                                    </tr>
-                                \`).join('')}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            \`;
-        }
-        content.innerHTML = html || '<div class="card" style="text-align:center; padding:40px;">No archived records found yet.</div>';
-    } catch (e) {
-        content.innerHTML = '<div class="card" style="color:#ef4444">Error loading summary.</div>';
-    }
-}
+        // 2. FIXED: Main Update Loop (Safe & Clean)
+        async function update() {
+            try {
+                const res = await fetch('/weather');
+                const d = await res.json();
+                
+                // SAFETY: If server just started and has no data yet, stop here.
+                if (!d || !d.temp) return; 
 
-        
+                // Update Main Display
+                document.getElementById('temp').innerText = d.temp.current + '°C';
+                document.getElementById('hum').innerText = d.hum + '%';
+                document.getElementById('wind').innerText = d.wind.speed + ' km/h';
+                document.getElementById('gust').innerText = d.wind.gust + ' km/h';
+                document.getElementById('rain').innerText = d.rain.rate + ' mm/h';
+                document.getElementById('rain-d').innerText = d.rain.total + ' mm';
+                document.getElementById('upd').innerText = 'Last Updated: ' + d.time;
+
+                // Update 24H Summary Table
+                if (d.temp.max !== undefined) {
+                    document.getElementById('s-mx').innerText = d.temp.max + '°C';
+                    document.getElementById('s-mn').innerText = d.temp.min + '°C';
+                    document.getElementById('s-mw').innerText = d.wind.maxS + ' km/h';
+                    document.getElementById('s-mg').innerText = d.wind.maxG + ' km/h (Gust)';
+                    document.getElementById('s-rt').innerText = d.rain.total + ' mm';
+                }
+
+                // NOTICE: We removed the chart lines from here! 
+                // They only update now when you click the "Graphs" button.
+
+            } catch (e) { console.error("Update loop error:", e); }
+        }
+
+        function setupChart(id, label, color, beginAtZero = null) {
+            const ctx = document.getElementById(id).getContext('2d');
+            return new Chart(ctx, {
+                type: 'line',
+                data: { labels: [], datasets: [{ label: label, data: [], borderColor: color, backgroundColor: color + '22', fill: true, tension: 0.4, borderWidth: 2, pointRadius: 0 }] },
+                options: { 
+                    responsive: true, 
+                    maintainAspectRatio: false, 
+                    plugins: { legend: { display: false } },
+                    scales: { 
+                        x: { grid: { display: false }, ticks: { maxTicksLimit: 8 } },
+                        y: { beginAtZero: beginAtZero !== null ? true : false }
+                    }
+                }
+            });
+        }
+
+        // Start the engine
+        setInterval(update, 60000);
+        update();
     </script>
 </body>
 </html>
