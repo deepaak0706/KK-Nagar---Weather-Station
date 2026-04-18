@@ -268,7 +268,7 @@ async function syncWithEcowitt(forceWrite = false) {
         let mx_w_t = mx_t_time, mx_g_t = mx_t_time, mx_r_t = mx_t_time;
 
         // This ensures that if the cache is empty (first load), it MUST hit the DB once to fill the dashes.
-        if (!state.cachedData || state.dataChangedSinceLastRead) {
+        if (state.dataChangedSinceLastRead || !state.cachedData) {
             try {
                 const historyRes = await pool.query(`
                     SELECT * FROM weather_history 
@@ -368,9 +368,12 @@ async function getWeatherSummary() {
 
 // 1. API for the dashboard data
 app.get("/weather", async (req, res) => {
-    // We pass true for the second 'isVisitor' param to ensure 
-    // it builds the cache if it's currently null
-    res.json(await syncWithEcowitt(false)); 
+    try {
+        // Just return the cache, or an empty object if the station hasn't pinged yet
+        res.json(state.cachedData || {}); 
+    } catch (e) { 
+        res.status(500).json({ error: e.message }); 
+    }
 });
 
 // 2. API for the historical summary table
@@ -810,15 +813,14 @@ document.getElementById('d_val').innerText = d.temp.dew + '°C';
                 document.getElementById('ts').innerText = new Date(d.lastSync).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 
               // Update new 24H Summary Table
-                document.getElementById('s-mx').innerText = d.temp.max + '°C';
-                document.getElementById('s-mn').innerText = d.temp.min + '°C';
-                document.getElementById('s-mw').innerText = d.wind.maxS + ' km/h';
-                document.getElementById('s-mg').innerText = d.wind.maxG + ' km/h (Gust)';
-                document.getElementById('s-rt').innerText = d.rain.total + ' mm';
-                charts.cT.data.labels = labels; charts.cT.data.datasets[0].data = d.history.map(h => h.temp); charts.cT.update('none');
-                charts.cH.data.labels = labels; charts.cH.data.datasets[0].data = d.history.map(h => h.hum); charts.cH.update('none');
-                charts.cW.data.labels = labels; charts.cW.data.datasets[0].data = d.history.map(h => h.wind); charts.cW.update('none');
-                charts.cR.data.labels = labels; charts.cR.data.datasets[0].data = d.history.map(h => h.rain); charts.cR.update('none');
+                // Update new 24H Summary Table Safely
+                if (d && d.temp && d.wind && d.rain) {
+                    document.getElementById('s-mx').innerText = (d.temp.max !== undefined ? d.temp.max : '--') + '°C';
+                    document.getElementById('s-mn').innerText = (d.temp.min !== undefined ? d.temp.min : '--') + '°C';
+                    document.getElementById('s-mw').innerText = (d.wind.maxS !== undefined ? d.wind.maxS : '--') + ' km/h';
+                    document.getElementById('s-mg').innerText = (d.wind.maxG !== undefined ? d.wind.maxG : '--') + ' km/h (Gust)';
+                    document.getElementById('s-rt').innerText = (d.rain.total !== undefined ? d.rain.total : '--') + ' mm';
+                }
               }
             } catch (e) { console.error(e); }
         }
