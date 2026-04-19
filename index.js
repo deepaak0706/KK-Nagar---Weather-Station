@@ -644,43 +644,46 @@ app.get("/", (req, res) => {
                 </div>
             </div>
 
-           <div class="tabs-section" style="margin-top: 25px;">
-           <div style="display: flex; gap: 10px; margin: 20px 0; justify-content: center; flex-wrap: wrap;">
-    <button onclick="switchView('summary')" id="btn-sum" class="tab-btn active">24H Summary</button>
-    <button onclick="switchView('graphs')" id="btn-graph" class="tab-btn">24H Graphs</button>
-    <button onclick="switchView('archive')" id="btn-arch" class="tab-btn">Monthly Summary</button>
-</div>
+           // --- REPLACE YOUR TAB SECTION WITH THIS ---
+<div class="tabs-section" style="margin-top: 25px;">
+    <div style="display: flex; gap: 10px; margin-bottom: 20px; justify-content: center; flex-wrap: wrap;">
+        <button onclick="switchView('summary')" id="btn-sum" class="tab-btn active">24H Summary</button>
+        <button onclick="switchView('graphs')" id="btn-graph" class="tab-btn">24H Graphs</button>
+        <button onclick="switchView('archive')" id="btn-arch" class="tab-btn">Monthly Summary</button>
+    </div>
+    
+    <div id="view-summary" class="card" style="padding:0; border: 1px solid rgba(128,128,128,0.2);">
+        <table class="modern-table">
+            <tr>
+                <td class="row-label">Temperature</td>
+                <td>Max: <span id="s-mx" style="color:#ef4444 !important; font-weight:700;">--</span></td>
+                <td>Min: <span id="s-mn" style="color:#0ea5e9 !important; font-weight:700;">--</span></td>
+            </tr>
+            <tr>
+                <td class="row-label">Wind</td>
+                <td>Sustained: <span id="s-mw" style="font-weight:700;">--</span></td>
+                <td>Gust: <span id="s-mg" style="font-weight:700;">--</span></td>
+            </tr>
+            <tr>
+                <td class="row-label">Rainfall</td>
+                <td colspan="2">Today's Total: <span id="s-rt" style="font-weight:800; color:#3b82f6 !important;">--</span></td>
+            </tr>
+        </table>
+    </div>
 
-<div id="view-summary" class="card" style="padding:0; background: transparent; border: 1px solid rgba(128,128,128,0.2);">
-    <table class="modern-table">
-        <tr>
-            <td class="row-label">Temperature</td>
-            <td>Max: <span id="s-mx" style="color:#ef4444 !important; font-weight:700;">--</span></td>
-            <td>Min: <span id="s-mn" style="color:#0ea5e9 !important; font-weight:700;">--</span></td>
-        </tr>
-        <tr>
-            <td class="row-label">Wind</td>
-            <td>Sustained: <span id="s-mw" style="font-weight:700;">--</span></td>
-            <td>Gust: <span id="s-mg" style="font-weight:700;">--</span></td>
-        </tr>
-        <tr>
-            <td class="row-label">Rainfall</td>
-            <td colspan="2">Today's Total: <span id="s-rt" style="font-weight:800; color:#3b82f6 !important;">--</span></td>
-        </tr>
-    </table>
-</div>
-
-<div id="view-graphs" class="graphs-wrapper" style="display: none;">
-    <div class="graph-card"><span class="graph-header">Temperature</span><canvas id="cT"></canvas></div>
-    <div class="graph-card"><span class="graph-header">Humidity</span><canvas id="cH"></canvas></div>
-    <div class="graph-card"><span class="graph-header">Wind</span><canvas id="cW"></canvas></div>
-    <div class="graph-card"><span class="graph-header">Rain</span><canvas id="cR"></canvas></div>
-</div>
-
-<div id="view-archive" style="display: none;">
-    <div id="summary-content">
+    <div id="view-graphs" style="display: none;">
+        <div class="graphs-wrapper">
+             <div class="graph-card"><span class="graph-header">Temperature</span><canvas id="cT"></canvas></div>
+             <div class="graph-card"><span class="graph-header">Humidity</span><canvas id="cH"></canvas></div>
+             <div class="graph-card"><span class="graph-header">Wind</span><canvas id="cW"></canvas></div>
+             <div class="graph-card"><span class="graph-header">Rain</span><canvas id="cR"></canvas></div>
         </div>
-</div>
+    </div>
+
+    <div id="view-archive" style="display: none;">
+        <div id="summary-content">
+            </div>
+    </div>
 </div>
     
     <div id="view-summary" class="card" style="padding:0; background: transparent; border: 1px solid rgba(128,128,128,0.2);">
@@ -990,21 +993,16 @@ async function fetchMonthlySummary() {
 }
 
 async function switchView(type) {
-    // 1. Hide all containers
-    const containers = ['view-summary', 'view-graphs', 'view-archive'];
-    containers.forEach(id => {
-        const el = document.getElementById(id);
-        if (el) el.style.display = 'none';
-    });
+    // Hide all views first
+    document.getElementById('view-summary').style.display = 'none';
+    document.getElementById('view-graphs').style.display = 'none';
+    document.getElementById('view-archive').style.display = 'none';
+    
+    // Remove active class from all buttons
+    document.getElementById('btn-sum').classList.remove('active');
+    document.getElementById('btn-graph').classList.remove('active');
+    document.getElementById('btn-arch').classList.remove('active');
 
-    // 2. Reset Button Classes
-    const btns = ['btn-sum', 'btn-graph', 'btn-arch'];
-    btns.forEach(id => {
-        const el = document.getElementById(id);
-        if (el) el.classList.remove('active');
-    });
-
-    // 3. Logic for each Tab
     if (type === 'summary') {
         document.getElementById('view-summary').style.display = 'block';
         document.getElementById('btn-sum').classList.add('active');
@@ -1012,18 +1010,14 @@ async function switchView(type) {
     else if (type === 'graphs') {
         document.getElementById('view-graphs').style.display = 'grid';
         document.getElementById('btn-graph').classList.add('active');
-        
-        // This is where we fetch the 24h Graph data from DB
+        // Fetch 24h data for charts
         fetchGraphData(); 
     } 
     else if (type === 'archive') {
         document.getElementById('view-archive').style.display = 'block';
         document.getElementById('btn-arch').classList.add('active');
-        
-        // ONLY RUNS MONTHLY QUERY WHEN CLICKED
-        if (typeof fetchMonthlySummary === 'function') {
-            fetchMonthlySummary();
-        }
+        // RUN THE MONTHLY DB QUERY
+        fetchMonthlySummary(); 
     }
 }
 
