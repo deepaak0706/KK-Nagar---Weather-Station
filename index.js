@@ -260,12 +260,37 @@ async function syncWithEcowitt(forceWrite = false) {
 
         let graphHistory = state.cachedData?.history || [];
         let tempRate = state.cachedData?.temp?.rate || 0, humRate = state.cachedData?.atmo?.hTrend || 0, pressRate = state.cachedData?.atmo?.pTrend || 0;
-        let mx_t = state.cachedData?.temp?.max || liveTemp, mn_t = state.cachedData?.temp?.min || liveTemp;
-        let mx_w = state.cachedData?.wind?.maxS || 0, mx_g = state.cachedData?.wind?.maxG || 0, mx_r = state.cachedData?.rain?.maxR || 0;
+        
+        // 1. Safe Initialization 
+        let mx_t = state.cachedData?.temp?.max ?? liveTemp;
+        let mn_t = state.cachedData?.temp?.min ?? liveTemp;
+        let mx_w = state.cachedData?.wind?.maxS ?? 0;
+        let mx_g = state.cachedData?.wind?.maxG ?? 0;
+        let mx_r = state.cachedData?.rain?.maxR ?? 0;
 
         const fmtL = () => new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' });
-        let mx_t_time = state.cachedData?.temp?.maxTime || fmtL(), mn_t_time = state.cachedData?.temp?.minTime || fmtL();
-        let mx_w_t = mx_t_time, mx_g_t = mx_t_time, mx_r_t = mx_t_time;
+        const fmtT = (iso) => new Date(iso).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' });
+
+        // FIXED: Each metric now gets its own independent timestamp instead of sharing mx_t_time
+        let mx_t_time = state.cachedData?.temp?.maxTime || fmtL();
+        let mn_t_time = state.cachedData?.temp?.minTime || fmtL();
+        let mx_w_t = state.cachedData?.wind?.maxSTime || fmtL(); 
+        let mx_g_t = state.cachedData?.wind?.maxGTime || fmtL(); 
+        let mx_r_t = state.cachedData?.rain?.maxRTime || fmtL(); 
+
+        // 2. THE BUFFER BRIDGE: Check RAM peaks before DB to prevent "forgetting" peaks between 10-min writes.
+        // We use STRICT inequality (>) to preserve the first occurrence time stamp as requested.
+        const bMaxT = state.bufMaxT !== -999 ? parseFloat(((state.bufMaxT - 32) * 5 / 9).toFixed(1)) : -999;
+        const bMinT = state.bufMinT !== 999 ? parseFloat(((state.bufMinT - 32) * 5 / 9).toFixed(1)) : 999;
+        const bW = parseFloat((state.bufW * 1.60934).toFixed(1));
+        const bG = parseFloat((state.bufG * 1.60934).toFixed(1));
+        const bRR = parseFloat((state.bufRR * 25.4).toFixed(1));
+
+        if (bMaxT > mx_t) { mx_t = bMaxT; mx_t_time = fmtT(state.tMaxT); }
+        if (bMinT < mn_t) { mn_t = bMinT; mn_t_time = fmtT(state.tMinT); }
+        if (bW > mx_w) { mx_w = bW; mx_w_t = fmtT(state.tW); }
+        if (bG > mx_g) { mx_g = bG; mx_g_t = fmtT(state.tG); }
+        if (bRR > mx_r) { mx_r = bRR; mx_r_t = fmtT(state.tRR); }
 
         if (state.dataChangedSinceLastRead || !state.cachedData) {
             try {
@@ -284,6 +309,7 @@ async function syncWithEcowitt(forceWrite = false) {
                     const r_g = parseFloat((r.wind_gust_mph * 1.60934).toFixed(1));
                     const r_rr = parseFloat((r.rain_rate_in * 25.4).toFixed(1));
 
+                    // STRICT inequality preserved here to keep the first timestamp
                     if (r_max_t > mx_t) { mx_t = r_max_t; mx_t_time = fmt(r.max_t_time); }
                     if (r_min_t < mn_t) { mn_t = r_min_t; mn_t_time = fmt(r.min_t_time); }
                     if (r_w > mx_w) { mx_w = r_w; mx_w_t = fmt(r.max_w_time); }
@@ -299,7 +325,7 @@ async function syncWithEcowitt(forceWrite = false) {
                         press: r.press_rel ? parseFloat((r.press_rel * 33.8639).toFixed(1)) : livePress
                     });
                 });
-                state.dataChangedSinceLastRead = false; // Reset the flag so next visitors hit the cache
+                state.dataChangedSinceLastRead = false; 
             } catch (dbError) { console.error("DB Prep Error:", dbError); }
         }
 
@@ -319,6 +345,7 @@ async function syncWithEcowitt(forceWrite = false) {
         const liveGust = parseFloat((d.wind.wind_gust.value * 1.60934).toFixed(1));
         const liveRR = parseFloat((state.lastCalculatedRate * 25.4).toFixed(1));
 
+        // Final check against live API data (Strict inequality preserved)
         if (liveTemp > mx_t) { mx_t = liveTemp; mx_t_time = fmtL(); }
         if (liveTemp < mn_t) { mn_t = liveTemp; mn_t_time = fmtL(); }
         if (liveWind > mx_w) { mx_w = liveWind; mx_w_t = fmtL(); }
