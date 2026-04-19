@@ -118,7 +118,8 @@ async function bufferOnlyUpdate() {
 /**
  * MAIN SYNC: Handles Dashboard, 10-Min DB Write, and Midnight Reset
  */
-async function syncWithEcowitt(forceWrite = false) {
+
+ async function syncWithEcowitt(forceWrite = false) {
     const now = Date.now();
     const nowIST = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" }));
     const todayISTStr = nowIST.toLocaleDateString('en-CA'); 
@@ -131,8 +132,7 @@ async function syncWithEcowitt(forceWrite = false) {
     }
 
     // --- PART 1: VISITOR PATH ---
-    // OPTIMIZATION: Added !state.dataChangedSinceLastRead so visitors skip cache if the Cron just wrote new DB data
-    if (!forceWrite && state.cachedData && !state.dataChangedSinceLastRead && (now - state.lastFetchTime < 540000)) {
+    if (!forceWrite && state.cachedData && (now - state.lastFetchTime < 540000)) {
         try {
             const url = `https://api.ecowitt.net/api/v3/device/real_time?application_key=${APPLICATION_KEY}&api_key=${API_KEY}&mac=${MAC}`;
             const response = await fetch(url);
@@ -168,7 +168,7 @@ async function syncWithEcowitt(forceWrite = false) {
         } catch (e) { return state.cachedData; }
     }
 
-    // --- PART 2: WRITER PATH / GRAPH REBUILDER ---
+    // --- PART 2: WRITER PATH ---
     try {
         const url = `https://api.ecowitt.net/api/v3/device/real_time?application_key=${APPLICATION_KEY}&api_key=${API_KEY}&mac=${MAC}`;
         const response = await fetch(url);
@@ -179,24 +179,25 @@ async function syncWithEcowitt(forceWrite = false) {
         const liveHum = d.outdoor.humidity.value || 0;
         const livePress = parseFloat((d.pressure.relative.value * 33.8639).toFixed(1));
 
-        let writeSuccess = false;
-
-        if (forceWrite) {
+                if (forceWrite) {
             const client = await pool.connect();
             try {
                 await client.query('BEGIN');
 
+                // 1. TIMING LOGIC: Handles the midnight overlap
                 let timeSql = 'NOW()';
                 if (hour === 0 && minute < 5) {
                     timeSql = "(date_trunc('day', NOW() AT TIME ZONE 'Asia/Kolkata') AT TIME ZONE 'Asia/Kolkata') - INTERVAL '1 second'";
                 }
 
+                // 2. DATA SANITIZATION: Prioritize Buffer > Live > Default (Prevents DB Rejection)
                 const dbMaxT = state.bufMaxT === -999 ? d.outdoor.temperature.value : state.bufMaxT;
                 const dbMinT = state.bufMinT === 999 ? d.outdoor.temperature.value : state.bufMinT;
                 const dbW = state.tW === null ? d.wind.wind_speed.value : state.bufW;
                 const dbG = state.tG === null ? d.wind.wind_gust.value : state.bufG;
                 const dbRR = state.tRR === null ? (state.lastCalculatedRate || 0) : state.bufRR;
 
+                // 3. THE HEARTBEAT INSERT
                 await client.query(`
                     INSERT INTO weather_history 
                     (time, temp_f, temp_min_f, humidity, wind_speed_mph, wind_gust_mph, rain_rate_in, daily_rain_in, 
@@ -213,6 +214,7 @@ async function syncWithEcowitt(forceWrite = false) {
                     d.pressure.relative.value || 0
                 ]);
 
+                // --- PART 3: MIDNIGHT ARCHIVE (LEAVE UNTOUCHED) ---
                 if (hour === 0 && minute < 30 && state.lastArchivedDate !== todayISTStr) {
                     await client.query(`
                         INSERT INTO daily_max_records (record_date, max_temp_c, min_temp_c, max_wind_kmh, max_gust_kmh, total_rain_mm)
@@ -239,24 +241,16 @@ async function syncWithEcowitt(forceWrite = false) {
 
                 await client.query('COMMIT');
 
-                state.dataChangedSinceLastRead = true; 
-                resetStateBuffers(); 
-                writeSuccess = true;
+                // 4. POST-SUCCESS ACTIONS
+                state.dataChangedSinceLastRead = true; // Forces graph refresh
+                resetStateBuffers(); // Only happens if COMMIT succeeded
 
             } catch (err) { 
                 await client.query('ROLLBACK'); 
-                console.error("CRITICAL: DB Write Failed.", err); 
-            } finally { 
-                client.release(); 
-            }
-
-            // OPTIMIZATION: Stop execution here if called via Cron! 
-            // We do NOT run the expensive SELECT query below until a user actually visits.
-            state.lastFetchTime = now;
-            return writeSuccess ? { status: "success", msg: "DB write complete. Read deferred." } : { status: "error", msg: "Write failed." };
+                console.error("CRITICAL: DB Write Failed. Buffer held for next attempt.", err); 
+            } finally { client.release(); }
         }
 
-        // --- PART 3: THE GRAPH REBUILDER (Only runs for visitors when DB has new data) ---
 
         let graphHistory = state.cachedData?.history || [];
         let tempRate = state.cachedData?.temp?.rate || 0, humRate = state.cachedData?.atmo?.hTrend || 0, pressRate = state.cachedData?.atmo?.pTrend || 0;
@@ -299,7 +293,7 @@ async function syncWithEcowitt(forceWrite = false) {
                         press: r.press_rel ? parseFloat((r.press_rel * 33.8639).toFixed(1)) : livePress
                     });
                 });
-                state.dataChangedSinceLastRead = false; // Reset the flag so next visitors hit the cache
+                state.dataChangedSinceLastRead = false;
             } catch (dbError) { console.error("DB Prep Error:", dbError); }
         }
 
@@ -342,7 +336,6 @@ async function syncWithEcowitt(forceWrite = false) {
 
 
 
-
 async function getWeatherSummary() {
     const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
     if (state.summaryCache && state.lastSummaryFetchDate === today) return state.summaryCache;
@@ -375,30 +368,6 @@ app.get("/api/summary", async (req, res) => res.json(await getWeatherSummary()))
 app.get("/api/sync", async (req, res) => {
     if (req.query.buffer === 'true') return res.json(await bufferOnlyUpdate());
     res.json(await syncWithEcowitt(req.query.write === 'true'));
-});
-
-app.get("/api/history", async (req, res) => {
-    console.log("Graph Tab Clicked: Fetching from DB..."); // For your logs
-    const todayISTStr = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" })).toLocaleDateString('en-CA');
-    try {
-        const historyRes = await pool.query(`
-            SELECT * FROM weather_history 
-            WHERE (time AT TIME ZONE 'Asia/Kolkata')::date = $1::date 
-            ORDER BY time ASC
-        `, [todayISTStr]);
-        
-        const history = historyRes.rows.map(r => ({
-            time: r.time, 
-            temp: parseFloat(((r.temp_f - 32) * 5 / 9).toFixed(1)), 
-            hum: r.humidity, 
-            wind: parseFloat((r.wind_speed_mph * 1.60934).toFixed(1)), 
-            rain: parseFloat((r.daily_rain_in * 25.4).toFixed(1))
-        }));
-        res.json(history);
-    } catch (e) { 
-        console.error("DB Error:", e);
-        res.status(500).json({ error: e.message }); 
-    }
 });
 
 // 4. The User Interface (Your HTML)
@@ -534,44 +503,9 @@ app.get("/", (req, res) => {
 
 @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
-.modern-table {
-    width: 100%;
-    border-collapse: collapse;
-    /* Removed background: white; */
-    border-radius: 8px;
-    overflow: hidden;
-}
 
-.modern-table td {
-    padding: 15px;
-    border-bottom: 1px solid rgba(128, 128, 128, 0.2); /* Faint line for both modes */
-    font-size: 14px;
-    color: inherit; /* Inherits white text in dark mode, dark text in light mode */
-}
 
-.row-label {
-    background: rgba(128, 128, 128, 0.1); /* Subtle tint that adapts */
-    font-weight: 700;
-    color: inherit;
-    width: 35%;
-}
 
-/* Ensure spans inside the table are visible */
-.modern-table span {
-    color: inherit;
-}
-
-/* Restoring Graph Header visibility */
-.graph-header {
-    font-weight: 700;
-    font-size: 14px;
-    margin-bottom: 10px;
-    display: block;
-    text-align: left;
-    border-left: 3px solid #3b82f6;
-    padding-left: 8px;
-    color: inherit;
-}
         
     </style>
 </head>
@@ -644,85 +578,12 @@ app.get("/", (req, res) => {
                 </div>
             </div>
 
-           // --- REPLACE YOUR TAB SECTION WITH THIS ---
-<div class="tabs-section" style="margin-top: 25px;">
-    <div style="display: flex; gap: 10px; margin-bottom: 20px; justify-content: center; flex-wrap: wrap;">
-        <button onclick="switchView('summary')" id="btn-sum" class="tab-btn active">24H Summary</button>
-        <button onclick="switchView('graphs')" id="btn-graph" class="tab-btn">24H Graphs</button>
-        <button onclick="switchView('archive')" id="btn-arch" class="tab-btn">Monthly Summary</button>
-    </div>
-    
-    <div id="view-summary" class="card" style="padding:0; border: 1px solid rgba(128,128,128,0.2);">
-        <table class="modern-table">
-            <tr>
-                <td class="row-label">Temperature</td>
-                <td>Max: <span id="s-mx" style="color:#ef4444 !important; font-weight:700;">--</span></td>
-                <td>Min: <span id="s-mn" style="color:#0ea5e9 !important; font-weight:700;">--</span></td>
-            </tr>
-            <tr>
-                <td class="row-label">Wind</td>
-                <td>Sustained: <span id="s-mw" style="font-weight:700;">--</span></td>
-                <td>Gust: <span id="s-mg" style="font-weight:700;">--</span></td>
-            </tr>
-            <tr>
-                <td class="row-label">Rainfall</td>
-                <td colspan="2">Today's Total: <span id="s-rt" style="font-weight:800; color:#3b82f6 !important;">--</span></td>
-            </tr>
-        </table>
-    </div>
-
-    <div id="view-graphs" style="display: none;">
-        <div class="graphs-wrapper">
-             <div class="graph-card"><span class="graph-header">Temperature</span><canvas id="cT"></canvas></div>
-             <div class="graph-card"><span class="graph-header">Humidity</span><canvas id="cH"></canvas></div>
-             <div class="graph-card"><span class="graph-header">Wind</span><canvas id="cW"></canvas></div>
-             <div class="graph-card"><span class="graph-header">Rain</span><canvas id="cR"></canvas></div>
-        </div>
-    </div>
-
-    <div id="view-archive" style="display: none;">
-        <div id="summary-content">
+            <div class="graphs-wrapper">
+                <div class="graph-card"><div class="label" style="margin-bottom: 8px;">Temperature Trend</div><canvas id="cT"></canvas></div>
+                <div class="graph-card"><div class="label" style="margin-bottom: 8px;">Humidity Levels</div><canvas id="cH"></canvas></div>
+                <div class="graph-card"><div class="label" style="margin-bottom: 8px;">Wind Velocity</div><canvas id="cW"></canvas></div>
+                <div class="graph-card"><div class="label" style="margin-bottom: 8px;">Precipitation</div><canvas id="cR"></canvas></div>
             </div>
-    </div>
-</div>
-    
-    <div id="view-summary" class="card" style="padding:0; background: transparent; border: 1px solid rgba(128,128,128,0.2);">
-    <table class="modern-table">
-        <tr>
-            <td class="row-label">Temperature</td>
-            <td>Max: <span id="s-mx" style="font-weight:700; color:#ef4444 !important;">--</span></td>
-            <td>Min: <span id="s-mn" style="font-weight:700; color:#0ea5e9 !important;">--</span></td>
-        </tr>
-        <tr>
-            <td class="row-label">Wind</td>
-            <td>Sustained: <span id="s-mw" style="font-weight:700;">--</span></td>
-            <td>Gust: <span id="s-mg" style="font-weight:700;">--</span></td>
-        </tr>
-        <tr>
-            <td class="row-label">Rainfall</td>
-            <td colspan="2">Today's Total: <span id="s-rt" style="font-weight:800; color:#3b82f6 !important;">--</span></td>
-        </tr>
-    </table>
-</div>
-
-    <div id="view-graphs" class="graphs-wrapper" style="display: none; gap: 15px;">
-    <div class="graph-card">
-        <span style="font-weight:700; font-size:13px; color:#475569; display:block; margin-bottom:8px; border-left:3px solid #ef4444; padding-left:8px;">Temperature (°C)</span>
-        <canvas id="cT"></canvas>
-    </div>
-    <div class="graph-card">
-        <span style="font-weight:700; font-size:13px; color:#475569; display:block; margin-bottom:8px; border-left:3px solid #0ea5e9; padding-left:8px;">Humidity (%)</span>
-        <canvas id="cH"></canvas>
-    </div>
-    <div class="graph-card">
-        <span style="font-weight:700; font-size:13px; color:#475569; display:block; margin-bottom:8px; border-left:3px solid #f59e0b; padding-left:8px;">Wind Speed (km/h)</span>
-        <canvas id="cW"></canvas>
-    </div>
-    <div class="graph-card">
-        <span style="font-weight:700; font-size:13px; color:#475569; display:block; margin-bottom:8px; border-left:3px solid #3b82f6; padding-left:8px;">Rainfall (mm)</span>
-        <canvas id="cR"></canvas>
-    </div>
-</div>
             
         </div> <div id="page-summary" style="display: none;">
             <div id="summary-content"></div>
@@ -896,8 +757,7 @@ document.getElementById('d_val').innerText = d.temp.dew + '°C';
                 document.getElementById('sol').innerText = d.atmo.sol + ' W/m²'; 
                 document.getElementById('uv').innerText = d.atmo.uv;
                 document.getElementById('ts').innerText = new Date(d.lastSync).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-                updateSummaryTable(d);
-                
+
               if (d.history && d.history.length > 0) {  
                   const labels = d.history.map(h => new Date(h.time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: false }));       
                 if(!charts.cT) { 
@@ -989,50 +849,6 @@ async function fetchMonthlySummary() {
         content.innerHTML = html || '<div class="card" style="text-align:center; padding:40px;">No archived records found yet.</div>';
     } catch (e) {
         content.innerHTML = '<div class="card" style="color:#ef4444">Error loading summary.</div>';
-    }
-}
-
-async function switchView(type) {
-    // Hide all views first
-    document.getElementById('view-summary').style.display = 'none';
-    document.getElementById('view-graphs').style.display = 'none';
-    document.getElementById('view-archive').style.display = 'none';
-    
-    // Remove active class from all buttons
-    document.getElementById('btn-sum').classList.remove('active');
-    document.getElementById('btn-graph').classList.remove('active');
-    document.getElementById('btn-arch').classList.remove('active');
-
-    if (type === 'summary') {
-        document.getElementById('view-summary').style.display = 'block';
-        document.getElementById('btn-sum').classList.add('active');
-    } 
-    else if (type === 'graphs') {
-        document.getElementById('view-graphs').style.display = 'grid';
-        document.getElementById('btn-graph').classList.add('active');
-        // Fetch 24h data for charts
-        fetchGraphData(); 
-    } 
-    else if (type === 'archive') {
-        document.getElementById('view-archive').style.display = 'block';
-        document.getElementById('btn-arch').classList.add('active');
-        // RUN THE MONTHLY DB QUERY
-        fetchMonthlySummary(); 
-    }
-}
-
-function updateSummaryTable(d) {
-    if (document.getElementById('s-mx')) {
-        // Temperature
-        document.getElementById('s-mx').innerText = d.temp.max + '°C';
-        document.getElementById('s-mn').innerText = d.temp.min + '°C';
-        
-        // Wind (Assuming d.wind.maxG exists in your state, otherwise use d.wind.maxS)
-        document.getElementById('s-mw').innerText = d.wind.maxS + ' km/h';
-        document.getElementById('s-mg').innerText = (d.wind.maxG || d.wind.maxS) + ' km/h';
-        
-        // Rain
-        document.getElementById('s-rt').innerText = d.rain.total + ' mm';
     }
 }
 
