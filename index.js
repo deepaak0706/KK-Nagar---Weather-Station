@@ -377,6 +377,27 @@ app.get("/api/sync", async (req, res) => {
     res.json(await syncWithEcowitt(req.query.write === 'true'));
 });
 
+// --- ADD THIS ROUTE HERE ---
+app.get("/api/history", async (req, res) => {
+    const todayISTStr = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" })).toLocaleDateString('en-CA');
+    try {
+        const historyRes = await pool.query(`
+            SELECT * FROM weather_history 
+            WHERE (time AT TIME ZONE 'Asia/Kolkata')::date = $1::date 
+            ORDER BY time ASC
+        `, [todayISTStr]);
+        
+        const history = historyRes.rows.map(r => ({
+            time: r.time, 
+            temp: parseFloat(((r.temp_f - 32) * 5 / 9).toFixed(1)), 
+            hum: r.humidity, 
+            wind: parseFloat((r.wind_speed_mph * 1.60934).toFixed(1)), 
+            rain: parseFloat((r.daily_rain_in * 25.4).toFixed(1))
+        }));
+        res.json(history);
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 // 4. The User Interface (Your HTML)
 app.get("/", (req, res) => {
     res.send(`
@@ -585,12 +606,26 @@ app.get("/", (req, res) => {
                 </div>
             </div>
 
-            <div class="graphs-wrapper">
-                <div class="graph-card"><div class="label" style="margin-bottom: 8px;">Temperature Trend</div><canvas id="cT"></canvas></div>
-                <div class="graph-card"><div class="label" style="margin-bottom: 8px;">Humidity Levels</div><canvas id="cH"></canvas></div>
-                <div class="graph-card"><div class="label" style="margin-bottom: 8px;">Wind Velocity</div><canvas id="cW"></canvas></div>
-                <div class="graph-card"><div class="label" style="margin-bottom: 8px;">Precipitation</div><canvas id="cR"></canvas></div>
-            </div>
+            <div style="display: flex; gap: 10px; margin: 20px 0; justify-content: center;">
+    <button onclick="switchView('summary')" id="btn-sum" class="tab-btn active">24H Summary</button>
+    <button onclick="switchView('graphs')" id="btn-graph" class="tab-btn">24H Graphs</button>
+</div>
+
+<div id="view-summary" class="card">
+    <table style="width:100%; border-collapse: collapse; font-size: 0.95rem;">
+        <tr style="border-bottom: 1px solid #eee;"><td style="padding:12px;">Max Temp</td><td id="s-mx" style="text-align:right; color:#ef4444; font-weight:700;">--</td><td id="s-mxt" style="font-size:0.8rem; color:#666;">--</td></tr>
+        <tr style="border-bottom: 1px solid #eee;"><td style="padding:12px;">Min Temp</td><td id="s-mn" style="text-align:right; color:#0ea5e9; font-weight:700;">--</td><td id="s-mnt" style="font-size:0.8rem; color:#666;">--</td></tr>
+        <tr style="border-bottom: 1px solid #eee;"><td style="padding:12px;">Peak Wind</td><td id="s-mw" style="text-align:right; font-weight:700;">--</td><td id="s-mwt" style="font-size:0.8rem; color:#666;">--</td></tr>
+        <tr><td style="padding:12px;">Daily Rain</td><td id="s-rt" colspan="2" style="text-align:right; color:#3b82f6; font-weight:800;">--</td></tr>
+    </table>
+</div>
+
+<div id="view-graphs" class="graphs-wrapper" style="display: none;">
+    <div class="graph-card"><canvas id="cT"></canvas></div>
+    <div class="graph-card"><canvas id="cH"></canvas></div>
+    <div class="graph-card"><canvas id="cW"></canvas></div>
+    <div class="graph-card"><canvas id="cR"></canvas></div>
+</div>
             
         </div> <div id="page-summary" style="display: none;">
             <div id="summary-content"></div>
@@ -764,7 +799,8 @@ document.getElementById('d_val').innerText = d.temp.dew + '°C';
                 document.getElementById('sol').innerText = d.atmo.sol + ' W/m²'; 
                 document.getElementById('uv').innerText = d.atmo.uv;
                 document.getElementById('ts').innerText = new Date(d.lastSync).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-
+                updateSummaryTable(d);
+                
               if (d.history && d.history.length > 0) {  
                   const labels = d.history.map(h => new Date(h.time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: false }));       
                 if(!charts.cT) { 
@@ -857,6 +893,36 @@ async function fetchMonthlySummary() {
     } catch (e) {
         content.innerHTML = '<div class="card" style="color:#ef4444">Error loading summary.</div>';
     }
+}
+
+async function switchView(type) {
+    document.getElementById('view-summary').style.display = type === 'summary' ? 'block' : 'none';
+    document.getElementById('view-graphs').style.display = type === 'graphs' ? 'grid' : 'none';
+    document.getElementById('btn-sum').classList.toggle('active', type === 'summary');
+    document.getElementById('btn-graph').classList.toggle('active', type === 'graphs');
+
+    if (type === 'graphs') {
+        const res = await fetch('/api/history');
+        const data = await res.json();
+        if (data.length > 0) {
+            const labels = data.map(h => new Date(h.time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: false }));
+            charts.cT.data.labels = labels; charts.cT.data.datasets[0].data = data.map(h => h.temp); charts.cT.update();
+            charts.cH.data.labels = labels; charts.cH.data.datasets[0].data = data.map(h => h.hum); charts.cH.update();
+            charts.cW.data.labels = labels; charts.cW.data.datasets[0].data = data.map(h => h.wind); charts.cW.update();
+            charts.cR.data.labels = labels; charts.cR.data.datasets[0].data = data.map(h => h.rain); charts.cR.update();
+        }
+    }
+}
+
+// Update the Summary Table with live data from state
+function updateSummaryTable(d) {
+    document.getElementById('s-mx').innerText = d.temp.max + '°C';
+    document.getElementById('s-mxt').innerText = d.temp.maxTime;
+    document.getElementById('s-mn').innerText = d.temp.min + '°C';
+    document.getElementById('s-mnt').innerText = d.temp.minTime;
+    document.getElementById('s-mw').innerText = d.wind.maxS + ' km/h';
+    document.getElementById('s-mwt').innerText = d.wind.maxSTime;
+    document.getElementById('s-rt').innerText = d.rain.total + ' mm';
 }
 
         
