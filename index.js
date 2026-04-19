@@ -537,35 +537,41 @@ app.get("/", (req, res) => {
 .modern-table {
     width: 100%;
     border-collapse: collapse;
-    background: white;
+    /* Removed background: white; */
     border-radius: 8px;
     overflow: hidden;
 }
+
 .modern-table td {
     padding: 15px;
-    border-bottom: 1px solid #f0f0f0;
+    border-bottom: 1px solid rgba(128, 128, 128, 0.2); /* Faint line for both modes */
     font-size: 14px;
+    color: inherit; /* Inherits white text in dark mode, dark text in light mode */
 }
+
 .row-label {
-    background: #f8fafc;
+    background: rgba(128, 128, 128, 0.1); /* Subtle tint that adapts */
     font-weight: 700;
-    color: #475569;
-    width: 30%;
+    color: inherit;
+    width: 35%;
 }
+
+/* Ensure spans inside the table are visible */
+.modern-table span {
+    color: inherit;
+}
+
+/* Restoring Graph Header visibility */
 .graph-header {
     font-weight: 700;
     font-size: 14px;
-    color: #1e293b;
     margin-bottom: 10px;
     display: block;
     text-align: left;
     border-left: 3px solid #3b82f6;
     padding-left: 8px;
+    color: inherit;
 }
-
-
-
-
         
     </style>
 </head>
@@ -644,24 +650,24 @@ app.get("/", (req, res) => {
         <button onclick="switchView('graphs')" id="btn-graph" class="tab-btn">24H Graphs</button>
     </div>
     
-    <div id="view-summary" class="card" style="padding:0;">
-        <table class="modern-table">
-            <tr>
-                <td class="row-label">Temperature</td>
-                <td style="color:#ef4444;">Max: <span id="s-mx" style="font-weight:700;">--</span></td>
-                <td style="color:#0ea5e9;">Min: <span id="s-mn" style="font-weight:700;">--</span></td>
-            </tr>
-            <tr>
-                <td class="row-label">Wind</td>
-                <td>Sustained: <span id="s-mw" style="font-weight:700;">--</span></td>
-                <td>Gust: <span id="s-mg" style="font-weight:700;">--</span></td>
-            </tr>
-            <tr>
-                <td class="row-label">Rainfall</td>
-                <td colspan="2">Today's Total: <span id="s-rt" style="font-weight:800; color:#3b82f6;">--</span></td>
-            </tr>
-        </table>
-    </div>
+    <div id="view-summary" class="card" style="padding:0; background: transparent; border: 1px solid rgba(128,128,128,0.2);">
+    <table class="modern-table">
+        <tr>
+            <td class="row-label">Temperature</td>
+            <td>Max: <span id="s-mx" style="font-weight:700; color:#ef4444 !important;">--</span></td>
+            <td>Min: <span id="s-mn" style="font-weight:700; color:#0ea5e9 !important;">--</span></td>
+        </tr>
+        <tr>
+            <td class="row-label">Wind</td>
+            <td>Sustained: <span id="s-mw" style="font-weight:700;">--</span></td>
+            <td>Gust: <span id="s-mg" style="font-weight:700;">--</span></td>
+        </tr>
+        <tr>
+            <td class="row-label">Rainfall</td>
+            <td colspan="2">Today's Total: <span id="s-rt" style="font-weight:800; color:#3b82f6 !important;">--</span></td>
+        </tr>
+    </table>
+</div>
 
     <div id="view-graphs" class="graphs-wrapper" style="display: none; gap: 15px;">
     <div class="graph-card">
@@ -952,6 +958,11 @@ async function fetchMonthlySummary() {
 
 async function switchView(type) {
     // 1. Toggle UI Visibility
+    // Inside your switchView('graphs') logic, add these global defaults before updating
+    Chart.defaults.color = getComputedStyle(document.body).color; // Auto-detects text color
+    Chart.defaults.borderColor = 'rgba(128, 128, 128, 0.2)';
+
+// Then proceed with your charts.cT.update() etc.
     document.getElementById('view-summary').style.display = type === 'summary' ? 'block' : 'none';
     document.getElementById('view-graphs').style.display = type === 'graphs' ? 'grid' : 'none';
     
