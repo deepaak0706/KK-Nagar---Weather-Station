@@ -648,7 +648,22 @@ app.get("/", (req, res) => {
     <div style="display: flex; gap: 10px; margin-bottom: 20px; justify-content: center;">
         <button onclick="switchView('summary')" id="btn-sum" class="tab-btn active">24H Summary</button>
         <button onclick="switchView('graphs')" id="btn-graph" class="tab-btn">24H Graphs</button>
+        <button onclick="switchView('archive')" id="btn-arch" class="tab-btn">Monthly Summary</button>
     </div>
+    
+    <div id="view-summary" class="card" style="padding:0; border: 1px solid rgba(128,128,128,0.2);">
+        <table class="modern-table">
+            </table>
+    </div>
+
+    <div id="view-graphs" style="display: none;">
+        </div>
+
+    <div id="view-archive" style="display: none;">
+        <div id="summary-content">
+            </div>
+    </div>
+</div>
     
     <div id="view-summary" class="card" style="padding:0; background: transparent; border: 1px solid rgba(128,128,128,0.2);">
     <table class="modern-table">
@@ -957,31 +972,40 @@ async function fetchMonthlySummary() {
 }
 
 async function switchView(type) {
-    // 1. Toggle UI Visibility
-    // Inside your switchView('graphs') logic, add these global defaults before updating
-    Chart.defaults.color = getComputedStyle(document.body).color; // Auto-detects text color
-    Chart.defaults.borderColor = 'rgba(128, 128, 128, 0.2)';
+    // 1. Define all possible views and buttons
+    const views = ['view-summary', 'view-graphs', 'view-archive'];
+    const buttons = ['btn-sum', 'btn-graph', 'btn-arch'];
 
-// Then proceed with your charts.cT.update() etc.
-    document.getElementById('view-summary').style.display = type === 'summary' ? 'block' : 'none';
-    document.getElementById('view-graphs').style.display = type === 'graphs' ? 'grid' : 'none';
-    
-    // 2. Update Button Styles
-    document.getElementById('btn-sum').classList.toggle('active', type === 'summary');
-    document.getElementById('btn-graph').classList.toggle('active', type === 'graphs');
+    // 2. Hide all views and remove active class from buttons
+    views.forEach(v => {
+        const el = document.getElementById(v);
+        if (el) el.style.display = 'none';
+    });
+    buttons.forEach(b => {
+        const el = document.getElementById(b);
+        if (el) el.classList.remove('active');
+    });
 
-    // 3. ONLY fetch from DB if the Graph tab is active
-    if (type === 'graphs') {
+    // 3. Show the requested view
+    if (type === 'summary') {
+        document.getElementById('view-summary').style.display = 'block';
+        document.getElementById('btn-sum').classList.add('active');
+    } 
+    else if (type === 'graphs') {
+        document.getElementById('view-graphs').style.display = 'grid';
+        document.getElementById('btn-graph').classList.add('active');
+        
+        // Apply Dark/Light mode colors to Chart.js before updating
+        Chart.defaults.color = getComputedStyle(document.body).color;
+        Chart.defaults.borderColor = 'rgba(128, 128, 128, 0.2)';
+
         try {
             const res = await fetch('/api/history');
             const data = await res.json();
-            
             if (data && data.length > 0) {
                 const labels = data.map(h => new Date(h.time).toLocaleTimeString('en-IN', { 
                     hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' 
                 }));
-                
-                // Update your 4 charts
                 charts.cT.data.labels = labels; charts.cT.data.datasets[0].data = data.map(h => h.temp); charts.cT.update();
                 charts.cH.data.labels = labels; charts.cH.data.datasets[0].data = data.map(h => h.hum); charts.cH.update();
                 charts.cW.data.labels = labels; charts.cW.data.datasets[0].data = data.map(h => h.wind); charts.cW.update();
@@ -989,6 +1013,16 @@ async function switchView(type) {
             }
         } catch (err) {
             console.error("Failed to load graph data:", err);
+        }
+    } 
+    else if (type === 'archive') {
+        // This restores your monthly summary logic
+        document.getElementById('view-archive').style.display = 'block';
+        document.getElementById('btn-arch').classList.add('active');
+        
+        // Trigger your existing monthly fetch function
+        if (typeof fetchMonthlySummary === "function") {
+            fetchMonthlySummary();
         }
     }
 }
