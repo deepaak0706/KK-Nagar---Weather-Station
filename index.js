@@ -645,24 +645,42 @@ app.get("/", (req, res) => {
             </div>
 
            <div class="tabs-section" style="margin-top: 25px;">
-    <div style="display: flex; gap: 10px; margin-bottom: 20px; justify-content: center;">
-        <button onclick="switchView('summary')" id="btn-sum" class="tab-btn active">24H Summary</button>
-        <button onclick="switchView('graphs')" id="btn-graph" class="tab-btn">24H Graphs</button>
-        <button onclick="switchView('archive')" id="btn-arch" class="tab-btn">Monthly Summary</button>
-    </div>
-    
-    <div id="view-summary" class="card" style="padding:0; border: 1px solid rgba(128,128,128,0.2);">
-        <table class="modern-table">
-            </table>
-    </div>
+           <div style="display: flex; gap: 10px; margin: 20px 0; justify-content: center; flex-wrap: wrap;">
+    <button onclick="switchView('summary')" id="btn-sum" class="tab-btn active">24H Summary</button>
+    <button onclick="switchView('graphs')" id="btn-graph" class="tab-btn">24H Graphs</button>
+    <button onclick="switchView('archive')" id="btn-arch" class="tab-btn">Monthly Summary</button>
+</div>
 
-    <div id="view-graphs" style="display: none;">
+<div id="view-summary" class="card" style="padding:0; background: transparent; border: 1px solid rgba(128,128,128,0.2);">
+    <table class="modern-table">
+        <tr>
+            <td class="row-label">Temperature</td>
+            <td>Max: <span id="s-mx" style="color:#ef4444 !important; font-weight:700;">--</span></td>
+            <td>Min: <span id="s-mn" style="color:#0ea5e9 !important; font-weight:700;">--</span></td>
+        </tr>
+        <tr>
+            <td class="row-label">Wind</td>
+            <td>Sustained: <span id="s-mw" style="font-weight:700;">--</span></td>
+            <td>Gust: <span id="s-mg" style="font-weight:700;">--</span></td>
+        </tr>
+        <tr>
+            <td class="row-label">Rainfall</td>
+            <td colspan="2">Today's Total: <span id="s-rt" style="font-weight:800; color:#3b82f6 !important;">--</span></td>
+        </tr>
+    </table>
+</div>
+
+<div id="view-graphs" class="graphs-wrapper" style="display: none;">
+    <div class="graph-card"><span class="graph-header">Temperature</span><canvas id="cT"></canvas></div>
+    <div class="graph-card"><span class="graph-header">Humidity</span><canvas id="cH"></canvas></div>
+    <div class="graph-card"><span class="graph-header">Wind</span><canvas id="cW"></canvas></div>
+    <div class="graph-card"><span class="graph-header">Rain</span><canvas id="cR"></canvas></div>
+</div>
+
+<div id="view-archive" style="display: none;">
+    <div id="summary-content">
         </div>
-
-    <div id="view-archive" style="display: none;">
-        <div id="summary-content">
-            </div>
-    </div>
+</div>
 </div>
     
     <div id="view-summary" class="card" style="padding:0; background: transparent; border: 1px solid rgba(128,128,128,0.2);">
@@ -972,21 +990,21 @@ async function fetchMonthlySummary() {
 }
 
 async function switchView(type) {
-    // 1. Define all possible views and buttons
-    const views = ['view-summary', 'view-graphs', 'view-archive'];
-    const buttons = ['btn-sum', 'btn-graph', 'btn-arch'];
-
-    // 2. Hide all views and remove active class from buttons
-    views.forEach(v => {
-        const el = document.getElementById(v);
+    // 1. Hide all containers
+    const containers = ['view-summary', 'view-graphs', 'view-archive'];
+    containers.forEach(id => {
+        const el = document.getElementById(id);
         if (el) el.style.display = 'none';
     });
-    buttons.forEach(b => {
-        const el = document.getElementById(b);
+
+    // 2. Reset Button Classes
+    const btns = ['btn-sum', 'btn-graph', 'btn-arch'];
+    btns.forEach(id => {
+        const el = document.getElementById(id);
         if (el) el.classList.remove('active');
     });
 
-    // 3. Show the requested view
+    // 3. Logic for each Tab
     if (type === 'summary') {
         document.getElementById('view-summary').style.display = 'block';
         document.getElementById('btn-sum').classList.add('active');
@@ -995,33 +1013,15 @@ async function switchView(type) {
         document.getElementById('view-graphs').style.display = 'grid';
         document.getElementById('btn-graph').classList.add('active');
         
-        // Apply Dark/Light mode colors to Chart.js before updating
-        Chart.defaults.color = getComputedStyle(document.body).color;
-        Chart.defaults.borderColor = 'rgba(128, 128, 128, 0.2)';
-
-        try {
-            const res = await fetch('/api/history');
-            const data = await res.json();
-            if (data && data.length > 0) {
-                const labels = data.map(h => new Date(h.time).toLocaleTimeString('en-IN', { 
-                    hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' 
-                }));
-                charts.cT.data.labels = labels; charts.cT.data.datasets[0].data = data.map(h => h.temp); charts.cT.update();
-                charts.cH.data.labels = labels; charts.cH.data.datasets[0].data = data.map(h => h.hum); charts.cH.update();
-                charts.cW.data.labels = labels; charts.cW.data.datasets[0].data = data.map(h => h.wind); charts.cW.update();
-                charts.cR.data.labels = labels; charts.cR.data.datasets[0].data = data.map(h => h.rain); charts.cR.update();
-            }
-        } catch (err) {
-            console.error("Failed to load graph data:", err);
-        }
+        // This is where we fetch the 24h Graph data from DB
+        fetchGraphData(); 
     } 
     else if (type === 'archive') {
-        // This restores your monthly summary logic
         document.getElementById('view-archive').style.display = 'block';
         document.getElementById('btn-arch').classList.add('active');
         
-        // Trigger your existing monthly fetch function
-        if (typeof fetchMonthlySummary === "function") {
+        // ONLY RUNS MONTHLY QUERY WHEN CLICKED
+        if (typeof fetchMonthlySummary === 'function') {
             fetchMonthlySummary();
         }
     }
