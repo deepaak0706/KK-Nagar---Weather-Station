@@ -377,8 +377,8 @@ app.get("/api/sync", async (req, res) => {
     res.json(await syncWithEcowitt(req.query.write === 'true'));
 });
 
-// --- ADD THIS ROUTE HERE ---
 app.get("/api/history", async (req, res) => {
+    console.log("Graph Tab Clicked: Fetching from DB..."); // For your logs
     const todayISTStr = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" })).toLocaleDateString('en-CA');
     try {
         const historyRes = await pool.query(`
@@ -395,7 +395,10 @@ app.get("/api/history", async (req, res) => {
             rain: parseFloat((r.daily_rain_in * 25.4).toFixed(1))
         }));
         res.json(history);
-    } catch (e) { res.status(500).json({ error: e.message }); }
+    } catch (e) { 
+        console.error("DB Error:", e);
+        res.status(500).json({ error: e.message }); 
+    }
 });
 
 // 4. The User Interface (Your HTML)
@@ -660,11 +663,22 @@ app.get("/", (req, res) => {
         </table>
     </div>
 
-    <div id="view-graphs" class="graphs-wrapper" style="display: none;">
-        <div class="graph-card"><span class="graph-header">Temperature (°C)</span><canvas id="cT"></canvas></div>
-        <div class="graph-card"><span class="graph-header">Humidity (%)</span><canvas id="cH"></canvas></div>
-        <div class="graph-card"><span class="graph-header">Wind Speed (km/h)</span><canvas id="cW"></canvas></div>
-        <div class="graph-card"><span class="graph-header">Rainfall (mm)</span><canvas id="cR"></canvas></div>
+    <div id="view-graphs" class="graphs-wrapper" style="display: none; gap: 15px;">
+    <div class="graph-card">
+        <span style="font-weight:700; font-size:13px; color:#475569; display:block; margin-bottom:8px; border-left:3px solid #ef4444; padding-left:8px;">Temperature (°C)</span>
+        <canvas id="cT"></canvas>
+    </div>
+    <div class="graph-card">
+        <span style="font-weight:700; font-size:13px; color:#475569; display:block; margin-bottom:8px; border-left:3px solid #0ea5e9; padding-left:8px;">Humidity (%)</span>
+        <canvas id="cH"></canvas>
+    </div>
+    <div class="graph-card">
+        <span style="font-weight:700; font-size:13px; color:#475569; display:block; margin-bottom:8px; border-left:3px solid #f59e0b; padding-left:8px;">Wind Speed (km/h)</span>
+        <canvas id="cW"></canvas>
+    </div>
+    <div class="graph-card">
+        <span style="font-weight:700; font-size:13px; color:#475569; display:block; margin-bottom:8px; border-left:3px solid #3b82f6; padding-left:8px;">Rainfall (mm)</span>
+        <canvas id="cR"></canvas>
     </div>
 </div>
             
@@ -937,20 +951,33 @@ async function fetchMonthlySummary() {
 }
 
 async function switchView(type) {
+    // 1. Toggle UI Visibility
     document.getElementById('view-summary').style.display = type === 'summary' ? 'block' : 'none';
     document.getElementById('view-graphs').style.display = type === 'graphs' ? 'grid' : 'none';
+    
+    // 2. Update Button Styles
     document.getElementById('btn-sum').classList.toggle('active', type === 'summary');
     document.getElementById('btn-graph').classList.toggle('active', type === 'graphs');
 
+    // 3. ONLY fetch from DB if the Graph tab is active
     if (type === 'graphs') {
-        const res = await fetch('/api/history');
-        const data = await res.json();
-        if (data.length > 0) {
-            const labels = data.map(h => new Date(h.time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: false }));
-            charts.cT.data.labels = labels; charts.cT.data.datasets[0].data = data.map(h => h.temp); charts.cT.update();
-            charts.cH.data.labels = labels; charts.cH.data.datasets[0].data = data.map(h => h.hum); charts.cH.update();
-            charts.cW.data.labels = labels; charts.cW.data.datasets[0].data = data.map(h => h.wind); charts.cW.update();
-            charts.cR.data.labels = labels; charts.cR.data.datasets[0].data = data.map(h => h.rain); charts.cR.update();
+        try {
+            const res = await fetch('/api/history');
+            const data = await res.json();
+            
+            if (data && data.length > 0) {
+                const labels = data.map(h => new Date(h.time).toLocaleTimeString('en-IN', { 
+                    hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' 
+                }));
+                
+                // Update your 4 charts
+                charts.cT.data.labels = labels; charts.cT.data.datasets[0].data = data.map(h => h.temp); charts.cT.update();
+                charts.cH.data.labels = labels; charts.cH.data.datasets[0].data = data.map(h => h.hum); charts.cH.update();
+                charts.cW.data.labels = labels; charts.cW.data.datasets[0].data = data.map(h => h.wind); charts.cW.update();
+                charts.cR.data.labels = labels; charts.cR.data.datasets[0].data = data.map(h => h.rain); charts.cR.update();
+            }
+        } catch (err) {
+            console.error("Failed to load graph data:", err);
         }
     }
 }
