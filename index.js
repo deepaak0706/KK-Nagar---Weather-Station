@@ -531,6 +531,35 @@ app.get("/", (req, res) => {
 
 @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
+.modern-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: white;
+    border-radius: 8px;
+    overflow: hidden;
+}
+.modern-table td {
+    padding: 15px;
+    border-bottom: 1px solid #f0f0f0;
+    font-size: 14px;
+}
+.row-label {
+    background: #f8fafc;
+    font-weight: 700;
+    color: #475569;
+    width: 30%;
+}
+.graph-header {
+    font-weight: 700;
+    font-size: 14px;
+    color: #1e293b;
+    margin-bottom: 10px;
+    display: block;
+    text-align: left;
+    border-left: 3px solid #3b82f6;
+    padding-left: 8px;
+}
+
 
 
 
@@ -606,25 +635,37 @@ app.get("/", (req, res) => {
                 </div>
             </div>
 
-            <div style="display: flex; gap: 10px; margin: 20px 0; justify-content: center;">
-    <button onclick="switchView('summary')" id="btn-sum" class="tab-btn active">24H Summary</button>
-    <button onclick="switchView('graphs')" id="btn-graph" class="tab-btn">24H Graphs</button>
-</div>
+           <div class="tabs-section" style="margin-top: 25px;">
+    <div style="display: flex; gap: 10px; margin-bottom: 20px; justify-content: center;">
+        <button onclick="switchView('summary')" id="btn-sum" class="tab-btn active">24H Summary</button>
+        <button onclick="switchView('graphs')" id="btn-graph" class="tab-btn">24H Graphs</button>
+    </div>
+    
+    <div id="view-summary" class="card" style="padding:0;">
+        <table class="modern-table">
+            <tr>
+                <td class="row-label">Temperature</td>
+                <td style="color:#ef4444;">Max: <span id="s-mx" style="font-weight:700;">--</span></td>
+                <td style="color:#0ea5e9;">Min: <span id="s-mn" style="font-weight:700;">--</span></td>
+            </tr>
+            <tr>
+                <td class="row-label">Wind</td>
+                <td>Sustained: <span id="s-mw" style="font-weight:700;">--</span></td>
+                <td>Gust: <span id="s-mg" style="font-weight:700;">--</span></td>
+            </tr>
+            <tr>
+                <td class="row-label">Rainfall</td>
+                <td colspan="2">Today's Total: <span id="s-rt" style="font-weight:800; color:#3b82f6;">--</span></td>
+            </tr>
+        </table>
+    </div>
 
-<div id="view-summary" class="card">
-    <table style="width:100%; border-collapse: collapse; font-size: 0.95rem;">
-        <tr style="border-bottom: 1px solid #eee;"><td style="padding:12px;">Max Temp</td><td id="s-mx" style="text-align:right; color:#ef4444; font-weight:700;">--</td><td id="s-mxt" style="font-size:0.8rem; color:#666;">--</td></tr>
-        <tr style="border-bottom: 1px solid #eee;"><td style="padding:12px;">Min Temp</td><td id="s-mn" style="text-align:right; color:#0ea5e9; font-weight:700;">--</td><td id="s-mnt" style="font-size:0.8rem; color:#666;">--</td></tr>
-        <tr style="border-bottom: 1px solid #eee;"><td style="padding:12px;">Peak Wind</td><td id="s-mw" style="text-align:right; font-weight:700;">--</td><td id="s-mwt" style="font-size:0.8rem; color:#666;">--</td></tr>
-        <tr><td style="padding:12px;">Daily Rain</td><td id="s-rt" colspan="2" style="text-align:right; color:#3b82f6; font-weight:800;">--</td></tr>
-    </table>
-</div>
-
-<div id="view-graphs" class="graphs-wrapper" style="display: none;">
-    <div class="graph-card"><canvas id="cT"></canvas></div>
-    <div class="graph-card"><canvas id="cH"></canvas></div>
-    <div class="graph-card"><canvas id="cW"></canvas></div>
-    <div class="graph-card"><canvas id="cR"></canvas></div>
+    <div id="view-graphs" class="graphs-wrapper" style="display: none;">
+        <div class="graph-card"><span class="graph-header">Temperature (°C)</span><canvas id="cT"></canvas></div>
+        <div class="graph-card"><span class="graph-header">Humidity (%)</span><canvas id="cH"></canvas></div>
+        <div class="graph-card"><span class="graph-header">Wind Speed (km/h)</span><canvas id="cW"></canvas></div>
+        <div class="graph-card"><span class="graph-header">Rainfall (mm)</span><canvas id="cR"></canvas></div>
+    </div>
 </div>
             
         </div> <div id="page-summary" style="display: none;">
@@ -914,15 +955,19 @@ async function switchView(type) {
     }
 }
 
-// Update the Summary Table with live data from state
 function updateSummaryTable(d) {
-    document.getElementById('s-mx').innerText = d.temp.max + '°C';
-    document.getElementById('s-mxt').innerText = d.temp.maxTime;
-    document.getElementById('s-mn').innerText = d.temp.min + '°C';
-    document.getElementById('s-mnt').innerText = d.temp.minTime;
-    document.getElementById('s-mw').innerText = d.wind.maxS + ' km/h';
-    document.getElementById('s-mwt').innerText = d.wind.maxSTime;
-    document.getElementById('s-rt').innerText = d.rain.total + ' mm';
+    if (document.getElementById('s-mx')) {
+        // Temperature
+        document.getElementById('s-mx').innerText = d.temp.max + '°C';
+        document.getElementById('s-mn').innerText = d.temp.min + '°C';
+        
+        // Wind (Assuming d.wind.maxG exists in your state, otherwise use d.wind.maxS)
+        document.getElementById('s-mw').innerText = d.wind.maxS + ' km/h';
+        document.getElementById('s-mg').innerText = (d.wind.maxG || d.wind.maxS) + ' km/h';
+        
+        // Rain
+        document.getElementById('s-rt').innerText = d.rain.total + ' mm';
+    }
 }
 
         
