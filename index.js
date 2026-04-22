@@ -243,7 +243,6 @@ async function syncWithEcowitt(forceWrite = false) {
             } finally { client.release(); }
         }
 
-        let graphHistory = state.cachedData?.history || [];
         let tempRate = state.cachedData?.temp?.rate || 0, humRate = state.cachedData?.atmo?.hTrend || 0, pressRate = state.cachedData?.atmo?.pTrend || 0;
         let mx_t = state.cachedData?.temp?.max || liveTemp, mn_t = state.cachedData?.temp?.min || liveTemp;
         let mx_w = state.cachedData?.wind?.maxS || 0, mx_g = state.cachedData?.wind?.maxG || 0, mx_r = state.cachedData?.rain?.maxR || 0;
@@ -254,13 +253,16 @@ async function syncWithEcowitt(forceWrite = false) {
 
         if (state.dataChangedSinceLastRead || !state.cachedData) {
             try {
+                // We keep this query to get the exact MAX/MIN and their times efficiently without sending full history payload to client
                 const historyRes = await pool.query(`
                     SELECT * FROM weather_history 
                     WHERE (time AT TIME ZONE 'Asia/Kolkata')::date = $1::date 
                     ORDER BY time ASC
                 `, [todayISTStr]);
                 
-                graphHistory = [];
+                let pastRecord = null;
+                const oneHourAgo = Date.now() - 3600000;
+
                 historyRes.rows.forEach(r => {
                     const fmt = (iso) => new Date(iso || r.time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' });
                     const r_max_t = parseFloat(((r.temp_f - 32) * 5 / 9).toFixed(1));
@@ -275,29 +277,24 @@ async function syncWithEcowitt(forceWrite = false) {
                     if (r_g > mx_g) { mx_g = r_g; mx_g_t = fmt(r.max_g_time); }
                     if (r_rr > mx_r) { mx_r = r_rr; mx_r_t = fmt(r.max_r_time); }
                     
-                    graphHistory.push({ 
-                        time: r.time, 
-                        temp: r_max_t, 
-                        hum: r.humidity, 
-                        wind: r_w, 
-                        rain: parseFloat((r.daily_rain_in * 25.4).toFixed(1)),
-                        press: r.press_rel ? parseFloat((r.press_rel * 33.8639).toFixed(1)) : livePress
-                    });
+                    if (!pastRecord && new Date(r.time).getTime() >= oneHourAgo) {
+                        pastRecord = r;
+                    }
                 });
+
+                if (!pastRecord && historyRes.rows.length > 0) pastRecord = historyRes.rows[0];
+
+                if (pastRecord) {
+                    const pastTemp = parseFloat(((pastRecord.temp_f - 32) * 5 / 9).toFixed(1));
+                    tempRate = parseFloat((liveTemp - pastTemp).toFixed(1));
+                    humRate = parseFloat((liveHum - pastRecord.humidity).toFixed(1));
+                    if (pastRecord.press_rel) {
+                        pressRate = parseFloat((livePress - parseFloat((pastRecord.press_rel * 33.8639).toFixed(1))).toFixed(1));
+                    }
+                }
+                
                 state.dataChangedSinceLastRead = false;
             } catch (dbError) { console.error("DB Prep Error:", dbError); }
-        }
-
-        if (graphHistory.length > 0) {
-            const oneHourAgo = Date.now() - 3600000;
-            let pastRecord = graphHistory.find(r => new Date(r.time).getTime() >= oneHourAgo);
-            if (!pastRecord) pastRecord = graphHistory[0];
-            
-            tempRate = parseFloat((liveTemp - pastRecord.temp).toFixed(1));
-            humRate = parseFloat((liveHum - pastRecord.hum).toFixed(1));
-            if (pastRecord.press) {
-                pressRate = parseFloat((livePress - pastRecord.press).toFixed(1));
-            }
         }
 
         const liveWind = parseFloat((d.wind.wind_speed.value * 1.60934).toFixed(1));
@@ -315,7 +312,6 @@ async function syncWithEcowitt(forceWrite = false) {
             atmo: { hum: liveHum, hTrend: humRate, press: livePress, pTrend: pressRate, sol: d.solar_and_uvi?.solar?.value || 0, uv: d.solar_and_uvi?.uvi?.value || 0 },
             wind: { speed: liveWind, gust: liveGust, maxS: mx_w, maxSTime: mx_w_t, maxG: mx_g, maxGTime: mx_g_t, deg: d.wind.wind_direction.value, card: getCard(d.wind.wind_direction.value) },
             rain: { total: parseFloat((d.rainfall.daily.value * 25.4).toFixed(1)), rate: liveRR, maxR: mx_r, maxRTime: mx_r_t, weekly: parseFloat((d.rainfall.weekly.value * 25.4).toFixed(1)), monthly: parseFloat((d.rainfall.monthly.value * 25.4).toFixed(1)), yearly: parseFloat((d.rainfall.yearly.value * 25.4).toFixed(1)) },
-            history: graphHistory, 
             lastSync: new Date().toISOString()
         };
 
@@ -346,7 +342,7 @@ async function getWeatherSummary() {
  * ROUTES
  */
 
-// 1. API for the dashboard data
+// 1. API for the dashboard data (NO HISTORY INCLUDED, LIGHTWEIGHT)
 app.get("/weather", async (req, res) => res.json(await syncWithEcowitt(false)));
 
 // 2. API for the historical summary table
@@ -358,7 +354,7 @@ app.get("/api/sync", async (req, res) => {
     res.json(await syncWithEcowitt(req.query.write === 'true'));
 });
 
-// NEW GRAPH ONLY ROUTE (Triggered strictly on button click)
+// 4. NEW GRAPH ONLY ROUTE (Triggered strictly on button click)
 app.get("/api/history_graphs", async (req, res) => {
     const todayISTStr = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" })).toLocaleDateString('en-CA');
     try {
@@ -379,7 +375,7 @@ app.get("/api/history_graphs", async (req, res) => {
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// 4. The User Interface (Your HTML)
+// 5. The User Interface (Your HTML)
 app.get("/", (req, res) => {
     res.send(`
 <!DOCTYPE html>
@@ -448,31 +444,17 @@ app.get("/", (req, res) => {
         }
 
         /* The "Magic" Animation */
-@keyframes magicFade {
-    0% { 
-        opacity: 0; 
-        filter: blur(12px);          /* Starts blurry */
-        transform: scale(0.8) translateY(10px); /* Starts small and lower */
-        color: #10b981;              /* Optional: Flash green on change */
-    }
-    30% {
-        opacity: 0.8;
-        filter: blur(4px);           /* Rapidly clears up */
-    }
-    100% { 
-        opacity: 1; 
-        filter: blur(0);             /* Perfectly sharp */
-        transform: scale(1) translateY(0);    /* Settles into position */
-    }
-}
+        @keyframes magicFade {
+            0% { opacity: 0; filter: blur(12px); transform: scale(0.8) translateY(10px); color: #10b981; }
+            30% { opacity: 0.8; filter: blur(4px); }
+            100% { opacity: 1; filter: blur(0); transform: scale(1) translateY(0); }
+        }
 
-.fade-update { 
-    animation: magicFade 1.5s cubic-bezier(0.16, 1, 0.3, 1); 
-    will-change: transform, opacity, filter;
-}
+        .fade-update { 
+            animation: magicFade 1.5s cubic-bezier(0.16, 1, 0.3, 1); 
+            will-change: transform, opacity, filter;
+        }
 
-
-        
         .unit { font-size: 20px; font-weight: 600; color: var(--muted); margin-left: 4px; letter-spacing: 0; }
         .sub-pill { font-size: 12px; font-weight: 800; padding: 6px 12px; border-radius: 10px; background: var(--badge); display: inline-flex; align-items: center; gap: 4px; margin: 12px 0 20px 0; }
 
@@ -492,65 +474,25 @@ app.get("/", (req, res) => {
         .time-mark { font-size: 9px; color: var(--muted); font-weight: 600; margin-left: 2px; background: rgba(0,0,0,0.04); padding: 1px 4px; border-radius: 4px; }
         body.is-night .time-mark { background: rgba(255,255,255,0.1); }
 
-        /* SUMMARY SYSTEM - ZONE B */
-.nav-tabs { display: flex; gap: 8px; margin-bottom: 25px; }
-.tab-btn { 
-    background: var(--card); border: 1px solid var(--border); padding: 12px 24px; 
-    border-radius: 16px; color: var(--text); font-weight: 700; cursor: pointer; transition: 0.3s; 
-}
-.tab-btn.active { background: var(--accent); color: white; border-color: var(--accent); box-shadow: var(--glow); }
+        /* SUMMARY SYSTEM */
+        .nav-tabs { display: flex; gap: 8px; margin-bottom: 25px; }
+        .tab-btn { 
+            background: var(--card); border: 1px solid var(--border); padding: 12px 24px; 
+            border-radius: 16px; color: var(--text); font-weight: 700; cursor: pointer; transition: 0.3s; 
+        }
+        .tab-btn.active { background: var(--accent); color: white; border-color: var(--accent); box-shadow: var(--glow); }
 
-.month-section { margin-bottom: 35px; animation: fadeIn 0.5s ease; }
-.month-header { font-size: 20px; font-weight: 800; margin: 25px 0 15px 0; color: var(--accent); display: flex; align-items: center; gap: 10px; }
-.month-header::after { content: ""; height: 2px; flex-grow: 1; background: var(--border); }
+        .month-section { margin-bottom: 35px; animation: fadeIn 0.5s ease; }
+        .month-header { font-size: 20px; font-weight: 800; margin: 25px 0 15px 0; color: var(--accent); display: flex; align-items: center; gap: 10px; }
+        .month-header::after { content: ""; height: 2px; flex-grow: 1; background: var(--border); }
 
-.summary-table-wrapper { overflow-x: auto; background: var(--card); border-radius: 24px; border: 1px solid var(--border); box-shadow: var(--glow); }
-.summary-table { width: 100%; border-collapse: collapse; min-width: 600px; }
-.summary-table th { padding: 16px; background: var(--badge); text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); }
-.summary-table td { padding: 16px; border-top: 1px solid var(--border); font-size: 14px; }
-.summary-table tr:hover { background: var(--badge); }
+        .summary-table-wrapper { overflow-x: auto; background: var(--card); border-radius: 24px; border: 1px solid var(--border); box-shadow: var(--glow); }
+        .summary-table { width: 100%; border-collapse: collapse; min-width: 600px; }
+        .summary-table th { padding: 16px; background: var(--badge); text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); }
+        .summary-table td { padding: 16px; border-top: 1px solid var(--border); font-size: 14px; }
+        .summary-table tr:hover { background: var(--badge); }
 
-@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-
-.modern-table {
-    width: 100%;
-    border-collapse: collapse;
-    /* Removed background: white; */
-    border-radius: 8px;
-    overflow: hidden;
-}
-
-.modern-table td {
-    padding: 15px;
-    border-bottom: 1px solid rgba(128, 128, 128, 0.2); /* Faint line for both modes */
-    font-size: 14px;
-    color: inherit; /* Inherits white text in dark mode, dark text in light mode */
-}
-
-.row-label {
-    background: rgba(128, 128, 128, 0.1); /* Subtle tint that adapts */
-    font-weight: 700;
-    color: inherit;
-    width: 35%;
-}
-
-/* Ensure spans inside the table are visible */
-.modern-table span {
-    color: inherit;
-}
-
-/* Restoring Graph Header visibility */
-.graph-header {
-    font-weight: 700;
-    font-size: 14px;
-    margin-bottom: 10px;
-    display: block;
-    text-align: left;
-    border-left: 3px solid #3b82f6;
-    padding-left: 8px;
-    color: inherit;
-}
-        
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
 <body>
@@ -628,36 +570,73 @@ app.get("/", (req, res) => {
                     <button onclick="switchSubView('graphs')" id="btn-sub-graph" class="tab-btn">24H Graphs</button>
                 </div>
 
-                <div id="sub-view-summary" class="summary-table-wrapper" style="background: transparent;">
-                    <table class="summary-table">
-                        <tr>
-                            <td style="background: var(--badge); font-weight: 700; width: 30%;">Temperature</td>
-                            <td>Max: <span id="s-mx" style="color:#ef4444 !important; font-weight:700;">--</span></td>
-                            <td>Min: <span id="s-mn" style="color:#0ea5e9 !important; font-weight:700;">--</span></td>
-                        </tr>
-                        <tr>
-                            <td style="background: var(--badge); font-weight: 700;">Wind</td>
-                            <td>Sustained: <span id="s-mw" style="font-weight:700;">--</span></td>
-                            <td>Gust: <span id="s-mg" style="font-weight:700;">--</span></td>
-                        </tr>
-                        <tr>
-                            <td style="background: var(--badge); font-weight: 700;">Rainfall</td>
-                            <td colspan="2">Today's Total: <span id="s-rt" style="font-weight:800; color:#3b82f6 !important;">--</span></td>
-                        </tr>
-                    </table>
+                <div id="sub-view-summary" style="display: block; animation: fadeIn 0.4s ease;">
+                    <div class="grid-system" style="grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px;">
+                        
+                        <div class="card" style="padding: 24px; min-height: 140px;">
+                            <div class="label" style="margin-bottom: 16px;"><span style="color:#ef4444; font-size:14px; margin-right:6px;">●</span>24H Temperature</div>
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: auto;">
+                                <div style="text-align: left;">
+                                    <div style="font-size: 11px; color: var(--muted); text-transform: uppercase; font-weight: 800; letter-spacing: 1px; margin-bottom: 4px;">Maximum</div>
+                                    <div id="s-mx" style="font-size: 32px; font-weight: 900; color: #ef4444; line-height: 1;">--</div>
+                                </div>
+                                <div style="height: 40px; width: 1px; background: var(--border);"></div>
+                                <div style="text-align: right;">
+                                    <div style="font-size: 11px; color: var(--muted); text-transform: uppercase; font-weight: 800; letter-spacing: 1px; margin-bottom: 4px;">Minimum</div>
+                                    <div id="s-mn" style="font-size: 32px; font-weight: 900; color: #0ea5e9; line-height: 1;">--</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="card" style="padding: 24px; min-height: 140px;">
+                            <div class="label" style="margin-bottom: 16px;"><span style="color:#f59e0b; font-size:14px; margin-right:6px;">●</span>24H Wind</div>
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: auto;">
+                                <div style="text-align: left;">
+                                    <div style="font-size: 11px; color: var(--muted); text-transform: uppercase; font-weight: 800; letter-spacing: 1px; margin-bottom: 4px;">Max Sustained</div>
+                                    <div id="s-mw" style="font-size: 32px; font-weight: 900; line-height: 1;">--</div>
+                                </div>
+                                <div style="height: 40px; width: 1px; background: var(--border);"></div>
+                                <div style="text-align: right;">
+                                    <div style="font-size: 11px; color: var(--muted); text-transform: uppercase; font-weight: 800; letter-spacing: 1px; margin-bottom: 4px;">Peak Gust</div>
+                                    <div id="s-mg" style="font-size: 32px; font-weight: 900; line-height: 1;">--</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="card" style="padding: 24px; min-height: 140px;">
+                            <div class="label" style="margin-bottom: 16px;"><span style="color:#3b82f6; font-size:14px; margin-right:6px;">●</span>24H Rainfall</div>
+                            <div style="text-align: left; margin-top: auto;">
+                                <div style="font-size: 11px; color: var(--muted); text-transform: uppercase; font-weight: 800; letter-spacing: 1px; margin-bottom: 4px;">Total Accumulation</div>
+                                <div id="s-rt" style="font-size: 32px; font-weight: 900; color: #3b82f6; line-height: 1;">--</div>
+                            </div>
+                        </div>
+
+                    </div>
                 </div>
 
-                <div id="sub-view-graphs" style="display: none;">
-                    <div class="graphs-wrapper" style="margin-top: 0;">
-                        <div class="graph-card"><div class="label" style="margin-bottom: 8px;">Temperature Trend</div><canvas id="cT"></canvas></div>
-                        <div class="graph-card"><div class="label" style="margin-bottom: 8px;">Humidity Levels</div><canvas id="cH"></canvas></div>
-                        <div class="graph-card"><div class="label" style="margin-bottom: 8px;">Wind Velocity</div><canvas id="cW"></canvas></div>
-                        <div class="graph-card"><div class="label" style="margin-bottom: 8px;">Precipitation</div><canvas id="cR"></canvas></div>
+                <div id="sub-view-graphs" style="display: none; animation: fadeIn 0.4s ease;">
+                    
+                    <div id="graphs-loading" style="text-align: center; padding: 40px; color: var(--muted); font-weight: 700; font-size: 14px; display: none;">
+                        <span style="display: inline-block; animation: blink 1.5s infinite;">Loading 24H Graph Data from Database...</span>
                     </div>
+                    
+                    <div id="graphs-error" style="text-align: center; padding: 40px; color: #ef4444; font-weight: 700; font-size: 14px; display: none;">
+                        Failed to load graph data.
+                    </div>
+                    
+                    <div class="graphs-wrapper" id="graphs-wrapper-inner" style="margin-top: 0; display: none;">
+                        <div class="graph-card"><div class="label" style="margin-bottom: 8px;">Temperature Trend</div><div style="flex-grow: 1; position: relative;"><canvas id="cT"></canvas></div></div>
+                        <div class="graph-card"><div class="label" style="margin-bottom: 8px;">Humidity Levels</div><div style="flex-grow: 1; position: relative;"><canvas id="cH"></canvas></div></div>
+                        <div class="graph-card"><div class="label" style="margin-bottom: 8px;">Wind Velocity</div><div style="flex-grow: 1; position: relative;"><canvas id="cW"></canvas></div></div>
+                        <div class="graph-card"><div class="label" style="margin-bottom: 8px;">Precipitation</div><div style="flex-grow: 1; position: relative;"><canvas id="cR"></canvas></div></div>
+                    </div>
+
                 </div>
             </div>
             
-        </div> <div id="page-summary" style="display: none;">
+        </div> 
+        
+        <div id="page-summary" style="display: none;">
             <div id="summary-content"></div>
         </div>
 
@@ -720,8 +699,6 @@ app.get("/", (req, res) => {
             if (charts.cT) updateChartColors();
         }
 
-
-
         document.getElementById('btn-light').onclick = () => { currentMode = 'light'; localStorage.setItem('weatherMode', 'light'); applyTheme(); };
         document.getElementById('btn-dark').onclick = () => { currentMode = 'dark'; localStorage.setItem('weatherMode', 'dark'); applyTheme(); };
         document.getElementById('btn-auto').onclick = () => { currentMode = 'auto'; localStorage.setItem('weatherMode', 'auto'); applyTheme(); };
@@ -772,7 +749,7 @@ app.get("/", (req, res) => {
             }
         }
 
-        // NEW 24H SUB TAB LOGIC
+        // NEW 24H SUB TAB LOGIC (FIXED)
         async function switchSubView(type) {
             document.getElementById('sub-view-summary').style.display = type === 'summary' ? 'block' : 'none';
             document.getElementById('sub-view-graphs').style.display = type === 'graphs' ? 'block' : 'none';
@@ -781,32 +758,52 @@ app.get("/", (req, res) => {
             document.getElementById('btn-sub-graph').classList.toggle('active', type === 'graphs');
 
             if (type === 'graphs' && !graphDataLoaded) {
+                document.getElementById('graphs-loading').style.display = 'block';
+                document.getElementById('graphs-error').style.display = 'none';
+                document.getElementById('graphs-wrapper-inner').style.display = 'none';
                 await fetchGraphDataFromDB();
+            } else if (type === 'graphs' && graphDataLoaded) {
+                document.getElementById('graphs-wrapper-inner').style.display = 'grid';
             }
         }
 
         async function fetchGraphDataFromDB() {
             try {
                 const res = await fetch('/api/history_graphs');
+                if (!res.ok) throw new Error("Failed response");
                 const history = await res.json();
+                
+                document.getElementById('graphs-loading').style.display = 'none';
+                
                 if (history && history.length > 0) {
-                    const labels = history.map(h => new Date(h.time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: false }));       
-                    if(!charts.cT) { 
-                        charts.cT = setupChart('cT', 'Temp °C', '#ef4444'); 
-                        charts.cH = setupChart('cH', 'Humidity %', '#10b981'); 
-                        charts.cW = setupChart('cW', 'Wind km/h', '#f59e0b'); 
-                        charts.cR = setupChart('cR', 'Rain mm', '#3b82f6', 0); 
-                        applyTheme(); 
-                    }
-                    charts.cT.data.labels = labels; charts.cT.data.datasets[0].data = history.map(h => h.temp); charts.cT.update('none');
-                    charts.cH.data.labels = labels; charts.cH.data.datasets[0].data = history.map(h => h.hum); charts.cH.update('none');
-                    charts.cW.data.labels = labels; charts.cW.data.datasets[0].data = history.map(h => h.wind); charts.cW.update('none');
-                    charts.cR.data.labels = labels; charts.cR.data.datasets[0].data = history.map(h => h.rain); charts.cR.update('none');
-                    graphDataLoaded = true;
+                    document.getElementById('graphs-wrapper-inner').style.display = 'grid';
+                    
+                    // Delay slightly to allow the browser to paint the grid before Chart.js calculates sizes
+                    setTimeout(() => {
+                        const labels = history.map(h => new Date(h.time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: false }));       
+                        if(!charts.cT) { 
+                            charts.cT = setupChart('cT', 'Temp °C', '#ef4444'); 
+                            charts.cH = setupChart('cH', 'Humidity %', '#10b981'); 
+                            charts.cW = setupChart('cW', 'Wind km/h', '#f59e0b'); 
+                            charts.cR = setupChart('cR', 'Rain mm', '#3b82f6', 0); 
+                            applyTheme(); 
+                        }
+                        charts.cT.data.labels = labels; charts.cT.data.datasets[0].data = history.map(h => h.temp); charts.cT.update('none');
+                        charts.cH.data.labels = labels; charts.cH.data.datasets[0].data = history.map(h => h.hum); charts.cH.update('none');
+                        charts.cW.data.labels = labels; charts.cW.data.datasets[0].data = history.map(h => h.wind); charts.cW.update('none');
+                        charts.cR.data.labels = labels; charts.cR.data.datasets[0].data = history.map(h => h.rain); charts.cR.update('none');
+                        graphDataLoaded = true;
+                    }, 50); 
+                } else {
+                    document.getElementById('graphs-error').innerText = "No graph data available for today yet.";
+                    document.getElementById('graphs-error').style.display = 'block';
                 }
-            } catch (err) { console.error("Error drawing graphs:", err); }
+            } catch (err) { 
+                console.error("Error drawing graphs:", err); 
+                document.getElementById('graphs-loading').style.display = 'none';
+                document.getElementById('graphs-error').style.display = 'block';
+            }
         }
-     
 
         async function update() {
             try {
@@ -814,12 +811,11 @@ app.get("/", (req, res) => {
                 const d = await res.json(); 
                 if (!d || d.error) return;
 
-                // Fade Value Updates
                 updateValueWithFade('t', d.temp.current, 1);
                 updateValueWithFade('w', d.wind.speed, 1);
                 updateValueWithFade('r_tot', d.rain.total, 1);
                 updateValueWithFade('r_rate', d.rain.rate, 1);
-                updateValueWithFade('wg', d.wind.gust, 1, ' km/h'); // This handles it now!
+                updateValueWithFade('wg', d.wind.gust, 1, ' km/h'); 
 
                 document.getElementById('tTrendBox').innerHTML = d.temp.rate > 0 ? '<span class="trend-up">▲</span> +' + d.temp.rate + '°C /hr' : d.temp.rate < 0 ? '<span class="trend-down">▼</span> ' + d.temp.rate + '°C /hr' : '● Steady';
                 document.getElementById('mx').innerHTML = d.temp.max + '°C <span class="time-mark">' + d.temp.maxTime + '</span>';
@@ -830,7 +826,6 @@ app.get("/", (req, res) => {
                 document.getElementById('rf').innerText = feels + '°C';
                 document.getElementById('h_val').innerHTML = d.atmo.hum + '% ' + (d.atmo.hTrend > 0 ? '▲' : d.atmo.hTrend < 0 ? '▼' : '●');
                 document.getElementById('d_val').innerText = d.temp.dew + '°C';
-
                 
                 document.getElementById('wd_bracket').innerText = '(' + d.wind.card + ')';
                 document.getElementById('mw').innerHTML = d.wind.maxS + ' km/h <span class="time-mark">' + d.wind.maxSTime + '</span>';
@@ -854,7 +849,7 @@ app.get("/", (req, res) => {
                 document.getElementById('uv').innerText = d.atmo.uv;
                 document.getElementById('ts').innerText = new Date(d.lastSync).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
                 
-                // POPULATE THE NEW 24H SUMMARY TABLE (No DB query, no timestamps)
+                // POPULATE THE MODERNIZED 24H SUMMARY CARDS
                 if(document.getElementById('s-mx')) {
                     document.getElementById('s-mx').innerText = d.temp.max + '°C';
                     document.getElementById('s-mn').innerText = d.temp.min + '°C';
@@ -890,64 +885,62 @@ app.get("/", (req, res) => {
 
         applyTheme(); animateWind(); setInterval(update, 45000); update();
 
-        /* SUMMARY CONTROLLER - ZONE D */
-function showPage(pageId) {
-    document.getElementById('page-dashboard').style.display = pageId === 'dashboard' ? 'block' : 'none';
-    document.getElementById('page-summary').style.display = pageId === 'summary' ? 'block' : 'none';
-    
-    document.getElementById('tab-dash').classList.toggle('active', pageId === 'dashboard');
-    document.getElementById('tab-sum').classList.toggle('active', pageId === 'summary');
+        /* SUMMARY CONTROLLER */
+        function showPage(pageId) {
+            document.getElementById('page-dashboard').style.display = pageId === 'dashboard' ? 'block' : 'none';
+            document.getElementById('page-summary').style.display = pageId === 'summary' ? 'block' : 'none';
+            
+            document.getElementById('tab-dash').classList.toggle('active', pageId === 'dashboard');
+            document.getElementById('tab-sum').classList.toggle('active', pageId === 'summary');
 
-    if (pageId === 'summary') fetchMonthlySummary();
-}
-
-async function fetchMonthlySummary() {
-    const content = document.getElementById('summary-content');
-    content.innerHTML = '<div class="card" style="text-align:center; padding:40px;">Generating Summary Report...</div>';
-    
-    try {
-        const res = await fetch('/api/summary');
-        const groups = await res.json();
-        
-        let html = '';
-        // We use \` and \${ to ensure the server doesn't try to run this code
-        for (const [month, days] of Object.entries(groups)) {
-            html += `
-                <div class="month-section">
-                    <div class="month-header">${month}</div>
-                    <div class="summary-table-wrapper">
-                        <table class="summary-table">
-                            <thead>
-                                <tr>
-                                    <th>Date</th>
-                                    <th>Max Temp</th>
-                                    <th>Min Temp</th>
-                                    <th>Wind/Gust</th>
-                                    <th>Total Rain</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                ${days.map(d => `
-                                    <tr>
-                                        <td><b>${new Date(d.record_date).getDate()}</b></td>
-                                        <td style="color:#ef4444; font-weight:700;">${d.max_temp_c}°C</td>
-                                        <td style="color:#0ea5e9; font-weight:700;">${d.min_temp_c}°C</td>
-                                        <td>${d.max_wind_kmh} / ${d.max_gust_kmh} <small>km/h</small></td>
-                                        <td style="font-weight:800;">${d.total_rain_mm} mm</td>
-                                    </tr>
-                                `).join('')}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            `;
+            if (pageId === 'summary') fetchMonthlySummary();
         }
-        content.innerHTML = html || '<div class="card" style="text-align:center; padding:40px;">No archived records found yet.</div>';
-    } catch (e) {
-        content.innerHTML = '<div class="card" style="color:#ef4444">Error loading summary.</div>';
-    }
-}
-        
+
+        async function fetchMonthlySummary() {
+            const content = document.getElementById('summary-content');
+            content.innerHTML = '<div class="card" style="text-align:center; padding:40px;">Generating Summary Report...</div>';
+            
+            try {
+                const res = await fetch('/api/summary');
+                const groups = await res.json();
+                
+                let html = '';
+                for (const [month, days] of Object.entries(groups)) {
+                    html += `
+                        <div class="month-section">
+                            <div class="month-header">${month}</div>
+                            <div class="summary-table-wrapper">
+                                <table class="summary-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Date</th>
+                                            <th>Max Temp</th>
+                                            <th>Min Temp</th>
+                                            <th>Wind/Gust</th>
+                                            <th>Total Rain</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        ${days.map(d => `
+                                            <tr>
+                                                <td><b>${new Date(d.record_date).getDate()}</b></td>
+                                                <td style="color:#ef4444; font-weight:700;">${d.max_temp_c}°C</td>
+                                                <td style="color:#0ea5e9; font-weight:700;">${d.min_temp_c}°C</td>
+                                                <td>${d.max_wind_kmh} / ${d.max_gust_kmh} <small>km/h</small></td>
+                                                <td style="font-weight:800;">${d.total_rain_mm} mm</td>
+                                            </tr>
+                                        `).join('')}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    `;
+                }
+                content.innerHTML = html || '<div class="card" style="text-align:center; padding:40px;">No archived records found yet.</div>';
+            } catch (e) {
+                content.innerHTML = '<div class="card" style="color:#ef4444">Error loading summary.</div>';
+            }
+        }
     </script>
 </body>
 </html>
