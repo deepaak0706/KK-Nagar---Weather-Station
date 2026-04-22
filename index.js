@@ -670,7 +670,7 @@ app.get("/", (req, res) => {
                 const dataset = data.datasets[0];
                 if (!dataset || !dataset.data || dataset.data.length < 2) return;
                 const maxVal = Math.max(...dataset.data);
-                const maxIndex = dataset.data.lastIndexOf(maxVal);
+                const maxIndex = dataset.data.indexOf(maxVal);
                 const meta = chart.getDatasetMeta(0);
                 const point = meta.data[maxIndex];
                 if (point && maxVal > -50) { 
