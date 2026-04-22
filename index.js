@@ -493,6 +493,66 @@ app.get("/", (req, res) => {
         .summary-table tr:hover { background: var(--badge); }
 
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+
+        /* Modern Mini Card Grid */
+.summary-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 12px;
+    padding: 10px 0;
+}
+
+.mini-day-card {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    padding: 12px;
+    text-align: center;
+    transition: transform 0.2s;
+}
+
+.mini-day-card:hover {
+    transform: translateY(-3px);
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.mini-date {
+    font-size: 0.8rem;
+    color: #94a3b8;
+    margin-bottom: 8px;
+    text-transform: uppercase;
+    font-weight: 600;
+}
+
+.mini-temp-group {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.mini-temp-hi { color: #f87171; font-weight: 700; font-size: 1.1rem; }
+.mini-temp-lo { color: #38bdf8; font-weight: 700; font-size: 1.1rem; }
+
+.mini-stat {
+    font-size: 0.75rem;
+    color: #cbd5e1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    margin-top: 4px;
+}
+
+.month-header-modern {
+    font-size: 1.4rem;
+    font-weight: 800;
+    margin: 20px 0 10px 0;
+    color: #f8fafc;
+    border-left: 4px solid #38bdf8;
+    padding-left: 12px;
+}
     </style>
 </head>
 <body>
@@ -898,48 +958,46 @@ app.get("/", (req, res) => {
 
         async function fetchMonthlySummary() {
     const content = document.getElementById('summary-content');
-    content.innerHTML = '<div class="card" style="text-align:center; padding:40px;">Generating Summary Report...</div>';
+    content.innerHTML = '<div style="text-align:center; padding:40px; color:#94a3b8;">Loading Archive...</div>';
     
     try {
         const res = await fetch('/api/summary');
         const groups = await res.json();
         
         let html = '';
-        // We use \${ and \` so Node.js ignores them, but the browser runs them
         for (const [month, days] of Object.entries(groups)) {
             html += \`
                 <div class="month-section">
-                    <div class="month-header">\${month}</div>
-                    <div class="summary-table-wrapper">
-                        <table class="summary-table">
-                            <thead>
-                                <tr>
-                                    <th>Date</th>
-                                    <th>Max Temp</th>
-                                    <th>Min Temp</th>
-                                    <th>Wind/Gust</th>
-                                    <th>Total Rain</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                \${days.map(d => \`
-                                    <tr>
-                                        <td><b>\${new Date(d.record_date).getDate()}</b></td>
-                                        <td style="color:#ef4444; font-weight:700;">\${d.max_temp_c}°C</td>
-                                        <td style="color:#0ea5e9; font-weight:700;">\${d.min_temp_c}°C</td>
-                                        <td>\${d.max_wind_kmh} / \${d.max_gust_kmh} <small>km/h</small></td>
-                                        <td style="font-weight:800;">\${d.total_rain_mm} mm</td>
-                                    </tr>
-                                \`).join('')}
-                            </tbody>
-                        </table>
+                    <div class="month-header-modern">\${month}</div>
+                    <div class="summary-grid">
+                        \${days.map(d => {
+                            const dateObj = new Date(d.record_date);
+                            const dayName = dateObj.toLocaleDateString('en-US', { weekday: 'short' });
+                            const dayNum = dateObj.getDate();
+                            
+                            return \`
+                                <div class="mini-day-card">
+                                    <div class="mini-date">\${dayName} \${dayNum}</div>
+                                    <div class="mini-temp-group">
+                                        <span class="mini-temp-hi">\${Math.round(d.max_temp_c)}°</span>
+                                        <span class="mini-temp-lo">\${Math.round(d.min_temp_c)}°</span>
+                                    </div>
+                                    <div class="mini-stat">
+                                        <span>💨</span> \${d.max_wind_kmh} <small>km/h</small>
+                                    </div>
+                                    <div class="mini-stat">
+                                        <span>💧</span> \${d.total_rain_mm} <small>mm</small>
+                                    </div>
+                                </div>
+                            \`;
+                        }).join('')}
                     </div>
                 </div>
             \`;
         }
-        content.innerHTML = html || '<div class="card" style="text-align:center; padding:40px;">No archived records found yet.</div>';
+        content.innerHTML = html || '<div style="text-align:center; padding:40px;">No records found.</div>';
     } catch (e) {
-        content.innerHTML = '<div class="card" style="color:#ef4444">Error loading summary.</div>';
+        content.innerHTML = '<div style="color:#f87171; text-align:center;">Failed to load archive.</div>';
     }
 }
 </script>
