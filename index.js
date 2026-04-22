@@ -493,6 +493,49 @@ app.get("/", (req, res) => {
         .summary-table tr:hover { background: var(--badge); }
 
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* Pro 24h Summary Grid */
+.summary-24h-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 15px;
+    margin-top: 15px;
+}
+
+.summary-tile {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 16px;
+    padding: 15px;
+    text-align: center;
+    transition: all 0.3s ease;
+}
+
+.summary-tile:hover {
+    background: rgba(255, 255, 255, 0.08);
+    transform: translateY(-2px);
+}
+
+.tile-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #94a3b8;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+    display: block;
+}
+
+.tile-value {
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: #f8fafc;
+}
+
+.tile-unit { font-size: 0.8rem; margin-left: 2px; color: #94a3b8; }
+.tile-high { color: #f87171; }
+.tile-low { color: #38bdf8; }
+.tile-rain { color: #60a5fa; }
+
     </style>
 </head>
 <body>
@@ -637,7 +680,26 @@ app.get("/", (req, res) => {
         </div> 
         
         <div id="page-summary" style="display: none;">
-            <div id="summary-content"></div>
+            <div id="summary" class="tab-content">
+    <div class="summary-24h-grid">
+        <div class="summary-tile">
+            <span class="tile-label">📈 Max Temp</span>
+            <span id="summary-max-t" class="tile-value tile-high">---</span><span class="tile-unit">°C</span>
+        </div>
+        <div class="summary-tile">
+            <span class="tile-label">📉 Min Temp</span>
+            <span id="summary-min-t" class="tile-value tile-low">---</span><span class="tile-unit">°C</span>
+        </div>
+        <div class="summary-tile">
+            <span class="tile-label">💨 Max Wind</span>
+            <span id="summary-max-w" class="tile-value">---</span><span class="tile-unit">km/h</span>
+        </div>
+        <div class="summary-tile">
+            <span class="tile-label">💧 Rainfall</span>
+            <span id="summary-total-r" class="tile-value tile-rain">---</span><span class="tile-unit">mm</span>
+        </div>
+    </div>
+</div>
         </div>
 
     </div>
