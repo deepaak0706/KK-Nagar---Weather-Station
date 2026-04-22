@@ -647,7 +647,8 @@ app.get("/", (req, res) => {
         let currentMode = localStorage.getItem('weatherMode') || 'auto';
         let charts = {};
         let liveWindSpeed = 0, liveWindDeg = 0, particles = [];
-        let graphDataLoaded = false;
+        graphDataLoaded = true;
+        graphLoadedDate = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
         const wCanvas = document.getElementById('windCanvas');
         const ctxW = wCanvas.getContext('2d');
 
@@ -757,7 +758,8 @@ app.get("/", (req, res) => {
             document.getElementById('btn-sub-sum').classList.toggle('active', type === 'summary');
             document.getElementById('btn-sub-graph').classList.toggle('active', type === 'graphs');
 
-            if (type === 'graphs' && !graphDataLoaded) {
+            const todayIST = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+            if (type === 'graphs' && (!graphDataLoaded || graphLoadedDate !== todayIST)) {
                 document.getElementById('graphs-loading').style.display = 'block';
                 document.getElementById('graphs-error').style.display = 'none';
                 document.getElementById('graphs-wrapper-inner').style.display = 'none';
@@ -793,6 +795,8 @@ app.get("/", (req, res) => {
                         charts.cW.data.labels = labels; charts.cW.data.datasets[0].data = history.map(h => h.wind); charts.cW.update('none');
                         charts.cR.data.labels = labels; charts.cR.data.datasets[0].data = history.map(h => h.rain); charts.cR.update('none');
                         graphDataLoaded = true;
+                        graphLoadedDate = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+
                     }, 50); 
                 } else {
                     document.getElementById('graphs-error').innerText = "No graph data available for today yet.";
