@@ -1,5 +1,4 @@
 const express = require("express"); 
-
 const fetch = require("node-fetch");
 const { Pool } = require('pg');
 const path = require("path");
@@ -131,8 +130,7 @@ async function syncWithEcowitt(forceWrite = false) {
     }
 
     // --- PART 1: VISITOR PATH ---
-    // OPTIMIZATION: Added !state.dataChangedSinceLastRead so visitors skip cache if the Cron just wrote new DB data
-    if (!forceWrite && state.cachedData && !state.dataChangedSinceLastRead && (now - state.lastFetchTime < 540000)) {
+    if (!forceWrite && state.cachedData && (now - state.lastFetchTime < 540000)) {
         try {
             const url = `https://api.ecowitt.net/api/v3/device/real_time?application_key=${APPLICATION_KEY}&api_key=${API_KEY}&mac=${MAC}`;
             const response = await fetch(url);
@@ -168,7 +166,7 @@ async function syncWithEcowitt(forceWrite = false) {
         } catch (e) { return state.cachedData; }
     }
 
-    // --- PART 2: WRITER PATH / GRAPH REBUILDER ---
+    // --- PART 2: WRITER PATH ---
     try {
         const url = `https://api.ecowitt.net/api/v3/device/real_time?application_key=${APPLICATION_KEY}&api_key=${API_KEY}&mac=${MAC}`;
         const response = await fetch(url);
@@ -178,8 +176,6 @@ async function syncWithEcowitt(forceWrite = false) {
         const liveTemp = parseFloat(((d.outdoor.temperature.value - 32) * 5 / 9).toFixed(1));
         const liveHum = d.outdoor.humidity.value || 0;
         const livePress = parseFloat((d.pressure.relative.value * 33.8639).toFixed(1));
-
-        let writeSuccess = false;
 
         if (forceWrite) {
             const client = await pool.connect();
@@ -238,25 +234,14 @@ async function syncWithEcowitt(forceWrite = false) {
                 }
 
                 await client.query('COMMIT');
-
-                state.dataChangedSinceLastRead = true; 
+                state.dataChangedSinceLastRead = true;
                 resetStateBuffers(); 
-                writeSuccess = true;
 
             } catch (err) { 
                 await client.query('ROLLBACK'); 
-                console.error("CRITICAL: DB Write Failed.", err); 
-            } finally { 
-                client.release(); 
-            }
-
-            // OPTIMIZATION: Stop execution here if called via Cron! 
-            // We do NOT run the expensive SELECT query below until a user actually visits.
-            state.lastFetchTime = now;
-            return writeSuccess ? { status: "success", msg: "DB write complete. Read deferred." } : { status: "error", msg: "Write failed." };
+                console.error("CRITICAL: DB Write Failed. Buffer held for next attempt.", err); 
+            } finally { client.release(); }
         }
-
-        // --- PART 3: THE GRAPH REBUILDER (Only runs for visitors when DB has new data) ---
 
         let graphHistory = state.cachedData?.history || [];
         let tempRate = state.cachedData?.temp?.rate || 0, humRate = state.cachedData?.atmo?.hTrend || 0, pressRate = state.cachedData?.atmo?.pTrend || 0;
@@ -299,7 +284,7 @@ async function syncWithEcowitt(forceWrite = false) {
                         press: r.press_rel ? parseFloat((r.press_rel * 33.8639).toFixed(1)) : livePress
                     });
                 });
-                state.dataChangedSinceLastRead = false; // Reset the flag so next visitors hit the cache
+                state.dataChangedSinceLastRead = false;
             } catch (dbError) { console.error("DB Prep Error:", dbError); }
         }
 
@@ -339,10 +324,6 @@ async function syncWithEcowitt(forceWrite = false) {
     } catch (e) { console.error("Sync Error:", e); return state.cachedData; }
 }
 
-
-
-
-
 async function getWeatherSummary() {
     const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
     if (state.summaryCache && state.lastSummaryFetchDate === today) return state.summaryCache;
@@ -375,6 +356,27 @@ app.get("/api/summary", async (req, res) => res.json(await getWeatherSummary()))
 app.get("/api/sync", async (req, res) => {
     if (req.query.buffer === 'true') return res.json(await bufferOnlyUpdate());
     res.json(await syncWithEcowitt(req.query.write === 'true'));
+});
+
+// NEW GRAPH ONLY ROUTE (Triggered strictly on button click)
+app.get("/api/history_graphs", async (req, res) => {
+    const todayISTStr = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" })).toLocaleDateString('en-CA');
+    try {
+        const historyRes = await pool.query(`
+            SELECT * FROM weather_history 
+            WHERE (time AT TIME ZONE 'Asia/Kolkata')::date = $1::date 
+            ORDER BY time ASC
+        `, [todayISTStr]);
+        
+        const history = historyRes.rows.map(r => ({
+            time: r.time, 
+            temp: parseFloat(((r.temp_f - 32) * 5 / 9).toFixed(1)), 
+            hum: r.humidity, 
+            wind: parseFloat((r.wind_speed_mph * 1.60934).toFixed(1)), 
+            rain: parseFloat((r.daily_rain_in * 25.4).toFixed(1))
+        }));
+        res.json(history);
+    } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 // 4. The User Interface (Your HTML)
@@ -510,9 +512,44 @@ app.get("/", (req, res) => {
 
 @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
+.modern-table {
+    width: 100%;
+    border-collapse: collapse;
+    /* Removed background: white; */
+    border-radius: 8px;
+    overflow: hidden;
+}
 
+.modern-table td {
+    padding: 15px;
+    border-bottom: 1px solid rgba(128, 128, 128, 0.2); /* Faint line for both modes */
+    font-size: 14px;
+    color: inherit; /* Inherits white text in dark mode, dark text in light mode */
+}
 
+.row-label {
+    background: rgba(128, 128, 128, 0.1); /* Subtle tint that adapts */
+    font-weight: 700;
+    color: inherit;
+    width: 35%;
+}
 
+/* Ensure spans inside the table are visible */
+.modern-table span {
+    color: inherit;
+}
+
+/* Restoring Graph Header visibility */
+.graph-header {
+    font-weight: 700;
+    font-size: 14px;
+    margin-bottom: 10px;
+    display: block;
+    text-align: left;
+    border-left: 3px solid #3b82f6;
+    padding-left: 8px;
+    color: inherit;
+}
         
     </style>
 </head>
@@ -585,11 +622,39 @@ app.get("/", (req, res) => {
                 </div>
             </div>
 
-            <div class="graphs-wrapper">
-                <div class="graph-card"><div class="label" style="margin-bottom: 8px;">Temperature Trend</div><canvas id="cT"></canvas></div>
-                <div class="graph-card"><div class="label" style="margin-bottom: 8px;">Humidity Levels</div><canvas id="cH"></canvas></div>
-                <div class="graph-card"><div class="label" style="margin-bottom: 8px;">Wind Velocity</div><canvas id="cW"></canvas></div>
-                <div class="graph-card"><div class="label" style="margin-bottom: 8px;">Precipitation</div><canvas id="cR"></canvas></div>
+            <div class="sub-tabs-section" style="margin-top: 35px;">
+                <div style="display: flex; gap: 10px; margin-bottom: 20px; justify-content: center;">
+                    <button onclick="switchSubView('summary')" id="btn-sub-sum" class="tab-btn active">24H Summary</button>
+                    <button onclick="switchSubView('graphs')" id="btn-sub-graph" class="tab-btn">24H Graphs</button>
+                </div>
+
+                <div id="sub-view-summary" class="summary-table-wrapper" style="background: transparent;">
+                    <table class="summary-table">
+                        <tr>
+                            <td style="background: var(--badge); font-weight: 700; width: 30%;">Temperature</td>
+                            <td>Max: <span id="s-mx" style="color:#ef4444 !important; font-weight:700;">--</span></td>
+                            <td>Min: <span id="s-mn" style="color:#0ea5e9 !important; font-weight:700;">--</span></td>
+                        </tr>
+                        <tr>
+                            <td style="background: var(--badge); font-weight: 700;">Wind</td>
+                            <td>Sustained: <span id="s-mw" style="font-weight:700;">--</span></td>
+                            <td>Gust: <span id="s-mg" style="font-weight:700;">--</span></td>
+                        </tr>
+                        <tr>
+                            <td style="background: var(--badge); font-weight: 700;">Rainfall</td>
+                            <td colspan="2">Today's Total: <span id="s-rt" style="font-weight:800; color:#3b82f6 !important;">--</span></td>
+                        </tr>
+                    </table>
+                </div>
+
+                <div id="sub-view-graphs" style="display: none;">
+                    <div class="graphs-wrapper" style="margin-top: 0;">
+                        <div class="graph-card"><div class="label" style="margin-bottom: 8px;">Temperature Trend</div><canvas id="cT"></canvas></div>
+                        <div class="graph-card"><div class="label" style="margin-bottom: 8px;">Humidity Levels</div><canvas id="cH"></canvas></div>
+                        <div class="graph-card"><div class="label" style="margin-bottom: 8px;">Wind Velocity</div><canvas id="cW"></canvas></div>
+                        <div class="graph-card"><div class="label" style="margin-bottom: 8px;">Precipitation</div><canvas id="cR"></canvas></div>
+                    </div>
+                </div>
             </div>
             
         </div> <div id="page-summary" style="display: none;">
@@ -603,6 +668,7 @@ app.get("/", (req, res) => {
         let currentMode = localStorage.getItem('weatherMode') || 'auto';
         let charts = {};
         let liveWindSpeed = 0, liveWindDeg = 0, particles = [];
+        let graphDataLoaded = false;
         const wCanvas = document.getElementById('windCanvas');
         const ctxW = wCanvas.getContext('2d');
 
@@ -637,27 +703,22 @@ app.get("/", (req, res) => {
         });
 
         function applyTheme() {
-    const hour = new Date().getHours();
-    const isDark = currentMode === 'dark' || (currentMode === 'auto' && (hour >= 18 || hour < 6));
-    
-    // 1. Change the actual colors of the page
-    if (isDark) {
-        document.body.classList.add('is-night');
-    } else {
-        document.body.classList.remove('is-night');
-    }
+            const hour = new Date().getHours();
+            const isDark = currentMode === 'dark' || (currentMode === 'auto' && (hour >= 18 || hour < 6));
+            
+            if (isDark) {
+                document.body.classList.add('is-night');
+            } else {
+                document.body.classList.remove('is-night');
+            }
 
-    // 2. MOVE THE HIGHLIGHT (The fix)
-    // First, remove the highlight from ALL buttons
-    document.querySelectorAll('.theme-btn').forEach(btn => btn.classList.remove('active'));
-    
-    // Then, add it only to the one the user actually chose
-    if (currentMode === 'light') document.getElementById('btn-light').classList.add('active');
-    else if (currentMode === 'dark') document.getElementById('btn-dark').classList.add('active');
-    else document.getElementById('btn-auto').classList.add('active');
+            document.querySelectorAll('.theme-btn').forEach(btn => btn.classList.remove('active'));
+            if (currentMode === 'light') document.getElementById('btn-light').classList.add('active');
+            else if (currentMode === 'dark') document.getElementById('btn-dark').classList.add('active');
+            else document.getElementById('btn-auto').classList.add('active');
 
-    if (charts.cT) updateChartColors();
-}
+            if (charts.cT) updateChartColors();
+        }
 
 
 
@@ -694,29 +755,57 @@ app.get("/", (req, res) => {
         }
         
         function updateValueWithFade(id, newValue, decimals = 1, suffix = "") {
-    const obj = document.getElementById(id);
-    if (!obj) return;
-    
-    // Safety check for null/undefined data
-    const val = newValue !== undefined && newValue !== null ? newValue : 0;
-    const formattedValue = parseFloat(val).toFixed(decimals) + suffix;
+            const obj = document.getElementById(id);
+            if (!obj) return;
+            const val = newValue !== undefined && newValue !== null ? newValue : 0;
+            const formattedValue = parseFloat(val).toFixed(decimals) + suffix;
 
-    // Only trigger if the value actually changed
-    if (obj.innerText !== formattedValue) {
-        obj.classList.remove('fade-update');
-        
-        // Brief invisible pause makes the "Magic" pop more
-        obj.style.opacity = "0"; 
-        
-        setTimeout(() => {
-            void obj.offsetWidth; // Force CSS refresh
-            obj.innerText = formattedValue;
-            obj.style.opacity = "1";
-            obj.classList.add('fade-update');
-        }, 50); 
-    }
-}
+            if (obj.innerText !== formattedValue) {
+                obj.classList.remove('fade-update');
+                obj.style.opacity = "0"; 
+                setTimeout(() => {
+                    void obj.offsetWidth; // Force CSS refresh
+                    obj.innerText = formattedValue;
+                    obj.style.opacity = "1";
+                    obj.classList.add('fade-update');
+                }, 50); 
+            }
+        }
 
+        // NEW 24H SUB TAB LOGIC
+        async function switchSubView(type) {
+            document.getElementById('sub-view-summary').style.display = type === 'summary' ? 'block' : 'none';
+            document.getElementById('sub-view-graphs').style.display = type === 'graphs' ? 'block' : 'none';
+            
+            document.getElementById('btn-sub-sum').classList.toggle('active', type === 'summary');
+            document.getElementById('btn-sub-graph').classList.toggle('active', type === 'graphs');
+
+            if (type === 'graphs' && !graphDataLoaded) {
+                await fetchGraphDataFromDB();
+            }
+        }
+
+        async function fetchGraphDataFromDB() {
+            try {
+                const res = await fetch('/api/history_graphs');
+                const history = await res.json();
+                if (history && history.length > 0) {
+                    const labels = history.map(h => new Date(h.time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: false }));       
+                    if(!charts.cT) { 
+                        charts.cT = setupChart('cT', 'Temp °C', '#ef4444'); 
+                        charts.cH = setupChart('cH', 'Humidity %', '#10b981'); 
+                        charts.cW = setupChart('cW', 'Wind km/h', '#f59e0b'); 
+                        charts.cR = setupChart('cR', 'Rain mm', '#3b82f6', 0); 
+                        applyTheme(); 
+                    }
+                    charts.cT.data.labels = labels; charts.cT.data.datasets[0].data = history.map(h => h.temp); charts.cT.update('none');
+                    charts.cH.data.labels = labels; charts.cH.data.datasets[0].data = history.map(h => h.hum); charts.cH.update('none');
+                    charts.cW.data.labels = labels; charts.cW.data.datasets[0].data = history.map(h => h.wind); charts.cW.update('none');
+                    charts.cR.data.labels = labels; charts.cR.data.datasets[0].data = history.map(h => h.rain); charts.cR.update('none');
+                    graphDataLoaded = true;
+                }
+            } catch (err) { console.error("Error drawing graphs:", err); }
+        }
      
 
         async function update() {
@@ -733,14 +822,14 @@ app.get("/", (req, res) => {
                 updateValueWithFade('wg', d.wind.gust, 1, ' km/h'); // This handles it now!
 
                 document.getElementById('tTrendBox').innerHTML = d.temp.rate > 0 ? '<span class="trend-up">▲</span> +' + d.temp.rate + '°C /hr' : d.temp.rate < 0 ? '<span class="trend-down">▼</span> ' + d.temp.rate + '°C /hr' : '● Steady';
-document.getElementById('mx').innerHTML = d.temp.max + '°C <span class="time-mark">' + d.temp.maxTime + '</span>';
-document.getElementById('mn').innerHTML = d.temp.min + '°C <span class="time-mark">' + d.temp.minTime + '</span>';
-const feels = d.temp.realFeel;
-const heatColor = feels >= 54 ? '#ef4444' : feels >= 41 ? '#f97316' : feels >= 32 ? '#eab308' : 'var(--text)';
-document.getElementById('rf').style.color = heatColor;
-document.getElementById('rf').innerText = feels + '°C';
-document.getElementById('h_val').innerHTML = d.atmo.hum + '% ' + (d.atmo.hTrend > 0 ? '▲' : d.atmo.hTrend < 0 ? '▼' : '●');
-document.getElementById('d_val').innerText = d.temp.dew + '°C';
+                document.getElementById('mx').innerHTML = d.temp.max + '°C <span class="time-mark">' + d.temp.maxTime + '</span>';
+                document.getElementById('mn').innerHTML = d.temp.min + '°C <span class="time-mark">' + d.temp.minTime + '</span>';
+                const feels = d.temp.realFeel;
+                const heatColor = feels >= 54 ? '#ef4444' : feels >= 41 ? '#f97316' : feels >= 32 ? '#eab308' : 'var(--text)';
+                document.getElementById('rf').style.color = heatColor;
+                document.getElementById('rf').innerText = feels + '°C';
+                document.getElementById('h_val').innerHTML = d.atmo.hum + '% ' + (d.atmo.hTrend > 0 ? '▲' : d.atmo.hTrend < 0 ? '▼' : '●');
+                document.getElementById('d_val').innerText = d.temp.dew + '°C';
 
                 
                 document.getElementById('wd_bracket').innerText = '(' + d.wind.card + ')';
@@ -764,21 +853,21 @@ document.getElementById('d_val').innerText = d.temp.dew + '°C';
                 document.getElementById('sol').innerText = d.atmo.sol + ' W/m²'; 
                 document.getElementById('uv').innerText = d.atmo.uv;
                 document.getElementById('ts').innerText = new Date(d.lastSync).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-
-              if (d.history && d.history.length > 0) {  
-                  const labels = d.history.map(h => new Date(h.time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: false }));       
-                if(!charts.cT) { 
-                    charts.cT = setupChart('cT', 'Temp °C', '#ef4444'); 
-                    charts.cH = setupChart('cH', 'Humidity %', '#10b981'); 
-                    charts.cW = setupChart('cW', 'Wind km/h', '#f59e0b'); 
-                    charts.cR = setupChart('cR', 'Rain mm', '#3b82f6', 0); 
-                    applyTheme(); 
+                
+                // POPULATE THE NEW 24H SUMMARY TABLE (No DB query, no timestamps)
+                if(document.getElementById('s-mx')) {
+                    document.getElementById('s-mx').innerText = d.temp.max + '°C';
+                    document.getElementById('s-mn').innerText = d.temp.min + '°C';
+                    document.getElementById('s-mw').innerText = d.wind.maxS + ' km/h';
+                    document.getElementById('s-mg').innerText = (d.wind.maxG || d.wind.maxS) + ' km/h';
+                    document.getElementById('s-rt').innerText = d.rain.total + ' mm';
                 }
-                charts.cT.data.labels = labels; charts.cT.data.datasets[0].data = d.history.map(h => h.temp); charts.cT.update('none');
-                charts.cH.data.labels = labels; charts.cH.data.datasets[0].data = d.history.map(h => h.hum); charts.cH.update('none');
-                charts.cW.data.labels = labels; charts.cW.data.datasets[0].data = d.history.map(h => h.wind); charts.cW.update('none');
-                charts.cR.data.labels = labels; charts.cR.data.datasets[0].data = d.history.map(h => h.rain); charts.cR.update('none');
-              }
+
+                // IF GRAPHS TAB IS OPEN, RE-FETCH GRAPH DATA TO UPDATE
+                if (graphDataLoaded && document.getElementById('sub-view-graphs').style.display === 'block') {
+                    fetchGraphDataFromDB();
+                }
+
             } catch (e) { console.error(e); }
         }
 
@@ -823,9 +912,9 @@ async function fetchMonthlySummary() {
         let html = '';
         // We use \` and \${ to ensure the server doesn't try to run this code
         for (const [month, days] of Object.entries(groups)) {
-            html += \`
+            html += `
                 <div class="month-section">
-                    <div class="month-header">\${month}</div>
+                    <div class="month-header">${month}</div>
                     <div class="summary-table-wrapper">
                         <table class="summary-table">
                             <thead>
@@ -838,27 +927,26 @@ async function fetchMonthlySummary() {
                                 </tr>
                             </thead>
                             <tbody>
-                                \${days.map(d => \`
+                                ${days.map(d => `
                                     <tr>
-                                        <td><b>\${new Date(d.record_date).getDate()}</b></td>
-                                        <td style="color:#ef4444; font-weight:700;">\${d.max_temp_c}°C</td>
-                                        <td style="color:#0ea5e9; font-weight:700;">\${d.min_temp_c}°C</td>
-                                        <td>\${d.max_wind_kmh} / \${d.max_gust_kmh} <small>km/h</small></td>
-                                        <td style="font-weight:800;">\${d.total_rain_mm} mm</td>
+                                        <td><b>${new Date(d.record_date).getDate()}</b></td>
+                                        <td style="color:#ef4444; font-weight:700;">${d.max_temp_c}°C</td>
+                                        <td style="color:#0ea5e9; font-weight:700;">${d.min_temp_c}°C</td>
+                                        <td>${d.max_wind_kmh} / ${d.max_gust_kmh} <small>km/h</small></td>
+                                        <td style="font-weight:800;">${d.total_rain_mm} mm</td>
                                     </tr>
-                                \`).join('')}
+                                `).join('')}
                             </tbody>
                         </table>
                     </div>
                 </div>
-            \`;
+            `;
         }
         content.innerHTML = html || '<div class="card" style="text-align:center; padding:40px;">No archived records found yet.</div>';
     } catch (e) {
         content.innerHTML = '<div class="card" style="color:#ef4444">Error loading summary.</div>';
     }
 }
-
         
     </script>
 </body>
