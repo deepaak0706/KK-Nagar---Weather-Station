@@ -858,11 +858,6 @@ app.get("/", (req, res) => {
                     document.getElementById('s-rt').innerText = d.rain.total + ' mm';
                 }
 
-                // IF GRAPHS TAB IS OPEN, RE-FETCH GRAPH DATA TO UPDATE
-                if (graphDataLoaded && document.getElementById('sub-view-graphs').style.display === 'block') {
-                    fetchGraphDataFromDB();
-                }
-
             } catch (e) { console.error(e); }
         }
 
