@@ -493,63 +493,55 @@ app.get("/", (req, res) => {
         .summary-table tr:hover { background: var(--badge); }
 
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        /* Modernized Pro 24H Summary Table */
-.pro-summary-container {
-    max-width: 650px;
-    margin: 0 auto;
-    background: var(--card);
-    border: 1px solid var(--border);
+
+/* Pro Stat Bar - Compact 24H Summary */
+.pro-stat-bar {
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 16px;
-    overflow: hidden;
-    box-shadow: var(--glow);
+    padding: 20px 10px;
+    margin: 20px 0;
+    backdrop-filter: blur(10px);
 }
 
-.pro-summary-table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 14px;
+.stat-group {
+    text-align: center;
+    flex: 1;
+    border-right: 1px solid rgba(255, 255, 255, 0.05);
 }
 
-.pro-summary-table tr {
-    border-bottom: 1px solid var(--border);
-}
+.stat-group:last-child { border-right: none; }
 
-.pro-summary-table tr:last-child {
-    border-bottom: none;
-}
-
-.pro-summary-table td {
-    padding: 16px 20px;
-    vertical-align: middle;
-}
-
-.pro-label-col {
-    color: var(--muted);
-    font-weight: 700;
-    text-transform: uppercase;
-    font-size: 11px;
-    letter-spacing: 0.5px;
-    width: 40%;
-}
-
-.pro-value-col {
-    text-align: right;
-    font-size: 18px;
+.stat-label {
+    display: block;
+    font-size: 10px;
     font-weight: 800;
+    color: #94a3b8;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 8px;
 }
 
-.pro-unit {
-    font-size: 12px;
-    color: var(--muted);
-    margin-left: 4px;
-    font-weight: 600;
+.stat-value {
+    font-size: 22px;
+    font-weight: 900;
+    display: block;
 }
 
-/* Row Accents */
-.row-max-t { border-left: 4px solid #ef4444 !important; }
-.row-min-t { border-left: 4px solid #0ea5e9 !important; }
-.row-wind  { border-left: 4px solid #f59e0b !important; }
-.row-rain  { border-left: 4px solid #3b82f6 !important; }
+.stat-unit {
+    font-size: 11px;
+    color: #64748b;
+    margin-left: 2px;
+}
+
+/* Colors */
+.color-max { color: #ef4444; }
+.color-min { color: #0ea5e9; }
+.color-wind { color: #f59e0b; }
+.color-rain { color: #3b82f6; }
     </style>
 </head>
 <body>
@@ -628,29 +620,32 @@ app.get("/", (req, res) => {
                 </div>
 
                 <div id="sub-view-summary" style="display: block; animation: fadeIn 0.4s ease;">
-    <div class="pro-summary-container">
-        <table class="pro-summary-table">
-            <tr class="row-max-t">
-                <td class="pro-label-col">🌡️ 24H Maximum Temp</td>
-                <td class="pro-value-col" style="color:#ef4444"><span id="s-mx">--</span><span class="pro-unit">°C</span></td>
-            </tr>
-            <tr class="row-min-t">
-                <td class="pro-label-col">❄️ 24H Minimum Temp</td>
-                <td class="pro-value-col" style="color:#0ea5e9"><span id="s-mn">--</span><span class="pro-unit">°C</span></td>
-            </tr>
-            <tr class="row-wind">
-                <td class="pro-label-col">💨 Max Sustained Wind</td>
-                <td class="pro-value-col"><span id="s-mw">--</span><span class="pro-unit">km/h</span></td>
-            </tr>
-            <tr class="row-wind">
-                <td class="pro-label-col">🚩 Peak Wind Gust</td>
-                <td class="pro-value-col"><span id="s-mg">--</span><span class="pro-unit">km/h</span></td>
-            </tr>
-            <tr class="row-rain">
-                <td class="pro-label-col">💧 Total Rainfall (24H)</td>
-                <td class="pro-value-col" style="color:#3b82f6"><span id="s-rt">--</span><span class="pro-unit">mm</span></td>
-            </tr>
-        </table>
+    <div class="pro-stat-bar">
+        <div class="stat-group">
+            <span class="stat-label">Max Temp</span>
+            <span id="s-mx" class="stat-value color-max">--</span>
+            <span class="stat-unit">°C</span>
+        </div>
+        <div class="stat-group">
+            <span class="stat-label">Min Temp</span>
+            <span id="s-mn" class="stat-value color-min">--</span>
+            <span class="stat-unit">°C</span>
+        </div>
+        <div class="stat-group">
+            <span class="stat-label">Max Wind</span>
+            <span id="s-mw" class="stat-value color-wind">--</span>
+            <span class="stat-unit">km/h</span>
+        </div>
+        <div class="stat-group">
+            <span class="stat-label">Peak Gust</span>
+            <span id="s-mg" class="stat-value color-wind">--</span>
+            <span class="stat-unit">km/h</span>
+        </div>
+        <div class="stat-group">
+            <span class="stat-label">24H Rain</span>
+            <span id="s-rt" class="stat-value color-rain">--</span>
+            <span class="stat-unit">mm</span>
+        </div>
     </div>
 </div>
 
