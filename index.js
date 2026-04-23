@@ -493,55 +493,6 @@ app.get("/", (req, res) => {
         .summary-table tr:hover { background: var(--badge); }
 
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-
-/* Pro Stat Bar - Compact 24H Summary */
-.pro-stat-bar {
-    display: flex;
-    justify-content: space-around;
-    align-items: center;
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 16px;
-    padding: 20px 10px;
-    margin: 20px 0;
-    backdrop-filter: blur(10px);
-}
-
-.stat-group {
-    text-align: center;
-    flex: 1;
-    border-right: 1px solid rgba(255, 255, 255, 0.05);
-}
-
-.stat-group:last-child { border-right: none; }
-
-.stat-label {
-    display: block;
-    font-size: 10px;
-    font-weight: 800;
-    color: #94a3b8;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    margin-bottom: 8px;
-}
-
-.stat-value {
-    font-size: 22px;
-    font-weight: 900;
-    display: block;
-}
-
-.stat-unit {
-    font-size: 11px;
-    color: #64748b;
-    margin-left: 2px;
-}
-
-/* Colors */
-.color-max { color: #ef4444; }
-.color-min { color: #0ea5e9; }
-.color-wind { color: #f59e0b; }
-.color-rain { color: #3b82f6; }
     </style>
 </head>
 <body>
@@ -620,34 +571,22 @@ app.get("/", (req, res) => {
                 </div>
 
                 <div id="sub-view-summary" style="display: block; animation: fadeIn 0.4s ease;">
-    <div class="pro-stat-bar">
-        <div class="stat-group">
-            <span class="stat-label">Max Temp</span>
-            <span id="s-mx" class="stat-value color-max">--</span>
-            <span class="stat-unit">°C</span>
-        </div>
-        <div class="stat-group">
-            <span class="stat-label">Min Temp</span>
-            <span id="s-mn" class="stat-value color-min">--</span>
-            <span class="stat-unit">°C</span>
-        </div>
-        <div class="stat-group">
-            <span class="stat-label">Max Wind</span>
-            <span id="s-mw" class="stat-value color-wind">--</span>
-            <span class="stat-unit">km/h</span>
-        </div>
-        <div class="stat-group">
-            <span class="stat-label">Peak Gust</span>
-            <span id="s-mg" class="stat-value color-wind">--</span>
-            <span class="stat-unit">km/h</span>
-        </div>
-        <div class="stat-group">
-            <span class="stat-label">24H Rain</span>
-            <span id="s-rt" class="stat-value color-rain">--</span>
-            <span class="stat-unit">mm</span>
-        </div>
-    </div>
-</div>
+                    <div class="grid-system" style="grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px;">
+                        
+                        <div class="card" style="padding: 24px; min-height: 140px;">
+                            <div class="label" style="margin-bottom: 16px;"><span style="color:#ef4444; font-size:14px; margin-right:6px;">●</span>24H Temperature</div>
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: auto;">
+                                <div style="text-align: left;">
+                                    <div style="font-size: 11px; color: var(--muted); text-transform: uppercase; font-weight: 800; letter-spacing: 1px; margin-bottom: 4px;">Maximum</div>
+                                    <div id="s-mx" style="font-size: 32px; font-weight: 900; color: #ef4444; line-height: 1;">--</div>
+                                </div>
+                                <div style="height: 40px; width: 1px; background: var(--border);"></div>
+                                <div style="text-align: right;">
+                                    <div style="font-size: 11px; color: var(--muted); text-transform: uppercase; font-weight: 800; letter-spacing: 1px; margin-bottom: 4px;">Minimum</div>
+                                    <div id="s-mn" style="font-size: 32px; font-weight: 900; color: #0ea5e9; line-height: 1;">--</div>
+                                </div>
+                            </div>
+                        </div>
 
                         <div class="card" style="padding: 24px; min-height: 140px;">
                             <div class="label" style="margin-bottom: 16px;"><span style="color:#f59e0b; font-size:14px; margin-right:6px;">●</span>24H Wind</div>
