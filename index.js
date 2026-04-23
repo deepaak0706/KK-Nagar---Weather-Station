@@ -493,6 +493,72 @@ app.get("/", (req, res) => {
         .summary-table tr:hover { background: var(--badge); }
 
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* Compact Pro 24H Dashboard */
+.compact-summary-card {
+    background: rgba(15, 23, 42, 0.4); /* Sleek dark transparent background */
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 16px;
+    padding: 24px;
+    max-width: 380px; /* Keeps it tight and compact */
+    margin: 20px auto; /* Centers the widget */
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+    backdrop-filter: blur(10px);
+}
+
+.compact-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 15px;
+}
+
+.compact-divider {
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+    margin: 20px 0;
+}
+
+.compact-item {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    text-align: center;
+}
+
+.c-icon {
+    font-size: 0.75rem;
+    color: #94a3b8;
+    text-transform: uppercase;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    margin-bottom: 6px;
+}
+
+.c-val-container {
+    display: flex;
+    align-items: baseline;
+    justify-content: center;
+}
+
+.c-val {
+    font-size: 2rem;
+    font-weight: 800;
+    line-height: 1;
+}
+
+.c-unit {
+    font-size: 0.85rem;
+    color: #64748b;
+    margin-left: 4px;
+    font-weight: 600;
+}
+
+/* Data Specific Colors */
+.c-high { color: #f87171; }
+.c-low { color: #38bdf8; }
+.c-wind { color: #f1f5f9; }
+.c-rain { color: #60a5fa; }
     </style>
 </head>
 <body>
@@ -571,37 +637,44 @@ app.get("/", (req, res) => {
                 </div>
 
                 <div id="sub-view-summary" style="display: block; animation: fadeIn 0.4s ease;">
-                    <div class="grid-system" style="grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px;">
+                    <div class="compact-summary-card">
                         
-                        <div class="card" style="padding: 24px; min-height: 140px;">
-                            <div class="label" style="margin-bottom: 16px;"><span style="color:#ef4444; font-size:14px; margin-right:6px;">●</span>24H Temperature</div>
-                            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: auto;">
-                                <div style="text-align: left;">
-                                    <div style="font-size: 11px; color: var(--muted); text-transform: uppercase; font-weight: 800; letter-spacing: 1px; margin-bottom: 4px;">Maximum</div>
-                                    <div id="s-mx" style="font-size: 32px; font-weight: 900; color: #ef4444; line-height: 1;">--</div>
+                        <div class="compact-row">
+                            <div class="compact-item">
+                                <span class="c-icon">🌡️ Max Temp</span>
+                                <div class="c-val-container">
+                                    <span id="s-mx" class="c-val c-high">--</span>
                                 </div>
-                                <div style="height: 40px; width: 1px; background: var(--border);"></div>
-                                <div style="text-align: right;">
-                                    <div style="font-size: 11px; color: var(--muted); text-transform: uppercase; font-weight: 800; letter-spacing: 1px; margin-bottom: 4px;">Minimum</div>
-                                    <div id="s-mn" style="font-size: 32px; font-weight: 900; color: #0ea5e9; line-height: 1;">--</div>
+                            </div>
+                            
+                            <div class="compact-item">
+                                <span class="c-icon">❄️ Min Temp</span>
+                                <div class="c-val-container">
+                                    <span id="s-mn" class="c-val c-low">--</span>
                                 </div>
                             </div>
                         </div>
-
-                        <div class="card" style="padding: 24px; min-height: 140px;">
-                            <div class="label" style="margin-bottom: 16px;"><span style="color:#f59e0b; font-size:14px; margin-right:6px;">●</span>24H Wind</div>
-                            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: auto;">
-                                <div style="text-align: left;">
-                                    <div style="font-size: 11px; color: var(--muted); text-transform: uppercase; font-weight: 800; letter-spacing: 1px; margin-bottom: 4px;">Max Sustained</div>
-                                    <div id="s-mw" style="font-size: 32px; font-weight: 900; line-height: 1;">--</div>
+                        
+                        <div class="compact-divider"></div>
+                        
+                        <div class="compact-row">
+                            <div class="compact-item">
+                                <span class="c-icon">💨 Max Wind</span>
+                                <div class="c-val-container">
+                                    <span id="s-mw" class="c-val c-wind">--</span>
                                 </div>
-                                <div style="height: 40px; width: 1px; background: var(--border);"></div>
-                                <div style="text-align: right;">
-                                    <div style="font-size: 11px; color: var(--muted); text-transform: uppercase; font-weight: 800; letter-spacing: 1px; margin-bottom: 4px;">Peak Gust</div>
-                                    <div id="s-mg" style="font-size: 32px; font-weight: 900; line-height: 1;">--</div>
+                            </div>
+                            
+                            <div class="compact-item">
+                                <span class="c-icon">💧 Total Rain</span>
+                                <div class="c-val-container">
+                                    <span id="s-rt" class="c-val c-rain">--</span>
                                 </div>
                             </div>
                         </div>
+                        
+                    </div>
+                </div>
 
                         <div class="card" style="padding: 24px; min-height: 140px;">
                             <div class="label" style="margin-bottom: 16px;"><span style="color:#3b82f6; font-size:14px; margin-right:6px;">●</span>24H Rainfall</div>
