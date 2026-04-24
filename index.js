@@ -386,17 +386,34 @@ async function getWeatherSummary() {
     if (state.summaryCache && state.lastSummaryFetchDate === today) return state.summaryCache;
     try {
         const res = await pool.query(`SELECT * FROM daily_max_records ORDER BY record_date DESC`);
+        
+        // Safety check for empty rows
+        if (!res.rows || res.rows.length === 0) return {};
+
         const formatted = res.rows.reduce((acc, row) => {
-            const mY = new Date(row.record_date).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
+            // Ensure record_date is a valid Date object
+            const dateObj = new Date(row.record_date);
+            const mY = dateObj.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
             if (!acc[mY]) acc[mY] = [];
-            acc[mY].push(row);
+            
+            // Format numbers to 1 decimal place to prevent UI overflow
+            acc[mY].push({
+                ...row,
+                max_temp_c: parseFloat(row.max_temp_c).toFixed(1),
+                min_temp_c: parseFloat(row.min_temp_c).toFixed(1),
+                total_rain_mm: parseFloat(row.total_rain_mm).toFixed(1)
+            });
             return acc;
         }, {});
-        state.summaryCache = formatted; state.lastSummaryFetchDate = today;
-        return formatted;
-    } catch (err) { return { error: err.message }; }
-}
 
+        state.summaryCache = formatted; 
+        state.lastSummaryFetchDate = today;
+        return formatted;
+    } catch (err) { 
+        console.error("Summary Query Error:", err);
+        return { error: err.message }; 
+    }
+}
 // Routes
 
 /**
@@ -1092,8 +1109,18 @@ app.get("/", (req, res) => {
         const res = await fetch('/api/summary');
         const groups = await res.json();
         
+        // Check if the server returned an error object
+        if (groups.error) {
+            content.innerHTML = `<div class="card" style="color:#ef4444; padding:20px;">Server Error: ${groups.error}</div>`;
+            return;
+        }
+
+        if (Object.keys(groups).length === 0) {
+            content.innerHTML = '<div class="card" style="text-align:center; padding:40px;">No archived records found yet. History starts after the first midnight reset.</div>';
+            return;
+        }
+        
         let html = '';
-        // We use \${ and \` so Node.js ignores them, but the browser runs them
         for (const [month, days] of Object.entries(groups)) {
             html += \`
                 <div class="month-section">
@@ -1125,9 +1152,10 @@ app.get("/", (req, res) => {
                 </div>
             \`;
         }
-        content.innerHTML = html || '<div class="card" style="text-align:center; padding:40px;">No archived records found yet.</div>';
+        content.innerHTML = html;
     } catch (e) {
-        content.innerHTML = '<div class="card" style="color:#ef4444">Error loading summary.</div>';
+        console.error("Frontend Fetch Error:", e);
+        content.innerHTML = '<div class="card" style="color:#ef4444; padding:20px;">Failed to parse summary data. Check console for details.</div>';
     }
 }
 </script>
