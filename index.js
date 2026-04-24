@@ -129,7 +129,7 @@ async function syncWithEcowitt(forceWrite = false) {
         state.cachedData = null;
     }
 
-    // --- PART 1: VISITOR PATH ---
+        // --- PART 1: VISITOR PATH ---
     if (!forceWrite && state.cachedData && (now - state.lastFetchTime < 540000)) {
         try {
             const url = `https://api.ecowitt.net/api/v3/device/real_time?application_key=${APPLICATION_KEY}&api_key=${API_KEY}&mac=${MAC}`;
@@ -148,6 +148,9 @@ async function syncWithEcowitt(forceWrite = false) {
             state.cachedData.temp.realFeel = calculateRealFeel(liveTemp, liveHum);
 
             const fmtL = () => new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' });
+            const fmtIso = (isoStr) => isoStr ? new Date(isoStr).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' }) : fmtL();
+
+            // 1. Check live instantaneous values
             if (liveTemp > state.cachedData.temp.max) { state.cachedData.temp.max = liveTemp; state.cachedData.temp.maxTime = fmtL(); }
             if (liveTemp < state.cachedData.temp.min) { state.cachedData.temp.min = liveTemp; state.cachedData.temp.minTime = fmtL(); }
             if (liveWind > state.cachedData.wind.maxS) { state.cachedData.wind.maxS = liveWind; state.cachedData.wind.maxSTime = fmtL(); }
@@ -155,6 +158,28 @@ async function syncWithEcowitt(forceWrite = false) {
             
             const liveRR = parseFloat((state.lastCalculatedRate * 25.4).toFixed(1));
             if (liveRR > state.cachedData.rain.maxR) { state.cachedData.rain.maxR = liveRR; state.cachedData.rain.maxRTime = fmtL(); }
+
+            // 2. NEW: Check Memory Buffers (Ensures live visitors don't miss 1-min peaks before DB write)
+            if (state.bufMaxT !== -999) {
+                const bMx = parseFloat(((state.bufMaxT - 32) * 5/9).toFixed(1));
+                if (bMx > state.cachedData.temp.max) { state.cachedData.temp.max = bMx; state.cachedData.temp.maxTime = fmtIso(state.tMaxT); }
+            }
+            if (state.bufMinT !== 999) {
+                const bMn = parseFloat(((state.bufMinT - 32) * 5/9).toFixed(1));
+                if (bMn < state.cachedData.temp.min) { state.cachedData.temp.min = bMn; state.cachedData.temp.minTime = fmtIso(state.tMinT); }
+            }
+            if (state.bufW > 0) {
+                const bW = parseFloat((state.bufW * 1.60934).toFixed(1));
+                if (bW > state.cachedData.wind.maxS) { state.cachedData.wind.maxS = bW; state.cachedData.wind.maxSTime = fmtIso(state.tW); }
+            }
+            if (state.bufG > 0) {
+                const bG = parseFloat((state.bufG * 1.60934).toFixed(1));
+                if (bG > state.cachedData.wind.maxG) { state.cachedData.wind.maxG = bG; state.cachedData.wind.maxGTime = fmtIso(state.tG); }
+            }
+            if (state.bufRR > 0) {
+                const bRR = parseFloat((state.bufRR * 25.4).toFixed(1));
+                if (bRR > state.cachedData.rain.maxR) { state.cachedData.rain.maxR = bRR; state.cachedData.rain.maxRTime = fmtIso(state.tRR); }
+            }
 
             state.cachedData.temp.current = liveTemp;
             state.cachedData.wind.speed = liveWind;
@@ -165,6 +190,7 @@ async function syncWithEcowitt(forceWrite = false) {
             return state.cachedData;
         } catch (e) { return state.cachedData; }
     }
+
 
     // --- PART 2: WRITER PATH ---
     try {
@@ -297,15 +323,45 @@ async function syncWithEcowitt(forceWrite = false) {
             } catch (dbError) { console.error("DB Prep Error:", dbError); }
         }
 
-        const liveWind = parseFloat((d.wind.wind_speed.value * 1.60934).toFixed(1));
+                const liveWind = parseFloat((d.wind.wind_speed.value * 1.60934).toFixed(1));
         const liveGust = parseFloat((d.wind.wind_gust.value * 1.60934).toFixed(1));
         const liveRR = parseFloat((state.lastCalculatedRate * 25.4).toFixed(1));
 
+        // --- FIX: Include Memory Buffers in Dashboard Max/Min Calculations ---
+        const fmtIso = (isoStr) => {
+            if (!isoStr) return fmtL();
+            return new Date(isoStr).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' });
+        };
+
+        // 1. Check live instantaneous values
         if (liveTemp > mx_t) { mx_t = liveTemp; mx_t_time = fmtL(); }
         if (liveTemp < mn_t) { mn_t = liveTemp; mn_t_time = fmtL(); }
         if (liveWind > mx_w) { mx_w = liveWind; mx_w_t = fmtL(); }
         if (liveGust > mx_g) { mx_g = liveGust; mx_g_t = fmtL(); }
-        if (liveRR > mx_r) { mx_r = liveRR; mx_r_t = fmtL(); }
+        if (liveRR > mx_r)   { mx_r = liveRR; mx_r_t = fmtL(); }
+
+        // 2. Check the high-frequency 1-min Memory Buffers
+        if (state.bufMaxT !== -999) {
+            const bufMaxC = parseFloat(((state.bufMaxT - 32) * 5 / 9).toFixed(1));
+            if (bufMaxC > mx_t) { mx_t = bufMaxC; mx_t_time = fmtIso(state.tMaxT); }
+        }
+        if (state.bufMinT !== 999) {
+            const bufMinC = parseFloat(((state.bufMinT - 32) * 5 / 9).toFixed(1));
+            if (bufMinC < mn_t) { mn_t = bufMinC; mn_t_time = fmtIso(state.tMinT); }
+        }
+        if (state.bufW > 0) {
+            const bufWC = parseFloat((state.bufW * 1.60934).toFixed(1));
+            if (bufWC > mx_w) { mx_w = bufWC; mx_w_t = fmtIso(state.tW); }
+        }
+        if (state.bufG > 0) {
+            const bufGC = parseFloat((state.bufG * 1.60934).toFixed(1));
+            if (bufGC > mx_g) { mx_g = bufGC; mx_g_t = fmtIso(state.tG); }
+        }
+        if (state.bufRR > 0) {
+            const bufRRC = parseFloat((state.bufRR * 25.4).toFixed(1));
+            if (bufRRC > mx_r) { mx_r = bufRRC; mx_r_t = fmtIso(state.tRR); }
+        }
+
 
         state.cachedData = {
             temp: { current: liveTemp, max: mx_t, maxTime: mx_t_time, min: mn_t, minTime: mn_t_time, realFeel: calculateRealFeel(liveTemp, liveHum), rate: tempRate, dew: parseFloat((liveTemp - ((100 - liveHum) / 5)).toFixed(1)) },
