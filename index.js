@@ -386,34 +386,17 @@ async function getWeatherSummary() {
     if (state.summaryCache && state.lastSummaryFetchDate === today) return state.summaryCache;
     try {
         const res = await pool.query(`SELECT * FROM daily_max_records ORDER BY record_date DESC`);
-        
-        // Safety check for empty rows
-        if (!res.rows || res.rows.length === 0) return {};
-
         const formatted = res.rows.reduce((acc, row) => {
-            // Ensure record_date is a valid Date object
-            const dateObj = new Date(row.record_date);
-            const mY = dateObj.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
+            const mY = new Date(row.record_date).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
             if (!acc[mY]) acc[mY] = [];
-            
-            // Format numbers to 1 decimal place to prevent UI overflow
-            acc[mY].push({
-                ...row,
-                max_temp_c: parseFloat(row.max_temp_c).toFixed(1),
-                min_temp_c: parseFloat(row.min_temp_c).toFixed(1),
-                total_rain_mm: parseFloat(row.total_rain_mm).toFixed(1)
-            });
+            acc[mY].push(row);
             return acc;
         }, {});
-
-        state.summaryCache = formatted; 
-        state.lastSummaryFetchDate = today;
+        state.summaryCache = formatted; state.lastSummaryFetchDate = today;
         return formatted;
-    } catch (err) { 
-        console.error("Summary Query Error:", err);
-        return { error: err.message }; 
-    }
+    } catch (err) { return { error: err.message }; }
 }
+
 // Routes
 
 /**
@@ -424,134 +407,7 @@ async function getWeatherSummary() {
 app.get("/weather", async (req, res) => res.json(await syncWithEcowitt(false)));
 
 // 2. API for the historical summary table
-app.get("/summary", async (req, res) => {
-    const now = new Date();
-    // Get month/year from query or default to current
-    const selMonth = req.query.m ? parseInt(req.query.m) : now.getMonth() + 1;
-    const selYear = req.query.y ? parseInt(req.query.y) : now.getFullYear();
-
-    let days = [];
-    try {
-        // OPTIMIZED: We only fetch the specific month/year requested
-        const result = await pool.query(`
-            SELECT * FROM daily_max_records 
-            WHERE EXTRACT(MONTH FROM record_date) = $1 
-            AND EXTRACT(YEAR FROM record_date) = $2
-            ORDER BY record_date DESC
-        `, [selMonth, selYear]);
-        days = result.rows;
-    } catch (e) { console.error("Summary Query Error:", e); }
-
-    // AJAX handler for the dropdowns
-    if (req.headers['x-requested-with'] === 'XMLHttpRequest') {
-        return res.json(days);
-    }
-
-    res.send(`
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Monthly Archive</title>
-    <link rel="stylesheet" href="/style.css">
-    <style>
-        .filter-bar { display: flex; gap: 10px; margin-bottom: 20px; background: white; padding: 15px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); align-items: center; justify-content: center; }
-        select { padding: 8px 12px; border-radius: 8px; border: 1px solid #ddd; font-size: 14px; outline: none; cursor: pointer; background: #fff; }
-        .no-data { text-align: center; padding: 60px 20px; color: #94a3b8; font-size: 16px; }
-        table { width: 100%; border-collapse: collapse; font-size: 14px; }
-        th { background: #f8fafc; padding: 12px; border-bottom: 1px solid #e2e8f0; color: #64748b; font-weight: 600; }
-        td { padding: 12px; border-bottom: 1px solid #f1f5f9; text-align: center; }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <div class="header">
-            <a href="/" style="text-decoration:none; font-size:24px; color: #1e293b;">←</a>
-            <h1 style="margin:0;">Archive</h1>
-        </div>
-
-        <div class="filter-bar">
-            <select id="monthSelect">
-                ${["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]
-                    .map((m, i) => `<option value="${i+1}" ${selMonth === i+1 ? 'selected' : ''}>${m}</option>`).join('')}
-            </select>
-            <select id="yearSelect">
-                ${Array.from({length: (now.getFullYear() - 2026) + 1}, (_, i) => 2026 + i)
-                    .map(y => `<option value="${y}" ${selYear === y ? 'selected' : ''}>${y}</option>`).join('')}
-            </select>
-        </div>
-
-        <div id="summary-content"></div>
-    </div>
-
-    <script>
-        const monthEl = document.getElementById('monthSelect');
-        const yearEl = document.getElementById('yearSelect');
-        const content = document.getElementById('summary-content');
-
-        async function updateView() {
-            content.innerHTML = '<div class="no-data">Fetching records...</div>';
-            const m = monthEl.value;
-            const y = yearEl.value;
-            
-            try {
-                const res = await fetch(\`/summary?m=\${m}&y=\${y}\`, { headers: { 'x-requested-with': 'XMLHttpRequest' } });
-                const days = await res.json();
-                renderTable(days);
-            } catch (e) {
-                content.innerHTML = '<div class="card" style="color:#ef4444; text-align:center;">Connection Error</div>';
-            }
-        }
-
-        function renderTable(days) {
-            if (!days || days.length === 0) {
-                content.innerHTML = '<div class="card no-data">No data found for this period.</div>';
-                return;
-            }
-
-            content.innerHTML = \`
-                <div class="card" style="padding:0; overflow:hidden;">
-                    <div style="overflow-x:auto;">
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>Date</th>
-                                    <th>Max/Min</th>
-                                    <th>Wind/Gust</th>
-                                    <th>Rain</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                \${days.map(d => {
-                                    const dateObj = new Date(d.record_date);
-                                    return \`
-                                    <tr>
-                                        <td><b>\${dateObj.getDate()}</b></td>
-                                        <td>
-                                            <span style="color:#ef4444; font-weight:700;">\${d.max_temp_c}°</span> / 
-                                            <span style="color:#0ea5e9; font-weight:700;">\${d.min_temp_c}°</span>
-                                        </td>
-                                        <td style="font-size:12px;">\${d.max_wind_kmh}/\${d.max_gust_kmh} <small>km/h</small></td>
-                                        <td style="font-weight:800; color:#1e293b;">\${d.total_rain_mm} <small>mm</small></td>
-                                    </tr>\`;
-                                }).join('')}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>\`;
-        }
-
-        monthEl.addEventListener('change', updateView);
-        yearEl.addEventListener('change', updateView);
-        
-        // Load initial data from the server-side variable
-        renderTable(${JSON.stringify(days)});
-    </script>
-</body>
-</html>
-    `);
-});
+app.get("/api/summary", async (req, res) => res.json(await getWeatherSummary()));
 
 // 3. The Cron Job endpoint (handles buffer-only or full DB writes)
 app.get("/api/sync", async (req, res) => {
@@ -1109,18 +965,8 @@ app.get("/", (req, res) => {
         const res = await fetch('/api/summary');
         const groups = await res.json();
         
-        // Check if the server returned an error object
-        if (groups.error) {
-            content.innerHTML = `<div class="card" style="color:#ef4444; padding:20px;">Server Error: ${groups.error}</div>`;
-            return;
-        }
-
-        if (Object.keys(groups).length === 0) {
-            content.innerHTML = '<div class="card" style="text-align:center; padding:40px;">No archived records found yet. History starts after the first midnight reset.</div>';
-            return;
-        }
-        
         let html = '';
+        // We use \${ and \` so Node.js ignores them, but the browser runs them
         for (const [month, days] of Object.entries(groups)) {
             html += \`
                 <div class="month-section">
@@ -1152,10 +998,9 @@ app.get("/", (req, res) => {
                 </div>
             \`;
         }
-        content.innerHTML = html;
+        content.innerHTML = html || '<div class="card" style="text-align:center; padding:40px;">No archived records found yet.</div>';
     } catch (e) {
-        console.error("Frontend Fetch Error:", e);
-        content.innerHTML = '<div class="card" style="color:#ef4444; padding:20px;">Failed to parse summary data. Check console for details.</div>';
+        content.innerHTML = '<div class="card" style="color:#ef4444">Error loading summary.</div>';
     }
 }
 </script>
