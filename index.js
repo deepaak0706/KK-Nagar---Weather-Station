@@ -229,7 +229,7 @@ async function syncWithEcowitt(forceWrite = false) {
                     state.tW || new Date().toISOString(), 
                     state.tMaxT || new Date().toISOString(), 
                     state.tMinT || new Date().toISOString(), 
-                    state.tRR || new Date().toISOString(), 
+                    state.tRR || (state.lastRainTime ? new Date(state.lastRainTime).toISOString() : new Date().toISOString()),
                     state.tG || new Date().toISOString(), 
                     d.solar_and_uvi?.solar?.value || 0, 
                     d.pressure.relative.value || 0
