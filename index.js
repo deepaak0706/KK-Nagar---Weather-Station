@@ -274,8 +274,13 @@ async function syncWithEcowitt(forceWrite = false) {
         let mx_w = state.cachedData?.wind?.maxS || 0, mx_g = state.cachedData?.wind?.maxG || 0, mx_r = state.cachedData?.rain?.maxR || 0;
 
         const fmtL = () => new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' });
-        let mx_t_time = state.cachedData?.temp?.maxTime || fmtL(), mn_t_time = state.cachedData?.temp?.minTime || fmtL();
-        let mx_w_t = mx_t_time, mx_g_t = mx_t_time, mx_r_t = mx_t_time;
+
+        // Give each variable its own dedicated cached time
+        let mx_t_time = state.cachedData?.temp?.maxTime || fmtL();
+        let mn_t_time = state.cachedData?.temp?.minTime || fmtL();
+        let mx_w_t = state.cachedData?.wind?.maxSTime || fmtL();
+        let mx_g_t = state.cachedData?.wind?.maxGTime || fmtL();
+        let mx_r_t = state.cachedData?.rain?.maxRTime || fmtL();
 
         if (state.dataChangedSinceLastRead || !state.cachedData) {
             try {
