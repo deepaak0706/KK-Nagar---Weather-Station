@@ -1109,13 +1109,16 @@ async function fetchMonthlySummary() {
         
         const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
         
-        let monthOptions = months.map((m, i) => 
-            `<option value="\${m}" \${selectedMonth === m ? 'selected' : ''}>\${m}</option>`
-        ).join('');
+        // Use single quotes here to avoid nested backtick errors
+        let monthOptions = months.map(function(m) {
+            var sel = (selectedMonth === m) ? 'selected' : '';
+            return '<option value="' + m + '" ' + sel + '>' + m + '</option>';
+        }).join('');
 
         let yearOptions = "";
-        for (let y = 2024; y <= 2030; y++) {
-            yearOptions += `<option value="\${y}" \${selectedYear == y ? 'selected' : ''}>\${y}</option>`;
+        for (var y = 2024; y <= 2030; y++) {
+            var ySel = (selectedYear == y) ? 'selected' : '';
+            yearOptions += '<option value="' + y + '" ' + ySel + '>' + y + '</option>';
         }
 
         const currentKey = \`\${selectedMonth} \${selectedYear}\`;
@@ -1150,27 +1153,25 @@ async function fetchMonthlySummary() {
                         <div style="width: 25%; text-align: right;">Rainfall</div>
                     </div>
                     
-                    \${days.map(d => \`
+                    \${days.map(function(d) {
+                        return \`
                         <div class="pro-row" style="display: flex; align-items: center; padding: 15px; border-bottom: 1px solid var(--border);">
                             <div style="width: 20%; font-size: 16px;">
                                 <b>\${new Date(d.record_date).getDate()}</b>
                             </div>
-                            
                             <div style="width: 25%; display: flex; justify-content: center; gap: 8px;">
                                 <span style="color:#ef4444; font-weight: 700;">\${parseFloat(d.max_temp_c).toFixed(1)}°</span>
                                 <span style="opacity: 0.3; font-weight: 400;">/</span>
                                 <span style="color:#0ea5e9; font-weight: 700;">\${parseFloat(d.min_temp_c).toFixed(1)}°</span>
                             </div>
-                            
                             <div style="width: 30%; font-size: 13px; font-weight: 600; text-align: center;">
                                 \${parseFloat(d.max_wind_kmh).toFixed(1)} <span style="opacity: 0.4;">/</span> \${parseFloat(d.max_gust_kmh).toFixed(1)} <small style="font-size:10px">km/h</small>
                             </div>
-                            
                             <div style="width: 25%; font-weight: 800; color: #3b82f6; text-align: right;">
                                 \${parseFloat(d.total_rain_mm).toFixed(1)} <small style="font-size:10px">mm</small>
                             </div>
-                        </div>
-                    \`).join('')}
+                        </div>\`;
+                    }).join('')}
                 </div>
             \`;
         }
