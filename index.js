@@ -1108,45 +1108,52 @@ async function fetchMonthlySummary() {
         const groups = await res.json();
         
         const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+        
+        // Month options for the select
+        let monthOptions = months.map((m, i) => 
+            `<option value="${m}" ${selectedMonth === m ? 'selected' : ''}>${m}</option>`
+        ).join('');
+
+        // Year options for the select
         let yearOptions = "";
         for (let y = 2024; y <= 2030; y++) {
-            yearOptions += \`<option value="\${y}" \${selectedYear == y ? 'selected' : ''}>\${y}</option>\`;
+            yearOptions += `<option value="${y}" ${selectedYear == y ? 'selected' : ''}>${y}</option>`;
         }
 
-        const currentKey = \`\${selectedMonth} \${selectedYear}\`;
+        const currentKey = `${selectedMonth} ${selectedYear}`;
         const days = groups[currentKey] || [];
 
-        let html = \`
+        let html = `
             <div class="archive-container" style="animation: fadeIn 0.5s ease;">
                 <div style="margin-bottom: 20px; padding: 15px 25px; display: flex; justify-content: space-between; align-items: center; background: var(--card); border-radius: 20px; border: 1px solid var(--border);">
                     <div style="font-weight: 800; letter-spacing: 0.5px; color: var(--accent);">MONTHLY ARCHIVES</div>
                     <div style="display: flex; gap: 10px;">
-                        <select id="monthSelect"></select>
-<select id="yearSelect"></select>
-<button onclick="updateArchiveFilter()" style="padding: 6px 12px; margin-left: 8px; background: var(--border); color: var(--text); border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">Get Data</button>
+                        <select id="monthSelect" style="padding: 5px; border-radius: 5px; background: var(--badge); color: var(--text); border: 1px solid var(--border);">${monthOptions}</select>
+                        <select id="yearSelect" style="padding: 5px; border-radius: 5px; background: var(--badge); color: var(--text); border: 1px solid var(--border);">${yearOptions}</select>
+                        <button onclick="updateArchiveFilter()" style="padding: 6px 12px; margin-left: 8px; background: var(--accent); color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">Get Data</button>
                     </div>
                 </div>
-        \`;
+        `;
 
         if (days.length === 0) {
-            html += \`
+            html += `
                 <div class="card" style="text-align:center; padding:60px; color: var(--muted); font-weight: 600;">
                     <div style="font-size: 40px; margin-bottom: 10px;">Empty</div>
-                    No data recorded for \${currentKey}
+                    No data recorded for ${currentKey}
                 </div>
-            \`;
+            `;
         } else {
-            html += \`
-                <div class="pro-summary-table">
-                    <div class="pro-row" style="background: var(--badge); font-weight: 800; font-size: 11px; text-transform: uppercase; display: flex; align-items: center;">
+            html += `
+                <div class="pro-summary-table" style="background: var(--card); border-radius: 15px; overflow: hidden; border: 1px solid var(--border);">
+                    <div class="pro-row" style="background: var(--badge); font-weight: 800; font-size: 11px; text-transform: uppercase; display: flex; align-items: center; padding: 15px; border-bottom: 1px solid var(--border);">
                         <div style="width: 20%;">Date</div>
                         <div style="width: 25%; text-align: center;">Temp (H/L)</div>
                         <div style="width: 30%; text-align: center;">Wind / Gust</div>
                         <div style="width: 25%; text-align: right;">Rainfall</div>
                     </div>
                     
-                    ${days.map(d => \`
-                        <div class="pro-row" style="display: flex; align-items: center;">
+                    ${days.map(d => `
+                        <div class="pro-row" style="display: flex; align-items: center; padding: 15px; border-bottom: 1px solid var(--border);">
                             <div style="width: 20%; font-size: 16px;">
                                 <b>${new Date(d.record_date).getDate()}</b>
                             </div>
@@ -1167,14 +1174,15 @@ async function fetchMonthlySummary() {
                         </div>
                     `).join('')}
                 </div>
-            \`;
+            `;
         }
 
-        html += \`</div>\`;
+        html += `</div>`;
         content.innerHTML = html;
 
     } catch (e) {
-        content.innerHTML = '<div class="card" style="color:#ef4444">Error loading summary.</div>';
+        console.error(e);
+        content.innerHTML = '<div class="card" style="color:#ef4444; padding: 20px; text-align: center;">Error loading summary.</div>';
     }
 }
 
