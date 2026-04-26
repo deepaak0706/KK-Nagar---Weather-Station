@@ -555,58 +555,52 @@ app.get("/", (req, res) => {
 
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
-        /* PRO MAX ROW-BASED SUMMARY TABLE */
+        /* PRO MAX GRID-BASED SUMMARY TABLE */
 .pro-summary-table {
-    background: linear-gradient(135deg, rgba(255, 255, 255, 0.5) 0%, rgba(255, 255, 255, 0.1) 100%);
+    background: var(--card);
     backdrop-filter: blur(24px);
     -webkit-backdrop-filter: blur(24px);
-    border: 1px solid rgba(255, 255, 255, 0.4);
-    border-radius: 24px;
-    box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.08), inset 0 0 0 1px rgba(255, 255, 255, 0.3);
+    border: 1px solid var(--border);
+    border-radius: 28px;
+    box-shadow: var(--glow);
     overflow: hidden;
     display: flex;
     flex-direction: column;
 }
 
-body.is-night .pro-summary-table {
-    background: linear-gradient(135deg, rgba(30, 41, 59, 0.7) 0%, rgba(15, 23, 42, 0.5) 100%);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.6), inset 0 0 0 1px rgba(255, 255, 255, 0.03);
+.pro-row {
+    display: grid;
+    /* Grid structure: [Icon+Label] [Data Point 1] [Data Point 2] */
+    grid-template-columns: 1.2fr 1fr 1fr; 
+    align-items: center;
+    padding: 24px 32px;
+    border-bottom: 1px solid var(--border);
+    transition: all 0.3s ease;
 }
 
-.pro-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 24px 30px;
-    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
-    transition: background 0.3s ease;
-}
-body.is-night .pro-row { border-bottom: 1px solid rgba(255, 255, 255, 0.05); }
 .pro-row:last-child { border-bottom: none; }
-.pro-row:hover { background: rgba(0, 0, 0, 0.02); }
-body.is-night .pro-row:hover { background: rgba(255, 255, 255, 0.02); }
+.pro-row:hover { background: var(--badge); }
 
 .pro-label {
     font-size: 15px;
     font-weight: 800;
     color: var(--text);
-    letter-spacing: 0.5px;
     display: flex;
     align-items: center;
+    gap: 12px;
 }
 
-.pro-data-group {
-    display: flex;
-    align-items: center;
-    gap: 32px;
+.pro-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    box-shadow: 0 0 10px currentColor;
 }
 
 .pro-data-item {
     display: flex;
     flex-direction: column;
-    align-items: flex-end;
-    min-width: 90px;
+    align-items: flex-start; /* Left-aligned for professional data reading */
 }
 
 .pro-sub {
@@ -615,30 +609,35 @@ body.is-night .pro-row:hover { background: rgba(255, 255, 255, 0.02); }
     letter-spacing: 1.5px;
     color: var(--muted);
     font-weight: 800;
-    margin-bottom: 6px;
+    margin-bottom: 4px;
 }
 
 .pro-val {
-    font-size: 26px;
+    font-size: 24px;
     font-weight: 900;
     line-height: 1;
-    letter-spacing: -0.5px;
+    font-variant-numeric: tabular-nums;
 }
 
-.pro-divider {
-    width: 1px;
-    height: 36px;
-    background: rgba(0, 0, 0, 0.1);
+/* Mobile: Stack into a clean vertical list to prevent overlap */
+@media (max-width: 600px) {
+    .pro-row {
+        grid-template-columns: 1fr 1fr;
+        grid-template-rows: auto auto;
+        gap: 20px;
+        padding: 24px;
+    }
+    .pro-label {
+        grid-column: span 2;
+        border-bottom: 1px solid var(--border);
+        padding-bottom: 12px;
+        margin-bottom: 4px;
+    }
+    .pro-data-item {
+        align-items: flex-start;
+    }
 }
-body.is-night .pro-divider { background: rgba(255, 255, 255, 0.1); }
 
-/* Mobile responsiveness: stack beautifully on small screens */
-@media (max-width: 500px) {
-    .pro-row { flex-direction: column; align-items: flex-start; gap: 16px; padding: 20px; }
-    .pro-data-group { width: 100%; justify-content: space-between; gap: 15px; }
-    .pro-data-item { align-items: flex-start; }
-    .pro-summary-table .pro-row:nth-child(3) .pro-data-item { align-items: flex-start; }
-}
 
 .glass-select {
     background: var(--badge);
@@ -748,51 +747,48 @@ body.is-night .glass-select option {
         
         <div class="pro-row">
             <div class="pro-label">
-                <span style="color:#ef4444; margin-right:10px; font-size:18px;">●</span>Temperature
+                <span class="pro-dot" style="color:#ef4444; background:#ef4444;"></span>
+                Temperature
             </div>
-            <div class="pro-data-group">
-                <div class="pro-data-item">
-                    <span class="pro-sub">Maximum</span>
-                    <span id="s-mx" class="pro-val" style="color: #ef4444;">--</span>
-                </div>
-                <div class="pro-divider"></div>
-                <div class="pro-data-item">
-                    <span class="pro-sub">Minimum</span>
-                    <span id="s-mn" class="pro-val" style="color: #0ea5e9;">--</span>
-                </div>
+            <div class="pro-data-item">
+                <span class="pro-sub">Maximum</span>
+                <span id="s-mx" class="pro-val" style="color: #ef4444;">--</span>
+            </div>
+            <div class="pro-data-item">
+                <span class="pro-sub">Minimum</span>
+                <span id="s-mn" class="pro-val" style="color: #0ea5e9;">--</span>
             </div>
         </div>
 
         <div class="pro-row">
             <div class="pro-label">
-                <span style="color:#f59e0b; margin-right:10px; font-size:18px;">●</span>Wind Dynamics
+                <span class="pro-dot" style="color:#f59e0b; background:#f59e0b;"></span>
+                Wind Dynamics
             </div>
-            <div class="pro-data-group">
-                <div class="pro-data-item">
-                    <span class="pro-sub">Sustained</span>
-                    <span id="s-mw" class="pro-val" style="color: var(--text);">--</span>
-                </div>
-                <div class="pro-divider"></div>
-                <div class="pro-data-item">
-                    <span class="pro-sub">Peak Gust</span>
-                    <span id="s-mg" class="pro-val" style="color: var(--text);">--</span>
-                </div>
+            <div class="pro-data-item">
+                <span class="pro-sub">Sustained Peak</span>
+                <span id="s-mw" class="pro-val">--</span>
+            </div>
+            <div class="pro-data-item">
+                <span class="pro-sub">Peak Gust</span>
+                <span id="s-mg" class="pro-val">--</span>
             </div>
         </div>
 
         <div class="pro-row">
             <div class="pro-label">
-                <span style="color:#3b82f6; margin-right:10px; font-size:18px;">●</span>Precipitation
+                <span class="pro-dot" style="color:#3b82f6; background:#3b82f6;"></span>
+                Precipitation
             </div>
-            <div class="pro-data-group" style="justify-content: flex-end;">
-                <div class="pro-data-item" style="flex: 0 0 auto;">
-                    <span class="pro-sub">Total Accumulation</span>
-                    <span id="s-rt" class="pro-val" style="color: #3b82f6;">--</span>
-                </div>
+            <div class="pro-data-item" style="grid-column: span 2;">
+                <span class="pro-sub">24H Total Accumulation</span>
+                <span id="s-rt" class="pro-val" style="color: #3b82f6;">--</span>
             </div>
         </div>
 
     </div>
+</div>
+
 </div>
 
 
