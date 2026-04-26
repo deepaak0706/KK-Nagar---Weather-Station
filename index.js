@@ -1305,12 +1305,11 @@ window.showHistoricalUI = function() {
 };
 
 /* --- ADD THIS: THE MISSING FETCH ENGINE --- */
-
 window.fetchHistoricalData = async function() {
     var year = document.getElementById('histYearSelect').value;
     var resultsTable = document.getElementById('historical-results-table');
     
-    resultsTable.innerHTML = '<div style="text-align:center; padding:40px; color: #64748b;">Loading Archive...</div>';
+    resultsTable.innerHTML = '<div style="text-align:center; padding:40px; color: #64748b;">Syncing Archive...</div>';
 
     try {
         var response = await fetch('/api/historical-rain?year=' + year);
@@ -1324,12 +1323,23 @@ window.fetchHistoricalData = async function() {
         var months = result.data.filter(function(d) { return d.month_val !== 'Annual'; });
         var annualRow = result.data.find(function(d) { return d.month_val === 'Annual'; });
 
-        // Logic to find Max and Min rainfall values
-        var validRain = months.map(function(m) { return parseFloat(m.rainfall_mm) || 0; });
-        var maxVal = Math.max.apply(null, validRain);
-        var minVal = Math.min.apply(null, validRain);
+        // 1. Identify extremes for highlighting
+        var rainValues = months.map(function(m) { return parseFloat(m.rainfall_mm) || 0; });
+        var maxVal = Math.max.apply(null, rainValues);
+        var minVal = Math.min.apply(null, rainValues);
 
-        // Split months strictly into Jan-Jun and Jul-Dec
+        // 2. Calculate Seasonal Sums
+        var swmTotal = 0; // Jun to Sep
+        var nemTotal = 0; // Oct to Dec
+        
+        months.forEach(function(m) {
+            var val = parseFloat(m.rainfall_mm) || 0;
+            var name = m.month_val.toLowerCase();
+            if (['june', 'july', 'august', 'september'].some(month => name.includes(month))) swmTotal += val;
+            if (['october', 'november', 'december'].some(month => name.includes(month))) nemTotal += val;
+        });
+
+        // Split columns strictly: Jan-Jun (Left), Jul-Dec (Right)
         var leftCol = months.slice(0, 6);
         var rightCol = months.slice(6, 12);
 
@@ -1337,56 +1347,61 @@ window.fetchHistoricalData = async function() {
             var rf = parseFloat(d.rainfall_mm) || 0;
             var bgColor = 'rgba(30, 41, 59, 0.4)'; 
             var borderColor = 'rgba(255,255,255,0.05)';
-            var label = '';
+            var textColor = '#e2e8f0';
 
-            // Highlight Highest (Soft Blue) and Lowest (Soft Red)
+            // Subtle highlights only
             if (rf === maxVal && maxVal > 0) {
                 bgColor = 'rgba(59, 130, 246, 0.15)';
                 borderColor = 'rgba(59, 130, 246, 0.4)';
-                label = '<span style="font-size:0.6rem; color:#60a5fa; font-weight:800; display:block; margin-bottom:2px;">HIGHEST</span>';
+                textColor = '#60a5fa';
             } else if (rf === minVal) {
-                bgColor = 'rgba(239, 68, 68, 0.1)';
-                borderColor = 'rgba(239, 68, 68, 0.3)';
-                label = '<span style="font-size:0.6rem; color:#f87171; font-weight:800; display:block; margin-bottom:2px;">LOWEST</span>';
+                bgColor = 'rgba(244, 63, 94, 0.08)';
+                borderColor = 'rgba(244, 63, 94, 0.2)';
             }
 
-            return '<div style="background:' + bgColor + '; border: 1px solid ' + borderColor + '; border-radius: 12px; padding: 15px; margin-bottom: 10px; text-align: center;">' +
-                        label +
-                        '<div style="font-size: 0.7rem; font-weight: 700; color: #94a3b8; letter-spacing: 1px; text-transform: uppercase;">' + d.month_val + '</div>' +
-                        '<div style="font-size: 1.3rem; font-weight: 800; color: #e2e8f0;">' + rf.toFixed(1) + '<span style="font-size: 0.7rem; color: #64748b; margin-left: 2px;">mm</span></div>' +
+            return '<div style="background:' + bgColor + '; border: 1px solid ' + borderColor + '; border-radius: 12px; padding: 14px; margin-bottom: 10px; text-align: center;">' +
+                        '<div style="font-size: 0.65rem; font-weight: 700; color: #94a3b8; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 4px;">' + d.month_val.substring(0,3) + '</div>' +
+                        '<div style="font-size: 1.25rem; font-weight: 800; color: ' + textColor + ';">' + rf.toFixed(1) + '<span style="font-size: 0.7rem; color: #64748b; font-weight: 400; margin-left: 2px;">mm</span></div>' +
                    '</div>';
         }
 
-        // --- Layout Construction ---
-        var html = '<div style="display: flex; gap: 15px; margin-top: 10px;">';
-
-        // Column 1 (Jan to June)
-        html += '<div style="flex: 1;">';
-        leftCol.forEach(function(m) { html += renderCard(m); });
+        // --- Start Layout ---
+        var html = '<div style="display: flex; gap: 12px; margin-top: 10px;">';
+        html += '<div style="flex: 1;">' + leftCol.map(renderCard).join('') + '</div>';
+        html += '<div style="flex: 1;">' + rightCol.map(renderCard).join('') + '</div>';
         html += '</div>';
 
-        // Column 2 (July to Dec)
-        html += '<div style="flex: 1;">';
-        rightCol.forEach(function(m) { html += renderCard(m); });
+        // --- Seasonal Monsoon Row (SWM & NEM) ---
+        html += '<div style="display: flex; gap: 12px; margin-top: 5px;">';
+        
+        // SWM Card
+        html += '<div style="flex: 1; background: rgba(16, 185, 129, 0.05); border: 1px solid rgba(16, 185, 129, 0.2); border-radius: 12px; padding: 12px; text-align: center;">' +
+                    '<div style="font-size: 0.6rem; font-weight: 800; color: #10b981; letter-spacing: 1px;">SWM (JUN-SEP)</div>' +
+                    '<div style="font-size: 1.1rem; font-weight: 800; color: #e2e8f0;">' + swmTotal.toFixed(1) + ' <small style="font-size: 0.6rem; color: #64748b;">mm</small></div>' +
+                '</div>';
+        
+        // NEM Card
+        html += '<div style="flex: 1; background: rgba(99, 102, 241, 0.05); border: 1px solid rgba(99, 102, 241, 0.2); border-radius: 12px; padding: 12px; text-align: center;">' +
+                    '<div style="font-size: 0.6rem; font-weight: 800; color: #818cf8; letter-spacing: 1px;">NEM (OCT-DEC)</div>' +
+                    '<div style="font-size: 1.1rem; font-weight: 800; color: #e2e8f0;">' + nemTotal.toFixed(1) + ' <small style="font-size: 0.6rem; color: #64748b;">mm</small></div>' +
+                '</div>';
+        
         html += '</div>';
 
-        html += '</div>';
-
-        // Annual Total Footer
+        // --- Final Annual Total ---
         if (annualRow) {
-            html += '<div style="margin-top: 15px; background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.2); border-radius: 14px; padding: 20px; text-align: center;">' +
-                        '<div style="font-size: 0.75rem; color: #93c5fd; font-weight: 800; letter-spacing: 1px; margin-bottom: 4px;">ANNUAL RAINFALL TOTAL</div>' +
-                        '<div style="font-size: 2.2rem; font-weight: 900; color: #3b82f6;">' + parseFloat(annualRow.rainfall_mm).toFixed(1) + '<span style="font-size: 1rem; color: #94a3b8; margin-left: 5px;">mm</span></div>' +
+            html += '<div style="margin-top: 12px; background: linear-gradient(to right, rgba(30, 41, 59, 0.8), rgba(59, 130, 246, 0.1)); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: 14px; padding: 18px; text-align: center;">' +
+                        '<div style="font-size: 0.7rem; color: #60a5fa; font-weight: 800; letter-spacing: 2px; margin-bottom: 2px;">' + year + ' ANNUAL TOTAL</div>' +
+                        '<div style="font-size: 2.1rem; font-weight: 900; color: #f8fafc;">' + parseFloat(annualRow.rainfall_mm).toFixed(1) + '<span style="font-size: 0.9rem; color: #64748b; margin-left: 5px;">mm</span></div>' +
                     '</div>';
         }
 
         resultsTable.innerHTML = html;
 
     } catch (error) {
-        resultsTable.innerHTML = '<div style="text-align:center; padding:40px; color: #ef4444;">Error fetching data.</div>';
+        resultsTable.innerHTML = '<div style="text-align:center; padding:40px; color: #ef4444;">Connection failed.</div>';
     }
 };
-
 
 
 </script>
