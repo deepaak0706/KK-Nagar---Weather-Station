@@ -1084,104 +1084,106 @@ body.is-night .glass-select option {
 
         applyTheme(); animateWind(); setInterval(update, 45000); update();
 
-        /* SUMMARY CONTROLLER */
         function showPage(pageId) {
-            document.getElementById('page-dashboard').style.display = pageId === 'dashboard' ? 'block' : 'none';
-            document.getElementById('page-summary').style.display = pageId === 'summary' ? 'block' : 'none';
-            
-            document.getElementById('tab-dash').classList.toggle('active', pageId === 'dashboard');
-            document.getElementById('tab-sum').classList.toggle('active', pageId === 'summary');
+    document.getElementById('page-dashboard').style.display = pageId === 'dashboard' ? 'block' : 'none';
+    document.getElementById('page-summary').style.display = pageId === 'summary' ? 'block' : 'none';
+    
+    document.getElementById('tab-dash').classList.toggle('active', pageId === 'dashboard');
+    document.getElementById('tab-sum').classList.toggle('active', pageId === 'summary');
 
-            
-        }
+    // ADD THIS CHIP:
+    if (pageId === 'summary') {
+        showMonthlySummaryUI(); 
+    }
+}
 
-        /* SUMMARY CONTROLLER */
+/* --- START CHIP CHOP --- */
 let selectedMonth = new Date().toLocaleDateString('en-IN', { month: 'long' });
 let selectedYear = new Date().getFullYear().toString();
 
-async function fetchMonthlySummary() {
+// 1. Function to show the UI (dropdowns) immediately
+window.showMonthlySummaryUI = function() {
     const content = document.getElementById('summary-content');
-    content.innerHTML = '<div class="card" style="text-align:center; padding:40px;">Generating Summary Report...</div>';
+    const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+    
+    let monthOptions = months.map(function(m) {
+        var sel = (selectedMonth === m) ? 'selected' : '';
+        return '<option value="' + m + '" ' + sel + '>' + m + '</option>';
+    }).join('');
+
+    let yearOptions = "";
+    for (var y = 2024; y <= 2030; y++) {
+        var ySel = (selectedYear == y) ? 'selected' : '';
+        yearOptions += '<option value="' + y + '" ' + ySel + '>' + y + '</option>';
+    }
+
+    content.innerHTML = \`
+        <div class="archive-container" style="animation: fadeIn 0.5s ease;">
+            <div style="margin-bottom: 20px; padding: 15px 25px; display: flex; justify-content: space-between; align-items: center; background: var(--card); border-radius: 20px; border: 1px solid var(--border);">
+                <div style="font-weight: 800; letter-spacing: 0.5px; color: var(--accent);">MONTHLY ARCHIVES</div>
+                <div style="display: flex; gap: 10px;">
+                    <select id="monthSelect" style="padding: 5px; border-radius: 5px; background: var(--badge); color: var(--text); border: 1px solid var(--border);">\${monthOptions}</select>
+                    <select id="yearSelect" style="padding: 5px; border-radius: 5px; background: var(--badge); color: var(--text); border: 1px solid var(--border);">\${yearOptions}</select>
+                    <button onclick="updateArchiveFilter()" style="padding: 6px 12px; margin-left: 8px; background: var(--accent); color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">Get Data</button>
+                </div>
+            </div>
+            <div id="archive-data-table">
+                <div class="card" style="text-align:center; padding:60px; color: var(--muted);">
+                    Select a month and click "Get Data" to load records.
+                </div>
+            </div>
+        </div>\`;
+};
+
+// 2. Updated data fetcher that targets only the table container
+async function fetchMonthlySummary() {
+    const tableContainer = document.getElementById('archive-data-table');
+    if (!tableContainer) return;
+    
+    tableContainer.innerHTML = '<div class="card" style="text-align:center; padding:40px;">Querying Database...</div>';
     
     try {
         const res = await fetch('/api/summary');
         const groups = await res.json();
-        
-        const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-        
-        // Use single quotes here to avoid nested backtick errors
-        let monthOptions = months.map(function(m) {
-            var sel = (selectedMonth === m) ? 'selected' : '';
-            return '<option value="' + m + '" ' + sel + '>' + m + '</option>';
-        }).join('');
-
-        let yearOptions = "";
-        for (var y = 2024; y <= 2030; y++) {
-            var ySel = (selectedYear == y) ? 'selected' : '';
-            yearOptions += '<option value="' + y + '" ' + ySel + '>' + y + '</option>';
-        }
-
         const currentKey = \`\${selectedMonth} \${selectedYear}\`;
         const days = groups[currentKey] || [];
 
-        let html = \`
-            <div class="archive-container" style="animation: fadeIn 0.5s ease;">
-                <div style="margin-bottom: 20px; padding: 15px 25px; display: flex; justify-content: space-between; align-items: center; background: var(--card); border-radius: 20px; border: 1px solid var(--border);">
-                    <div style="font-weight: 800; letter-spacing: 0.5px; color: var(--accent);">MONTHLY ARCHIVES</div>
-                    <div style="display: flex; gap: 10px;">
-                        <select id="monthSelect" style="padding: 5px; border-radius: 5px; background: var(--badge); color: var(--text); border: 1px solid var(--border);">\${monthOptions}</select>
-                        <select id="yearSelect" style="padding: 5px; border-radius: 5px; background: var(--badge); color: var(--text); border: 1px solid var(--border);">\${yearOptions}</select>
-                        <button onclick="updateArchiveFilter()" style="padding: 6px 12px; margin-left: 8px; background: var(--accent); color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">Get Data</button>
-                    </div>
-                </div>
-        \`;
-
         if (days.length === 0) {
-            html += \`
+            tableContainer.innerHTML = \`
                 <div class="card" style="text-align:center; padding:60px; color: var(--muted); font-weight: 600;">
-                    <div style="font-size: 40px; margin-bottom: 10px;">Empty</div>
                     No data recorded for \${currentKey}
-                </div>
-            \`;
-        } else {
-            html += \`
-                <div class="pro-summary-table" style="background: var(--card); border-radius: 15px; overflow: hidden; border: 1px solid var(--border);">
-                    <div class="pro-row" style="background: var(--badge); font-weight: 800; font-size: 11px; text-transform: uppercase; display: flex; align-items: center; padding: 15px; border-bottom: 1px solid var(--border);">
-                        <div style="width: 20%;">Date</div>
-                        <div style="width: 25%; text-align: center;">Temp (H/L)</div>
-                        <div style="width: 30%; text-align: center;">Wind / Gust</div>
-                        <div style="width: 25%; text-align: right;">Rainfall</div>
-                    </div>
-                    
-                    \${days.map(function(d) {
-                        return \`
-                        <div class="pro-row" style="display: flex; align-items: center; padding: 15px; border-bottom: 1px solid var(--border);">
-                            <div style="width: 20%; font-size: 16px;">
-                                <b>\${new Date(d.record_date).getDate()}</b>
-                            </div>
-                            <div style="width: 25%; display: flex; justify-content: center; gap: 8px;">
-                                <span style="color:#ef4444; font-weight: 700;">\${parseFloat(d.max_temp_c).toFixed(1)}°</span>
-                                <span style="opacity: 0.3; font-weight: 400;">/</span>
-                                <span style="color:#0ea5e9; font-weight: 700;">\${parseFloat(d.min_temp_c).toFixed(1)}°</span>
-                            </div>
-                            <div style="width: 30%; font-size: 13px; font-weight: 600; text-align: center;">
-                                \${parseFloat(d.max_wind_kmh).toFixed(1)} <span style="opacity: 0.4;">/</span> \${parseFloat(d.max_gust_kmh).toFixed(1)} <small style="font-size:10px">km/h</small>
-                            </div>
-                            <div style="width: 25%; font-weight: 800; color: #3b82f6; text-align: right;">
-                                \${parseFloat(d.total_rain_mm).toFixed(1)} <small style="font-size:10px">mm</small>
-                            </div>
-                        </div>\`;
-                    }).join('')}
-                </div>
-            \`;
+                </div>\`;
+            return;
         }
 
-        html += \`</div>\`;
-        content.innerHTML = html;
-
+        tableContainer.innerHTML = \`
+            <div class="pro-summary-table" style="background: var(--card); border-radius: 15px; overflow: hidden; border: 1px solid var(--border);">
+                <div class="pro-row" style="background: var(--badge); font-weight: 800; font-size: 11px; text-transform: uppercase; display: flex; align-items: center; padding: 15px; border-bottom: 1px solid var(--border);">
+                    <div style="width: 20%;">Date</div>
+                    <div style="width: 25%; text-align: center;">Temp (H/L)</div>
+                    <div style="width: 30%; text-align: center;">Wind / Gust</div>
+                    <div style="width: 25%; text-align: right;">Rainfall</div>
+                </div>
+                \${days.map(function(d) {
+                    return \`
+                    <div class="pro-row" style="display: flex; align-items: center; padding: 15px; border-bottom: 1px solid var(--border);">
+                        <div style="width: 20%; font-size: 16px;"><b>\${new Date(d.record_date).getDate()}</b></div>
+                        <div style="width: 25%; display: flex; justify-content: center; gap: 8px;">
+                            <span style="color:#ef4444; font-weight: 700;">\${parseFloat(d.max_temp_c).toFixed(1)}°</span>
+                            <span style="opacity: 0.3;">/</span>
+                            <span style="color:#0ea5e9; font-weight: 700;">\${parseFloat(d.min_temp_c).toFixed(1)}°</span>
+                        </div>
+                        <div style="width: 30%; font-size: 13px; text-align: center;">
+                            \${parseFloat(d.max_wind_kmh).toFixed(1)} <small style="opacity:0.4">/</small> \${parseFloat(d.max_gust_kmh).toFixed(1)} <small>km/h</small>
+                        </div>
+                        <div style="width: 25%; font-weight: 800; color: #3b82f6; text-align: right;">
+                            \${parseFloat(d.total_rain_mm).toFixed(1)} <small>mm</small>
+                        </div>
+                    </div>\`;
+                }).join('')}
+            </div>\`;
     } catch (e) {
-        console.error(e);
-        content.innerHTML = '<div class="card" style="color:#ef4444; padding: 20px; text-align: center;">Error loading summary.</div>';
+        tableContainer.innerHTML = '<div class="card" style="color:#ef4444; padding:20px; text-align:center;">Error loading data.</div>';
     }
 }
 
@@ -1190,6 +1192,7 @@ window.updateArchiveFilter = function() {
     selectedYear = document.getElementById('yearSelect').value;
     fetchMonthlySummary();
 };
+/* --- END CHIP CHOP --- */
 
 
 </script>
