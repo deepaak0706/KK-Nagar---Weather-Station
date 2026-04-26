@@ -436,6 +436,23 @@ app.get("/api/history_graphs", async (req, res) => {
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// GET /api/historical-rain?year=2021
+app.get('/api/historical-rain', async (req, res) => {
+    const { year } = req.query;
+    if (!year) return res.status(400).json({ error: "Year is required" });
+
+    try {
+        const result = await pool.query(
+            'SELECT month_val, rainfall_mm FROM historical_rainfall WHERE year_val = $1 ORDER BY id ASC',
+            [parseInt(year)]
+        );
+        res.json({ year: year, data: result.rows });
+    } catch (err) {
+        console.error("DB Error:", err);
+        res.status(500).json({ error: "Database query failed" });
+    }
+});
+
 // 5. The User Interface (Your HTML)
 app.get("/", (req, res) => {
     res.send(`
@@ -705,10 +722,11 @@ body.is-night .glass-select option {
             </div>
         </div>
 
-        <div class="nav-tabs">
-            <button onclick="showPage('dashboard')" id="tab-dash" class="tab-btn active">Live Dashboard</button>
-            <button onclick="showPage('summary')" id="tab-sum" class="tab-btn">Monthly Summary</button>
-        </div>
+       <div class="nav-tabs">
+        <button onclick="showPage('dashboard')" id="tab-dash" class="tab-btn active">Live Dashboard</button>
+        <button onclick="showPage('summary')" id="tab-sum" class="tab-btn">Monthly Summary</button>
+        <button onclick="showPage('historical')" id="tab-hist" class="tab-btn">Historical Data</button>
+       </div>
 
         <div id="page-dashboard">
             
@@ -850,6 +868,10 @@ body.is-night .glass-select option {
         
         <div id="page-summary" style="display: none;">
             <div id="summary-content"></div>
+        </div>
+
+        <div id="page-historical" style="display: none;">
+            <div id="historical-content"></div>
         </div>
 
     </div>
@@ -1098,15 +1120,22 @@ body.is-night .glass-select option {
         applyTheme(); animateWind(); setInterval(update, 45000); update();
 
         function showPage(pageId) {
+    // 1. Toggle visibility of the three pages
     document.getElementById('page-dashboard').style.display = pageId === 'dashboard' ? 'block' : 'none';
     document.getElementById('page-summary').style.display = pageId === 'summary' ? 'block' : 'none';
+    document.getElementById('page-historical').style.display = pageId === 'historical' ? 'block' : 'none'; // Added this
     
+    // 2. Update the active class for the three buttons
     document.getElementById('tab-dash').classList.toggle('active', pageId === 'dashboard');
     document.getElementById('tab-sum').classList.toggle('active', pageId === 'summary');
+    document.getElementById('tab-hist').classList.toggle('active', pageId === 'historical'); // Added this
 
-    // ADD THIS CHIP:
+    // 3. Trigger UI generation
     if (pageId === 'summary') {
         showMonthlySummaryUI(); 
+    } 
+    else if (pageId === 'historical') {
+        showHistoricalUI(); // We will define this function next
     }
 }
 
@@ -1210,6 +1239,70 @@ window.updateArchiveFilter = function() {
 };
 /* --- END CHIP CHOP --- */
 
+/* --- UPDATED: STRICTLY SAFE UI GENERATION --- */
+
+window.showMonthlySummaryUI = function() {
+    var content = document.getElementById('summary-content');
+    var months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+    
+    var monthOptions = "";
+    for (var i = 0; i < months.length; i++) {
+        var m = months[i];
+        var sel = (selectedMonth === m) ? 'selected' : '';
+        monthOptions += '<option value="' + m + '" ' + sel + '>' + m + '</option>';
+    }
+
+    var yearOptions = "";
+    for (var y = 2026; y <= 2032; y++) {
+        var ySel = (selectedYear == y) ? 'selected' : '';
+        yearOptions += '<option value="' + y + '" ' + ySel + '>' + y + '</option>';
+    }
+
+    // Using '+' instead of backticks to avoid $ issues
+    content.innerHTML = 
+        '<div class="archive-container" style="animation: fadeIn 0.5s ease;">' +
+            '<div style="margin-bottom: 20px; padding: 15px 25px; display: flex; justify-content: space-between; align-items: center; background: var(--card); border-radius: 20px; border: 1px solid var(--border);">' +
+                '<div style="font-weight: 800; letter-spacing: 0.5px; color: var(--accent);">MONTHLY ARCHIVES</div>' +
+                '<div style="display: flex; gap: 10px;">' +
+                    '<select id="monthSelect" class="glass-select">' + monthOptions + '</select>' +
+                    '<select id="yearSelect" class="glass-select">' + yearOptions + '</select>' +
+                    '<button onclick="updateArchiveFilter()" style="padding: 6px 12px; margin-left: 8px; background: var(--accent); color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">Get Data</button>' +
+                '</div>' +
+            '</div>' +
+            '<div id="archive-data-table">' +
+                '<div class="card" style="text-align:center; padding:60px; color: var(--muted);">' +
+                    'Select a month and click "Get Data" to load records.' +
+                '</div>' +
+            '</div>' +
+        '</div>';
+};
+
+window.showHistoricalUI = function() {
+    var content = document.getElementById('historical-content');
+    var years = [2019, 2020, 2021, 2022, 2023, 2024, 2025, 2026];
+    var yearOptions = "";
+    for (var i = 0; i < years.length; i++) {
+        yearOptions += '<option value="' + years[i] + '">' + years[i] + '</option>';
+    }
+
+    content.innerHTML = 
+        '<div class="archive-container" style="animation: fadeIn 0.4s ease;">' +
+            '<div style="margin-bottom: 20px; padding: 15px; background: var(--card); border-radius: 16px; border: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">' +
+                '<div style="font-weight: 800; color: var(--accent); font-size: 0.8rem; letter-spacing: 1px;">K K NAGAR RAINFALL HISTORY</div>' +
+                '<div style="display: flex; gap: 8px;">' +
+                    '<select id="histYearSelect" class="glass-select" style="padding: 5px 10px; border-radius: 8px; background: #1e293b; color: white; border: 1px solid #334155;">' +
+                        yearOptions +
+                    '</select>' +
+                    '<button onclick="fetchHistoricalData()" style="padding: 8px 16px; background: #3b82f6; color: white; border: none; border-radius: 10px; font-weight: bold; cursor: pointer;">FETCH</button>' +
+                '</div>' +
+            '</div>' +
+            '<div id="historical-results-table">' +
+                '<div style="text-align: center; padding: 50px 20px; color: #64748b; border: 1px dashed var(--border); border-radius: 16px;">' +
+                    'Select a year and click "FETCH" to retrieve records.' +
+                '</div>' +
+            '</div>' +
+        '</div>';
+};
 
 </script>
 </body>
