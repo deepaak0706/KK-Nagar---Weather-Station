@@ -519,7 +519,14 @@ app.get("/", (req, res) => {
         .unit { font-size: 20px; font-weight: 600; color: var(--muted); margin-left: 4px; letter-spacing: 0; }
         .sub-pill { font-size: 12px; font-weight: 800; padding: 6px 12px; border-radius: 10px; background: var(--badge); display: inline-flex; align-items: center; gap: 4px; margin: 12px 0 20px 0; }
 
-        .sub-box-4 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding-top: 20px; border-top: 1px solid var(--border); }
+        .sub-box-4 {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px; /* Increased gap */
+    padding-top: 24px;
+    margin-top: auto; /* Pushes content to bottom of card */
+    border-top: 1px dashed var(--border); /* Dashed line looks more 'technical' */
+}
         .badge { padding: 12px; border-radius: 18px; background: var(--badge); display: flex; flex-direction: column; gap: 2px; }
         .badge-label { font-size: 9px; color: var(--muted); text-transform: uppercase; font-weight: 800; }
         .badge-val { font-size: 16px; font-weight: 800; }
