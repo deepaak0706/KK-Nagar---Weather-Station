@@ -774,7 +774,7 @@ body.is-night .glass-select option {
 
         <div class="pro-row">
             <div class="pro-label">
-                <span style="color:#f59e0b; margin-right:10px; font-size:18px;">●</span>Wind
+                <span style="color:#f59e0b; margin-right:10px; font-size:18px;">●</span>Wind dynamics
             </div>
             <div class="pro-data-group">
                 <div class="pro-data-item">
