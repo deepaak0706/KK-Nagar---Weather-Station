@@ -640,6 +640,30 @@ body.is-night .pro-divider { background: rgba(255, 255, 255, 0.1); }
     .pro-summary-table .pro-row:nth-child(3) .pro-data-item { align-items: flex-start; }
 }
 
+.glass-select {
+    background: var(--badge);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 8px 12px;
+    font-family: inherit;
+    font-weight: 700;
+    color: var(--text);
+    outline: none;
+    cursor: pointer;
+    backdrop-filter: blur(10px);
+}
+body.is-night .glass-select {
+    background: rgba(255, 255, 255, 0.05);
+}
+.glass-select option {
+    background: white;
+    color: black;
+}
+body.is-night .glass-select option {
+    background: #1e293b;
+    color: white;
+}
+
 
 
     </style>
@@ -1054,7 +1078,11 @@ body.is-night .pro-divider { background: rgba(255, 255, 255, 0.1); }
             if (pageId === 'summary') fetchMonthlySummary();
         }
 
-        async function fetchMonthlySummary() {
+        /* SUMMARY CONTROLLER */
+let selectedMonth = new Date().toLocaleDateString('en-IN', { month: 'long' });
+let selectedYear = new Date().getFullYear().toString();
+
+async function fetchMonthlySummary() {
     const content = document.getElementById('summary-content');
     content.innerHTML = '<div class="card" style="text-align:center; padding:40px;">Generating Summary Report...</div>';
     
@@ -1062,44 +1090,81 @@ body.is-night .pro-divider { background: rgba(255, 255, 255, 0.1); }
         const res = await fetch('/api/summary');
         const groups = await res.json();
         
-        let html = '';
-        // We use \${ and \` so Node.js ignores them, but the browser runs them
-        for (const [month, days] of Object.entries(groups)) {
-            html += \`
-                <div class="month-section">
-                    <div class="month-header">\${month}</div>
-                    <div class="summary-table-wrapper">
-                        <table class="summary-table">
-                            <thead>
-                                <tr>
-                                    <th>Date</th>
-                                    <th>Max Temp</th>
-                                    <th>Min Temp</th>
-                                    <th>Wind/Gust</th>
-                                    <th>Total Rain</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                \${days.map(d => \`
-                                    <tr>
-                                        <td><b>\${new Date(d.record_date).getDate()}</b></td>
-                                        <td style="color:#ef4444; font-weight:700;">\${d.max_temp_c}°C</td>
-                                        <td style="color:#0ea5e9; font-weight:700;">\${d.min_temp_c}°C</td>
-                                        <td>\${d.max_wind_kmh} / \${d.max_gust_kmh} <small>km/h</small></td>
-                                        <td style="font-weight:800;">\${d.total_rain_mm} mm</td>
-                                    </tr>
-                                \`).join('')}
-                            </tbody>
-                        </table>
+        const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+        let yearOptions = "";
+        for (let y = 2026; y <= 2040; y++) {
+            yearOptions += \`<option value="\${y}" \${selectedYear == y ? 'selected' : ''}>\${y}</option>\`;
+        }
+
+        const currentKey = \`\${selectedMonth} \${selectedYear}\`;
+        const days = groups[currentKey] || [];
+
+        let html = \`
+            <div class="archive-container" style="animation: fadeIn 0.5s ease;">
+                <div style="margin-bottom: 20px; padding: 15px 25px; display: flex; justify-content: space-between; align-items: center; background: var(--card); border-radius: 20px; border: 1px solid var(--border);">
+                    <div style="font-weight: 800; letter-spacing: 0.5px; color: var(--accent);">MONTHLY ARCHIVES</div>
+                    <div style="display: flex; gap: 10px;">
+                        <select id="monthSelect" class="glass-select" onchange="updateArchiveFilter()">
+                            \${months.map(m => \`<option value="\${m}" \${selectedMonth === m ? 'selected' : ''}>\${m}</option>\`).join('')}
+                        </select>
+                        <select id="yearSelect" class="glass-select" onchange="updateArchiveFilter()">
+                            \${yearOptions}
+                        </select>
                     </div>
+                </div>
+        \`;
+
+        if (days.length === 0) {
+            html += \`
+                <div class="card" style="text-align:center; padding:60px; color: var(--muted); font-weight: 600;">
+                    <div style="font-size: 40px; margin-bottom: 10px;">Empty</div>
+                    No data recorded for \${currentKey}
+                </div>
+            \`;
+        } else {
+            html += \`
+                <div class="pro-summary-table">
+                    <div class="pro-row" style="background: var(--badge); font-weight: 800; font-size: 11px; text-transform: uppercase;">
+                        <div style="width: 15%;">Date</div>
+                        <div style="width: 25%; text-align: center;">Temp (H/L)</div>
+                        <div style="width: 35%; text-align: center;">Wind / Gust</div>
+                        <div style="width: 25%; text-align: right;">Rainfall</div>
+                    </div>
+                    \${days.map(d => \`
+                        <div class="pro-row">
+                            <div class="pro-label" style="font-size: 14px;">
+                                <b>\${new Date(d.record_date).getDate()}</b> <span style="font-size: 10px; margin-left: 5px; opacity: 0.6;">\${selectedMonth.substring(0,3)}</span>
+                            </div>
+                            <div class="pro-data-group" style="gap: 15px;">
+                                <span style="color:#ef4444; font-weight: 700;">\${parseFloat(d.max_temp_c).toFixed(1)}°</span>
+                                <span style="color:#0ea5e9; font-weight: 700;">\${parseFloat(d.min_temp_c).toFixed(1)}°</span>
+                            </div>
+                            <div style="font-size: 13px; font-weight: 600;">
+                                \${parseFloat(d.max_wind_kmh).toFixed(1)} <span style="opacity: 0.4;">/</span> \${parseFloat(d.max_gust_kmh).toFixed(1)} <small>km/h</small>
+                            </div>
+                            <div style="font-weight: 800; color: #3b82f6; text-align: right; min-width: 80px;">
+                                \${parseFloat(d.total_rain_mm).toFixed(1)} <small>mm</small>
+                            </div>
+                        </div>
+                    \`).join('')}
                 </div>
             \`;
         }
-        content.innerHTML = html || '<div class="card" style="text-align:center; padding:40px;">No archived records found yet.</div>';
+
+        html += \`</div>\`;
+        content.innerHTML = html;
+
     } catch (e) {
         content.innerHTML = '<div class="card" style="color:#ef4444">Error loading summary.</div>';
     }
 }
+
+window.updateArchiveFilter = function() {
+    selectedMonth = document.getElementById('monthSelect').value;
+    selectedYear = document.getElementById('yearSelect').value;
+    fetchMonthlySummary();
+};
+
 </script>
 </body>
 </html>
