@@ -555,56 +555,92 @@ app.get("/", (req, res) => {
 
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
-        /* PRO MAX GLASSMORPHISM 24H SUMMARY */
-.glass-summary-bar {
-    display: flex;
-    flex-wrap: wrap;
-    background: linear-gradient(135deg, rgba(255, 255, 255, 0.4) 0%, rgba(255, 255, 255, 0.1) 100%);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    border: 1px solid rgba(255, 255, 255, 0.3);
+        /* PRO MAX ROW-BASED SUMMARY TABLE */
+.pro-summary-table {
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.5) 0%, rgba(255, 255, 255, 0.1) 100%);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid rgba(255, 255, 255, 0.4);
     border-radius: 24px;
-    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.05), inset 0 0 0 1px rgba(255, 255, 255, 0.2);
+    box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.08), inset 0 0 0 1px rgba(255, 255, 255, 0.3);
     overflow: hidden;
-}
-body.is-night .glass-summary-bar {
-    background: linear-gradient(135deg, rgba(30, 41, 59, 0.6) 0%, rgba(15, 23, 42, 0.4) 100%);
-    border: 1px solid rgba(255, 255, 255, 0.05);
-    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5), inset 0 0 0 1px rgba(255, 255, 255, 0.02);
-}
-.glass-stat {
-    flex: 1;
-    min-width: 120px;
-    padding: 20px 15px;
     display: flex;
     flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    border-right: 1px solid rgba(0, 0, 0, 0.05);
-    position: relative;
-    transition: transform 0.3s ease, background 0.3s ease;
 }
-body.is-night .glass-stat { border-right: 1px solid rgba(255, 255, 255, 0.05); }
-.glass-stat:last-child { border-right: none; }
-.glass-stat:hover { background: rgba(255, 255, 255, 0.2); transform: translateY(-2px); }
-body.is-night .glass-stat:hover { background: rgba(255, 255, 255, 0.03); }
 
-.glass-stat-title {
+body.is-night .pro-summary-table {
+    background: linear-gradient(135deg, rgba(30, 41, 59, 0.7) 0%, rgba(15, 23, 42, 0.5) 100%);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.6), inset 0 0 0 1px rgba(255, 255, 255, 0.03);
+}
+
+.pro-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 24px 30px;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+    transition: background 0.3s ease;
+}
+body.is-night .pro-row { border-bottom: 1px solid rgba(255, 255, 255, 0.05); }
+.pro-row:last-child { border-bottom: none; }
+.pro-row:hover { background: rgba(0, 0, 0, 0.02); }
+body.is-night .pro-row:hover { background: rgba(255, 255, 255, 0.02); }
+
+.pro-label {
+    font-size: 15px;
+    font-weight: 800;
+    color: var(--text);
+    letter-spacing: 0.5px;
+    display: flex;
+    align-items: center;
+}
+
+.pro-data-group {
+    display: flex;
+    align-items: center;
+    gap: 32px;
+}
+
+.pro-data-item {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    min-width: 90px;
+}
+
+.pro-sub {
     font-size: 10px;
     text-transform: uppercase;
     letter-spacing: 1.5px;
     color: var(--muted);
     font-weight: 800;
-    margin-bottom: 8px;
-    text-align: center;
+    margin-bottom: 6px;
 }
-.glass-stat-val {
-    font-size: 24px;
+
+.pro-val {
+    font-size: 26px;
     font-weight: 900;
-    line-height: 1.2;
+    line-height: 1;
     letter-spacing: -0.5px;
-    text-align: center;
 }
+
+.pro-divider {
+    width: 1px;
+    height: 36px;
+    background: rgba(0, 0, 0, 0.1);
+}
+body.is-night .pro-divider { background: rgba(255, 255, 255, 0.1); }
+
+/* Mobile responsiveness: stack beautifully on small screens */
+@media (max-width: 500px) {
+    .pro-row { flex-direction: column; align-items: flex-start; gap: 16px; padding: 20px; }
+    .pro-data-group { width: 100%; justify-content: space-between; gap: 15px; }
+    .pro-data-item { align-items: flex-start; }
+    .pro-summary-table .pro-row:nth-child(3) .pro-data-item { align-items: flex-start; }
+}
+
+
 
     </style>
 </head>
@@ -684,31 +720,52 @@ body.is-night .glass-stat:hover { background: rgba(255, 255, 255, 0.03); }
                 </div>
 
                 <div id="sub-view-summary" style="display: block; animation: fadeIn 0.4s ease;">
-    <div class="glass-summary-bar">
+    <div class="pro-summary-table">
         
-        <div class="glass-stat">
-            <div class="glass-stat-title"><span style="color:#ef4444; margin-right:4px;">●</span>Max Temp</div>
-            <div id="s-mx" class="glass-stat-val" style="color: #ef4444;">--</div>
+        <div class="pro-row">
+            <div class="pro-label">
+                <span style="color:#ef4444; margin-right:10px; font-size:18px;">●</span>24H Temperature
+            </div>
+            <div class="pro-data-group">
+                <div class="pro-data-item">
+                    <span class="pro-sub">Maximum</span>
+                    <span id="s-mx" class="pro-val" style="color: #ef4444;">--</span>
+                </div>
+                <div class="pro-divider"></div>
+                <div class="pro-data-item">
+                    <span class="pro-sub">Minimum</span>
+                    <span id="s-mn" class="pro-val" style="color: #0ea5e9;">--</span>
+                </div>
+            </div>
         </div>
 
-        <div class="glass-stat">
-            <div class="glass-stat-title"><span style="color:#0ea5e9; margin-right:4px;">●</span>Min Temp</div>
-            <div id="s-mn" class="glass-stat-val" style="color: #0ea5e9;">--</div>
+        <div class="pro-row">
+            <div class="pro-label">
+                <span style="color:#f59e0b; margin-right:10px; font-size:18px;">●</span>Wind Dynamics
+            </div>
+            <div class="pro-data-group">
+                <div class="pro-data-item">
+                    <span class="pro-sub">Sustained</span>
+                    <span id="s-mw" class="pro-val" style="color: var(--text);">--</span>
+                </div>
+                <div class="pro-divider"></div>
+                <div class="pro-data-item">
+                    <span class="pro-sub">Peak Gust</span>
+                    <span id="s-mg" class="pro-val" style="color: var(--text);">--</span>
+                </div>
+            </div>
         </div>
 
-        <div class="glass-stat">
-            <div class="glass-stat-title"><span style="color:#f59e0b; margin-right:4px;">●</span>Max Wind</div>
-            <div id="s-mw" class="glass-stat-val" style="color: #f59e0b;">--</div>
-        </div>
-
-        <div class="glass-stat">
-            <div class="glass-stat-title"><span style="color:#f59e0b; margin-right:4px;">●</span>Peak Gust</div>
-            <div id="s-mg" class="glass-stat-val" style="color: #f59e0b;">--</div>
-        </div>
-
-        <div class="glass-stat">
-            <div class="glass-stat-title"><span style="color:#3b82f6; margin-right:4px;">●</span>24H Rain</div>
-            <div id="s-rt" class="glass-stat-val" style="color: #3b82f6;">--</div>
+        <div class="pro-row">
+            <div class="pro-label">
+                <span style="color:#3b82f6; margin-right:10px; font-size:18px;">●</span>Precipitation
+            </div>
+            <div class="pro-data-group" style="justify-content: flex-end;">
+                <div class="pro-data-item" style="flex: 0 0 auto;">
+                    <span class="pro-sub">Total Accumulation</span>
+                    <span id="s-rt" class="pro-val" style="color: #3b82f6;">--</span>
+                </div>
+            </div>
         </div>
 
     </div>
