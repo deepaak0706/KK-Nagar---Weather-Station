@@ -1376,7 +1376,7 @@ window.fetchHistoricalData = async function() {
         
         // PRE MONSOON Card
         html += '<div style="background: rgba(245, 158, 11, 0.08); border: 1.5px solid rgba(245, 158, 11, 0.3); border-radius: 14px; padding: 15px 5px; text-align: center;">' +
-                    '<div style="font-size: 0.6rem; font-weight: 900; color: #f59e0b; letter-spacing: 1px; margin-bottom: 4px;">PRE MONSOON</div>' +
+                    '<div style="font-size: 0.6rem; font-weight: 900; color: #f59e0b; letter-spacing: 1px; margin-bottom: 4px;">JAN-MAY</div>' +
                     '<div style="font-size: 1.3rem; font-weight: 900; color: #f8fafc;">' + preMonsoonTotal.toFixed(1) + '</div>' +
                 '</div>';
         
