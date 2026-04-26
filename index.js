@@ -1136,7 +1136,7 @@ async function fetchMonthlySummary() {
                 </div>
             \`;
         } else {
-            html += `
+            html += \`
                 <div class="pro-summary-table">
                     <div class="pro-row" style="background: var(--badge); font-weight: 800; font-size: 11px; text-transform: uppercase; display: flex; align-items: center;">
                         <div style="width: 20%;">Date</div>
@@ -1145,7 +1145,7 @@ async function fetchMonthlySummary() {
                         <div style="width: 25%; text-align: right;">Rainfall</div>
                     </div>
                     
-                    ${days.map(d => `
+                    ${days.map(d => \`
                         <div class="pro-row" style="display: flex; align-items: center;">
                             <div style="width: 20%; font-size: 16px;">
                                 <b>${new Date(d.record_date).getDate()}</b>
@@ -1167,7 +1167,7 @@ async function fetchMonthlySummary() {
                         </div>
                     `).join('')}
                 </div>
-            `;
+            \`;
         }
 
         html += \`</div>\`;
