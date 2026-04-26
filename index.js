@@ -555,13 +555,13 @@ app.get("/", (req, res) => {
 
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
-        /* PRO MAX GRID-BASED SUMMARY TABLE */
+        /* REFINED ROW-BASED SUMMARY */
 .pro-summary-table {
     background: var(--card);
     backdrop-filter: blur(24px);
     -webkit-backdrop-filter: blur(24px);
     border: 1px solid var(--border);
-    border-radius: 28px;
+    border-radius: 24px;
     box-shadow: var(--glow);
     overflow: hidden;
     display: flex;
@@ -569,38 +569,40 @@ app.get("/", (req, res) => {
 }
 
 .pro-row {
-    display: grid;
-    /* Grid structure: [Icon+Label] [Data Point 1] [Data Point 2] */
-    grid-template-columns: 1.2fr 1fr 1fr; 
+    display: flex;
+    justify-content: space-between;
     align-items: center;
-    padding: 24px 32px;
+    padding: 24px 30px;
     border-bottom: 1px solid var(--border);
-    transition: all 0.3s ease;
+    transition: background 0.3s ease;
+    gap: 20px; /* Ensures a minimum gap between label and data */
 }
 
 .pro-row:last-child { border-bottom: none; }
-.pro-row:hover { background: var(--badge); }
 
 .pro-label {
     font-size: 15px;
     font-weight: 800;
     color: var(--text);
+    letter-spacing: 0.5px;
     display: flex;
     align-items: center;
-    gap: 12px;
+    flex: 0 0 160px; /* Lock the label width so data doesn't overlap it */
 }
 
-.pro-dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    box-shadow: 0 0 10px currentColor;
+.pro-data-group {
+    display: flex;
+    align-items: center;
+    gap: 40px; /* Increased spacing between the two values */
+    flex: 1;
+    justify-content: flex-end; /* Keeps data anchored to the right */
 }
 
 .pro-data-item {
     display: flex;
     flex-direction: column;
-    align-items: flex-start; /* Left-aligned for professional data reading */
+    align-items: flex-end;
+    min-width: 100px; /* Ensures consistent alignment across different rows */
 }
 
 .pro-sub {
@@ -609,34 +611,41 @@ app.get("/", (req, res) => {
     letter-spacing: 1.5px;
     color: var(--muted);
     font-weight: 800;
-    margin-bottom: 4px;
+    margin-bottom: 6px;
 }
 
 .pro-val {
-    font-size: 24px;
+    font-size: 26px;
     font-weight: 900;
     line-height: 1;
-    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.5px;
 }
 
-/* Mobile: Stack into a clean vertical list to prevent overlap */
-@media (max-width: 600px) {
+.pro-divider {
+    width: 1px;
+    height: 32px;
+    background: var(--border);
+    opacity: 0.5;
+}
+
+/* Responsive fix for smaller screens to prevent squeezing */
+@media (max-width: 650px) {
     .pro-row {
-        grid-template-columns: 1fr 1fr;
-        grid-template-rows: auto auto;
-        gap: 20px;
-        padding: 24px;
+        padding: 20px;
+        gap: 10px;
     }
     .pro-label {
-        grid-column: span 2;
-        border-bottom: 1px solid var(--border);
-        padding-bottom: 12px;
-        margin-bottom: 4px;
+        flex: 0 0 120px;
+        font-size: 13px;
     }
-    .pro-data-item {
-        align-items: flex-start;
+    .pro-data-group {
+        gap: 20px;
+    }
+    .pro-val {
+        font-size: 20px;
     }
 }
+
 
 
 .glass-select {
@@ -742,52 +751,64 @@ body.is-night .glass-select option {
                     <button onclick="switchSubView('graphs')" id="btn-sub-graph" class="tab-btn">24H Graphs</button>
                 </div>
 
+                
                 <div id="sub-view-summary" style="display: block; animation: fadeIn 0.4s ease;">
     <div class="pro-summary-table">
         
         <div class="pro-row">
             <div class="pro-label">
-                <span class="pro-dot" style="color:#ef4444; background:#ef4444;"></span>
-                Temperature
+                <span style="color:#ef4444; margin-right:10px; font-size:18px;">●</span>Temperature
             </div>
-            <div class="pro-data-item">
-                <span class="pro-sub">Maximum</span>
-                <span id="s-mx" class="pro-val" style="color: #ef4444;">--</span>
-            </div>
-            <div class="pro-data-item">
-                <span class="pro-sub">Minimum</span>
-                <span id="s-mn" class="pro-val" style="color: #0ea5e9;">--</span>
-            </div>
-        </div>
-
-        <div class="pro-row">
-            <div class="pro-label">
-                <span class="pro-dot" style="color:#f59e0b; background:#f59e0b;"></span>
-                Wind Dynamics
-            </div>
-            <div class="pro-data-item">
-                <span class="pro-sub">Sustained Peak</span>
-                <span id="s-mw" class="pro-val">--</span>
-            </div>
-            <div class="pro-data-item">
-                <span class="pro-sub">Peak Gust</span>
-                <span id="s-mg" class="pro-val">--</span>
+            <div class="pro-data-group">
+                <div class="pro-data-item">
+                    <span class="pro-sub">Maximum</span>
+                    <span id="s-mx" class="pro-val" style="color: #ef4444;">--</span>
+                </div>
+                <div class="pro-divider"></div>
+                <div class="pro-data-item">
+                    <span class="pro-sub">Minimum</span>
+                    <span id="s-mn" class="pro-val" style="color: #0ea5e9;">--</span>
+                </div>
             </div>
         </div>
 
         <div class="pro-row">
             <div class="pro-label">
-                <span class="pro-dot" style="color:#3b82f6; background:#3b82f6;"></span>
-                Precipitation
+                <span style="color:#f59e0b; margin-right:10px; font-size:18px;">●</span>Wind
             </div>
-            <div class="pro-data-item" style="grid-column: span 2;">
-                <span class="pro-sub">24H Total Accumulation</span>
-                <span id="s-rt" class="pro-val" style="color: #3b82f6;">--</span>
+            <div class="pro-data-group">
+                <div class="pro-data-item">
+                    <span class="pro-sub">Sustained</span>
+                    <span id="s-mw" class="pro-val">--</span>
+                </div>
+                <div class="pro-divider"></div>
+                <div class="pro-data-item">
+                    <span class="pro-sub">Peak Gust</span>
+                    <span id="s-mg" class="pro-val">--</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="pro-row">
+            <div class="pro-label">
+                <span style="color:#3b82f6; margin-right:10px; font-size:18px;">●</span>Rainfall
+            </div>
+            <div class="pro-data-group">
+                <div class="pro-data-item">
+                    <span class="pro-sub">24H Total</span>
+                    <span id="s-rt" class="pro-val" style="color: #3b82f6;">--</span>
+                </div>
+                <div class="pro-divider" style="visibility: hidden;"></div>
+                <div class="pro-data-item" style="visibility: hidden;">
+                    <span class="pro-sub">-</span>
+                    <span class="pro-val">--</span>
+                </div>
             </div>
         </div>
 
     </div>
 </div>
+
 
 </div>
 
