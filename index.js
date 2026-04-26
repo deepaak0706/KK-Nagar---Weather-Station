@@ -554,6 +554,58 @@ app.get("/", (req, res) => {
         .summary-table tr:hover { background: var(--badge); }
 
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* PRO MAX GLASSMORPHISM 24H SUMMARY */
+.glass-summary-bar {
+    display: flex;
+    flex-wrap: wrap;
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.4) 0%, rgba(255, 255, 255, 0.1) 100%);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 24px;
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.05), inset 0 0 0 1px rgba(255, 255, 255, 0.2);
+    overflow: hidden;
+}
+body.is-night .glass-summary-bar {
+    background: linear-gradient(135deg, rgba(30, 41, 59, 0.6) 0%, rgba(15, 23, 42, 0.4) 100%);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5), inset 0 0 0 1px rgba(255, 255, 255, 0.02);
+}
+.glass-stat {
+    flex: 1;
+    min-width: 120px;
+    padding: 20px 15px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    border-right: 1px solid rgba(0, 0, 0, 0.05);
+    position: relative;
+    transition: transform 0.3s ease, background 0.3s ease;
+}
+body.is-night .glass-stat { border-right: 1px solid rgba(255, 255, 255, 0.05); }
+.glass-stat:last-child { border-right: none; }
+.glass-stat:hover { background: rgba(255, 255, 255, 0.2); transform: translateY(-2px); }
+body.is-night .glass-stat:hover { background: rgba(255, 255, 255, 0.03); }
+
+.glass-stat-title {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--muted);
+    font-weight: 800;
+    margin-bottom: 8px;
+    text-align: center;
+}
+.glass-stat-val {
+    font-size: 24px;
+    font-weight: 900;
+    line-height: 1.2;
+    letter-spacing: -0.5px;
+    text-align: center;
+}
+
     </style>
 </head>
 <body>
@@ -632,48 +684,36 @@ app.get("/", (req, res) => {
                 </div>
 
                 <div id="sub-view-summary" style="display: block; animation: fadeIn 0.4s ease;">
-                    <div class="grid-system" style="grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px;">
-                        
-                        <div class="card" style="padding: 24px; min-height: 140px;">
-                            <div class="label" style="margin-bottom: 16px;"><span style="color:#ef4444; font-size:14px; margin-right:6px;">●</span>24H Temperature</div>
-                            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: auto;">
-                                <div style="text-align: left;">
-                                    <div style="font-size: 11px; color: var(--muted); text-transform: uppercase; font-weight: 800; letter-spacing: 1px; margin-bottom: 4px;">Maximum</div>
-                                    <div id="s-mx" style="font-size: 32px; font-weight: 900; color: #ef4444; line-height: 1;">--</div>
-                                </div>
-                                <div style="height: 40px; width: 1px; background: var(--border);"></div>
-                                <div style="text-align: right;">
-                                    <div style="font-size: 11px; color: var(--muted); text-transform: uppercase; font-weight: 800; letter-spacing: 1px; margin-bottom: 4px;">Minimum</div>
-                                    <div id="s-mn" style="font-size: 32px; font-weight: 900; color: #0ea5e9; line-height: 1;">--</div>
-                                </div>
-                            </div>
-                        </div>
+    <div class="glass-summary-bar">
+        
+        <div class="glass-stat">
+            <div class="glass-stat-title"><span style="color:#ef4444; margin-right:4px;">●</span>Max Temp</div>
+            <div id="s-mx" class="glass-stat-val" style="color: #ef4444;">--</div>
+        </div>
 
-                        <div class="card" style="padding: 24px; min-height: 140px;">
-                            <div class="label" style="margin-bottom: 16px;"><span style="color:#f59e0b; font-size:14px; margin-right:6px;">●</span>24H Wind</div>
-                            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: auto;">
-                                <div style="text-align: left;">
-                                    <div style="font-size: 11px; color: var(--muted); text-transform: uppercase; font-weight: 800; letter-spacing: 1px; margin-bottom: 4px;">Max Sustained</div>
-                                    <div id="s-mw" style="font-size: 32px; font-weight: 900; line-height: 1;">--</div>
-                                </div>
-                                <div style="height: 40px; width: 1px; background: var(--border);"></div>
-                                <div style="text-align: right;">
-                                    <div style="font-size: 11px; color: var(--muted); text-transform: uppercase; font-weight: 800; letter-spacing: 1px; margin-bottom: 4px;">Peak Gust</div>
-                                    <div id="s-mg" style="font-size: 32px; font-weight: 900; line-height: 1;">--</div>
-                                </div>
-                            </div>
-                        </div>
+        <div class="glass-stat">
+            <div class="glass-stat-title"><span style="color:#0ea5e9; margin-right:4px;">●</span>Min Temp</div>
+            <div id="s-mn" class="glass-stat-val" style="color: #0ea5e9;">--</div>
+        </div>
 
-                        <div class="card" style="padding: 24px; min-height: 140px;">
-                            <div class="label" style="margin-bottom: 16px;"><span style="color:#3b82f6; font-size:14px; margin-right:6px;">●</span>24H Rainfall</div>
-                            <div style="text-align: left; margin-top: auto;">
-                                <div style="font-size: 11px; color: var(--muted); text-transform: uppercase; font-weight: 800; letter-spacing: 1px; margin-bottom: 4px;">Total Accumulation</div>
-                                <div id="s-rt" style="font-size: 32px; font-weight: 900; color: #3b82f6; line-height: 1;">--</div>
-                            </div>
-                        </div>
+        <div class="glass-stat">
+            <div class="glass-stat-title"><span style="color:#f59e0b; margin-right:4px;">●</span>Max Wind</div>
+            <div id="s-mw" class="glass-stat-val" style="color: #f59e0b;">--</div>
+        </div>
 
-                    </div>
-                </div>
+        <div class="glass-stat">
+            <div class="glass-stat-title"><span style="color:#f59e0b; margin-right:4px;">●</span>Peak Gust</div>
+            <div id="s-mg" class="glass-stat-val" style="color: #f59e0b;">--</div>
+        </div>
+
+        <div class="glass-stat">
+            <div class="glass-stat-title"><span style="color:#3b82f6; margin-right:4px;">●</span>24H Rain</div>
+            <div id="s-rt" class="glass-stat-val" style="color: #3b82f6;">--</div>
+        </div>
+
+    </div>
+</div>
+
 
                 <div id="sub-view-graphs" style="display: none; animation: fadeIn 0.4s ease;">
                     
