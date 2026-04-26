@@ -1092,7 +1092,7 @@ body.is-night .glass-select option {
             document.getElementById('tab-dash').classList.toggle('active', pageId === 'dashboard');
             document.getElementById('tab-sum').classList.toggle('active', pageId === 'summary');
 
-            if (pageId === 'summary') fetchMonthlySummary();
+            
         }
 
         /* SUMMARY CONTROLLER */
@@ -1121,12 +1121,9 @@ async function fetchMonthlySummary() {
                 <div style="margin-bottom: 20px; padding: 15px 25px; display: flex; justify-content: space-between; align-items: center; background: var(--card); border-radius: 20px; border: 1px solid var(--border);">
                     <div style="font-weight: 800; letter-spacing: 0.5px; color: var(--accent);">MONTHLY ARCHIVES</div>
                     <div style="display: flex; gap: 10px;">
-                        <select id="monthSelect" class="glass-select" onchange="updateArchiveFilter()">
-                            \${months.map(m => \`<option value="\${m}" \${selectedMonth === m ? 'selected' : ''}>\${m}</option>\`).join('')}
-                        </select>
-                        <select id="yearSelect" class="glass-select" onchange="updateArchiveFilter()">
-                            \${yearOptions}
-                        </select>
+                        <select id="monthSelect"></select>
+<select id="yearSelect"></select>
+<button onclick="updateArchiveFilter()" style="padding: 6px 12px; margin-left: 8px; background: var(--border); color: var(--text); border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">Get Data</button>
                     </div>
                 </div>
         \`;
@@ -1139,34 +1136,38 @@ async function fetchMonthlySummary() {
                 </div>
             \`;
         } else {
-            html += \`
+            html += `
                 <div class="pro-summary-table">
-                    <div class="pro-row" style="background: var(--badge); font-weight: 800; font-size: 11px; text-transform: uppercase;">
-                        <div style="width: 15%;">Date</div>
+                    <div class="pro-row" style="background: var(--badge); font-weight: 800; font-size: 11px; text-transform: uppercase; display: flex; align-items: center;">
+                        <div style="width: 20%;">Date</div>
                         <div style="width: 25%; text-align: center;">Temp (H/L)</div>
-                        <div style="width: 35%; text-align: center;">Wind / Gust</div>
+                        <div style="width: 30%; text-align: center;">Wind / Gust</div>
                         <div style="width: 25%; text-align: right;">Rainfall</div>
                     </div>
-                    \${days.map(d => \`
-                        <div class="pro-row">
-                            <div class="pro-label" style="font-size: 16px;">
-                                <b>\${new Date(d.record_date).getDate()}</b>
+                    
+                    ${days.map(d => `
+                        <div class="pro-row" style="display: flex; align-items: center;">
+                            <div style="width: 20%; font-size: 16px;">
+                                <b>${new Date(d.record_date).getDate()}</b>
                             </div>
-                            <div class="pro-data-group" style="gap: 10px;">
-                                <span style="color:#ef4444; font-weight: 700;">\${parseFloat(d.max_temp_c).toFixed(1)}°</span>
+                            
+                            <div style="width: 25%; display: flex; justify-content: center; gap: 8px;">
+                                <span style="color:#ef4444; font-weight: 700;">${parseFloat(d.max_temp_c).toFixed(1)}°</span>
                                 <span style="opacity: 0.3; font-weight: 400;">/</span>
-                                <span style="color:#0ea5e9; font-weight: 700;">\${parseFloat(d.min_temp_c).toFixed(1)}°</span>
+                                <span style="color:#0ea5e9; font-weight: 700;">${parseFloat(d.min_temp_c).toFixed(1)}°</span>
                             </div>
-                            <div style="font-size: 13px; font-weight: 600;">
-                                \${parseFloat(d.max_wind_kmh).toFixed(1)} <span style="opacity: 0.4;">/</span> \${parseFloat(d.max_gust_kmh).toFixed(1)} <small>km/h</small>
+                            
+                            <div style="width: 30%; font-size: 13px; font-weight: 600; text-align: center;">
+                                ${parseFloat(d.max_wind_kmh).toFixed(1)} <span style="opacity: 0.4;">/</span> ${parseFloat(d.max_gust_kmh).toFixed(1)} <small style="font-size:10px">km/h</small>
                             </div>
-                            <div style="font-weight: 800; color: #3b82f6; text-align: right; min-width: 80px;">
-                                \${parseFloat(d.total_rain_mm).toFixed(1)} <small>mm</small>
+                            
+                            <div style="width: 25%; font-weight: 800; color: #3b82f6; text-align: right;">
+                                ${parseFloat(d.total_rain_mm).toFixed(1)} <small style="font-size:10px">mm</small>
                             </div>
                         </div>
-                    \`).join('')}
+                    `).join('')}
                 </div>
-            \`;
+            `;
         }
 
         html += \`</div>\`;
