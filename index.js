@@ -646,29 +646,44 @@ app.get("/", (req, res) => {
     }
 }
 
-
-
 .glass-select {
-    background: var(--badge);
+    background: var(--card) !important;
     border: 1px solid var(--border);
-    border-radius: 12px;
+    border-radius: 12px; /* Smoother corners */
     padding: 8px 12px;
     font-family: inherit;
-    font-weight: 700;
-    color: var(--text);
+    font-weight: 600;
+    color: var(--text) !important;
     outline: none;
     cursor: pointer;
-    backdrop-filter: blur(10px);
+    transition: all 0.2s ease; /* Smooth hover transition */
+    appearance: none; /* Removes default browser styling */
+    -webkit-appearance: none;
+    background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    background-size: 1em;
+    padding-right: 40px;
 }
-body.is-night .glass-select {
-    background: rgba(255, 255, 255, 0.05);
+
+.glass-select:hover {
+    border-color: var(--accent);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
 }
+
+/* Forces the dropdown list (popup) to be dark and prevents the white blink */
 .glass-select option {
-    background: white;
-    color: black;
+    background-color: #ffffff;
+    color: #000000;
 }
+
+body.is-night .glass-select {
+    color-scheme: dark; /* CRITICAL: Tells browser the interior of the select is dark */
+}
+
 body.is-night .glass-select option {
-    background: #1e293b;
+    background-color: #1e293b;
     color: #f1f5f9;
 }
 
@@ -1112,7 +1127,10 @@ window.showMonthlySummaryUI = function() {
     }).join('');
 
     let yearOptions = "";
-    for (var y = 2024; y <= 2045; y++) {
+    const startYear = 2026;
+    const endYear = 2032; // Next 7 years from now
+    
+    for (var y = startYear; y <= endYear; y++) {
         var ySel = (selectedYear == y) ? 'selected' : '';
         yearOptions += '<option value="' + y + '" ' + ySel + '>' + y + '</option>';
     }
