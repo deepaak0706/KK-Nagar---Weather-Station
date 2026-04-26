@@ -1325,74 +1325,68 @@ window.fetchHistoricalData = async function() {
         var months = result.data.filter(function(d) { return d.month_val !== 'Annual'; });
         var annualRow = result.data.find(function(d) { return d.month_val === 'Annual'; });
 
-        // Split into Left and Right columns
-        var firstHalf = months.slice(0, 6);
-        var secondHalf = months.slice(6, 12);
-
-        // Find the maximum rainfall to scale the visual progress bars
-        var maxRain = 0;
-        months.forEach(function(m) {
-            var rf = parseFloat(m.rainfall_mm) || 0;
-            if (rf > maxRain) maxRain = rf;
+        // Calculate rankings: Sort months by rainfall (highest to lowest)
+        var sorted = months.slice().sort(function(a, b) { 
+            return parseFloat(b.rainfall_mm) - parseFloat(a.rainfall_mm); 
         });
-        if (maxRain === 0) maxRain = 1; // Prevent division by zero
-
-        // Pro-Level Month Row Component
-        function renderMonthCard(d) {
-            if (!d) return '';
-            var rf = parseFloat(d.rainfall_mm) || 0;
-            var widthPct = (rf / maxRain) * 100;
-            if (widthPct > 100) widthPct = 100;
-
-            // Visual styling based on rain intensity
-            var intensityColor = rf > 200 ? '#3b82f6' : (rf > 0 ? '#60a5fa' : '#334155');
-            var valColor = rf > 0 ? '#f8fafc' : '#64748b';
-            var monthName = d.month_val.length > 3 ? d.month_val.substring(0,3).toUpperCase() : d.month_val.toUpperCase();
-
-            return '<div style="position: relative; overflow: hidden; display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; margin-bottom: 8px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.05); background: rgba(30, 41, 59, 0.4);">' +
-                        '<div style="position: absolute; left: 0; top: 0; bottom: 0; width: ' + widthPct + '%; background: rgba(59, 130, 246, 0.12); z-index: 0; transition: width 0.8s ease-out;"></div>' +
-                        '<div style="position: relative; z-index: 1; display: flex; align-items: center; gap: 12px;">' +
-                            '<div style="width: 4px; height: 16px; border-radius: 2px; background: ' + intensityColor + ';"></div>' +
-                            '<span style="font-weight: 600; color: #cbd5e1; letter-spacing: 0.5px;">' + monthName + '</span>' +
-                        '</div>' +
-                        '<div style="position: relative; z-index: 1; text-align: right;">' +
-                            '<span style="font-size: 1.1rem; font-weight: 700; color: ' + valColor + ';">' + rf.toFixed(1) + '</span>' +
-                            '<span style="font-size: 0.75rem; color: #64748b; margin-left: 4px;">mm</span>' +
-                        '</div>' +
-                    '</div>';
+        
+        // Extract the names of the top 3 months (only if they actually had rain)
+        var topMonths = [];
+        for (var k = 0; k < sorted.length; k++) {
+            if (parseFloat(sorted[k].rainfall_mm) > 0) {
+                topMonths.push(sorted[k].month_val);
+            }
         }
 
-        // --- BUILD THE LAYOUT ---
-        // 1. Two-Column Layout for Months (Flexbox wraps on narrow mobile screens automatically)
-        var html = '<div style="display: flex; flex-wrap: wrap; gap: 20px; margin-top: 10px;">';
+        // 1. Strict 2-Column Grid for all devices
+        var html = '<div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-top: 10px;">';
 
-        // Left Column (Jan - Jun)
-        html += '<div style="flex: 1; min-width: 250px;">';
-        html += '<div style="font-size: 0.75rem; color: #94a3b8; font-weight: 700; letter-spacing: 1px; margin-bottom: 12px; padding-left: 4px;">JAN - JUN</div>';
-        firstHalf.forEach(function(m) { html += renderMonthCard(m); });
-        html += '</div>';
+        for (var i = 0; i < months.length; i++) {
+            var d = months[i];
+            var rf = parseFloat(d.rainfall_mm) || 0;
+            var rankHtml = '';
+            var borderColor = 'rgba(255,255,255,0.05)';
+            var bg = 'rgba(30, 41, 59, 0.4)'; // Default card background
 
-        // Right Column (Jul - Dec)
-        html += '<div style="flex: 1; min-width: 250px;">';
-        html += '<div style="font-size: 0.75rem; color: #94a3b8; font-weight: 700; letter-spacing: 1px; margin-bottom: 12px; padding-left: 4px;">JUL - DEC</div>';
-        secondHalf.forEach(function(m) { html += renderMonthCard(m); });
-        html += '</div>';
+            // Add badges for 1st, 2nd, and 3rd highest
+            if (rf > 0) {
+                var rankIndex = topMonths.indexOf(d.month_val);
+                if (rankIndex === 0) {
+                    // 1st Place (Gold)
+                    rankHtml = '<span style="position:absolute; top:-8px; right:-8px; background:#fbbf24; color:#78350f; font-size:0.65rem; font-weight:800; padding:3px 8px; border-radius:8px; box-shadow:0 2px 5px rgba(0,0,0,0.3); border: 1px solid #f59e0b;">1ST</span>';
+                    borderColor = 'rgba(251, 191, 36, 0.4)';
+                    bg = 'rgba(251, 191, 36, 0.05)'; // Slight gold tint to the card
+                } else if (rankIndex === 1) {
+                    // 2nd Place (Silver)
+                    rankHtml = '<span style="position:absolute; top:-8px; right:-8px; background:#cbd5e1; color:#0f172a; font-size:0.65rem; font-weight:800; padding:3px 8px; border-radius:8px; box-shadow:0 2px 5px rgba(0,0,0,0.3); border: 1px solid #94a3b8;">2ND</span>';
+                    borderColor = 'rgba(203, 213, 225, 0.3)';
+                } else if (rankIndex === 2) {
+                    // 3rd Place (Bronze)
+                    rankHtml = '<span style="position:absolute; top:-8px; right:-8px; background:#d97706; color:#fffbeb; font-size:0.65rem; font-weight:800; padding:3px 8px; border-radius:8px; box-shadow:0 2px 5px rgba(0,0,0,0.3); border: 1px solid #b45309;">3RD</span>';
+                    borderColor = 'rgba(217, 119, 6, 0.3)';
+                }
+            }
 
-        html += '</div>'; // End Flex Container
+            var valColor = rf > 0 ? '#3b82f6' : '#64748b'; // Blue if rain, gray if 0
+            var mName = d.month_val.length > 3 ? d.month_val.substring(0,3).toUpperCase() : d.month_val.toUpperCase();
 
-        // 2. Grand Total Card (At the strict bottom)
+            // Render the month card
+            html += '<div style="position:relative; background:' + bg + '; border: 1px solid ' + borderColor + '; border-radius: 12px; padding: 16px 12px; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center;">';
+            html += rankHtml;
+            html += '<div style="font-size: 0.75rem; font-weight: 700; color: #94a3b8; margin-bottom: 6px; letter-spacing: 1px;">' + mName + '</div>';
+            html += '<div style="font-size: 1.4rem; font-weight: 800; color: ' + valColor + ';">' + rf.toFixed(1) + '<span style="font-size: 0.75rem; color: #64748b; font-weight: 500; margin-left: 3px;">mm</span></div>';
+            html += '</div>';
+        }
+
+        html += '</div>'; // End 2-column grid
+
+        // 2. Annual Total Card at the strict bottom
         if (annualRow) {
             var annRf = parseFloat(annualRow.rainfall_mm).toFixed(1);
-            html += '<div style="margin-top: 24px; padding: 20px 24px; border-radius: 14px; background: linear-gradient(90deg, rgba(30,58,138,0.4) 0%, rgba(15,23,42,0.8) 100%); border: 1px solid rgba(59,130,246,0.3); display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 20px rgba(0,0,0,0.2);">' +
-                        '<div style="display: flex; flex-direction: column;">' +
-                            '<span style="font-size: 0.8rem; color: #93c5fd; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase;">' + year + ' Total</span>' +
-                            '<span style="font-size: 1.2rem; color: #e2e8f0; font-weight: 800;">ANNUAL RAINFALL</span>' +
-                        '</div>' +
-                        '<div style="text-align: right;">' +
-                            '<span style="font-size: 2rem; font-weight: 900; color: #60a5fa; text-shadow: 0 0 15px rgba(96,165,250,0.4);">' + annRf + '</span>' +
-                            '<span style="font-size: 1rem; color: #94a3b8; margin-left: 6px;">mm</span>' +
-                        '</div>' +
-                    '</div>';
+            html += '<div style="margin-top: 20px; background: linear-gradient(145deg, rgba(30, 58, 138, 0.3) 0%, rgba(15, 23, 42, 0.8) 100%); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: 16px; padding: 24px; text-align: center; box-shadow: 0 4px 15px rgba(0,0,0,0.2);">';
+            html += '<div style="font-size: 0.85rem; color: #93c5fd; font-weight: 800; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 8px;">' + year + ' ANNUAL TOTAL</div>';
+            html += '<div style="font-size: 2.6rem; font-weight: 900; color: #60a5fa;">' + annRf + '<span style="font-size: 1rem; color: #94a3b8; margin-left: 6px; font-weight: 600;">mm</span></div>';
+            html += '</div>';
         }
 
         resultsTable.innerHTML = html;
@@ -1401,8 +1395,6 @@ window.fetchHistoricalData = async function() {
         resultsTable.innerHTML = '<div style="text-align:center; padding:40px; color: #ef4444;">Connection error. Check backend logs.</div>';
     }
 };
-
-
 
 </script>
 </body>
