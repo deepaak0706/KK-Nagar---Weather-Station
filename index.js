@@ -804,17 +804,16 @@ body.is-night .glass-select option {
             </div>
         </div>
 
-        <div class="pro-row">
+    <div class="pro-row">
     <div class="pro-label">
         <span style="color:#3b82f6; margin-right:10px; font-size:18px;">●</span>Rainfall
     </div>
     <div class="pro-data-group">
         <div class="pro-data-item">
-            <span class="pro-sub">24H Total</span> <span id="s-rt" class="pro-val" style="color: #3b82f6;">--</span>
+            <span id="s-rt" class="pro-val" style="color: #3b82f6;">--</span>
         </div>
         <div class="pro-divider" style="visibility: hidden;"></div>
         <div class="pro-data-item" style="visibility: hidden;">
-            <span class="pro-sub">-</span>
             <span class="pro-val">--</span>
         </div>
     </div>
