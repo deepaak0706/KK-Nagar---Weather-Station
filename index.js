@@ -490,31 +490,7 @@ app.get("/", (req, res) => {
         @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
         
         .grid-system { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
-        /* Replace your existing .card CSS with this */
-.card {
-    background: var(--card);
-    padding: 28px;
-    border-radius: 32px;
-    border: 1px solid var(--border);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    
-    /* PRO DEPTH: Multi-layered shadow + Internal highlight */
-    box-shadow: 
-        0 10px 30px -10px rgba(0,0,0,0.1),
-        inset 0 1px 0 0 rgba(255,255,255,0.1); 
-        
-    position: relative;
-    overflow: hidden;
-    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s ease;
-}
-
-.card:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 20px 40px -15px rgba(0,0,0,0.2);
-    border-color: var(--accent);
-}
-
+        .card { background: var(--card); padding: 28px; border-radius: 32px; border: 1px solid var(--border); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); box-shadow: var(--glow); position: relative; overflow: hidden; transition: background 0.5s ease; }
         #windCanvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; border-radius: 32px; }
         .card > *:not(canvas) { position: relative; z-index: 5; }
 
@@ -543,31 +519,13 @@ app.get("/", (req, res) => {
         .unit { font-size: 20px; font-weight: 600; color: var(--muted); margin-left: 4px; letter-spacing: 0; }
         .sub-pill { font-size: 12px; font-weight: 800; padding: 6px 12px; border-radius: 10px; background: var(--badge); display: inline-flex; align-items: center; gap: 4px; margin: 12px 0 20px 0; }
 
-        .sub-box-4 {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 16px; /* Increased gap */
-    padding-top: 24px;
-    margin-top: auto; /* Pushes content to bottom of card */
-    border-top: 1px dashed var(--border); /* Dashed line looks more 'technical' */
-}
+        .sub-box-4 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding-top: 20px; border-top: 1px solid var(--border); }
         .badge { padding: 12px; border-radius: 18px; background: var(--badge); display: flex; flex-direction: column; gap: 2px; }
         .badge-label { font-size: 9px; color: var(--muted); text-transform: uppercase; font-weight: 800; }
         .badge-val { font-size: 16px; font-weight: 800; }
 
         .compass-ui { position: absolute !important; top: 28px !important; right: 28px !important; width: 50px; height: 50px; border: 2px solid var(--border); border-radius: 50%; display: flex; align-items: center; justify-content: center; z-index: 10; }
-        /* Update your #needle CSS */
-#needle {
-    width: 4px; /* Slightly thicker */
-    height: 32px;
-    background: linear-gradient(to bottom, #ef4444 50%, #94a3b8 50%);
-    clip-path: polygon(50% 0%, 100% 100%, 50% 85%, 0% 100%);
-    
-    /* PRO ANIMATION: Use a 'back' ease to simulate a magnetic bounce */
-    transition: transform 1.2s cubic-bezier(0.175, 0.885, 0.32, 1.275); 
-    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2));
-}
-
+        #needle { width: 3px; height: 32px; background: linear-gradient(to bottom, #ef4444 50%, var(--muted) 50%); clip-path: polygon(50% 0%, 100% 100%, 50% 85%, 0% 100%); transition: transform 2s cubic-bezier(0.1, 0.9, 0.2, 1); }
 
         .graphs-wrapper { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin-top: 20px; }
         .graph-card { background: var(--card); padding: 24px; border-radius: 32px; border: 1px solid var(--border); height: 320px; box-shadow: var(--glow); display: flex; flex-direction: column; overflow: hidden; transition: background 0.5s ease; }
