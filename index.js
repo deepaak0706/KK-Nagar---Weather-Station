@@ -436,7 +436,7 @@ app.get("/api/history_graphs", async (req, res) => {
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// GET /api/historical-rain?year=2021
+// NEW: Route to handle Historical Rainfall Fetch
 app.get('/api/historical-rain', async (req, res) => {
     const { year } = req.query;
     if (!year) return res.status(400).json({ error: "Year is required" });
@@ -448,7 +448,7 @@ app.get('/api/historical-rain', async (req, res) => {
         );
         res.json({ year: year, data: result.rows });
     } catch (err) {
-        console.error("DB Error:", err);
+        console.error("Historical DB Error:", err);
         res.status(500).json({ error: "Database query failed" });
     }
 });
