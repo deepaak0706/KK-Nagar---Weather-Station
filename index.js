@@ -1323,23 +1323,24 @@ window.fetchHistoricalData = async function() {
         var months = result.data.filter(function(d) { return d.month_val !== 'Annual'; });
         var annualRow = result.data.find(function(d) { return d.month_val === 'Annual'; });
 
-        // 1. Identify extremes for highlighting
+        // 1. Calculations
         var rainValues = months.map(function(m) { return parseFloat(m.rainfall_mm) || 0; });
         var maxVal = Math.max.apply(null, rainValues);
         var minVal = Math.min.apply(null, rainValues);
 
-        // 2. Calculate Seasonal Sums
-        var swmTotal = 0; // Jun to Sep
-        var nemTotal = 0; // Oct to Dec
+        var swmTotal = 0; // Jun, Jul, Aug, Sep
+        var nemTotal = 0; // Oct, Nov, Dec
         
         months.forEach(function(m) {
             var val = parseFloat(m.rainfall_mm) || 0;
-            var name = m.month_val.toLowerCase();
-            if (['june', 'july', 'august', 'september'].some(month => name.includes(month))) swmTotal += val;
-            if (['october', 'november', 'december'].some(month => name.includes(month))) nemTotal += val;
+            // Get first 3 letters to ensure match (JAN, FEB, etc)
+            var mKey = m.month_val.substring(0, 3).toUpperCase();
+            
+            if (['JUN', 'JUL', 'AUG', 'SEP'].indexOf(mKey) !== -1) swmTotal += val;
+            if (['OCT', 'NOV', 'DEC'].indexOf(mKey) !== -1) nemTotal += val;
         });
 
-        // Split columns strictly: Jan-Jun (Left), Jul-Dec (Right)
+        // Split columns: Jan-Jun and Jul-Dec
         var leftCol = months.slice(0, 6);
         var rightCol = months.slice(6, 12);
 
@@ -1349,7 +1350,6 @@ window.fetchHistoricalData = async function() {
             var borderColor = 'rgba(255,255,255,0.05)';
             var textColor = '#e2e8f0';
 
-            // Subtle highlights only
             if (rf === maxVal && maxVal > 0) {
                 bgColor = 'rgba(59, 130, 246, 0.15)';
                 borderColor = 'rgba(59, 130, 246, 0.4)';
@@ -1361,38 +1361,38 @@ window.fetchHistoricalData = async function() {
 
             return '<div style="background:' + bgColor + '; border: 1px solid ' + borderColor + '; border-radius: 12px; padding: 14px; margin-bottom: 10px; text-align: center;">' +
                         '<div style="font-size: 0.65rem; font-weight: 700; color: #94a3b8; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 4px;">' + d.month_val.substring(0,3) + '</div>' +
-                        '<div style="font-size: 1.25rem; font-weight: 800; color: ' + textColor + ';">' + rf.toFixed(1) + '<span style="font-size: 0.7rem; color: #64748b; font-weight: 400; margin-left: 2px;">mm</span></div>' +
+                        '<div style="font-size: 1.25rem; font-weight: 800; color: ' + textColor + ';">' + rf.toFixed(1) + '<span style="font-size: 0.7rem; color: #64748b; margin-left: 2px;">mm</span></div>' +
                    '</div>';
         }
 
-        // --- Start Layout ---
+        // --- Layout ---
         var html = '<div style="display: flex; gap: 12px; margin-top: 10px;">';
         html += '<div style="flex: 1;">' + leftCol.map(renderCard).join('') + '</div>';
         html += '<div style="flex: 1;">' + rightCol.map(renderCard).join('') + '</div>';
         html += '</div>';
 
-        // --- Seasonal Monsoon Row (SWM & NEM) ---
+        // --- ENHANCED SWM & NEM CARDS ---
         html += '<div style="display: flex; gap: 12px; margin-top: 5px;">';
         
-        // SWM Card
-        html += '<div style="flex: 1; background: rgba(16, 185, 129, 0.05); border: 1px solid rgba(16, 185, 129, 0.2); border-radius: 12px; padding: 12px; text-align: center;">' +
-                    '<div style="font-size: 0.6rem; font-weight: 800; color: #10b981; letter-spacing: 1px;">SWM (JUN-SEP)</div>' +
-                    '<div style="font-size: 1.1rem; font-weight: 800; color: #e2e8f0;">' + swmTotal.toFixed(1) + ' <small style="font-size: 0.6rem; color: #64748b;">mm</small></div>' +
+        // SWM Card (Southwest)
+        html += '<div style="flex: 1; background: rgba(16, 185, 129, 0.08); border: 1.5px solid rgba(16, 185, 129, 0.3); border-radius: 14px; padding: 18px 10px; text-align: center;">' +
+                    '<div style="font-size: 0.75rem; font-weight: 900; color: #10b981; letter-spacing: 1.5px; margin-bottom: 5px;">SWM</div>' +
+                    '<div style="font-size: 1.6rem; font-weight: 900; color: #f8fafc;">' + swmTotal.toFixed(1) + ' <small style="font-size: 0.8rem; color: #64748b; font-weight: 400;">mm</small></div>' +
                 '</div>';
         
-        // NEM Card
-        html += '<div style="flex: 1; background: rgba(99, 102, 241, 0.05); border: 1px solid rgba(99, 102, 241, 0.2); border-radius: 12px; padding: 12px; text-align: center;">' +
-                    '<div style="font-size: 0.6rem; font-weight: 800; color: #818cf8; letter-spacing: 1px;">NEM (OCT-DEC)</div>' +
-                    '<div style="font-size: 1.1rem; font-weight: 800; color: #e2e8f0;">' + nemTotal.toFixed(1) + ' <small style="font-size: 0.6rem; color: #64748b;">mm</small></div>' +
+        // NEM Card (Northeast)
+        html += '<div style="flex: 1; background: rgba(99, 102, 241, 0.08); border: 1.5px solid rgba(99, 102, 241, 0.3); border-radius: 14px; padding: 18px 10px; text-align: center;">' +
+                    '<div style="font-size: 0.75rem; font-weight: 900; color: #818cf8; letter-spacing: 1.5px; margin-bottom: 5px;">NEM</div>' +
+                    '<div style="font-size: 1.6rem; font-weight: 900; color: #f8fafc;">' + nemTotal.toFixed(1) + ' <small style="font-size: 0.8rem; color: #64748b; font-weight: 400;">mm</small></div>' +
                 '</div>';
         
         html += '</div>';
 
-        // --- Final Annual Total ---
+        // --- ANNUAL TOTAL ---
         if (annualRow) {
-            html += '<div style="margin-top: 12px; background: linear-gradient(to right, rgba(30, 41, 59, 0.8), rgba(59, 130, 246, 0.1)); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: 14px; padding: 18px; text-align: center;">' +
-                        '<div style="font-size: 0.7rem; color: #60a5fa; font-weight: 800; letter-spacing: 2px; margin-bottom: 2px;">' + year + ' ANNUAL TOTAL</div>' +
-                        '<div style="font-size: 2.1rem; font-weight: 900; color: #f8fafc;">' + parseFloat(annualRow.rainfall_mm).toFixed(1) + '<span style="font-size: 0.9rem; color: #64748b; margin-left: 5px;">mm</span></div>' +
+            html += '<div style="margin-top: 15px; background: linear-gradient(135deg, rgba(30, 41, 59, 0.9), rgba(59, 130, 246, 0.2)); border: 1px solid rgba(59, 130, 246, 0.4); border-radius: 16px; padding: 22px; text-align: center; box-shadow: 0 4px 20px rgba(0,0,0,0.2);">' +
+                        '<div style="font-size: 0.75rem; color: #60a5fa; font-weight: 800; letter-spacing: 2px; margin-bottom: 4px;">' + year + ' ANNUAL TOTAL</div>' +
+                        '<div style="font-size: 2.5rem; font-weight: 900; color: #ffffff; text-shadow: 0 2px 10px rgba(59, 130, 246, 0.3);">' + parseFloat(annualRow.rainfall_mm).toFixed(1) + '<span style="font-size: 1rem; color: #94a3b8; margin-left: 6px; font-weight: 400;">mm</span></div>' +
                     '</div>';
         }
 
@@ -1402,7 +1402,6 @@ window.fetchHistoricalData = async function() {
         resultsTable.innerHTML = '<div style="text-align:center; padding:40px; color: #ef4444;">Connection failed.</div>';
     }
 };
-
 
 </script>
 </body>
