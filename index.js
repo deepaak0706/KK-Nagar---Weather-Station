@@ -1309,7 +1309,7 @@ window.fetchHistoricalData = async function() {
     var year = document.getElementById('histYearSelect').value;
     var resultsTable = document.getElementById('historical-results-table');
     
-    resultsTable.innerHTML = '<div style="text-align:center; padding:40px; color: #64748b;">Syncing Archive...</div>';
+    resultsTable.innerHTML = '<div style="text-align:center; padding:40px; color: #64748b;">Processing Records...</div>';
 
     try {
         var response = await fetch('/api/historical-rain?year=' + year);
@@ -1323,24 +1323,24 @@ window.fetchHistoricalData = async function() {
         var months = result.data.filter(function(d) { return d.month_val !== 'Annual'; });
         var annualRow = result.data.find(function(d) { return d.month_val === 'Annual'; });
 
-        // 1. Calculations
+        // 1. Calculations (Ultra-light compute)
         var rainValues = months.map(function(m) { return parseFloat(m.rainfall_mm) || 0; });
         var maxVal = Math.max.apply(null, rainValues);
         var minVal = Math.min.apply(null, rainValues);
 
-        var swmTotal = 0; // Jun, Jul, Aug, Sep
-        var nemTotal = 0; // Oct, Nov, Dec
+        var preMonsoonTotal = 0; // Jan - May
+        var swmTotal = 0;        // Jun - Sep
+        var nemTotal = 0;        // Oct - Dec
         
         months.forEach(function(m) {
             var val = parseFloat(m.rainfall_mm) || 0;
-            // Get first 3 letters to ensure match (JAN, FEB, etc)
             var mKey = m.month_val.substring(0, 3).toUpperCase();
             
+            if (['JAN', 'FEB', 'MAR', 'APR', 'MAY'].indexOf(mKey) !== -1) preMonsoonTotal += val;
             if (['JUN', 'JUL', 'AUG', 'SEP'].indexOf(mKey) !== -1) swmTotal += val;
             if (['OCT', 'NOV', 'DEC'].indexOf(mKey) !== -1) nemTotal += val;
         });
 
-        // Split columns: Jan-Jun and Jul-Dec
         var leftCol = months.slice(0, 6);
         var rightCol = months.slice(6, 12);
 
@@ -1365,34 +1365,40 @@ window.fetchHistoricalData = async function() {
                    '</div>';
         }
 
-        // --- Layout ---
         var html = '<div style="display: flex; gap: 12px; margin-top: 10px;">';
         html += '<div style="flex: 1;">' + leftCol.map(renderCard).join('') + '</div>';
         html += '<div style="flex: 1;">' + rightCol.map(renderCard).join('') + '</div>';
         html += '</div>';
 
-        // --- ENHANCED SWM & NEM CARDS ---
-        html += '<div style="display: flex; gap: 12px; margin-top: 5px;">';
+        // --- PRE-MONSOON, SWM, NEM ROW ---
+        // Using a 3-column grid for these three main stats
+        html += '<div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 5px;">';
         
-        // SWM Card (Southwest)
-        html += '<div style="flex: 1; background: rgba(16, 185, 129, 0.08); border: 1.5px solid rgba(16, 185, 129, 0.3); border-radius: 14px; padding: 18px 10px; text-align: center;">' +
-                    '<div style="font-size: 0.75rem; font-weight: 900; color: #10b981; letter-spacing: 1.5px; margin-bottom: 5px;">SWM</div>' +
-                    '<div style="font-size: 1.6rem; font-weight: 900; color: #f8fafc;">' + swmTotal.toFixed(1) + ' <small style="font-size: 0.8rem; color: #64748b; font-weight: 400;">mm</small></div>' +
+        // PRE MONSOON Card
+        html += '<div style="background: rgba(245, 158, 11, 0.08); border: 1.5px solid rgba(245, 158, 11, 0.3); border-radius: 14px; padding: 15px 5px; text-align: center;">' +
+                    '<div style="font-size: 0.6rem; font-weight: 900; color: #f59e0b; letter-spacing: 1px; margin-bottom: 4px;">PRE MONSOON</div>' +
+                    '<div style="font-size: 1.3rem; font-weight: 900; color: #f8fafc;">' + preMonsoonTotal.toFixed(1) + '</div>' +
                 '</div>';
         
-        // NEM Card (Northeast)
-        html += '<div style="flex: 1; background: rgba(99, 102, 241, 0.08); border: 1.5px solid rgba(99, 102, 241, 0.3); border-radius: 14px; padding: 18px 10px; text-align: center;">' +
-                    '<div style="font-size: 0.75rem; font-weight: 900; color: #818cf8; letter-spacing: 1.5px; margin-bottom: 5px;">NEM</div>' +
-                    '<div style="font-size: 1.6rem; font-weight: 900; color: #f8fafc;">' + nemTotal.toFixed(1) + ' <small style="font-size: 0.8rem; color: #64748b; font-weight: 400;">mm</small></div>' +
+        // SWM Card
+        html += '<div style="background: rgba(16, 185, 129, 0.08); border: 1.5px solid rgba(16, 185, 129, 0.3); border-radius: 14px; padding: 15px 5px; text-align: center;">' +
+                    '<div style="font-size: 0.6rem; font-weight: 900; color: #10b981; letter-spacing: 1px; margin-bottom: 4px;">SWM</div>' +
+                    '<div style="font-size: 1.3rem; font-weight: 900; color: #f8fafc;">' + swmTotal.toFixed(1) + '</div>' +
+                '</div>';
+        
+        // NEM Card
+        html += '<div style="background: rgba(99, 102, 241, 0.08); border: 1.5px solid rgba(99, 102, 241, 0.3); border-radius: 14px; padding: 15px 5px; text-align: center;">' +
+                    '<div style="font-size: 0.6rem; font-weight: 900; color: #818cf8; letter-spacing: 1px; margin-bottom: 4px;">NEM</div>' +
+                    '<div style="font-size: 1.3rem; font-weight: 900; color: #f8fafc;">' + nemTotal.toFixed(1) + '</div>' +
                 '</div>';
         
         html += '</div>';
 
         // --- ANNUAL TOTAL ---
         if (annualRow) {
-            html += '<div style="margin-top: 15px; background: linear-gradient(135deg, rgba(30, 41, 59, 0.9), rgba(59, 130, 246, 0.2)); border: 1px solid rgba(59, 130, 246, 0.4); border-radius: 16px; padding: 22px; text-align: center; box-shadow: 0 4px 20px rgba(0,0,0,0.2);">' +
-                        '<div style="font-size: 0.75rem; color: #60a5fa; font-weight: 800; letter-spacing: 2px; margin-bottom: 4px;">' + year + ' ANNUAL TOTAL</div>' +
-                        '<div style="font-size: 2.5rem; font-weight: 900; color: #ffffff; text-shadow: 0 2px 10px rgba(59, 130, 246, 0.3);">' + parseFloat(annualRow.rainfall_mm).toFixed(1) + '<span style="font-size: 1rem; color: #94a3b8; margin-left: 6px; font-weight: 400;">mm</span></div>' +
+            html += '<div style="margin-top: 15px; background: linear-gradient(135deg, rgba(30, 41, 59, 0.9), rgba(59, 130, 246, 0.2)); border: 1px solid rgba(59, 130, 246, 0.4); border-radius: 16px; padding: 22px; text-align: center;">' +
+                        '<div style="font-size: 0.7rem; color: #60a5fa; font-weight: 800; letter-spacing: 2px; margin-bottom: 4px;">' + year + ' ANNUAL TOTAL</div>' +
+                        '<div style="font-size: 2.5rem; font-weight: 900; color: #ffffff;">' + parseFloat(annualRow.rainfall_mm).toFixed(1) + '<span style="font-size: 1rem; color: #94a3b8; margin-left: 6px; font-weight: 400;">mm</span></div>' +
                     '</div>';
         }
 
