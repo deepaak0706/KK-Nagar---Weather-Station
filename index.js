@@ -664,36 +664,7 @@ body.is-night .glass-select option {
     color: white;
 }
 
-/* Add this inside your <style> tags */
-@media (max-width: 768px) {
-    .nav-tabs {
-        position: fixed;
-        bottom: 24px;
-        left: 50%;
-        transform: translateX(-50%);
-        background: var(--card);
-        backdrop-filter: blur(24px);
-        -webkit-backdrop-filter: blur(24px);
-        padding: 8px;
-        border-radius: 100px; /* Fully rounded pill */
-        border: 1px solid rgba(255, 255, 255, 0.2);
-        box-shadow: 0 20px 40px -10px rgba(0,0,0,0.3);
-        z-index: 1000;
-        margin: 0;
-        width: max-content;
-        gap: 4px;
-    }
-    
-    .tab-btn {
-        padding: 10px 20px;
-        font-size: 13px;
-        border-radius: 100px; /* Match the pill shape */
-        border: none;
-    }
-    
-    /* Ensure content doesn't get hidden behind the floating dock */
-    body { padding-bottom: 120px; } 
-}
+
 
 /* Add this inside your <style> tags */
 @keyframes slideUpFade {
@@ -1038,6 +1009,21 @@ body.is-night .glass-select option {
             try {
                 const res = await fetch('/weather?v=' + Date.now()); 
                 const d = await res.json(); 
+                // Add this inside the update() function in your frontend script
+const currentTemp = d.temp.current;
+let themeColor = '#0284c7'; // Default Blue (Mild)
+
+if (currentTemp >= 35) {
+    themeColor = '#ef4444'; // Red (Very Hot)
+} else if (currentTemp >= 30) {
+    themeColor = '#f59e0b'; // Amber/Orange (Warm)
+} else if (currentTemp <= 22) {
+    themeColor = '#0ea5e9'; // Light Blue (Cool)
+}
+
+// Dynamically update the CSS variable for the whole page
+document.documentElement.style.setProperty('--accent', themeColor);
+
                 if (!d || d.error) return;
 
                 updateValueWithFade('t', d.temp.current, 1);
