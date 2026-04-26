@@ -450,25 +450,24 @@ app.get("/", (req, res) => {
     <style>
         :root { 
             --bg: #e0f2fe !important; 
-            --card: rgba(255, 255, 255, 0.8); 
-            --border: rgba(2, 132, 199, 0.05);
+            --card: rgba(255, 255, 255, 0.85); 
+            --border: rgba(2, 132, 199, 0.1);
             --text: #0f172a !important; 
             --muted: #64748b; 
             --accent: #0284c7; 
-            /* Softer, wider diffused shadow */
-            --glow: 0 30px 60px -12px rgba(2, 132, 199, 0.12);
-            --badge: rgba(2, 132, 199, 0.03);
+            --glow: 0 10px 40px -10px rgba(2, 132, 199, 0.15);
+            --badge: rgba(2, 132, 199, 0.05);
         }
 
         body.is-night {
             --bg: #0f172a !important; 
-            --card: rgba(30, 41, 59, 0.5); 
-            --border: rgba(255, 255, 255, 0.03);
+            --card: rgba(30, 41, 59, 0.7); 
+            --border: rgba(255, 255, 255, 0.08);
             --text: #f1f5f9 !important; 
             --muted: #94a3b8; 
             --accent: #38bdf8; 
-            --glow: 0 40px 80px -20px rgba(0,0,0,0.5);
-            --badge: rgba(255, 255, 255, 0.02);
+            --glow: 0 15px 50px -12px rgba(0,0,0,0.6);
+            --badge: rgba(255, 255, 255, 0.04);
         }
 
         body { 
@@ -482,177 +481,192 @@ app.get("/", (req, res) => {
         .header h1 { font-size: 28px; font-weight: 900; margin: 0; letter-spacing: -1px; }
         .header-actions { display: flex; align-items: center; gap: 12px; }
         
-        .theme-toggle { background: var(--card); border: none; padding: 4px; border-radius: 12px; display: flex; gap: 4px; box-shadow: var(--glow); cursor: pointer; }
+        .theme-toggle { background: var(--card); border: 1px solid var(--border); padding: 4px; border-radius: 12px; display: flex; gap: 4px; box-shadow: var(--glow); cursor: pointer; }
         .theme-btn { padding: 6px 10px; border-radius: 8px; font-size: 11px; font-weight: 700; transition: 0.3s; color: var(--muted); }
         .theme-btn.active { background: var(--accent); color: white; }
 
-        .status-bar { display: flex; align-items: center; gap: 8px; background: var(--card); padding: 6px 16px; border-radius: 100px; box-shadow: var(--glow); font-size: 13px; }
+        .status-bar { display: flex; align-items: center; gap: 8px; background: var(--card); padding: 6px 16px; border-radius: 100px; border: 1px solid var(--border); box-shadow: var(--glow); font-size: 13px; }
         .live-dot { width: 6px; height: 6px; background: #10b981; border-radius: 50%; animation: blink 2s infinite; }
         @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
         
-        .grid-system { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 24px; }
-        
-        .card {
-            /* Fading gradient instead of solid background */
-            background: linear-gradient(135deg, var(--card) 40%, transparent 100%);
-            padding: 32px;
-            border-radius: 40px;
-            border: none; /* Removed sharp edges */
-            backdrop-filter: blur(16px);
-            -webkit-backdrop-filter: blur(16px);
-            box-shadow: var(--glow);
-            transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.4s ease;
-        }
-
-        .card:hover {
-            transform: translateY(-6px);
-            box-shadow: 0 50px 100px -20px rgba(0, 0, 0, 0.15);
-        }
-
-        #windCanvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; border-radius: 40px; }
+        .grid-system { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
+        .card { background: var(--card); padding: 28px; border-radius: 32px; border: 1px solid var(--border); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); box-shadow: var(--glow); position: relative; overflow: hidden; transition: background 0.5s ease; }
+        #windCanvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; border-radius: 32px; }
         .card > *:not(canvas) { position: relative; z-index: 5; }
 
-        .label { color: var(--accent); font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 6px; opacity: 0.8; }
+        .label { color: var(--accent); font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 6px; }
         .main-val { font-size: 56px; font-weight: 900; margin: 0; letter-spacing: -2px; display: flex; align-items: baseline; line-height: 1.1; }
         
+        /* MODERN TRANSIENT EFFECTS */
         .main-val span:not(.unit), .badge-val { 
             display: inline-block; 
             transition: all 0.6s cubic-bezier(0.34, 1.56, 0.64, 1); 
             font-variant-numeric: tabular-nums; 
         }
 
+        /* The "Magic" Animation */
         @keyframes magicFade {
-            0% { opacity: 0; filter: blur(12px); transform: translateY(10px); }
-            100% { opacity: 1; filter: blur(0); transform: translateY(0); }
+            0% { opacity: 0; filter: blur(12px); transform: scale(0.8) translateY(10px); color: #10b981; }
+            30% { opacity: 0.8; filter: blur(4px); }
+            100% { opacity: 1; filter: blur(0); transform: scale(1) translateY(0); }
         }
 
         .fade-update { 
-            animation: magicFade 1.2s cubic-bezier(0.16, 1, 0.3, 1); 
+            animation: magicFade 1.5s cubic-bezier(0.16, 1, 0.3, 1); 
             will-change: transform, opacity, filter;
         }
 
-        .unit { font-size: 20px; font-weight: 600; color: var(--muted); margin-left: 4px; opacity: 0.6; }
-        
-        /* Soft Pill with fading edge */
-        .sub-pill { 
-            font-size: 12px; font-weight: 800; padding: 6px 14px; border-radius: 12px; 
-            background: linear-gradient(90deg, var(--badge), transparent); 
-            display: inline-flex; align-items: center; gap: 4px; margin: 12px 0 20px 0; 
-        }
+        .unit { font-size: 20px; font-weight: 600; color: var(--muted); margin-left: 4px; letter-spacing: 0; }
+        .sub-pill { font-size: 12px; font-weight: 800; padding: 6px 12px; border-radius: 10px; background: var(--badge); display: inline-flex; align-items: center; gap: 4px; margin: 12px 0 20px 0; }
 
-        .sub-box-4 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding-top: 24px; border-top: 1px solid var(--border); }
-        
-        .badge { 
-            padding: 14px; border-radius: 24px; 
-            background: rgba(255, 255, 255, 0.02); 
-            display: flex; flex-direction: column; gap: 2px; 
-        }
-
-        .badge-label { font-size: 9px; color: var(--muted); text-transform: uppercase; font-weight: 800; opacity: 0.7; }
+        .sub-box-4 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding-top: 20px; border-top: 1px solid var(--border); }
+        .badge { padding: 12px; border-radius: 18px; background: var(--badge); display: flex; flex-direction: column; gap: 2px; }
+        .badge-label { font-size: 9px; color: var(--muted); text-transform: uppercase; font-weight: 800; }
         .badge-val { font-size: 16px; font-weight: 800; }
 
-        .compass-ui { position: absolute !important; top: 32px !important; right: 32px !important; width: 50px; height: 50px; border: 1.5px solid var(--border); border-radius: 50%; display: flex; align-items: center; justify-content: center; z-index: 10; }
+        .compass-ui { position: absolute !important; top: 28px !important; right: 28px !important; width: 50px; height: 50px; border: 2px solid var(--border); border-radius: 50%; display: flex; align-items: center; justify-content: center; z-index: 10; }
         #needle { width: 3px; height: 32px; background: linear-gradient(to bottom, #ef4444 50%, var(--muted) 50%); clip-path: polygon(50% 0%, 100% 100%, 50% 85%, 0% 100%); transition: transform 2s cubic-bezier(0.1, 0.9, 0.2, 1); }
 
-        .graphs-wrapper { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 24px; margin-top: 24px; }
-        
-        .graph-card { 
-            background: linear-gradient(135deg, var(--card) 40%, transparent 100%);
-            padding: 24px; border-radius: 40px; border: none; height: 320px; box-shadow: var(--glow); 
-            display: flex; flex-direction: column; overflow: hidden; 
-        }
-        
-        .graph-card canvas { flex-grow: 1; width: 100% !important; height: 100% !important; filter: saturate(0.8); }
+        .graphs-wrapper { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin-top: 20px; }
+        .graph-card { background: var(--card); padding: 24px; border-radius: 32px; border: 1px solid var(--border); height: 320px; box-shadow: var(--glow); display: flex; flex-direction: column; overflow: hidden; transition: background 0.5s ease; }
+        .graph-card canvas { flex-grow: 1; width: 100% !important; height: 100% !important; }
 
         .trend-up { color: #f43f5e; } .trend-down { color: #0ea5e9; }
-        .time-mark { font-size: 9px; color: var(--muted); font-weight: 600; margin-left: 2px; opacity: 0.5; }
+        .time-mark { font-size: 9px; color: var(--muted); font-weight: 600; margin-left: 2px; background: rgba(0,0,0,0.04); padding: 1px 4px; border-radius: 4px; }
+        body.is-night .time-mark { background: rgba(255,255,255,0.1); }
 
-        /* TAB SYSTEM - Softened */
-        .nav-tabs { display: flex; gap: 12px; margin-bottom: 25px; }
+        /* SUMMARY SYSTEM */
+        .nav-tabs { display: flex; gap: 8px; margin-bottom: 25px; }
         .tab-btn { 
-            background: var(--card); border: none; padding: 12px 28px; 
-            border-radius: 20px; color: var(--text); font-weight: 700; cursor: pointer; transition: 0.3s; 
-            box-shadow: var(--glow);
+            background: var(--card); border: 1px solid var(--border); padding: 12px 24px; 
+            border-radius: 16px; color: var(--text); font-weight: 700; cursor: pointer; transition: 0.3s; 
         }
-        .tab-btn.active { background: var(--accent); color: white; transform: scale(1.05); }
+        .tab-btn.active { background: var(--accent); color: white; border-color: var(--accent); box-shadow: var(--glow); }
 
-        .month-section { margin-bottom: 35px; animation: fadeIn 0.8s ease; }
-        .month-header { font-size: 20px; font-weight: 800; margin: 25px 0 15px 0; color: var(--accent); display: flex; align-items: center; gap: 12px; }
-        .month-header::after { content: ""; height: 1px; flex-grow: 1; background: linear-gradient(90deg, var(--border), transparent); }
+        .month-section { margin-bottom: 35px; animation: fadeIn 0.5s ease; }
+        .month-header { font-size: 20px; font-weight: 800; margin: 25px 0 15px 0; color: var(--accent); display: flex; align-items: center; gap: 10px; }
+        .month-header::after { content: ""; height: 2px; flex-grow: 1; background: var(--border); }
 
-        .summary-table-wrapper { overflow-x: auto; background: var(--card); border-radius: 32px; border: none; box-shadow: var(--glow); }
+        .summary-table-wrapper { overflow-x: auto; background: var(--card); border-radius: 24px; border: 1px solid var(--border); box-shadow: var(--glow); }
         .summary-table { width: 100%; border-collapse: collapse; min-width: 600px; }
-        .summary-table th { padding: 20px; background: rgba(0,0,0,0.02); text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); }
-        .summary-table td { padding: 20px; border-top: 1px solid var(--border); font-size: 14px; }
+        .summary-table th { padding: 16px; background: var(--badge); text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); }
+        .summary-table td { padding: 16px; border-top: 1px solid var(--border); font-size: 14px; }
         .summary-table tr:hover { background: var(--badge); }
 
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
-        /* ROW TABLE - Fading edges */
-        .pro-summary-table {
-            background: linear-gradient(135deg, var(--card) 0%, transparent 100%);
-            backdrop-filter: blur(24px);
-            border: none;
-            border-radius: 32px;
-            box-shadow: var(--glow);
-            overflow: hidden;
-            display: flex;
-            flex-direction: column;
-        }
+        /* PRO MAX ROW-BASED SUMMARY TABLE */
+.pro-summary-table {
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.5) 0%, rgba(255, 255, 255, 0.1) 100%);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    border-radius: 24px;
+    box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.08), inset 0 0 0 1px rgba(255, 255, 255, 0.3);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
 
-        .pro-row {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 26px 32px;
-            border-bottom: 1px solid var(--border);
-            transition: background 0.3s ease;
-        }
-        .pro-row:last-child { border-bottom: none; }
-        .pro-row:hover { background: rgba(255, 255, 255, 0.05); }
+body.is-night .pro-summary-table {
+    background: linear-gradient(135deg, rgba(30, 41, 59, 0.7) 0%, rgba(15, 23, 42, 0.5) 100%);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.6), inset 0 0 0 1px rgba(255, 255, 255, 0.03);
+}
 
-        .pro-label { font-size: 15px; font-weight: 800; color: var(--text); }
-        .pro-data-group { display: flex; align-items: center; gap: 32px; }
-        .pro-data-item { display: flex; flex-direction: column; align-items: flex-end; min-width: 90px; }
-        .pro-sub { font-size: 10px; text-transform: uppercase; letter-spacing: 1.5px; color: var(--muted); font-weight: 800; margin-bottom: 6px; opacity: 0.6; }
-        .pro-val { font-size: 26px; font-weight: 900; line-height: 1; }
+.pro-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 24px 30px;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+    transition: background 0.3s ease;
+}
+body.is-night .pro-row { border-bottom: 1px solid rgba(255, 255, 255, 0.05); }
+.pro-row:last-child { border-bottom: none; }
+.pro-row:hover { background: rgba(0, 0, 0, 0.02); }
+body.is-night .pro-row:hover { background: rgba(255, 255, 255, 0.02); }
 
-        .pro-divider { width: 1px; height: 36px; background: var(--border); }
+.pro-label {
+    font-size: 15px;
+    font-weight: 800;
+    color: var(--text);
+    letter-spacing: 0.5px;
+    display: flex;
+    align-items: center;
+}
 
-        @media (max-width: 500px) {
-            .pro-row { flex-direction: column; align-items: flex-start; gap: 16px; padding: 20px; }
-            .pro-data-group { width: 100%; justify-content: space-between; gap: 15px; }
-            .pro-data-item { align-items: flex-start; }
-        }
+.pro-data-group {
+    display: flex;
+    align-items: center;
+    gap: 32px;
+}
 
-        .glass-select {
-            background: var(--card);
-            border: none;
-            border-radius: 12px;
-            padding: 8px 16px;
-            font-family: inherit;
-            font-weight: 700;
-            color: var(--text);
-            outline: none;
-            cursor: pointer;
-            box-shadow: var(--glow);
-        }
+.pro-data-item {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    min-width: 90px;
+}
 
-        @keyframes slideUpFade {
-            from { opacity: 0; transform: translateY(30px); filter: blur(10px); }
-            to { opacity: 1; transform: translateY(0); filter: blur(0); }
-        }
+.pro-sub {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--muted);
+    font-weight: 800;
+    margin-bottom: 6px;
+}
 
-        .grid-system .card {
-            animation: slideUpFade 0.8s cubic-bezier(0.16, 1, 0.3, 1) backwards;
-        }
+.pro-val {
+    font-size: 26px;
+    font-weight: 900;
+    line-height: 1;
+    letter-spacing: -0.5px;
+}
 
-        .grid-system .card:nth-child(1) { animation-delay: 0.1s; }
-        .grid-system .card:nth-child(2) { animation-delay: 0.2s; }
-        .grid-system .card:nth-child(3) { animation-delay: 0.3s; }
-        .grid-system .card:nth-child(4) { animation-delay: 0.4s; }
+.pro-divider {
+    width: 1px;
+    height: 36px;
+    background: rgba(0, 0, 0, 0.1);
+}
+body.is-night .pro-divider { background: rgba(255, 255, 255, 0.1); }
+
+/* Mobile responsiveness: stack beautifully on small screens */
+@media (max-width: 500px) {
+    .pro-row { flex-direction: column; align-items: flex-start; gap: 16px; padding: 20px; }
+    .pro-data-group { width: 100%; justify-content: space-between; gap: 15px; }
+    .pro-data-item { align-items: flex-start; }
+    .pro-summary-table .pro-row:nth-child(3) .pro-data-item { align-items: flex-start; }
+}
+
+.glass-select {
+    background: var(--badge);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 8px 12px;
+    font-family: inherit;
+    font-weight: 700;
+    color: var(--text);
+    outline: none;
+    cursor: pointer;
+    backdrop-filter: blur(10px);
+}
+body.is-night .glass-select {
+    background: rgba(255, 255, 255, 0.05);
+}
+.glass-select option {
+    background: white;
+    color: black;
+}
+body.is-night .glass-select option {
+    background: #1e293b;
+    color: white;
+}
+
+
+
     </style>
-
 </head>
 <body>
     <div class="container">
@@ -977,21 +991,6 @@ app.get("/", (req, res) => {
             try {
                 const res = await fetch('/weather?v=' + Date.now()); 
                 const d = await res.json(); 
-                // Add this inside the update() function in your frontend script
-const currentTemp = d.temp.current;
-let themeColor = '#0284c7'; // Default Blue (Mild)
-
-if (currentTemp >= 35) {
-    themeColor = '#ef4444'; // Red (Very Hot)
-} else if (currentTemp >= 30) {
-    themeColor = '#f59e0b'; // Amber/Orange (Warm)
-} else if (currentTemp <= 22) {
-    themeColor = '#0ea5e9'; // Light Blue (Cool)
-}
-
-// Dynamically update the CSS variable for the whole page
-document.documentElement.style.setProperty('--accent', themeColor);
-
                 if (!d || d.error) return;
 
                 updateValueWithFade('t', d.temp.current, 1);
