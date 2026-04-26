@@ -1112,19 +1112,18 @@ window.showMonthlySummaryUI = function() {
     }).join('');
 
     let yearOptions = "";
-    // CHOP: Extended to 2045
     for (var y = 2024; y <= 2045; y++) {
         var ySel = (selectedYear == y) ? 'selected' : '';
         yearOptions += '<option value="' + y + '" ' + ySel + '>' + y + '</option>';
     }
 
-    content.innerHTML = `
+    content.innerHTML = \`
         <div class="archive-container" style="animation: fadeIn 0.5s ease;">
             <div style="margin-bottom: 20px; padding: 15px 25px; display: flex; justify-content: space-between; align-items: center; background: var(--card); border-radius: 20px; border: 1px solid var(--border);">
                 <div style="font-weight: 800; letter-spacing: 0.5px; color: var(--accent);">MONTHLY ARCHIVES</div>
                 <div style="display: flex; gap: 10px;">
-                    <select id="monthSelect" class="glass-select">${monthOptions}</select>
-                    <select id="yearSelect" class="glass-select">${yearOptions}</select>
+                    <select id="monthSelect" class="glass-select">\${monthOptions}</select>
+                    <select id="yearSelect" class="glass-select">\${yearOptions}</select>
                     <button onclick="updateArchiveFilter()" style="padding: 6px 12px; margin-left: 8px; background: var(--accent); color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">Get Data</button>
                 </div>
             </div>
@@ -1133,7 +1132,7 @@ window.showMonthlySummaryUI = function() {
                     Select a month and click "Get Data" to load records.
                 </div>
             </div>
-        </div>`;
+        </div>\`;
 };
 
 // 2. Updated data fetcher that targets only the table container
