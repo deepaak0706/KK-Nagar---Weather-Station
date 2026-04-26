@@ -664,6 +664,53 @@ body.is-night .glass-select option {
     color: white;
 }
 
+/* Add this inside your <style> tags */
+@media (max-width: 768px) {
+    .nav-tabs {
+        position: fixed;
+        bottom: 24px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: var(--card);
+        backdrop-filter: blur(24px);
+        -webkit-backdrop-filter: blur(24px);
+        padding: 8px;
+        border-radius: 100px; /* Fully rounded pill */
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        box-shadow: 0 20px 40px -10px rgba(0,0,0,0.3);
+        z-index: 1000;
+        margin: 0;
+        width: max-content;
+        gap: 4px;
+    }
+    
+    .tab-btn {
+        padding: 10px 20px;
+        font-size: 13px;
+        border-radius: 100px; /* Match the pill shape */
+        border: none;
+    }
+    
+    /* Ensure content doesn't get hidden behind the floating dock */
+    body { padding-bottom: 120px; } 
+}
+
+/* Add this inside your <style> tags */
+@keyframes slideUpFade {
+    from { opacity: 0; transform: translateY(30px) scale(0.98); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.grid-system .card {
+    animation: slideUpFade 0.6s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+}
+
+/* Stagger the delays so they load one after another */
+.grid-system .card:nth-child(1) { animation-delay: 0.05s; }
+.grid-system .card:nth-child(2) { animation-delay: 0.15s; }
+.grid-system .card:nth-child(3) { animation-delay: 0.25s; }
+.grid-system .card:nth-child(4) { animation-delay: 0.35s; }
+
 
 
     </style>
