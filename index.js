@@ -1305,56 +1305,103 @@ window.showHistoricalUI = function() {
 };
 
 /* --- ADD THIS: THE MISSING FETCH ENGINE --- */
+
 window.fetchHistoricalData = async function() {
     var year = document.getElementById('histYearSelect').value;
     var resultsTable = document.getElementById('historical-results-table');
     
-    resultsTable.innerHTML = '<div style="text-align:center; padding:40px; color: #64748b;">Querying Archive...</div>';
+    resultsTable.innerHTML = '<div style="text-align:center; padding:40px; color: #64748b;">Loading Archive...</div>';
 
     try {
         var response = await fetch('/api/historical-rain?year=' + year);
         var result = await response.json();
 
         if (!result.data || result.data.length === 0) {
-            resultsTable.innerHTML = '<div style="text-align:center; padding:40px; color: #ef4444;">No records found for ' + year + '</div>';
+            resultsTable.innerHTML = '<div style="text-align:center; padding:40px; color: #ef4444;">No data found for ' + year + '</div>';
             return;
         }
 
+        // Separate Monthly vs Annual
         var months = result.data.filter(function(d) { return d.month_val !== 'Annual'; });
         var annualRow = result.data.find(function(d) { return d.month_val === 'Annual'; });
 
-        // 1. Annual Summary Card (Prominent at the top)
-        var html = '<div style="display: grid; gap: 15px; margin-bottom: 20px;">';
+        // Split into Left and Right columns
+        var firstHalf = months.slice(0, 6);
+        var secondHalf = months.slice(6, 12);
+
+        // Find the maximum rainfall to scale the visual progress bars
+        var maxRain = 0;
+        months.forEach(function(m) {
+            var rf = parseFloat(m.rainfall_mm) || 0;
+            if (rf > maxRain) maxRain = rf;
+        });
+        if (maxRain === 0) maxRain = 1; // Prevent division by zero
+
+        // Pro-Level Month Row Component
+        function renderMonthCard(d) {
+            if (!d) return '';
+            var rf = parseFloat(d.rainfall_mm) || 0;
+            var widthPct = (rf / maxRain) * 100;
+            if (widthPct > 100) widthPct = 100;
+
+            // Visual styling based on rain intensity
+            var intensityColor = rf > 200 ? '#3b82f6' : (rf > 0 ? '#60a5fa' : '#334155');
+            var valColor = rf > 0 ? '#f8fafc' : '#64748b';
+            var monthName = d.month_val.length > 3 ? d.month_val.substring(0,3).toUpperCase() : d.month_val.toUpperCase();
+
+            return '<div style="position: relative; overflow: hidden; display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; margin-bottom: 8px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.05); background: rgba(30, 41, 59, 0.4);">' +
+                        '<div style="position: absolute; left: 0; top: 0; bottom: 0; width: ' + widthPct + '%; background: rgba(59, 130, 246, 0.12); z-index: 0; transition: width 0.8s ease-out;"></div>' +
+                        '<div style="position: relative; z-index: 1; display: flex; align-items: center; gap: 12px;">' +
+                            '<div style="width: 4px; height: 16px; border-radius: 2px; background: ' + intensityColor + ';"></div>' +
+                            '<span style="font-weight: 600; color: #cbd5e1; letter-spacing: 0.5px;">' + monthName + '</span>' +
+                        '</div>' +
+                        '<div style="position: relative; z-index: 1; text-align: right;">' +
+                            '<span style="font-size: 1.1rem; font-weight: 700; color: ' + valColor + ';">' + rf.toFixed(1) + '</span>' +
+                            '<span style="font-size: 0.75rem; color: #64748b; margin-left: 4px;">mm</span>' +
+                        '</div>' +
+                    '</div>';
+        }
+
+        // --- BUILD THE LAYOUT ---
+        // 1. Two-Column Layout for Months (Flexbox wraps on narrow mobile screens automatically)
+        var html = '<div style="display: flex; flex-wrap: wrap; gap: 20px; margin-top: 10px;">';
+
+        // Left Column (Jan - Jun)
+        html += '<div style="flex: 1; min-width: 250px;">';
+        html += '<div style="font-size: 0.75rem; color: #94a3b8; font-weight: 700; letter-spacing: 1px; margin-bottom: 12px; padding-left: 4px;">JAN - JUN</div>';
+        firstHalf.forEach(function(m) { html += renderMonthCard(m); });
+        html += '</div>';
+
+        // Right Column (Jul - Dec)
+        html += '<div style="flex: 1; min-width: 250px;">';
+        html += '<div style="font-size: 0.75rem; color: #94a3b8; font-weight: 700; letter-spacing: 1px; margin-bottom: 12px; padding-left: 4px;">JUL - DEC</div>';
+        secondHalf.forEach(function(m) { html += renderMonthCard(m); });
+        html += '</div>';
+
+        html += '</div>'; // End Flex Container
+
+        // 2. Grand Total Card (At the strict bottom)
         if (annualRow) {
-            html += '<div style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); padding: 20px; border-radius: 16px; color: white; text-align: center; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);">' +
-                        '<div style="font-size: 0.8rem; font-weight: 600; opacity: 0.9; text-transform: uppercase; letter-spacing: 1px;">' + year + ' Annual Total</div>' +
-                        '<div style="font-size: 2.2rem; font-weight: 900;">' + parseFloat(annualRow.rainfall_mm).toFixed(1) + ' <span style="font-size: 1rem; font-weight: 400;">mm</span></div>' +
-                    '</div>';
-        }
-        html += '</div>';
-
-        // 2. Responsive Grid for Months (Grid changes based on screen width)
-        html += '<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px;">';
-
-        for (var i = 0; i < months.length; i++) {
-            var d = months[i];
-            var rf = parseFloat(d.rainfall_mm);
-            // Light blue background if it rained, darker if heavy rain
-            var intensity = rf > 200 ? 'rgba(59, 130, 246, 0.15)' : rf > 0 ? 'rgba(59, 130, 246, 0.05)' : 'transparent';
-            
-            html += '<div style="background: ' + intensity + '; border: 1px solid rgba(255,255,255,0.05); padding: 15px; border-radius: 12px; display: flex; flex-direction: column; align-items: center; justify-content: center; transition: transform 0.2s;">' +
-                        '<div style="font-size: 0.7rem; font-weight: 800; color: #94a3b8; text-transform: uppercase; margin-bottom: 4px;">' + d.month_val + '</div>' +
-                        '<div style="font-size: 1.2rem; font-weight: 700; color: #e2e8f0;">' + rf.toFixed(1) + ' <small style="font-size: 0.7rem; color: #64748b; font-weight: 400;">mm</small></div>' +
+            var annRf = parseFloat(annualRow.rainfall_mm).toFixed(1);
+            html += '<div style="margin-top: 24px; padding: 20px 24px; border-radius: 14px; background: linear-gradient(90deg, rgba(30,58,138,0.4) 0%, rgba(15,23,42,0.8) 100%); border: 1px solid rgba(59,130,246,0.3); display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 20px rgba(0,0,0,0.2);">' +
+                        '<div style="display: flex; flex-direction: column;">' +
+                            '<span style="font-size: 0.8rem; color: #93c5fd; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase;">' + year + ' Total</span>' +
+                            '<span style="font-size: 1.2rem; color: #e2e8f0; font-weight: 800;">ANNUAL RAINFALL</span>' +
+                        '</div>' +
+                        '<div style="text-align: right;">' +
+                            '<span style="font-size: 2rem; font-weight: 900; color: #60a5fa; text-shadow: 0 0 15px rgba(96,165,250,0.4);">' + annRf + '</span>' +
+                            '<span style="font-size: 1rem; color: #94a3b8; margin-left: 6px;">mm</span>' +
+                        '</div>' +
                     '</div>';
         }
 
-        html += '</div>';
         resultsTable.innerHTML = html;
 
     } catch (error) {
-        resultsTable.innerHTML = '<div style="text-align:center; padding:40px; color: #ef4444;">Connection error.</div>';
+        resultsTable.innerHTML = '<div style="text-align:center; padding:40px; color: #ef4444;">Connection error. Check backend logs.</div>';
     }
 };
+
 
 
 </script>
