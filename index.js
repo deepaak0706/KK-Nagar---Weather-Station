@@ -724,7 +724,7 @@ body.is-night .pro-divider { background: rgba(255, 255, 255, 0.1); }
         
         <div class="pro-row">
             <div class="pro-label">
-                <span style="color:#ef4444; margin-right:10px; font-size:18px;">●</span>24H Temperature
+                <span style="color:#ef4444; margin-right:10px; font-size:18px;">●</span>Temperature
             </div>
             <div class="pro-data-group">
                 <div class="pro-data-item">
