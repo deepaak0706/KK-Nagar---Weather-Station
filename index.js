@@ -525,7 +525,18 @@ app.get("/", (req, res) => {
         .badge-val { font-size: 16px; font-weight: 800; }
 
         .compass-ui { position: absolute !important; top: 28px !important; right: 28px !important; width: 50px; height: 50px; border: 2px solid var(--border); border-radius: 50%; display: flex; align-items: center; justify-content: center; z-index: 10; }
-        #needle { width: 3px; height: 32px; background: linear-gradient(to bottom, #ef4444 50%, var(--muted) 50%); clip-path: polygon(50% 0%, 100% 100%, 50% 85%, 0% 100%); transition: transform 2s cubic-bezier(0.1, 0.9, 0.2, 1); }
+        /* Update your #needle CSS */
+#needle {
+    width: 4px; /* Slightly thicker */
+    height: 32px;
+    background: linear-gradient(to bottom, #ef4444 50%, #94a3b8 50%);
+    clip-path: polygon(50% 0%, 100% 100%, 50% 85%, 0% 100%);
+    
+    /* PRO ANIMATION: Use a 'back' ease to simulate a magnetic bounce */
+    transition: transform 1.2s cubic-bezier(0.175, 0.885, 0.32, 1.275); 
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2));
+}
+
 
         .graphs-wrapper { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin-top: 20px; }
         .graph-card { background: var(--card); padding: 24px; border-radius: 32px; border: 1px solid var(--border); height: 320px; box-shadow: var(--glow); display: flex; flex-direction: column; overflow: hidden; transition: background 0.5s ease; }
