@@ -1304,6 +1304,54 @@ window.showHistoricalUI = function() {
         '</div>';
 };
 
+/* --- ADD THIS: THE MISSING FETCH ENGINE --- */
+window.fetchHistoricalData = async function() {
+    var year = document.getElementById('histYearSelect').value;
+    var resultsTable = document.getElementById('historical-results-table');
+    
+    // 1. Show loading state
+    resultsTable.innerHTML = '<div style="text-align:center; padding:40px; color: #64748b;">Querying K K Nagar Archive...</div>';
+
+    try {
+        // 2. Fetch from your backend API
+        var response = await fetch('/api/historical-rain?year=' + year);
+        var result = await response.json();
+
+        if (!result.data || result.data.length === 0) {
+            resultsTable.innerHTML = '<div style="text-align:center; padding:40px; color: #ef4444;">No records found for ' + year + '</div>';
+            return;
+        }
+
+        // 3. Separate Monthly vs Annual
+        var months = result.data.filter(function(d) { return d.month_val !== 'Annual'; });
+        var annualRow = result.data.find(function(d) { return d.month_val === 'Annual'; });
+
+        // 4. Build the results table
+        var html = '<div style="background: rgba(255,255,255,0.02); border-radius: 16px; overflow: hidden; border: 1px solid rgba(255,255,255,0.05);">';
+        html += '<div style="display: flex; padding: 15px; background: rgba(255,255,255,0.05); font-weight: 800; font-size: 0.75rem; color: #94a3b8; letter-spacing: 1px;">';
+        html += '<div style="width: 60%;">MONTH</div><div style="width: 40%; text-align: right;">RAINFALL</div></div>';
+
+        for (var i = 0; i < months.length; i++) {
+            var d = months[i];
+            html += '<div style="display: flex; padding: 14px 15px; border-bottom: 1px solid rgba(255,255,255,0.05); align-items: center;">';
+            html += '<div style="width: 60%; font-weight: 600; color: #e2e8f0;">' + d.month_val + '</div>';
+            html += '<div style="width: 40%; text-align: right; color: #3b82f6; font-weight: 800; font-size: 1.05rem;">' + parseFloat(d.rainfall_mm).toFixed(1) + ' <small style="font-size: 0.7rem; color: #64748b;">mm</small></div></div>';
+        }
+
+        if (annualRow) {
+            html += '<div style="display: flex; padding: 18px 15px; background: rgba(59, 130, 246, 0.1); border-top: 2px solid #3b82f6; align-items: center;">';
+            html += '<div style="width: 60%; font-weight: 900; color: #3b82f6;">ANNUAL TOTAL</div>';
+            html += '<div style="width: 40%; text-align: right; color: #3b82f6; font-weight: 900; font-size: 1.3rem;">' + parseFloat(annualRow.rainfall_mm).toFixed(1) + ' <small>mm</small></div></div>';
+        }
+
+        html += '</div>';
+        resultsTable.innerHTML = html;
+
+    } catch (error) {
+        resultsTable.innerHTML = '<div style="text-align:center; padding:40px; color: #ef4444;">Connection error. Check backend logs.</div>';
+    }
+};
+
 </script>
 </body>
 </html>
