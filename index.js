@@ -1288,12 +1288,12 @@ window.showHistoricalUI = function() {
     content.innerHTML = 
         '<div class="archive-container" style="animation: fadeIn 0.4s ease;">' +
             '<div style="margin-bottom: 20px; padding: 15px; background: var(--card); border-radius: 16px; border: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">' +
-                '<div style="font-weight: 800; color: var(--accent); font-size: 0.8rem; letter-spacing: 1px;">K K NAGAR RAINFALL HISTORY</div>' +
+                '<div style="font-weight: 800; color: var(--accent); font-size: 0.8rem; letter-spacing: 1px;">KK NAGAR RAINFALL HISTORY</div>' +
                 '<div style="display: flex; gap: 8px;">' +
                     '<select id="histYearSelect" class="glass-select" style="padding: 5px 10px; border-radius: 8px; background: #1e293b; color: white; border: 1px solid #334155;">' +
                         yearOptions +
                     '</select>' +
-                    '<button onclick="fetchHistoricalData()" style="padding: 8px 16px; background: #3b82f6; color: white; border: none; border-radius: 10px; font-weight: bold; cursor: pointer;">FETCH</button>' +
+                    '<button onclick="fetchHistoricalData()" style="padding: 8px 16px; background: #3b82f6; color: white; border: none; border-radius: 10px; font-weight: bold; cursor: pointer;">SUBMIT</button>' +
                 '</div>' +
             '</div>' +
             '<div id="historical-results-table">' +
