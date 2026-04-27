@@ -1293,7 +1293,7 @@ window.showHistoricalUI = function() {
                     '<select id="histYearSelect" class="glass-select" style="padding: 5px 10px; border-radius: 8px; background: #1e293b; color: white; border: 1px solid #334155;">' +
                         yearOptions +
                     '</select>' +
-                    '<button onclick="fetchHistoricalData()" style="padding: 8px 16px; background: #3b82f6; color: white; border: none; border-radius: 10px; font-weight: bold; cursor: pointer;">SUBMIT</button>' +
+                    '<button onclick="fetchHistoricalData()" style="padding: 8px 16px; background: #3b82f6; color: white; border: none; border-radius: 10px; font-weight: bold; cursor: pointer;">FETCH</button>' +
                 '</div>' +
             '</div>' +
             '<div id="historical-results-table">' +
