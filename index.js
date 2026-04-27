@@ -1375,7 +1375,7 @@ window.fetchHistoricalData = async function() {
         
         // Pre-Monsoon Summary (Neutral)
         html += '<div style="' + seasonalStyle + ' background: var(--card); border-color: var(--border);">' +
-                    '<div style="font-size: 0.8rem; font-weight: 900; color: var(--text-muted); letter-spacing: 1px; margin-bottom: 6px;">PRE MONSOON</div>' +
+                    '<div style="font-size: 0.8rem; font-weight: 900; color: var(--text-muted); letter-spacing: 1px; margin-bottom: 6px;">JAN-MAY</div>' +
                     '<div style="font-size: 1.7rem; font-weight: 900; color: var(--text, #1e293b);">' + preMonsoonTotal.toFixed(1) + '</div>' +
                 '</div>';
 
