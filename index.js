@@ -1340,21 +1340,22 @@ window.fetchHistoricalData = async function() {
             var rf = parseFloat(d.rainfall_mm) || 0;
             var mKey = d.month_val.substring(0, 3).toUpperCase();
             var mainTextColor = 'var(--text, #1e293b)'; 
-            var bgColor, borderColor, monthTextColor;
+            
+            // Default Neutral Styles (Jan-May)
+            var bgColor = 'var(--card, rgba(30, 41, 59, 0.04))';
+            var borderColor = 'var(--border, rgba(255,255,255,0.1))';
+            var monthTextColor = 'var(--text-muted, #64748b)';
 
-            // Define Enhanced Seasonal Colors
-            if (['JAN', 'FEB', 'MAR', 'APR', 'MAY'].indexOf(mKey) !== -1) {
-                bgColor = 'rgba(245, 158, 11, 0.08)';       // Amber (Pre-Monsoon)
+            if (['JUN', 'JUL', 'AUG', 'SEP'].indexOf(mKey) !== -1) {
+                // SWM - Now Amber
+                bgColor = 'rgba(245, 158, 11, 0.08)';       
                 borderColor = 'rgba(245, 158, 11, 0.4)';
                 monthTextColor = '#d97706';
-            } else if (['JUN', 'JUL', 'AUG', 'SEP'].indexOf(mKey) !== -1) {
-                bgColor = 'rgba(5, 150, 105, 0.08)';        // Emerald (SWM)
+            } else if (['OCT', 'NOV', 'DEC'].indexOf(mKey) !== -1) {
+                // NEM - Now Emerald
+                bgColor = 'rgba(5, 150, 105, 0.08)';        
                 borderColor = 'rgba(5, 150, 105, 0.4)';
                 monthTextColor = '#059669';
-            } else if (['OCT', 'NOV', 'DEC'].indexOf(mKey) !== -1) {
-                bgColor = 'rgba(79, 70, 229, 0.08)';        // Indigo (NEM)
-                borderColor = 'rgba(79, 70, 229, 0.4)';
-                monthTextColor = '#4f46e5';
             }
 
             return '<div style="background:' + bgColor + '; border: 1.5px solid ' + borderColor + '; border-radius: 12px; padding: 14px; margin-bottom: 10px; text-align: center;">' +
@@ -1368,31 +1369,33 @@ window.fetchHistoricalData = async function() {
         html += '<div style="flex: 1;">' + rightCol.map(renderCard).join('') + '</div>';
         html += '</div>';
 
-        // Enhanced Seasonal Summary Row
+        // Seasonal Summary Row
         html += '<div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 5px;">';
-        
         var seasonalStyle = 'border-radius: 16px; padding: 20px 5px; text-align: center; border: 2.5px solid;';
         
-        html += '<div style="' + seasonalStyle + ' background: rgba(245, 158, 11, 0.12); border-color: rgba(245, 158, 11, 0.5);">' +
-                    '<div style="font-size: 0.8rem; font-weight: 900; color: #d97706; letter-spacing: 1px; margin-bottom: 6px;">PRE MONSOON</div>' +
+        // Pre-Monsoon Summary (Neutral)
+        html += '<div style="' + seasonalStyle + ' background: var(--card); border-color: var(--border);">' +
+                    '<div style="font-size: 0.8rem; font-weight: 900; color: var(--text-muted); letter-spacing: 1px; margin-bottom: 6px;">PRE MONSOON</div>' +
                     '<div style="font-size: 1.7rem; font-weight: 900; color: var(--text, #1e293b);">' + preMonsoonTotal.toFixed(1) + '</div>' +
                 '</div>';
 
-        html += '<div style="' + seasonalStyle + ' background: rgba(5, 150, 105, 0.12); border-color: rgba(5, 150, 105, 0.5);">' +
-                    '<div style="font-size: 0.8rem; font-weight: 900; color: #059669; letter-spacing: 1px; margin-bottom: 6px;">SWM</div>' +
+        // SWM Summary (Amber)
+        html += '<div style="' + seasonalStyle + ' background: rgba(245, 158, 11, 0.12); border-color: rgba(245, 158, 11, 0.5);">' +
+                    '<div style="font-size: 0.8rem; font-weight: 900; color: #d97706; letter-spacing: 1px; margin-bottom: 6px;">SWM</div>' +
                     '<div style="font-size: 1.7rem; font-weight: 900; color: var(--text, #1e293b);">' + swmTotal.toFixed(1) + '</div>' +
                 '</div>';
 
-        html += '<div style="' + seasonalStyle + ' background: rgba(79, 70, 229, 0.12); border-color: rgba(79, 70, 229, 0.5);">' +
-                    '<div style="font-size: 0.8rem; font-weight: 900; color: #4f46e5; letter-spacing: 1px; margin-bottom: 6px;">NEM</div>' +
+        // NEM Summary (Emerald)
+        html += '<div style="' + seasonalStyle + ' background: rgba(5, 150, 105, 0.12); border-color: rgba(5, 150, 105, 0.5);">' +
+                    '<div style="font-size: 0.8rem; font-weight: 900; color: #059669; letter-spacing: 1px; margin-bottom: 6px;">NEM</div>' +
                     '<div style="font-size: 1.7rem; font-weight: 900; color: var(--text, #1e293b);">' + nemTotal.toFixed(1) + '</div>' +
                 '</div>';
         html += '</div>';
 
-        // Annual Total Footer
+        // Annual Total Footer (Neutral Theme)
         if (annualRow) {
-            html += '<div style="margin-top: 15px; background: var(--card, #f8fafc); border: 2px solid var(--accent, #3b82f6); border-radius: 18px; padding: 24px; text-align: center; box-shadow: 0 4px 20px rgba(0,0,0,0.08);">' +
-                        '<div style="font-size: 0.8rem; color: var(--accent, #3b82f6); font-weight: 900; letter-spacing: 2px; margin-bottom: 6px;">' + year + ' ANNUAL TOTAL</div>' +
+            html += '<div style="margin-top: 15px; background: var(--card, #f8fafc); border: 2px solid #64748b; border-radius: 18px; padding: 24px; text-align: center; box-shadow: 0 4px 20px rgba(0,0,0,0.08);">' +
+                        '<div style="font-size: 0.8rem; color: #64748b; font-weight: 900; letter-spacing: 2px; margin-bottom: 6px;">' + year + ' ANNUAL TOTAL</div>' +
                         '<div style="font-size: 3rem; font-weight: 950; color: var(--text, #1e293b); line-height: 1;">' + parseFloat(annualRow.rainfall_mm).toFixed(1) + '<span style="font-size: 1.2rem; opacity: 0.4; margin-left: 6px; font-weight: 700;">mm</span></div>' +
                     '</div>';
         }
@@ -1403,6 +1406,7 @@ window.fetchHistoricalData = async function() {
         resultsTable.innerHTML = '<div style="text-align:center; padding:40px; color: #ef4444;">Connection failed.</div>';
     }
 };
+
 
 
 </script>
