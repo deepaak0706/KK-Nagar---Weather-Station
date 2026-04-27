@@ -704,6 +704,47 @@ body.is-night .glass-select option {
     color: #f1f5f9;
 }
 
+/* --- MODERN COMPACT DASHBOARD STYLES --- */
+.inline-hl { 
+    font-size: 15px; 
+    font-weight: 700; 
+    margin-top: 4px; 
+    display: flex; 
+    align-items: center;
+    gap: 12px; 
+}
+.inline-hl span { display: flex; align-items: baseline; gap: 4px; }
+
+.compact-stats {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 20px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+}
+.stat-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.stat-label {
+    color: var(--muted);
+    font-weight: 700;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+.stat-val {
+    font-size: 15px;
+    font-weight: 800;
+    color: var(--text);
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+}
+
+
 
 
     </style>
@@ -731,52 +772,103 @@ body.is-night .glass-select option {
         <div id="page-dashboard">
             
             <div class="grid-system">
-                <div class="card">
-                    <div class="label">Temperature</div>
-                    <div class="main-val"><span id="t">0.0</span><span class="unit">°C</span></div>
-                    <div id="tTrendBox" class="sub-pill">--</div>
-                    <div class="sub-box-4">
-                        <div class="badge"><span class="badge-label">Today High</span><span id="mx" class="badge-val" style="color:#ef4444">--</span></div>
-                        <div class="badge"><span class="badge-label">Today Low</span><span id="mn" class="badge-val" style="color:#0ea5e9">--</span></div>
-                        <div class="badge"><span class="badge-label">Humidity</span><span id="h_val" class="badge-val">--</span></div>
-                        <div class="badge"><span class="badge-label">Dew Point</span><span id="d_val" class="badge-val">--</span></div>
-                        <div class="badge" style="grid-column: span 2;"><span class="badge-label">Feels Like</span><span id="rf" class="badge-val">--</span></div>
-                    </div>
-                </div>
+    <div class="card">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom: 6px;">
+            <div class="label" style="margin:0;">Temperature</div>
+            <div id="tTrendBox" style="font-size: 11px; font-weight:800; background: var(--badge); padding: 4px 10px; border-radius: 8px;">--</div>
+        </div>
+        
+        <div class="main-val"><span id="t">0.0</span><span class="unit">°C</span></div>
+        
+        <div class="inline-hl">
+            <span style="color:#ef4444">H: <span id="mx" style="color:var(--text)">--</span></span>
+            <span style="color:#0ea5e9">L: <span id="mn" style="color:var(--text)">--</span></span>
+        </div>
 
-                <div class="card">
-                    <canvas id="windCanvas"></canvas>
-                    <div class="label">Wind Dynamics</div>
-                    <div class="compass-ui"><div id="needle"></div></div>
-                    <div class="main-val"><span id="w">0.0</span><span id="wd_bracket" style="font-size:18px; color:var(--muted); margin-left:8px; font-weight:700">(--)</span><span class="unit">km/h</span></div>
-                    <div class="sub-pill">● Live Gust: <span id="wg" style="margin-left:4px">--</span></div>
-                    <div class="sub-box-4">
-                        <div class="badge"><span class="badge-label">Max Speed</span><span id="mw" class="badge-val">--</span></div>
-                        <div class="badge"><span class="badge-label">Max Gust</span><span id="mg" class="badge-val">--</span></div>
-                    </div>
-                </div>
-
-                <div class="card">
-                    <div class="label">Rain Realm</div>
-                    <div class="main-val"><span id="r_tot">0.0</span><span class="unit">mm</span></div>
-                    <div class="sub-pill">● Rain Rate: <span id="r_rate">0.0</span> mm/h</div>
-                    <div class="sub-box-4">
-                        <div class="badge" style="grid-column: span 2;"><span class="badge-label">Max Rate Today</span><span id="mr" class="badge-val">--</span></div>
-                        <div class="badge"><span class="badge-label">Weekly</span><span id="r_week" class="badge-val">--</span></div>
-                        <div class="badge"><span class="badge-label">Monthly</span><span id="r_month" class="badge-val">--</span></div>
-                        <div class="badge" style="grid-column: span 2;"><span class="badge-label">Yearly</span><span id="r_year" class="badge-val">--</span></div>
-                    </div>
-                </div>
-
-                <div class="card">
-                    <div class="label">Atmospheric <span id="pIcon"></span></div>
-                    <div class="main-val"><span id="pr">--</span><span class="unit">hPa</span></div>
-                    <div class="sub-box-4">
-                        <div class="badge"><span class="badge-label">Solar Rad</span><span id="sol" class="badge-val">--</span></div>
-                        <div class="badge"><span class="badge-label">UV Index</span><span id="uv" class="badge-val">--</span></div>
-                    </div>
-                </div>
+        <div class="compact-stats">
+            <div class="stat-row">
+                <span class="stat-label">Feels Like</span>
+                <span id="rf" class="stat-val" style="font-size: 18px;">--</span>
             </div>
+            <div class="stat-row">
+                <span class="stat-label">Humidity</span>
+                <span id="h_val" class="stat-val">--</span>
+            </div>
+            <div class="stat-row">
+                <span class="stat-label">Dew Point</span>
+                <span id="d_val" class="stat-val">--</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <canvas id="windCanvas"></canvas>
+        <div class="label">Wind Dynamics</div>
+        <div class="compass-ui"><div id="needle"></div></div>
+        
+        <div class="main-val"><span id="w">0.0</span><span class="unit">km/h</span></div>
+        <div style="font-size: 14px; font-weight: 700; color: var(--muted); margin-top: 4px; position:relative; z-index:5;">
+            Dir: <span id="wd_bracket" style="color:var(--text)">(--)</span> • Gust: <span id="wg" style="color:var(--text)">--</span>
+        </div>
+
+        <div class="compact-stats">
+            <div class="stat-row">
+                <span class="stat-label">Max Speed Today</span>
+                <span id="mw" class="stat-val">--</span>
+            </div>
+            <div class="stat-row">
+                <span class="stat-label">Max Gust Today</span>
+                <span id="mg" class="stat-val">--</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="label">Rain Realm</div>
+        
+        <div class="main-val"><span id="r_tot">0.0</span><span class="unit">mm</span></div>
+        <div style="font-size: 14px; font-weight: 800; color: #3b82f6; margin-top: 4px;">
+            Rate: <span id="r_rate">0.0</span> mm/h
+        </div>
+
+        <div class="compact-stats">
+            <div class="stat-row">
+                <span class="stat-label">Max Rate Today</span>
+                <span id="mr" class="stat-val">--</span>
+            </div>
+            <div class="stat-row">
+                <span class="stat-label">This Week</span>
+                <span id="r_week" class="stat-val">--</span>
+            </div>
+            <div class="stat-row">
+                <span class="stat-label">This Month</span>
+                <span id="r_month" class="stat-val">--</span>
+            </div>
+            <div class="stat-row">
+                <span class="stat-label">This Year</span>
+                <span id="r_year" class="stat-val">--</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="label">Atmospheric <span id="pIcon"></span></div>
+        
+        <div class="main-val"><span id="pr">--</span><span class="unit">hPa</span></div>
+
+        <div class="compact-stats" style="margin-top: 28px;">
+            <div class="stat-row">
+                <span class="stat-label">Solar Radiation</span>
+                <span id="sol" class="stat-val">--</span>
+            </div>
+            <div class="stat-row">
+                <span class="stat-label">UV Index</span>
+                <span id="uv" class="stat-val">--</span>
+            </div>
+        </div>
+    </div>
+</div>
+
 
             <div class="sub-tabs-section" style="margin-top: 35px;">
                 <div style="display: flex; gap: 10px; margin-bottom: 20px; justify-content: center;">
