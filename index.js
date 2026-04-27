@@ -1324,11 +1324,6 @@ window.fetchHistoricalData = async function() {
         var months = result.data.filter(function(d) { return d.month_val !== 'Annual'; });
         var annualRow = result.data.find(function(d) { return d.month_val === 'Annual'; });
 
-        // Calculations
-        var rainValues = months.map(function(m) { return parseFloat(m.rainfall_mm) || 0; });
-        var maxVal = Math.max.apply(null, rainValues);
-        var minVal = Math.min.apply(null, rainValues);
-
         var preMonsoonTotal = 0; var swmTotal = 0; var nemTotal = 0;
         months.forEach(function(m) {
             var val = parseFloat(m.rainfall_mm) || 0;
@@ -1344,39 +1339,27 @@ window.fetchHistoricalData = async function() {
         function renderCard(d) {
             var rf = parseFloat(d.rainfall_mm) || 0;
             var mKey = d.month_val.substring(0, 3).toUpperCase();
-            
             var mainTextColor = 'var(--text, #1e293b)'; 
             var bgColor, borderColor, monthTextColor;
 
-            // Apply seasonal tints to the month cards
+            // Define Enhanced Seasonal Colors
             if (['JAN', 'FEB', 'MAR', 'APR', 'MAY'].indexOf(mKey) !== -1) {
-                bgColor = 'rgba(245, 158, 11, 0.06)';       // Amber/Orange tint
-                borderColor = 'rgba(245, 158, 11, 0.3)';
+                bgColor = 'rgba(245, 158, 11, 0.08)';       // Amber (Pre-Monsoon)
+                borderColor = 'rgba(245, 158, 11, 0.4)';
                 monthTextColor = '#d97706';
             } else if (['JUN', 'JUL', 'AUG', 'SEP'].indexOf(mKey) !== -1) {
-                bgColor = 'rgba(16, 185, 129, 0.06)';       // Emerald/Green tint
-                borderColor = 'rgba(16, 185, 129, 0.3)';
+                bgColor = 'rgba(5, 150, 105, 0.08)';        // Emerald (SWM)
+                borderColor = 'rgba(5, 150, 105, 0.4)';
                 monthTextColor = '#059669';
             } else if (['OCT', 'NOV', 'DEC'].indexOf(mKey) !== -1) {
-                bgColor = 'rgba(99, 102, 241, 0.06)';       // Indigo/Blue tint
-                borderColor = 'rgba(99, 102, 241, 0.3)';
+                bgColor = 'rgba(79, 70, 229, 0.08)';        // Indigo (NEM)
+                borderColor = 'rgba(79, 70, 229, 0.4)';
                 monthTextColor = '#4f46e5';
             }
 
-            // Keep the strong overrides for Max and Min values
-            if (rf === maxVal && maxVal > 0) {
-                bgColor = 'rgba(59, 130, 246, 0.15)';
-                borderColor = 'rgba(59, 130, 246, 0.5)';
-                monthTextColor = '#2563eb';
-            } else if (rf === minVal) {
-                bgColor = 'rgba(244, 63, 94, 0.1)';
-                borderColor = 'rgba(244, 63, 94, 0.3)';
-                monthTextColor = '#e11d48';
-            }
-
-            return '<div style="background:' + bgColor + '; border: 1px solid ' + borderColor + '; border-radius: 12px; padding: 14px; margin-bottom: 10px; text-align: center;">' +
-                        '<div style="font-size: 0.75rem; font-weight: 800; color: ' + monthTextColor + '; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 4px;">' + d.month_val.substring(0,3) + '</div>' +
-                        '<div style="font-size: 1.35rem; font-weight: 800; color: ' + mainTextColor + ';">' + rf.toFixed(1) + '<span style="font-size: 0.75rem; opacity: 0.6; margin-left: 2px;">mm</span></div>' +
+            return '<div style="background:' + bgColor + '; border: 1.5px solid ' + borderColor + '; border-radius: 12px; padding: 14px; margin-bottom: 10px; text-align: center;">' +
+                        '<div style="font-size: 0.75rem; font-weight: 900; color: ' + monthTextColor + '; letter-spacing: 1.2px; text-transform: uppercase; margin-bottom: 4px;">' + d.month_val.substring(0,3) + '</div>' +
+                        '<div style="font-size: 1.4rem; font-weight: 900; color: ' + mainTextColor + ';">' + rf.toFixed(1) + '<span style="font-size: 0.8rem; opacity: 0.5; margin-left: 2px;">mm</span></div>' +
                    '</div>';
         }
 
@@ -1385,32 +1368,32 @@ window.fetchHistoricalData = async function() {
         html += '<div style="flex: 1;">' + rightCol.map(renderCard).join('') + '</div>';
         html += '</div>';
 
-        // Seasonal Summary Row (Increased weight and size)
+        // Enhanced Seasonal Summary Row
         html += '<div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 5px;">';
         
-        var seasonalStyle = 'border-radius: 14px; padding: 18px 5px; text-align: center; border: 2px solid;';
+        var seasonalStyle = 'border-radius: 16px; padding: 20px 5px; text-align: center; border: 2.5px solid;';
         
-        html += '<div style="' + seasonalStyle + ' background: rgba(245, 158, 11, 0.1); border-color: rgba(245, 158, 11, 0.4);">' +
-                    '<div style="font-size: 0.75rem; font-weight: 900; color: #d97706; letter-spacing: 1px; margin-bottom: 6px;">PRE MONSOON</div>' +
-                    '<div style="font-size: 1.5rem; font-weight: 900; color: var(--text, #1e293b);">' + preMonsoonTotal.toFixed(1) + '</div>' +
+        html += '<div style="' + seasonalStyle + ' background: rgba(245, 158, 11, 0.12); border-color: rgba(245, 158, 11, 0.5);">' +
+                    '<div style="font-size: 0.8rem; font-weight: 900; color: #d97706; letter-spacing: 1px; margin-bottom: 6px;">PRE MONSOON</div>' +
+                    '<div style="font-size: 1.7rem; font-weight: 900; color: var(--text, #1e293b);">' + preMonsoonTotal.toFixed(1) + '</div>' +
                 '</div>';
 
-        html += '<div style="' + seasonalStyle + ' background: rgba(16, 185, 129, 0.1); border-color: rgba(16, 185, 129, 0.4);">' +
-                    '<div style="font-size: 0.75rem; font-weight: 900; color: #059669; letter-spacing: 1px; margin-bottom: 6px;">SWM</div>' +
-                    '<div style="font-size: 1.5rem; font-weight: 900; color: var(--text, #1e293b);">' + swmTotal.toFixed(1) + '</div>' +
+        html += '<div style="' + seasonalStyle + ' background: rgba(5, 150, 105, 0.12); border-color: rgba(5, 150, 105, 0.5);">' +
+                    '<div style="font-size: 0.8rem; font-weight: 900; color: #059669; letter-spacing: 1px; margin-bottom: 6px;">SWM</div>' +
+                    '<div style="font-size: 1.7rem; font-weight: 900; color: var(--text, #1e293b);">' + swmTotal.toFixed(1) + '</div>' +
                 '</div>';
 
-        html += '<div style="' + seasonalStyle + ' background: rgba(99, 102, 241, 0.1); border-color: rgba(99, 102, 241, 0.4);">' +
-                    '<div style="font-size: 0.75rem; font-weight: 900; color: #4f46e5; letter-spacing: 1px; margin-bottom: 6px;">NEM</div>' +
-                    '<div style="font-size: 1.5rem; font-weight: 900; color: var(--text, #1e293b);">' + nemTotal.toFixed(1) + '</div>' +
+        html += '<div style="' + seasonalStyle + ' background: rgba(79, 70, 229, 0.12); border-color: rgba(79, 70, 229, 0.5);">' +
+                    '<div style="font-size: 0.8rem; font-weight: 900; color: #4f46e5; letter-spacing: 1px; margin-bottom: 6px;">NEM</div>' +
+                    '<div style="font-size: 1.7rem; font-weight: 900; color: var(--text, #1e293b);">' + nemTotal.toFixed(1) + '</div>' +
                 '</div>';
         html += '</div>';
 
         // Annual Total Footer
         if (annualRow) {
-            html += '<div style="margin-top: 15px; background: var(--card, #f8fafc); border: 1.5px solid var(--accent, #3b82f6); border-radius: 16px; padding: 22px; text-align: center; box-shadow: 0 4px 12px rgba(0,0,0,0.05);">' +
-                        '<div style="font-size: 0.75rem; color: var(--accent, #3b82f6); font-weight: 800; letter-spacing: 2px; margin-bottom: 6px;">' + year + ' ANNUAL TOTAL</div>' +
-                        '<div style="font-size: 2.6rem; font-weight: 900; color: var(--text, #1e293b);">' + parseFloat(annualRow.rainfall_mm).toFixed(1) + '<span style="font-size: 1.1rem; opacity: 0.5; margin-left: 6px;">mm</span></div>' +
+            html += '<div style="margin-top: 15px; background: var(--card, #f8fafc); border: 2px solid var(--accent, #3b82f6); border-radius: 18px; padding: 24px; text-align: center; box-shadow: 0 4px 20px rgba(0,0,0,0.08);">' +
+                        '<div style="font-size: 0.8rem; color: var(--accent, #3b82f6); font-weight: 900; letter-spacing: 2px; margin-bottom: 6px;">' + year + ' ANNUAL TOTAL</div>' +
+                        '<div style="font-size: 3rem; font-weight: 950; color: var(--text, #1e293b); line-height: 1;">' + parseFloat(annualRow.rainfall_mm).toFixed(1) + '<span style="font-size: 1.2rem; opacity: 0.4; margin-left: 6px; font-weight: 700;">mm</span></div>' +
                     '</div>';
         }
 
@@ -1420,6 +1403,7 @@ window.fetchHistoricalData = async function() {
         resultsTable.innerHTML = '<div style="text-align:center; padding:40px; color: #ef4444;">Connection failed.</div>';
     }
 };
+
 
 </script>
 </body>
