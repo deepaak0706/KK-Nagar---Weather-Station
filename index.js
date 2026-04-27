@@ -61,6 +61,7 @@ function calculateRealFeel(tempC, humidity) {
 
 /**
  * 1-MIN CRON: Memory Buffer Only (No DB)
+ * Hits Ecowitt, updates high-frequency peaks in RAM.
  */
 async function bufferOnlyUpdate() {
     const now = Date.now();
@@ -83,6 +84,7 @@ async function bufferOnlyUpdate() {
         if (state.tMaxT === null || apiT > state.bufMaxT) { state.bufMaxT = apiT; state.tMaxT = currentTimeStamp; }
         if (state.tMinT === null || apiT < state.bufMinT) { state.bufMinT = apiT; state.tMinT = currentTimeStamp; }
 
+        // DAVIS PRO 2 RAIN LOGIC (INTACT)
         const rawDailyInches = d.rainfall.daily.value;
         const timeElapsedSec = state.lastFetchTime ? (now - state.lastFetchTime) / 1000 : 0;
         let customRateIn = 0;
@@ -122,10 +124,12 @@ async function syncWithEcowitt(forceWrite = false) {
     const hour = nowIST.getHours();
     const minute = nowIST.getMinutes();
 
+    // Reset cache if day changed for a visitor
     if (state.lastArchivedDate && state.lastArchivedDate !== todayISTStr) {
         state.cachedData = null;
     }
 
+        // --- PART 1: VISITOR PATH ---
     if (!forceWrite && state.cachedData && (now - state.lastFetchTime < 540000)) {
         try {
             const url = `https://api.ecowitt.net/api/v3/device/real_time?application_key=${APPLICATION_KEY}&api_key=${API_KEY}&mac=${MAC}`;
@@ -146,6 +150,7 @@ async function syncWithEcowitt(forceWrite = false) {
             const fmtL = () => new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' });
             const fmtIso = (isoStr) => isoStr ? new Date(isoStr).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' }) : fmtL();
 
+            // 1. Check live instantaneous values
             if (liveTemp > state.cachedData.temp.max) { state.cachedData.temp.max = liveTemp; state.cachedData.temp.maxTime = fmtL(); }
             if (liveTemp < state.cachedData.temp.min) { state.cachedData.temp.min = liveTemp; state.cachedData.temp.minTime = fmtL(); }
             if (liveWind > state.cachedData.wind.maxS) { state.cachedData.wind.maxS = liveWind; state.cachedData.wind.maxSTime = fmtL(); }
@@ -154,6 +159,7 @@ async function syncWithEcowitt(forceWrite = false) {
             const liveRR = parseFloat((state.lastCalculatedRate * 25.4).toFixed(1));
             if (liveRR > state.cachedData.rain.maxR) { state.cachedData.rain.maxR = liveRR; state.cachedData.rain.maxRTime = fmtL(); }
 
+            // 2. NEW: Check Memory Buffers (Ensures live visitors don't miss 1-min peaks before DB write)
             if (state.bufMaxT !== -999) {
                 const bMx = parseFloat(((state.bufMaxT - 32) * 5/9).toFixed(1));
                 if (bMx > state.cachedData.temp.max) { state.cachedData.temp.max = bMx; state.cachedData.temp.maxTime = fmtIso(state.tMaxT); }
@@ -185,6 +191,8 @@ async function syncWithEcowitt(forceWrite = false) {
         } catch (e) { return state.cachedData; }
     }
 
+
+    // --- PART 2: WRITER PATH ---
     try {
         const url = `https://api.ecowitt.net/api/v3/device/real_time?application_key=${APPLICATION_KEY}&api_key=${API_KEY}&mac=${MAC}`;
         const response = await fetch(url);
@@ -267,6 +275,7 @@ async function syncWithEcowitt(forceWrite = false) {
 
         const fmtL = () => new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' });
 
+        // Give each variable its own dedicated cached time
         let mx_t_time = state.cachedData?.temp?.maxTime || fmtL();
         let mn_t_time = state.cachedData?.temp?.minTime || fmtL();
         let mx_w_t = state.cachedData?.wind?.maxSTime || fmtL();
@@ -275,6 +284,7 @@ async function syncWithEcowitt(forceWrite = false) {
 
         if (state.dataChangedSinceLastRead || !state.cachedData) {
             try {
+                // We keep this query to get the exact MAX/MIN and their times efficiently without sending full history payload to client
                 const historyRes = await pool.query(`
                     SELECT * FROM weather_history 
                     WHERE (time AT TIME ZONE 'Asia/Kolkata')::date = $1::date 
@@ -318,21 +328,24 @@ async function syncWithEcowitt(forceWrite = false) {
             } catch (dbError) { console.error("DB Prep Error:", dbError); }
         }
 
-        const liveWind = parseFloat((d.wind.wind_speed.value * 1.60934).toFixed(1));
+                const liveWind = parseFloat((d.wind.wind_speed.value * 1.60934).toFixed(1));
         const liveGust = parseFloat((d.wind.wind_gust.value * 1.60934).toFixed(1));
         const liveRR = parseFloat((state.lastCalculatedRate * 25.4).toFixed(1));
 
+        // --- FIX: Include Memory Buffers in Dashboard Max/Min Calculations ---
         const fmtIso = (isoStr) => {
             if (!isoStr) return fmtL();
             return new Date(isoStr).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' });
         };
 
+        // 1. Check live instantaneous values
         if (liveTemp > mx_t) { mx_t = liveTemp; mx_t_time = fmtL(); }
         if (liveTemp < mn_t) { mn_t = liveTemp; mn_t_time = fmtL(); }
         if (liveWind > mx_w) { mx_w = liveWind; mx_w_t = fmtL(); }
         if (liveGust > mx_g) { mx_g = liveGust; mx_g_t = fmtL(); }
         if (liveRR > mx_r)   { mx_r = liveRR; mx_r_t = fmtL(); }
 
+        // 2. Check the high-frequency 1-min Memory Buffers
         if (state.bufMaxT !== -999) {
             const bufMaxC = parseFloat(((state.bufMaxT - 32) * 5 / 9).toFixed(1));
             if (bufMaxC > mx_t) { mx_t = bufMaxC; mx_t_time = fmtIso(state.tMaxT); }
@@ -384,19 +397,25 @@ async function getWeatherSummary() {
     } catch (err) { return { error: err.message }; }
 }
 
+// Routes
+
 /**
  * ROUTES
  */
 
+// 1. API for the dashboard data (NO HISTORY INCLUDED, LIGHTWEIGHT)
 app.get("/weather", async (req, res) => res.json(await syncWithEcowitt(false)));
 
+// 2. API for the historical summary table
 app.get("/api/summary", async (req, res) => res.json(await getWeatherSummary()));
 
+// 3. The Cron Job endpoint (handles buffer-only or full DB writes)
 app.get("/api/sync", async (req, res) => {
     if (req.query.buffer === 'true') return res.json(await bufferOnlyUpdate());
     res.json(await syncWithEcowitt(req.query.write === 'true'));
 });
 
+// 4. NEW GRAPH ONLY ROUTE (Triggered strictly on button click)
 app.get("/api/history_graphs", async (req, res) => {
     const todayISTStr = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" })).toLocaleDateString('en-CA');
     try {
@@ -417,6 +436,7 @@ app.get("/api/history_graphs", async (req, res) => {
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// NEW: Route to handle Historical Rainfall Fetch
 app.get('/api/historical-rain', async (req, res) => {
     const { year } = req.query;
     if (!year) return res.status(400).json({ error: "Year is required" });
@@ -433,6 +453,7 @@ app.get('/api/historical-rain', async (req, res) => {
     }
 });
 
+// 5. The User Interface (Your HTML)
 app.get("/", (req, res) => {
     res.send(`
 <!DOCTYPE html>
@@ -493,12 +514,14 @@ app.get("/", (req, res) => {
         .label { color: var(--accent); font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 6px; }
         .main-val { font-size: 56px; font-weight: 900; margin: 0; letter-spacing: -2px; display: flex; align-items: baseline; line-height: 1.1; }
         
+        /* MODERN TRANSIENT EFFECTS */
         .main-val span:not(.unit), .badge-val { 
             display: inline-block; 
             transition: all 0.6s cubic-bezier(0.34, 1.56, 0.64, 1); 
             font-variant-numeric: tabular-nums; 
         }
 
+        /* The "Magic" Animation */
         @keyframes magicFade {
             0% { opacity: 0; filter: blur(12px); transform: scale(0.8) translateY(10px); color: #10b981; }
             30% { opacity: 0.8; filter: blur(4px); }
@@ -549,127 +572,139 @@ app.get("/", (req, res) => {
 
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
-        /* MODERN BENTO-ROW SUMMARY SYSTEM */
-        .modern-summary-container {
-            display: flex;
-            flex-direction: column;
-            gap: 16px; 
-        }
+        /* REFINED ROW-BASED SUMMARY */
+.pro-summary-table {
+    background: var(--card);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid var(--border);
+    border-radius: 24px;
+    box-shadow: var(--glow);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
 
-        .modern-summary-row {
-            background: var(--card);
-            backdrop-filter: blur(24px);
-            -webkit-backdrop-filter: blur(24px);
-            border: 1px solid var(--border);
-            border-radius: 24px;
-            padding: 20px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            box-shadow: var(--glow);
-            gap: 20px;
-            transition: transform 0.3s ease;
-        }
+.pro-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 24px 30px;
+    border-bottom: 1px solid var(--border);
+    transition: background 0.3s ease;
+    gap: 20px; /* Ensures a minimum gap between label and data */
+}
 
-        .modern-summary-row:hover {
-            transform: translateY(-2px);
-        }
+.pro-row:last-child { border-bottom: none; }
 
-        .row-info {
-            display: flex;
-            align-items: center;
-            gap: 16px;
-            flex: 0 0 160px; 
-        }
+.pro-label {
+    font-size: 15px;
+    font-weight: 800;
+    color: var(--text);
+    letter-spacing: 0.5px;
+    display: flex;
+    align-items: center;
+    flex: 0 0 160px; /* Lock the label width so data doesn't overlap it */
+}
 
-        .row-icon {
-            width: 44px;
-            height: 44px;
-            border-radius: 14px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 20px;
-            font-weight: 900;
-        }
+.pro-data-group {
+    display: flex;
+    align-items: center;
+    gap: 40px; /* Increased spacing between the two values */
+    flex: 1;
+    justify-content: flex-end; /* Keeps data anchored to the right */
+}
 
-        .row-title {
-            font-size: 16px;
-            font-weight: 800;
-            color: var(--text);
-            letter-spacing: 0.5px;
-        }
+.pro-data-item {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    min-width: 100px; /* Ensures consistent alignment across different rows */
+}
 
-        .row-metrics {
-            display: flex;
-            gap: 12px;
-            flex: 1;
-            justify-content: flex-end;
-        }
+.pro-sub {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--muted);
+    font-weight: 800;
+    margin-bottom: 6px;
+}
 
-        .metric-tile {
-            background: var(--badge);
-            border: 1px solid var(--border);
-            padding: 16px 20px;
-            border-radius: 18px;
-            display: flex;
-            flex-direction: column;
-            align-items: flex-start;
-            flex: 1; 
-            max-width: 180px; 
-        }
+.pro-val {
+    font-size: 26px;
+    font-weight: 900;
+    line-height: 1;
+    letter-spacing: -0.5px;
+}
 
-        .metric-label {
-            font-size: 10px;
-            text-transform: uppercase;
-            font-weight: 800;
-            color: var(--muted);
-            margin-bottom: 6px;
-            letter-spacing: 1.5px;
-        }
+.pro-divider {
+    width: 1px;
+    height: 32px;
+    background: var(--border);
+    opacity: 0.5;
+}
 
-        .metric-value {
-            font-size: 24px;
-            font-weight: 900;
-            line-height: 1;
-            letter-spacing: -0.5px;
-        }
+/* Responsive fix for smaller screens to prevent squeezing */
+@media (max-width: 650px) {
+    .pro-row {
+        padding: 20px;
+        gap: 10px;
+    }
+    .pro-label {
+        flex: 0 0 120px;
+        font-size: 13px;
+    }
+    .pro-data-group {
+        gap: 20px;
+    }
+    .pro-val {
+        font-size: 20px;
+    }
+}
 
-        @media (max-width: 650px) {
-            .modern-summary-row { flex-direction: column; align-items: flex-start; padding: 16px; }
-            .row-metrics { width: 100%; justify-content: space-between; }
-            .metric-tile { max-width: none; padding: 12px 16px; }
-        }
+.glass-select {
+    background: var(--card) !important;
+    border: 1px solid var(--border);
+    border-radius: 12px; /* Smoother corners */
+    padding: 8px 12px;
+    font-family: inherit;
+    font-weight: 600;
+    color: var(--text) !important;
+    outline: none;
+    cursor: pointer;
+    transition: all 0.2s ease; /* Smooth hover transition */
+    appearance: none; /* Removes default browser styling */
+    -webkit-appearance: none;
+    background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    background-size: 1em;
+    padding-right: 40px;
+}
 
-        .glass-select {
-            background: var(--card) !important;
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            padding: 8px 12px;
-            font-family: inherit;
-            font-weight: 600;
-            color: var(--text) !important;
-            outline: none;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            appearance: none;
-            -webkit-appearance: none;
-            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
-            background-repeat: no-repeat;
-            background-position: right 10px center;
-            background-size: 1em;
-            padding-right: 40px;
-        }
+.glass-select:hover {
+    border-color: var(--accent);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
 
-        .glass-select:hover {
-            border-color: var(--accent);
-            transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-        }
+/* Forces the dropdown list (popup) to be dark and prevents the white blink */
+.glass-select option {
+    background-color: #ffffff;
+    color: #000000;
+}
 
-        .glass-select option { background-color: #ffffff; color: #000000; }
-        body.is-night .glass-select { color-scheme: dark; }
-        body.is-night .glass-select option { background-color: #1e293b; color: #f1f5f9; }
+body.is-night .glass-select {
+    color-scheme: dark; /* CRITICAL: Tells browser the interior of the select is dark */
+}
+
+body.is-night .glass-select option {
+    background-color: #1e293b;
+    color: #f1f5f9;
+}
+
+
 
     </style>
 </head>
@@ -751,57 +786,63 @@ app.get("/", (req, res) => {
 
                 
                 <div id="sub-view-summary" style="display: block; animation: fadeIn 0.4s ease;">
-                    <div class="modern-summary-container">
-                        
-                        <div class="modern-summary-row">
-                            <div class="row-info">
-                                <div class="row-icon" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">🌡️</div>
-                                <div class="row-title">Temperature</div>
-                            </div>
-                            <div class="row-metrics">
-                                <div class="metric-tile">
-                                    <span class="metric-label">Maximum</span>
-                                    <span id="s-mx" class="metric-value" style="color: #ef4444;">--</span>
-                                </div>
-                                <div class="metric-tile">
-                                    <span class="metric-label">Minimum</span>
-                                    <span id="s-mn" class="metric-value" style="color: #0ea5e9;">--</span>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="modern-summary-row">
-                            <div class="row-info">
-                                <div class="row-icon" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">💨</div>
-                                <div class="row-title">Wind</div>
-                            </div>
-                            <div class="row-metrics">
-                                <div class="metric-tile">
-                                    <span class="metric-label">Sustained</span>
-                                    <span id="s-mw" class="metric-value" style="color: var(--text);">--</span>
-                                </div>
-                                <div class="metric-tile">
-                                    <span class="metric-label">Peak Gust</span>
-                                    <span id="s-mg" class="metric-value" style="color: var(--text);">--</span>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="modern-summary-row">
-                            <div class="row-info">
-                                <div class="row-icon" style="background: rgba(59, 130, 246, 0.1); color: #3b82f6;">💧</div>
-                                <div class="row-title">Rainfall</div>
-                            </div>
-                            <div class="row-metrics">
-                                <div class="metric-tile" style="flex: 1; max-width: none; flex-direction: row; justify-content: space-between; align-items: center;">
-                                    <span class="metric-label" style="margin: 0;">Total Accumulated</span>
-                                    <span id="s-rt" class="metric-value" style="color: #3b82f6;">--</span>
-                                </div>
-                            </div>
-                        </div>
-
-                    </div>
+    <div class="pro-summary-table">
+        
+        <div class="pro-row">
+            <div class="pro-label">
+                <span style="color:#ef4444; margin-right:10px; font-size:18px;">●</span>Temperature
+            </div>
+            <div class="pro-data-group">
+                <div class="pro-data-item">
+                    <span class="pro-sub">Maximum</span>
+                    <span id="s-mx" class="pro-val" style="color: #ef4444;">--</span>
                 </div>
+                <div class="pro-divider"></div>
+                <div class="pro-data-item">
+                    <span class="pro-sub">Minimum</span>
+                    <span id="s-mn" class="pro-val" style="color: #0ea5e9;">--</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="pro-row">
+            <div class="pro-label">
+                <span style="color:#f59e0b; margin-right:10px; font-size:18px;">●</span>Wind
+            </div>
+            <div class="pro-data-group">
+                <div class="pro-data-item">
+                    <span class="pro-sub">Sustained</span>
+                    <span id="s-mw" class="pro-val">--</span>
+                </div>
+                <div class="pro-divider"></div>
+                <div class="pro-data-item">
+                    <span class="pro-sub">Peak Gust</span>
+                    <span id="s-mg" class="pro-val">--</span>
+                </div>
+            </div>
+        </div>
+
+    <div class="pro-row">
+    <div class="pro-label">
+        <span style="color:#3b82f6; margin-right:10px; font-size:18px;">●</span>Rainfall
+    </div>
+    <div class="pro-data-group">
+        <div class="pro-data-item">
+            <span id="s-rt" class="pro-val" style="color: #3b82f6;">--</span>
+        </div>
+        <div class="pro-divider" style="visibility: hidden;"></div>
+        <div class="pro-data-item" style="visibility: hidden;">
+            <span class="pro-val">--</span>
+        </div>
+    </div>
+</div>
+
+    </div>
+</div>
+
+
+</div>
+
 
                 <div id="sub-view-graphs" style="display: none; animation: fadeIn 0.4s ease;">
                     
@@ -934,7 +975,7 @@ app.get("/", (req, res) => {
                 obj.classList.remove('fade-update');
                 obj.style.opacity = "0"; 
                 setTimeout(() => {
-                    void obj.offsetWidth; 
+                    void obj.offsetWidth; // Force CSS refresh
                     obj.innerText = formattedValue;
                     obj.style.opacity = "1";
                     obj.classList.add('fade-update');
@@ -942,6 +983,7 @@ app.get("/", (req, res) => {
             }
         }
 
+        // NEW 24H SUB TAB LOGIC (FIXED)
         async function switchSubView(type) {
             document.getElementById('sub-view-summary').style.display = type === 'summary' ? 'block' : 'none';
             document.getElementById('sub-view-graphs').style.display = type === 'graphs' ? 'block' : 'none';
@@ -970,6 +1012,7 @@ app.get("/", (req, res) => {
                 if (history && history.length > 0) {
                     document.getElementById('graphs-wrapper-inner').style.display = 'grid';
                     
+                    // Delay slightly to allow the browser to paint the grid before Chart.js calculates sizes
                     setTimeout(() => {
                         const labels = history.map(h => new Date(h.time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: false }));       
                         if(!charts.cT) { 
@@ -1040,6 +1083,7 @@ app.get("/", (req, res) => {
                 document.getElementById('uv').innerText = d.atmo.uv;
                 document.getElementById('ts').innerText = new Date(d.lastSync).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
                 
+                // POPULATE THE MODERNIZED 24H SUMMARY CARDS
                 if(document.getElementById('s-mx')) {
                     document.getElementById('s-mx').innerText = d.temp.max + '°C';
                     document.getElementById('s-mn').innerText = d.temp.min + '°C';
@@ -1048,6 +1092,7 @@ app.get("/", (req, res) => {
                     document.getElementById('s-rt').innerText = d.rain.total + ' mm';
                 }
 
+                // IF GRAPHS TAB IS OPEN, RE-FETCH GRAPH DATA TO UPDATE
                 if (graphDataLoaded && document.getElementById('sub-view-graphs').style.display === 'block') {
                     fetchGraphDataFromDB();
                 }
@@ -1075,234 +1120,291 @@ app.get("/", (req, res) => {
         applyTheme(); animateWind(); setInterval(update, 45000); update();
 
         function showPage(pageId) {
-            document.getElementById('page-dashboard').style.display = pageId === 'dashboard' ? 'block' : 'none';
-            document.getElementById('page-summary').style.display = pageId === 'summary' ? 'block' : 'none';
-            document.getElementById('page-historical').style.display = pageId === 'historical' ? 'block' : 'none'; 
-            
-            document.getElementById('tab-dash').classList.toggle('active', pageId === 'dashboard');
-            document.getElementById('tab-sum').classList.toggle('active', pageId === 'summary');
-            document.getElementById('tab-hist').classList.toggle('active', pageId === 'historical'); 
+    // 1. Toggle visibility of the three pages
+    document.getElementById('page-dashboard').style.display = pageId === 'dashboard' ? 'block' : 'none';
+    document.getElementById('page-summary').style.display = pageId === 'summary' ? 'block' : 'none';
+    document.getElementById('page-historical').style.display = pageId === 'historical' ? 'block' : 'none'; // Added this
+    
+    // 2. Update the active class for the three buttons
+    document.getElementById('tab-dash').classList.toggle('active', pageId === 'dashboard');
+    document.getElementById('tab-sum').classList.toggle('active', pageId === 'summary');
+    document.getElementById('tab-hist').classList.toggle('active', pageId === 'historical'); // Added this
 
-            if (pageId === 'summary') {
-                showMonthlySummaryUI(); 
-            } 
-            else if (pageId === 'historical') {
-                showHistoricalUI(); 
-            }
+    // 3. Trigger UI generation
+    if (pageId === 'summary') {
+        showMonthlySummaryUI(); 
+    } 
+    else if (pageId === 'historical') {
+        showHistoricalUI(); // We will define this function next
+    }
+}
+
+/* --- START CHIP CHOP --- */
+let selectedMonth = new Date().toLocaleDateString('en-IN', { month: 'long' });
+let selectedYear = new Date().getFullYear().toString();
+
+// 1. Function to show the UI (dropdowns) immediately
+window.showMonthlySummaryUI = function() {
+    const content = document.getElementById('summary-content');
+    const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+    
+    let monthOptions = months.map(function(m) {
+        var sel = (selectedMonth === m) ? 'selected' : '';
+        return '<option value="' + m + '" ' + sel + '>' + m + '</option>';
+    }).join('');
+
+    let yearOptions = "";
+    const startYear = 2026;
+    const endYear = 2032; // Next 7 years from now
+    
+    for (var y = startYear; y <= endYear; y++) {
+        var ySel = (selectedYear == y) ? 'selected' : '';
+        yearOptions += '<option value="' + y + '" ' + ySel + '>' + y + '</option>';
+    }
+
+    content.innerHTML = \`
+        <div class="archive-container" style="animation: fadeIn 0.5s ease;">
+            <div style="margin-bottom: 20px; padding: 15px 25px; display: flex; justify-content: space-between; align-items: center; background: var(--card); border-radius: 20px; border: 1px solid var(--border);">
+                <div style="font-weight: 800; letter-spacing: 0.5px; color: var(--accent);">MONTHLY ARCHIVES</div>
+                <div style="display: flex; gap: 10px;">
+                    <select id="monthSelect" class="glass-select">\${monthOptions}</select>
+                    <select id="yearSelect" class="glass-select">\${yearOptions}</select>
+                    <button onclick="updateArchiveFilter()" style="padding: 6px 12px; margin-left: 8px; background: var(--accent); color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">Get Data</button>
+                </div>
+            </div>
+            <div id="archive-data-table">
+                <div class="card" style="text-align:center; padding:60px; color: var(--muted);">
+                    Select a month and click "Get Data" to load records.
+                </div>
+            </div>
+        </div>\`;
+};
+
+// 2. Updated data fetcher that targets only the table container
+async function fetchMonthlySummary() {
+    const tableContainer = document.getElementById('archive-data-table');
+    if (!tableContainer) return;
+    
+    tableContainer.innerHTML = '<div class="card" style="text-align:center; padding:40px;">Querying Database...</div>';
+    
+    try {
+        const res = await fetch('/api/summary');
+        const groups = await res.json();
+        const currentKey = \`\${selectedMonth} \${selectedYear}\`;
+        const days = groups[currentKey] || [];
+
+        if (days.length === 0) {
+            tableContainer.innerHTML = \`
+                <div class="card" style="text-align:center; padding:60px; color: var(--muted); font-weight: 600;">
+                    No data recorded for \${currentKey}
+                </div>\`;
+            return;
         }
 
-        let selectedMonth = new Date().toLocaleDateString('en-IN', { month: 'long' });
-        let selectedYear = new Date().getFullYear().toString();
+        tableContainer.innerHTML = \`
+            <div class="pro-summary-table" style="background: var(--card); border-radius: 15px; overflow: hidden; border: 1px solid var(--border);">
+                <div class="pro-row" style="background: var(--badge); font-weight: 800; font-size: 11px; text-transform: uppercase; display: flex; align-items: center; padding: 15px; border-bottom: 1px solid var(--border);">
+                    <div style="width: 20%;">Date</div>
+                    <div style="width: 25%; text-align: center;">Temp (H/L)</div>
+                    <div style="width: 30%; text-align: center;">Wind / Gust</div>
+                    <div style="width: 25%; text-align: right;">Rainfall</div>
+                </div>
+                \${days.map(function(d) {
+                    return \`
+                    <div class="pro-row" style="display: flex; align-items: center; padding: 15px; border-bottom: 1px solid var(--border);">
+                        <div style="width: 20%; font-size: 16px;"><b>\${new Date(d.record_date).getDate()}</b></div>
+                        <div style="width: 25%; display: flex; justify-content: center; gap: 8px;">
+                            <span style="color:#ef4444; font-weight: 700;">\${parseFloat(d.max_temp_c).toFixed(1)}°</span>
+                            <span style="opacity: 0.3;">/</span>
+                            <span style="color:#0ea5e9; font-weight: 700;">\${parseFloat(d.min_temp_c).toFixed(1)}°</span>
+                        </div>
+                        <div style="width: 30%; font-size: 13px; text-align: center;">
+                            \${parseFloat(d.max_wind_kmh).toFixed(1)} <small style="opacity:0.4">/</small> \${parseFloat(d.max_gust_kmh).toFixed(1)} <small>km/h</small>
+                        </div>
+                        <div style="width: 25%; font-weight: 800; color: #3b82f6; text-align: right;">
+                            \${parseFloat(d.total_rain_mm).toFixed(1)} <small>mm</small>
+                        </div>
+                    </div>\`;
+                }).join('')}
+            </div>\`;
+    } catch (e) {
+        tableContainer.innerHTML = '<div class="card" style="color:#ef4444; padding:20px; text-align:center;">Error loading data.</div>';
+    }
+}
 
-        window.showMonthlySummaryUI = function() {
-            var content = document.getElementById('summary-content');
-            var months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-            
-            var monthOptions = "";
-            for (var i = 0; i < months.length; i++) {
-                var m = months[i];
-                var sel = (selectedMonth === m) ? 'selected' : '';
-                monthOptions += '<option value="' + m + '" ' + sel + '>' + m + '</option>';
+window.updateArchiveFilter = function() {
+    selectedMonth = document.getElementById('monthSelect').value;
+    selectedYear = document.getElementById('yearSelect').value;
+    fetchMonthlySummary();
+};
+/* --- END CHIP CHOP --- */
+
+/* --- UPDATED: STRICTLY SAFE UI GENERATION --- */
+
+window.showMonthlySummaryUI = function() {
+    var content = document.getElementById('summary-content');
+    var months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+    
+    var monthOptions = "";
+    for (var i = 0; i < months.length; i++) {
+        var m = months[i];
+        var sel = (selectedMonth === m) ? 'selected' : '';
+        monthOptions += '<option value="' + m + '" ' + sel + '>' + m + '</option>';
+    }
+
+    var yearOptions = "";
+    for (var y = 2026; y <= 2032; y++) {
+        var ySel = (selectedYear == y) ? 'selected' : '';
+        yearOptions += '<option value="' + y + '" ' + ySel + '>' + y + '</option>';
+    }
+
+    // Using '+' instead of backticks to avoid $ issues
+    content.innerHTML = 
+        '<div class="archive-container" style="animation: fadeIn 0.5s ease;">' +
+            '<div style="margin-bottom: 20px; padding: 15px 25px; display: flex; justify-content: space-between; align-items: center; background: var(--card); border-radius: 20px; border: 1px solid var(--border);">' +
+                '<div style="font-weight: 800; letter-spacing: 0.5px; color: var(--accent);">MONTHLY ARCHIVES</div>' +
+                '<div style="display: flex; gap: 10px;">' +
+                    '<select id="monthSelect" class="glass-select">' + monthOptions + '</select>' +
+                    '<select id="yearSelect" class="glass-select">' + yearOptions + '</select>' +
+                    '<button onclick="updateArchiveFilter()" style="padding: 6px 12px; margin-left: 8px; background: var(--accent); color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">Get Data</button>' +
+                '</div>' +
+            '</div>' +
+            '<div id="archive-data-table">' +
+                '<div class="card" style="text-align:center; padding:60px; color: var(--muted);">' +
+                    'Select a month and click "Get Data" to load records.' +
+                '</div>' +
+            '</div>' +
+        '</div>';
+};
+
+window.showHistoricalUI = function() {
+    var content = document.getElementById('historical-content');
+    var years = [2019, 2020, 2021, 2022, 2023, 2024, 2025, 2026];
+    var yearOptions = "";
+    for (var i = 0; i < years.length; i++) {
+        yearOptions += '<option value="' + years[i] + '">' + years[i] + '</option>';
+    }
+
+    content.innerHTML = 
+        '<div class="archive-container" style="animation: fadeIn 0.4s ease;">' +
+            '<div style="margin-bottom: 20px; padding: 15px; background: var(--card); border-radius: 16px; border: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">' +
+                '<div style="font-weight: 800; color: var(--accent); font-size: 0.8rem; letter-spacing: 1px;">K K NAGAR RAINFALL HISTORY</div>' +
+                '<div style="display: flex; gap: 8px;">' +
+                    '<select id="histYearSelect" class="glass-select" style="padding: 5px 10px; border-radius: 8px; background: #1e293b; color: white; border: 1px solid #334155;">' +
+                        yearOptions +
+                    '</select>' +
+                    '<button onclick="fetchHistoricalData()" style="padding: 8px 16px; background: #3b82f6; color: white; border: none; border-radius: 10px; font-weight: bold; cursor: pointer;">FETCH</button>' +
+                '</div>' +
+            '</div>' +
+            '<div id="historical-results-table">' +
+                '<div style="text-align: center; padding: 50px 20px; color: #64748b; border: 1px dashed var(--border); border-radius: 16px;">' +
+                    'Select a year and click "FETCH" to retrieve records.' +
+                '</div>' +
+            '</div>' +
+        '</div>';
+};
+
+/* --- ADD THIS: THE MISSING FETCH ENGINE --- */
+
+window.fetchHistoricalData = async function() {
+    var year = document.getElementById('histYearSelect').value;
+    var resultsTable = document.getElementById('historical-results-table');
+    
+    resultsTable.innerHTML = '<div style="text-align:center; padding:40px; color: var(--text-muted, #64748b);">Syncing Archive...</div>';
+
+    try {
+        var response = await fetch('/api/historical-rain?year=' + year);
+        var result = await response.json();
+
+        if (!result.data || result.data.length === 0) {
+            resultsTable.innerHTML = '<div style="text-align:center; padding:40px; color: #ef4444;">No data found for ' + year + '</div>';
+            return;
+        }
+
+        var months = result.data.filter(function(d) { return d.month_val !== 'Annual'; });
+        var annualRow = result.data.find(function(d) { return d.month_val === 'Annual'; });
+
+        // Calculations
+        var rainValues = months.map(function(m) { return parseFloat(m.rainfall_mm) || 0; });
+        var maxVal = Math.max.apply(null, rainValues);
+        var minVal = Math.min.apply(null, rainValues);
+
+        var preMonsoonTotal = 0; var swmTotal = 0; var nemTotal = 0;
+        months.forEach(function(m) {
+            var val = parseFloat(m.rainfall_mm) || 0;
+            var mKey = m.month_val.substring(0, 3).toUpperCase();
+            if (['JAN', 'FEB', 'MAR', 'APR', 'MAY'].indexOf(mKey) !== -1) preMonsoonTotal += val;
+            if (['JUN', 'JUL', 'AUG', 'SEP'].indexOf(mKey) !== -1) swmTotal += val;
+            if (['OCT', 'NOV', 'DEC'].indexOf(mKey) !== -1) nemTotal += val;
+        });
+
+        var leftCol = months.slice(0, 6);
+        var rightCol = months.slice(6, 12);
+
+        function renderCard(d) {
+            var rf = parseFloat(d.rainfall_mm) || 0;
+            // Use variables for theme compatibility
+            var bgColor = 'var(--card, rgba(30, 41, 59, 0.4))'; 
+            var borderColor = 'var(--border, rgba(255,255,255,0.1))';
+            var mainTextColor = 'var(--text, #1e293b)'; 
+
+            if (rf === maxVal && maxVal > 0) {
+                bgColor = 'rgba(59, 130, 246, 0.15)';
+                borderColor = 'rgba(59, 130, 246, 0.5)';
+            } else if (rf === minVal) {
+                bgColor = 'rgba(244, 63, 94, 0.1)';
+                borderColor = 'rgba(244, 63, 94, 0.3)';
             }
 
-            var yearOptions = "";
-            for (var y = 2026; y <= 2032; y++) {
-                var ySel = (selectedYear == y) ? 'selected' : '';
-                yearOptions += '<option value="' + y + '" ' + ySel + '>' + y + '</option>';
-            }
+            return '<div style="background:' + bgColor + '; border: 1px solid ' + borderColor + '; border-radius: 12px; padding: 14px; margin-bottom: 10px; text-align: center;">' +
+                        '<div style="font-size: 0.65rem; font-weight: 700; color: var(--text-muted, #64748b); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 4px;">' + d.month_val.substring(0,3) + '</div>' +
+                        '<div style="font-size: 1.25rem; font-weight: 800; color: ' + mainTextColor + ';">' + rf.toFixed(1) + '<span style="font-size: 0.7rem; opacity: 0.6; margin-left: 2px;">mm</span></div>' +
+                   '</div>';
+        }
 
-            content.innerHTML = 
-                '<div class="archive-container" style="animation: fadeIn 0.5s ease;">' +
-                    '<div style="margin-bottom: 20px; padding: 15px 25px; display: flex; justify-content: space-between; align-items: center; background: var(--card); border-radius: 20px; border: 1px solid var(--border);">' +
-                        '<div style="font-weight: 800; letter-spacing: 0.5px; color: var(--accent);">MONTHLY ARCHIVES</div>' +
-                        '<div style="display: flex; gap: 10px;">' +
-                            '<select id="monthSelect" class="glass-select">' + monthOptions + '</select>' +
-                            '<select id="yearSelect" class="glass-select">' + yearOptions + '</select>' +
-                            '<button onclick="updateArchiveFilter()" style="padding: 6px 12px; margin-left: 8px; background: var(--accent); color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">Get Data</button>' +
-                        '</div>' +
-                    '</div>' +
-                    '<div id="archive-data-table">' +
-                        '<div class="card" style="text-align:center; padding:60px; color: var(--muted);">' +
-                            'Select a month and click "Get Data" to load records.' +
-                        '</div>' +
-                    '</div>' +
+        var html = '<div style="display: flex; gap: 12px; margin-top: 10px;">';
+        html += '<div style="flex: 1;">' + leftCol.map(renderCard).join('') + '</div>';
+        html += '<div style="flex: 1;">' + rightCol.map(renderCard).join('') + '</div>';
+        html += '</div>';
+
+        // Seasonal Summary Row
+        html += '<div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 5px;">';
+        
+        var seasonalStyle = 'border-radius: 14px; padding: 15px 5px; text-align: center; border: 1.5px solid;';
+        
+        html += '<div style="' + seasonalStyle + ' background: rgba(245, 158, 11, 0.1); border-color: rgba(245, 158, 11, 0.4);">' +
+                    '<div style="font-size: 0.55rem; font-weight: 900; color: #d97706; letter-spacing: 1px; margin-bottom: 4px;">PRE MONSOON</div>' +
+                    '<div style="font-size: 1.2rem; font-weight: 900; color: var(--text, #1e293b);">' + preMonsoonTotal.toFixed(1) + '</div>' +
                 '</div>';
-        };
 
-        async function fetchMonthlySummary() {
-            const tableContainer = document.getElementById('archive-data-table');
-            if (!tableContainer) return;
-            
-            tableContainer.innerHTML = '<div class="card" style="text-align:center; padding:40px;">Querying Database...</div>';
-            
-            try {
-                const res = await fetch('/api/summary');
-                const groups = await res.json();
-                const currentKey = selectedMonth + " " + selectedYear;
-                const days = groups[currentKey] || [];
+        html += '<div style="' + seasonalStyle + ' background: rgba(16, 185, 129, 0.1); border-color: rgba(16, 185, 129, 0.4);">' +
+                    '<div style="font-size: 0.55rem; font-weight: 900; color: #059669; letter-spacing: 1px; margin-bottom: 4px;">SWM</div>' +
+                    '<div style="font-size: 1.2rem; font-weight: 900; color: var(--text, #1e293b);">' + swmTotal.toFixed(1) + '</div>' +
+                '</div>';
 
-                if (days.length === 0) {
-                    tableContainer.innerHTML = '<div class="card" style="text-align:center; padding:60px; color: var(--muted); font-weight: 600;">No data recorded for ' + currentKey + '</div>';
-                    return;
-                }
+        html += '<div style="' + seasonalStyle + ' background: rgba(99, 102, 241, 0.1); border-color: rgba(99, 102, 241, 0.4);">' +
+                    '<div style="font-size: 0.55rem; font-weight: 900; color: #4f46e5; letter-spacing: 1px; margin-bottom: 4px;">NEM</div>' +
+                    '<div style="font-size: 1.2rem; font-weight: 900; color: var(--text, #1e293b);">' + nemTotal.toFixed(1) + '</div>' +
+                '</div>';
+        html += '</div>';
 
-                tableContainer.innerHTML = 
-                    '<div class="pro-summary-table" style="background: var(--card); border-radius: 15px; overflow: hidden; border: 1px solid var(--border);">' +
-                        '<div class="pro-row" style="background: var(--badge); font-weight: 800; font-size: 11px; text-transform: uppercase; display: flex; align-items: center; padding: 15px; border-bottom: 1px solid var(--border);">' +
-                            '<div style="width: 20%;">Date</div>' +
-                            '<div style="width: 25%; text-align: center;">Temp (H/L)</div>' +
-                            '<div style="width: 30%; text-align: center;">Wind / Gust</div>' +
-                            '<div style="width: 25%; text-align: right;">Rainfall</div>' +
-                        '</div>' +
-                        days.map(function(d) {
-                            return '<div class="pro-row" style="display: flex; align-items: center; padding: 15px; border-bottom: 1px solid var(--border);">' +
-                                '<div style="width: 20%; font-size: 16px;"><b>' + new Date(d.record_date).getDate() + '</b></div>' +
-                                '<div style="width: 25%; display: flex; justify-content: center; gap: 8px;">' +
-                                    '<span style="color:#ef4444; font-weight: 700;">' + parseFloat(d.max_temp_c).toFixed(1) + '°</span>' +
-                                    '<span style="opacity: 0.3;">/</span>' +
-                                    '<span style="color:#0ea5e9; font-weight: 700;">' + parseFloat(d.min_temp_c).toFixed(1) + '°</span>' +
-                                '</div>' +
-                                '<div style="width: 30%; font-size: 13px; text-align: center;">' +
-                                    parseFloat(d.max_wind_kmh).toFixed(1) + ' <small style="opacity:0.4">/</small> ' + parseFloat(d.max_gust_kmh).toFixed(1) + ' <small>km/h</small>' +
-                                '</div>' +
-                                '<div style="width: 25%; font-weight: 800; color: #3b82f6; text-align: right;">' +
-                                    parseFloat(d.total_rain_mm).toFixed(1) + ' <small>mm</small>' +
-                                '</div>' +
-                            '</div>';
-                        }).join('') +
+        // Annual Total Footer
+        if (annualRow) {
+            html += '<div style="margin-top: 15px; background: var(--card, #f8fafc); border: 1px solid var(--accent, #3b82f6); border-radius: 16px; padding: 22px; text-align: center; box-shadow: 0 4px 12px rgba(0,0,0,0.05);">' +
+                        '<div style="font-size: 0.7rem; color: var(--accent, #3b82f6); font-weight: 800; letter-spacing: 2px; margin-bottom: 4px;">' + year + ' ANNUAL TOTAL</div>' +
+                        '<div style="font-size: 2.5rem; font-weight: 900; color: var(--text, #1e293b);">' + parseFloat(annualRow.rainfall_mm).toFixed(1) + '<span style="font-size: 1rem; opacity: 0.5; margin-left: 6px;">mm</span></div>' +
                     '</div>';
-            } catch (e) {
-                tableContainer.innerHTML = '<div class="card" style="color:#ef4444; padding:20px; text-align:center;">Error loading data.</div>';
-            }
         }
 
-        window.updateArchiveFilter = function() {
-            selectedMonth = document.getElementById('monthSelect').value;
-            selectedYear = document.getElementById('yearSelect').value;
-            fetchMonthlySummary();
-        };
+        resultsTable.innerHTML = html;
 
-        window.showHistoricalUI = function() {
-            var content = document.getElementById('historical-content');
-            var years = [2019, 2020, 2021, 2022, 2023, 2024, 2025, 2026];
-            var yearOptions = "";
-            for (var i = 0; i < years.length; i++) {
-                yearOptions += '<option value="' + years[i] + '">' + years[i] + '</option>';
-            }
+    } catch (error) {
+        resultsTable.innerHTML = '<div style="text-align:center; padding:40px; color: #ef4444;">Connection failed.</div>';
+    }
+};
 
-            content.innerHTML = 
-                '<div class="archive-container" style="animation: fadeIn 0.4s ease;">' +
-                    '<div style="margin-bottom: 20px; padding: 15px; background: var(--card); border-radius: 16px; border: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">' +
-                        '<div style="font-weight: 800; color: var(--accent); font-size: 0.8rem; letter-spacing: 1px;">K K NAGAR RAINFALL HISTORY</div>' +
-                        '<div style="display: flex; gap: 8px;">' +
-                            '<select id="histYearSelect" class="glass-select" style="padding: 5px 10px; border-radius: 8px; background: #1e293b; color: white; border: 1px solid #334155;">' +
-                                yearOptions +
-                            '</select>' +
-                            '<button onclick="fetchHistoricalData()" style="padding: 8px 16px; background: #3b82f6; color: white; border: none; border-radius: 10px; font-weight: bold; cursor: pointer;">FETCH</button>' +
-                        '</div>' +
-                    '</div>' +
-                    '<div id="historical-results-table">' +
-                        '<div style="text-align: center; padding: 50px 20px; color: #64748b; border: 1px dashed var(--border); border-radius: 16px;">' +
-                            'Select a year and click "FETCH" to retrieve records.' +
-                        '</div>' +
-                    '</div>' +
-                '</div>';
-        };
 
-        window.fetchHistoricalData = async function() {
-            var year = document.getElementById('histYearSelect').value;
-            var resultsTable = document.getElementById('historical-results-table');
-            
-            resultsTable.innerHTML = '<div style="text-align:center; padding:40px; color: var(--text-muted, #64748b);">Syncing Archive...</div>';
-
-            try {
-                var response = await fetch('/api/historical-rain?year=' + year);
-                var result = await response.json();
-
-                if (!result.data || result.data.length === 0) {
-                    resultsTable.innerHTML = '<div style="text-align:center; padding:40px; color: #ef4444;">No data found for ' + year + '</div>';
-                    return;
-                }
-
-                var months = result.data.filter(function(d) { return d.month_val !== 'Annual'; });
-                var annualRow = result.data.find(function(d) { return d.month_val === 'Annual'; });
-
-                var rainValues = months.map(function(m) { return parseFloat(m.rainfall_mm) || 0; });
-                var maxVal = Math.max.apply(null, rainValues);
-                var minVal = Math.min.apply(null, rainValues);
-
-                var preMonsoonTotal = 0; var swmTotal = 0; var nemTotal = 0;
-                months.forEach(function(m) {
-                    var val = parseFloat(m.rainfall_mm) || 0;
-                    var mKey = m.month_val.substring(0, 3).toUpperCase();
-                    if (['JAN', 'FEB', 'MAR', 'APR', 'MAY'].indexOf(mKey) !== -1) preMonsoonTotal += val;
-                    if (['JUN', 'JUL', 'AUG', 'SEP'].indexOf(mKey) !== -1) swmTotal += val;
-                    if (['OCT', 'NOV', 'DEC'].indexOf(mKey) !== -1) nemTotal += val;
-                });
-
-                var leftCol = months.slice(0, 6);
-                var rightCol = months.slice(6, 12);
-
-                function renderCard(d) {
-                    var rf = parseFloat(d.rainfall_mm) || 0;
-                    var bgColor = 'var(--card, rgba(30, 41, 59, 0.4))'; 
-                    var borderColor = 'var(--border, rgba(255,255,255,0.1))';
-                    var mainTextColor = 'var(--text, #1e293b)'; 
-
-                    if (rf === maxVal && maxVal > 0) {
-                        bgColor = 'rgba(59, 130, 246, 0.15)';
-                        borderColor = 'rgba(59, 130, 246, 0.5)';
-                    } else if (rf === minVal) {
-                        bgColor = 'rgba(244, 63, 94, 0.1)';
-                        borderColor = 'rgba(244, 63, 94, 0.3)';
-                    }
-
-                    return '<div style="background:' + bgColor + '; border: 1px solid ' + borderColor + '; border-radius: 12px; padding: 14px; margin-bottom: 10px; text-align: center;">' +
-                                '<div style="font-size: 0.65rem; font-weight: 700; color: var(--text-muted, #64748b); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 4px;">' + d.month_val.substring(0,3) + '</div>' +
-                                '<div style="font-size: 1.25rem; font-weight: 800; color: ' + mainTextColor + ';">' + rf.toFixed(1) + '<span style="font-size: 0.7rem; opacity: 0.6; margin-left: 2px;">mm</span></div>' +
-                           '</div>';
-                }
-
-                var html = '<div style="display: flex; gap: 12px; margin-top: 10px;">';
-                html += '<div style="flex: 1;">' + leftCol.map(renderCard).join('') + '</div>';
-                html += '<div style="flex: 1;">' + rightCol.map(renderCard).join('') + '</div>';
-                html += '</div>';
-
-                html += '<div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 5px;">';
-                
-                var seasonalStyle = 'border-radius: 14px; padding: 15px 5px; text-align: center; border: 1.5px solid;';
-                
-                html += '<div style="' + seasonalStyle + ' background: rgba(245, 158, 11, 0.1); border-color: rgba(245, 158, 11, 0.4);">' +
-                            '<div style="font-size: 0.55rem; font-weight: 900; color: #d97706; letter-spacing: 1px; margin-bottom: 4px;">PRE MONSOON</div>' +
-                            '<div style="font-size: 1.2rem; font-weight: 900; color: var(--text, #1e293b);">' + preMonsoonTotal.toFixed(1) + '</div>' +
-                        '</div>';
-
-                html += '<div style="' + seasonalStyle + ' background: rgba(16, 185, 129, 0.1); border-color: rgba(16, 185, 129, 0.4);">' +
-                            '<div style="font-size: 0.55rem; font-weight: 900; color: #059669; letter-spacing: 1px; margin-bottom: 4px;">SWM</div>' +
-                            '<div style="font-size: 1.2rem; font-weight: 900; color: var(--text, #1e293b);">' + swmTotal.toFixed(1) + '</div>' +
-                        '</div>';
-
-                html += '<div style="' + seasonalStyle + ' background: rgba(99, 102, 241, 0.1); border-color: rgba(99, 102, 241, 0.4);">' +
-                            '<div style="font-size: 0.55rem; font-weight: 900; color: #4f46e5; letter-spacing: 1px; margin-bottom: 4px;">NEM</div>' +
-                            '<div style="font-size: 1.2rem; font-weight: 900; color: var(--text, #1e293b);">' + nemTotal.toFixed(1) + '</div>' +
-                        '</div>';
-                html += '</div>';
-
-                if (annualRow) {
-                    html += '<div style="margin-top: 15px; background: var(--card, #f8fafc); border: 1px solid var(--accent, #3b82f6); border-radius: 16px; padding: 22px; text-align: center; box-shadow: 0 4px 12px rgba(0,0,0,0.05);">' +
-                                '<div style="font-size: 0.7rem; color: var(--accent, #3b82f6); font-weight: 800; letter-spacing: 2px; margin-bottom: 4px;">' + year + ' ANNUAL TOTAL</div>' +
-                                '<div style="font-size: 2.5rem; font-weight: 900; color: var(--text, #1e293b);">' + parseFloat(annualRow.rainfall_mm).toFixed(1) + '<span style="font-size: 1rem; opacity: 0.5; margin-left: 6px;">mm</span></div>' +
-                            '</div>';
-                }
-
-                resultsTable.innerHTML = html;
-
-            } catch (error) {
-                resultsTable.innerHTML = '<div style="text-align:center; padding:40px; color: #ef4444;">Connection failed.</div>';
-            }
-        };
-
-    </script>
+</script>
 </body>
 </html>
     `);
