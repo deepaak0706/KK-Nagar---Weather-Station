@@ -704,94 +704,8 @@ body.is-night .glass-select option {
     color: #f1f5f9;
 }
 
-        /* THE IMPACTFUL DASHBOARD V2 */
-        .dashboard-grid { 
-            display: flex;
-            flex-direction: column;
-            gap: 25px;
-            margin-bottom: 40px;
-        }
 
-        .row-group {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 20px;
-        }
 
-        .impact-card { 
-            background: var(--card); 
-            padding: 30px; 
-            border-radius: 32px; 
-            border: 1px solid var(--border); 
-            box-shadow: var(--glow);
-            position: relative;
-            overflow: hidden;
-            display: flex;
-            flex-direction: column;
-        }
-
-        /* Hero: Massive Temp & Stats */
-        .hero-card {
-            background: linear-gradient(160deg, #0ea5e9, #3b82f6);
-            color: white;
-            border: none;
-            text-align: center;
-            padding: 50px 20px;
-        }
-        body.is-night .hero-card {
-            background: linear-gradient(160deg, #1e293b, #0f172a);
-            border: 1px solid var(--border);
-        }
-
-        .temp-main-container {
-            display: flex;
-            justify-content: center;
-            align-items: baseline;
-            gap: 12px;
-            margin-bottom: 10px;
-        }
-
-        .hero-temp {
-            font-size: 110px;
-            font-weight: 900;
-            line-height: 0.9;
-            letter-spacing: -4px;
-        }
-
-        .temp-trend-pill {
-            font-size: 16px;
-            font-weight: 800;
-            background: rgba(255, 255, 255, 0.2);
-            padding: 6px 12px;
-            border-radius: 12px;
-            backdrop-filter: blur(10px);
-        }
-
-        .hero-sub-stats {
-            display: flex;
-            justify-content: center;
-            gap: 40px;
-            margin-top: 25px;
-            padding-top: 25px;
-            border-top: 1px solid rgba(255, 255, 255, 0.15);
-        }
-
-        /* Grouped Atmosphere Row */
-        .atmosphere-row {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 20px;
-        }
-
-        .stat-label { font-size: 11px; text-transform: uppercase; font-weight: 800; opacity: 0.7; letter-spacing: 1px; margin-bottom: 4px; display: block; }
-        .stat-value-big { font-size: 32px; font-weight: 900; line-height: 1; }
-
-        @media (max-width: 800px) {
-            .row-group, .atmosphere-row { grid-template-columns: 1fr; }
-            .hero-temp { font-size: 80px; }
-            .hero-sub-stats { gap: 20px; }
-        }
-     
     </style>
 </head>
 <body>
@@ -808,90 +722,6 @@ body.is-night .glass-select option {
             </div>
         </div>
 
-        <div class="dashboard-grid">
-            
-            <div class="impact-card hero-card">
-                <div class="temp-main-container">
-                    <div class="hero-temp"><span id="t">0.0</span><span style="font-size: 40px; opacity: 0.7;">°</span></div>
-                    <div id="tTrendBox" class="temp-trend-pill">--</div>
-                </div>
-                
-                <div style="font-size: 20px; font-weight: 700; opacity: 0.9; margin-bottom: 5px;">
-                    High: <span id="mx">--</span>° / Low: <span id="mn">--</span>°
-                </div>
-                <div style="font-size: 14px; font-weight: 600; opacity: 0.7;">Feels like <span id="rf">--</span>°C</div>
-
-                <div class="hero-sub-stats">
-                    <div>
-                        <span class="stat-label">Humidity</span>
-                        <span class="stat-value-big"><span id="h_val">--</span><span style="font-size:16px">%</span></span>
-                    </div>
-                    <div>
-                        <span class="stat-label">Dew Point</span>
-                        <span class="stat-value-big"><span id="d_val">--</span><span style="font-size:16px">°</span></span>
-                    </div>
-                </div>
-            </div>
-
-            <div class="row-group">
-                <div class="impact-card">
-                    <canvas id="windCanvas" style="position: absolute; top:0; left:0; width:100%; height:100%; z-index:0; opacity: 0.3; pointer-events: none;"></canvas>
-                    <div style="position: relative; z-index: 2;">
-                        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
-                            <div>
-                                <span class="stat-label" style="color: #f59e0b;">Live Wind Speed</span>
-                                <div style="font-size: 50px; font-weight: 900;"><span id="w">0.0</span> <span style="font-size: 18px; color: var(--muted);">km/h</span></div>
-                                <div style="font-size: 16px; font-weight: 800; color: var(--accent);"><span id="wd_bracket">(--)</span></div>
-                            </div>
-                            <div class="compass-ui" style="width: 60px; height: 60px; border: 2px solid var(--border);"><div id="needle"></div></div>
-                        </div>
-                        <div style="margin-top: 25px; padding-top: 20px; border-top: 1px solid var(--border); display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
-                            <div><span class="stat-label">Gust Speed</span><span style="font-size: 22px; font-weight: 800;" id="wg">--</span></div>
-                            <div><span class="stat-label">Max Speed</span><span style="font-size: 22px; font-weight: 800;" id="mw">--</span></div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="impact-card">
-                    <span class="stat-label" style="color: #3b82f6;">Rainfall (Total)</span>
-                    <div style="font-size: 50px; font-weight: 900;"><span id="r_tot">0.0</span> <span style="font-size: 18px; color: var(--muted);">mm</span></div>
-                    
-                    <div style="margin-top: 25px; padding: 15px; background: var(--badge); border-radius: 20px;">
-                        <span class="stat-label">Current Intensity</span>
-                        <div style="font-size: 22px; font-weight: 800; color: #3b82f6;"><span id="r_rate">0.0</span> <span style="font-size: 14px;">mm/h</span></div>
-                    </div>
-
-                    <div style="margin-top: 20px; display: flex; justify-content: space-between; text-align: center;">
-                        <div><span class="stat-label">Week</span><div style="font-weight: 800;" id="r_week">--</div></div>
-                        <div><span class="stat-label">Month</span><div style="font-weight: 800;" id="r_month">--</div></div>
-                        <div><span class="stat-label">Year</span><div style="font-weight: 800;" id="r_year">--</div></div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="atmosphere-row">
-                <div class="impact-card" style="text-align: center;">
-                    <span class="stat-label">Pressure</span>
-                    <div id="pIcon" style="font-size: 24px; margin-bottom: 5px;"></div>
-                    <div class="stat-value-big" id="pr">--</div>
-                    <span style="font-size: 12px; font-weight: 700; color: var(--muted);">hPa</span>
-                </div>
-                <div class="impact-card" style="text-align: center;">
-                    <span class="stat-label">UV Index</span>
-                    <div style="font-size: 24px; margin-bottom: 5px;">☀️</div>
-                    <div class="stat-value-big" style="color: #f59e0b;" id="uv">--</div>
-                    <span style="font-size: 12px; font-weight: 700; color: var(--muted);">Exposure</span>
-                </div>
-                <div class="impact-card" style="text-align: center;">
-                    <span class="stat-label">Solar Rad</span>
-                    <div style="font-size: 24px; margin-bottom: 5px;">🔋</div>
-                    <div class="stat-value-big" id="sol">--</div>
-                    <span style="font-size: 12px; font-weight: 700; color: var(--muted);">W/m²</span>
-                </div>
-            </div>
-
-        </div>
-
        <div class="nav-tabs">
         <button onclick="showPage('dashboard')" id="tab-dash" class="tab-btn active">Live Dashboard</button>
         <button onclick="showPage('summary')" id="tab-sum" class="tab-btn">Monthly Summary</button>
@@ -900,7 +730,53 @@ body.is-night .glass-select option {
 
         <div id="page-dashboard">
             
-                
+            <div class="grid-system">
+                <div class="card">
+                    <div class="label">Temperature</div>
+                    <div class="main-val"><span id="t">0.0</span><span class="unit">°C</span></div>
+                    <div id="tTrendBox" class="sub-pill">--</div>
+                    <div class="sub-box-4">
+                        <div class="badge"><span class="badge-label">Today High</span><span id="mx" class="badge-val" style="color:#ef4444">--</span></div>
+                        <div class="badge"><span class="badge-label">Today Low</span><span id="mn" class="badge-val" style="color:#0ea5e9">--</span></div>
+                        <div class="badge"><span class="badge-label">Humidity</span><span id="h_val" class="badge-val">--</span></div>
+                        <div class="badge"><span class="badge-label">Dew Point</span><span id="d_val" class="badge-val">--</span></div>
+                        <div class="badge" style="grid-column: span 2;"><span class="badge-label">Feels Like</span><span id="rf" class="badge-val">--</span></div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <canvas id="windCanvas"></canvas>
+                    <div class="label">Wind Dynamics</div>
+                    <div class="compass-ui"><div id="needle"></div></div>
+                    <div class="main-val"><span id="w">0.0</span><span id="wd_bracket" style="font-size:18px; color:var(--muted); margin-left:8px; font-weight:700">(--)</span><span class="unit">km/h</span></div>
+                    <div class="sub-pill">● Live Gust: <span id="wg" style="margin-left:4px">--</span></div>
+                    <div class="sub-box-4">
+                        <div class="badge"><span class="badge-label">Max Speed</span><span id="mw" class="badge-val">--</span></div>
+                        <div class="badge"><span class="badge-label">Max Gust</span><span id="mg" class="badge-val">--</span></div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="label">Rain Realm</div>
+                    <div class="main-val"><span id="r_tot">0.0</span><span class="unit">mm</span></div>
+                    <div class="sub-pill">● Rain Rate: <span id="r_rate">0.0</span> mm/h</div>
+                    <div class="sub-box-4">
+                        <div class="badge" style="grid-column: span 2;"><span class="badge-label">Max Rate Today</span><span id="mr" class="badge-val">--</span></div>
+                        <div class="badge"><span class="badge-label">Weekly</span><span id="r_week" class="badge-val">--</span></div>
+                        <div class="badge"><span class="badge-label">Monthly</span><span id="r_month" class="badge-val">--</span></div>
+                        <div class="badge" style="grid-column: span 2;"><span class="badge-label">Yearly</span><span id="r_year" class="badge-val">--</span></div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="label">Atmospheric <span id="pIcon"></span></div>
+                    <div class="main-val"><span id="pr">--</span><span class="unit">hPa</span></div>
+                    <div class="sub-box-4">
+                        <div class="badge"><span class="badge-label">Solar Rad</span><span id="sol" class="badge-val">--</span></div>
+                        <div class="badge"><span class="badge-label">UV Index</span><span id="uv" class="badge-val">--</span></div>
+                    </div>
+                </div>
+            </div>
 
             <div class="sub-tabs-section" style="margin-top: 35px;">
                 <div style="display: flex; gap: 10px; margin-bottom: 20px; justify-content: center;">
