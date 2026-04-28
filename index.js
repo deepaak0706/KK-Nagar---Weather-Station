@@ -704,135 +704,94 @@ body.is-night .glass-select option {
     color: #f1f5f9;
 }
 
-        /* IMPACTFUL CARD LAYOUT */
+        /* THE IMPACTFUL DASHBOARD V2 */
         .dashboard-grid { 
             display: flex;
             flex-direction: column;
-            gap: 20px;
-            margin-bottom: 35px;
+            gap: 25px;
+            margin-bottom: 40px;
         }
 
-        .row-2 {
+        .row-group {
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 20px;
         }
 
-        .row-3 {
-            display: grid;
-            grid-template-columns: 1fr 1fr 1fr;
-            gap: 20px;
-        }
-
         .impact-card { 
             background: var(--card); 
-            padding: 25px; 
-            border-radius: 24px; 
+            padding: 30px; 
+            border-radius: 32px; 
             border: 1px solid var(--border); 
-            box-shadow: var(--glow); 
-            position: relative; 
-            overflow: hidden; 
+            box-shadow: var(--glow);
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
         }
 
-        /* Main Hero Card */
+        /* Hero: Massive Temp & Stats */
         .hero-card {
-            background: linear-gradient(135deg, #0ea5e9, #2563eb);
+            background: linear-gradient(160deg, #0ea5e9, #3b82f6);
             color: white;
             border: none;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 35px 40px;
-            --text: #ffffff;
+            text-align: center;
+            padding: 50px 20px;
         }
         body.is-night .hero-card {
-            background: linear-gradient(135deg, #1e293b, #0f172a);
+            background: linear-gradient(160deg, #1e293b, #0f172a);
             border: 1px solid var(--border);
-            color: #f1f5f9;
         }
 
-        .hero-temp-block {
+        .temp-main-container {
             display: flex;
-            align-items: center;
-            gap: 30px;
+            justify-content: center;
+            align-items: baseline;
+            gap: 12px;
+            margin-bottom: 10px;
         }
 
         .hero-temp {
-            font-size: 85px;
+            font-size: 110px;
             font-weight: 900;
-            line-height: 1;
-            letter-spacing: -2px;
+            line-height: 0.9;
+            letter-spacing: -4px;
         }
 
-        .hero-details {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
-
-        .hero-pill {
-            background: rgba(255, 255, 255, 0.2);
-            padding: 8px 16px;
-            border-radius: 12px;
-            font-size: 15px;
-            font-weight: 700;
-            display: inline-flex;
-            align-items: center;
-            backdrop-filter: blur(5px);
-            -webkit-backdrop-filter: blur(5px);
-        }
-        body.is-night .hero-pill {
-            background: rgba(255, 255, 255, 0.1);
-        }
-
-        .hero-stats-grid {
-            display: flex;
-            gap: 35px;
-            background: rgba(0, 0, 0, 0.15);
-            padding: 20px 30px;
-            border-radius: 20px;
-        }
-        body.is-night .hero-stats-grid {
-            background: rgba(0, 0, 0, 0.3);
-        }
-
-        .stat-item {
-            display: flex;
-            flex-direction: column;
-        }
-        .stat-label {
-            font-size: 12px;
-            text-transform: uppercase;
-            font-weight: 800;
-            opacity: 0.8;
-            margin-bottom: 4px;
-        }
-        .stat-val {
-            font-size: 22px;
-            font-weight: 800;
-        }
-
-        /* Secondary Cards */
-        .card-header {
-            display: flex;
-            align-items: center;
-            gap: 8px;
+        .temp-trend-pill {
             font-size: 16px;
             font-weight: 800;
-            color: var(--text);
-            margin-bottom: 20px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
+            background: rgba(255, 255, 255, 0.2);
+            padding: 6px 12px;
+            border-radius: 12px;
+            backdrop-filter: blur(10px);
         }
 
-        @media (max-width: 950px) {
-            .hero-card { flex-direction: column; align-items: flex-start; gap: 25px; padding: 25px; }
-            .hero-stats-grid { width: 100%; justify-content: space-between; gap: 15px; }
-            .row-2 { grid-template-columns: 1fr; }
-            .row-3 { grid-template-columns: 1fr; }
+        .hero-sub-stats {
+            display: flex;
+            justify-content: center;
+            gap: 40px;
+            margin-top: 25px;
+            padding-top: 25px;
+            border-top: 1px solid rgba(255, 255, 255, 0.15);
         }
 
-        
+        /* Grouped Atmosphere Row */
+        .atmosphere-row {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+        }
+
+        .stat-label { font-size: 11px; text-transform: uppercase; font-weight: 800; opacity: 0.7; letter-spacing: 1px; margin-bottom: 4px; display: block; }
+        .stat-value-big { font-size: 32px; font-weight: 900; line-height: 1; }
+
+        @media (max-width: 800px) {
+            .row-group, .atmosphere-row { grid-template-columns: 1fr; }
+            .hero-temp { font-size: 80px; }
+            .hero-sub-stats { gap: 20px; }
+        }
+     
     </style>
 </head>
 <body>
@@ -849,106 +808,89 @@ body.is-night .glass-select option {
             </div>
         </div>
 
-
-                    <div class="dashboard-grid">
+        <div class="dashboard-grid">
+            
+            <div class="impact-card hero-card">
+                <div class="temp-main-container">
+                    <div class="hero-temp"><span id="t">0.0</span><span style="font-size: 40px; opacity: 0.7;">°</span></div>
+                    <div id="tTrendBox" class="temp-trend-pill">--</div>
+                </div>
                 
-                <div class="impact-card hero-card">
-                    <div class="hero-temp-block">
-                        <div class="hero-temp"><span id="t">0.0</span><span style="font-size: 40px; opacity: 0.8; margin-left: 4px;">°C</span></div>
-                        <div class="hero-details">
-                            <div class="hero-pill">Feels Like <span id="rf">--</span>°C</div>
-                            <div id="tTrendBox" class="hero-pill" style="background: rgba(0,0,0,0.3);">--</div>
-                        </div>
+                <div style="font-size: 20px; font-weight: 700; opacity: 0.9; margin-bottom: 5px;">
+                    High: <span id="mx">--</span>° / Low: <span id="mn">--</span>°
+                </div>
+                <div style="font-size: 14px; font-weight: 600; opacity: 0.7;">Feels like <span id="rf">--</span>°C</div>
+
+                <div class="hero-sub-stats">
+                    <div>
+                        <span class="stat-label">Humidity</span>
+                        <span class="stat-value-big"><span id="h_val">--</span><span style="font-size:16px">%</span></span>
                     </div>
-                    
-                    <div class="hero-stats-grid">
-                        <div class="stat-item">
-                            <span class="stat-label">High / Low</span>
-                            <span class="stat-val"><span id="mx">--</span> <span style="opacity:0.5; font-size:16px;">/</span> <span id="mn">--</span></span>
-                        </div>
-                        <div class="stat-item">
-                            <span class="stat-label">Humidity</span>
-                            <span class="stat-val" id="h_val">--</span>
-                        </div>
-                        <div class="stat-item">
-                            <span class="stat-label">Dew Point</span>
-                            <span class="stat-val" id="d_val">--</span>
-                        </div>
+                    <div>
+                        <span class="stat-label">Dew Point</span>
+                        <span class="stat-value-big"><span id="d_val">--</span><span style="font-size:16px">°</span></span>
                     </div>
                 </div>
-
-                <div class="row-2">
-                    <div class="impact-card" style="display: flex; flex-direction: column;">
-                        <canvas id="windCanvas" style="position: absolute; top:0; left:0; width:100%; height:100%; z-index:0; border-radius: 24px; opacity: 0.4; pointer-events: none;"></canvas>
-                        <div style="position: relative; z-index: 5;">
-                            <div class="card-header"><span style="color:#f59e0b;">●</span> Wind Dynamics</div>
-                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
-                                <div>
-                                    <div style="font-size: 55px; font-weight: 900; line-height: 1;"><span id="w">0.0</span> <span style="font-size: 20px; color: var(--muted);">km/h</span></div>
-                                    <div style="font-size: 16px; font-weight: 800; color: var(--accent); margin-top: 6px;"><span id="wd_bracket">(--)</span></div>
-                                </div>
-                                <div class="compass-ui" style="position: static !important; width: 70px; height: 70px; border: 2px solid var(--border);"><div id="needle" style="height: 40px;"></div></div>
-                            </div>
-                            <div style="display: flex; justify-content: space-between; background: var(--badge); padding: 18px 20px; border-radius: 16px;">
-                                <div><div class="stat-label" style="color:var(--text);">Current Gust</div><div class="stat-val"><span id="wg">--</span></div></div>
-                                <div><div class="stat-label" style="color:var(--text);">Max Speed</div><div class="stat-val"><span id="mw">--</span></div></div>
-                                <div><div class="stat-label" style="color:var(--text);">Max Gust</div><div class="stat-val"><span id="mg">--</span></div></div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="impact-card" style="display: flex; flex-direction: column;">
-                        <div class="card-header"><span style="color:#3b82f6;">●</span> Precipitation</div>
-                        <div style="display: flex; flex-direction: column; height: 100%; justify-content: space-between;">
-                            <div>
-                                <div style="font-size: 55px; font-weight: 900; line-height: 1;"><span id="r_tot">0.0</span> <span style="font-size: 20px; color: var(--muted);">mm</span></div>
-                                <div style="font-size: 16px; font-weight: 800; color: #3b82f6; margin-top: 6px;">Rate: <span id="r_rate">0.0</span> mm/h</div>
-                            </div>
-                            
-                            <div style="background: var(--badge); padding: 18px 20px; border-radius: 16px; margin-top: 25px;">
-                                <div style="display: flex; justify-content: space-between; margin-bottom: 12px; border-bottom: 1px solid var(--border); padding-bottom: 12px;">
-                                    <span class="stat-label" style="color:var(--text); margin:0; display:flex; align-items:center;">Max Rain Rate</span>
-                                    <span class="stat-val" style="font-size: 18px;"><span id="mr">--</span></span>
-                                </div>
-                                <div style="display: flex; justify-content: space-between; text-align: center;">
-                                    <div><div class="stat-label" style="color:var(--text);">Week</div><div class="stat-val" style="font-size: 18px;"><span id="r_week">--</span></div></div>
-                                    <div><div class="stat-label" style="color:var(--text);">Month</div><div class="stat-val" style="font-size: 18px;"><span id="r_month">--</span></div></div>
-                                    <div><div class="stat-label" style="color:var(--text);">Year</div><div class="stat-val" style="font-size: 18px;"><span id="r_year">--</span></div></div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="row-3">
-                    <div class="impact-card" style="display: flex; align-items: center; justify-content: space-between;">
-                        <div>
-                            <div class="card-header" style="margin-bottom: 8px;"><span style="color:#8b5cf6;">●</span> Pressure</div>
-                            <div style="font-size: 38px; font-weight: 900;"><span id="pr">--</span></div>
-                            <div style="font-size: 14px; font-weight: 700; color: var(--muted);">hPa</div>
-                        </div>
-                        <div id="pIcon" style="font-size: 38px; opacity: 0.8;"></div>
-                    </div>
-                    <div class="impact-card" style="display: flex; align-items: center; justify-content: space-between;">
-                        <div>
-                            <div class="card-header" style="margin-bottom: 8px;"><span style="color:#f59e0b;">●</span> UV Index</div>
-                            <div style="font-size: 38px; font-weight: 900; color: #f59e0b;"><span id="uv">--</span></div>
-                            <div style="font-size: 14px; font-weight: 700; color: var(--muted);">Current Exposure</div>
-                        </div>
-                    </div>
-                    <div class="impact-card" style="display: flex; align-items: center; justify-content: space-between;">
-                        <div>
-                            <div class="card-header" style="margin-bottom: 8px;"><span style="color:#eab308;">●</span> Solar Rad</div>
-                            <div style="font-size: 38px; font-weight: 900;"><span id="sol">--</span></div>
-                            <div style="font-size: 14px; font-weight: 700; color: var(--muted);">W/m²</div>
-                        </div>
-                    </div>
-                </div>
-
             </div>
 
+            <div class="row-group">
+                <div class="impact-card">
+                    <canvas id="windCanvas" style="position: absolute; top:0; left:0; width:100%; height:100%; z-index:0; opacity: 0.3; pointer-events: none;"></canvas>
+                    <div style="position: relative; z-index: 2;">
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                            <div>
+                                <span class="stat-label" style="color: #f59e0b;">Live Wind Speed</span>
+                                <div style="font-size: 50px; font-weight: 900;"><span id="w">0.0</span> <span style="font-size: 18px; color: var(--muted);">km/h</span></div>
+                                <div style="font-size: 16px; font-weight: 800; color: var(--accent);"><span id="wd_bracket">(--)</span></div>
+                            </div>
+                            <div class="compass-ui" style="width: 60px; height: 60px; border: 2px solid var(--border);"><div id="needle"></div></div>
+                        </div>
+                        <div style="margin-top: 25px; padding-top: 20px; border-top: 1px solid var(--border); display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                            <div><span class="stat-label">Gust Speed</span><span style="font-size: 22px; font-weight: 800;" id="wg">--</span></div>
+                            <div><span class="stat-label">Max Speed</span><span style="font-size: 22px; font-weight: 800;" id="mw">--</span></div>
+                        </div>
+                    </div>
+                </div>
 
+                <div class="impact-card">
+                    <span class="stat-label" style="color: #3b82f6;">Rainfall (Total)</span>
+                    <div style="font-size: 50px; font-weight: 900;"><span id="r_tot">0.0</span> <span style="font-size: 18px; color: var(--muted);">mm</span></div>
+                    
+                    <div style="margin-top: 25px; padding: 15px; background: var(--badge); border-radius: 20px;">
+                        <span class="stat-label">Current Intensity</span>
+                        <div style="font-size: 22px; font-weight: 800; color: #3b82f6;"><span id="r_rate">0.0</span> <span style="font-size: 14px;">mm/h</span></div>
+                    </div>
 
+                    <div style="margin-top: 20px; display: flex; justify-content: space-between; text-align: center;">
+                        <div><span class="stat-label">Week</span><div style="font-weight: 800;" id="r_week">--</div></div>
+                        <div><span class="stat-label">Month</span><div style="font-weight: 800;" id="r_month">--</div></div>
+                        <div><span class="stat-label">Year</span><div style="font-weight: 800;" id="r_year">--</div></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="atmosphere-row">
+                <div class="impact-card" style="text-align: center;">
+                    <span class="stat-label">Pressure</span>
+                    <div id="pIcon" style="font-size: 24px; margin-bottom: 5px;"></div>
+                    <div class="stat-value-big" id="pr">--</div>
+                    <span style="font-size: 12px; font-weight: 700; color: var(--muted);">hPa</span>
+                </div>
+                <div class="impact-card" style="text-align: center;">
+                    <span class="stat-label">UV Index</span>
+                    <div style="font-size: 24px; margin-bottom: 5px;">☀️</div>
+                    <div class="stat-value-big" style="color: #f59e0b;" id="uv">--</div>
+                    <span style="font-size: 12px; font-weight: 700; color: var(--muted);">Exposure</span>
+                </div>
+                <div class="impact-card" style="text-align: center;">
+                    <span class="stat-label">Solar Rad</span>
+                    <div style="font-size: 24px; margin-bottom: 5px;">🔋</div>
+                    <div class="stat-value-big" id="sol">--</div>
+                    <span style="font-size: 12px; font-weight: 700; color: var(--muted);">W/m²</span>
+                </div>
+            </div>
+
+        </div>
 
        <div class="nav-tabs">
         <button onclick="showPage('dashboard')" id="tab-dash" class="tab-btn active">Live Dashboard</button>
