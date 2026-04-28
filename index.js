@@ -705,6 +705,91 @@ body.is-night .glass-select option {
 }
 
 
+        /* MODERN WIDGET GRID SYSTEM */
+        .dashboard-grid { 
+            display: grid; 
+            grid-template-columns: repeat(4, 1fr); 
+            gap: 16px; 
+            margin-bottom: 35px;
+        }
+
+        .widget { 
+            background: var(--card); 
+            padding: 20px; 
+            border-radius: 28px; 
+            border: 1px solid var(--border); 
+            backdrop-filter: blur(20px); 
+            -webkit-backdrop-filter: blur(20px); 
+            box-shadow: var(--glow); 
+            position: relative; 
+            overflow: hidden; 
+            transition: background 0.5s ease; 
+            display: flex;
+            flex-direction: column;
+            min-height: 190px;
+        }
+
+        .widget.col-2 { grid-column: span 2; }
+
+        @media (max-width: 900px) {
+            .dashboard-grid { grid-template-columns: repeat(2, 1fr); }
+            .widget.col-2 { grid-column: span 2; }
+        }
+        @media (max-width: 500px) {
+            .dashboard-grid { grid-template-columns: 1fr; }
+            .widget.col-2 { grid-column: span 1; }
+        }
+
+        .widget-label { 
+            color: var(--muted); 
+            font-size: 12px; 
+            font-weight: 800; 
+            text-transform: uppercase; 
+            letter-spacing: 1px; 
+            display: flex;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .widget-main-val { 
+            font-size: 42px; 
+            font-weight: 900; 
+            line-height: 1; 
+            letter-spacing: -1.5px;
+            color: var(--text);
+        }
+        
+        .widget-foot {
+            font-size: 12px;
+            color: var(--muted);
+            font-weight: 600;
+        }
+
+        /* Custom Main Temperature Gradient Card */
+        .widget-temp {
+            background: linear-gradient(145deg, #38bdf8, #0284c7);
+            color: white;
+            border: none;
+            --text: #ffffff; /* Forces JS warning colors to fallback to white instead of dark text */
+        }
+        body.is-night .widget-temp {
+            background: linear-gradient(145deg, #1e293b, #0f172a);
+            border: 1px solid var(--border);
+            color: #f1f5f9;
+        }
+        
+        .widget-temp .widget-label { color: rgba(255,255,255,0.7); }
+        body.is-night .widget-temp .widget-label { color: #94a3b8; }
+        .widget-temp .widget-main-val { font-size: 64px; color: white; }
+        body.is-night .widget-temp .widget-main-val { color: #f1f5f9; }
+
+        .widget-temp .time-mark { background: rgba(255,255,255,0.15); color: white; }
+        body.is-night .widget-temp .time-mark { background: rgba(255,255,255,0.1); color: #94a3b8; }
+
+        .inner-label { font-size: 10px; text-transform: uppercase; font-weight: 800; color: var(--muted); margin-bottom: 2px; }
+
+
+
 
     </style>
 </head>
@@ -730,53 +815,108 @@ body.is-night .glass-select option {
 
         <div id="page-dashboard">
             
-            <div class="grid-system">
-                <div class="card">
-                    <div class="label">Temperature</div>
-                    <div class="main-val"><span id="t">0.0</span><span class="unit">°C</span></div>
-                    <div id="tTrendBox" class="sub-pill">--</div>
-                    <div class="sub-box-4">
-                        <div class="badge"><span class="badge-label">Today High</span><span id="mx" class="badge-val" style="color:#ef4444">--</span></div>
-                        <div class="badge"><span class="badge-label">Today Low</span><span id="mn" class="badge-val" style="color:#0ea5e9">--</span></div>
-                        <div class="badge"><span class="badge-label">Humidity</span><span id="h_val" class="badge-val">--</span></div>
-                        <div class="badge"><span class="badge-label">Dew Point</span><span id="d_val" class="badge-val">--</span></div>
-                        <div class="badge" style="grid-column: span 2;"><span class="badge-label">Feels Like</span><span id="rf" class="badge-val">--</span></div>
+                        <div class="dashboard-grid">
+                
+                <div class="widget widget-temp col-2">
+                    <div style="display: flex; justify-content: space-between; align-items: stretch; height: 100%;">
+                        <div style="display: flex; flex-direction: column; justify-content: space-between;">
+                            <div class="widget-label">Temperature</div>
+                            <div style="margin-top: auto;">
+                                <div class="widget-main-val"><span id="t">0.0</span><span style="font-size: 24px; opacity: 0.8; margin-left: 2px;">°C</span></div>
+                                <div id="tTrendBox" style="font-size: 13px; font-weight: 700; background: rgba(0,0,0,0.15); padding: 4px 10px; border-radius: 10px; display: inline-block; margin-top: 6px;">--</div>
+                            </div>
+                        </div>
+                        <div style="text-align: right; display: flex; flex-direction: column; justify-content: flex-end; gap: 8px;">
+                            <div style="font-size: 15px; font-weight: 700; background: rgba(0,0,0,0.1); padding: 6px 12px; border-radius: 10px;">
+                                <span style="opacity: 0.8; font-size: 11px; display: block; text-transform: uppercase;">Today High</span>
+                                <span id="mx">--</span>
+                            </div>
+                            <div style="font-size: 15px; font-weight: 700; background: rgba(0,0,0,0.1); padding: 6px 12px; border-radius: 10px;">
+                                <span style="opacity: 0.8; font-size: 11px; display: block; text-transform: uppercase;">Today Low</span>
+                                <span id="mn">--</span>
+                            </div>
+                            <div style="font-size: 14px; font-weight: 700; margin-top: 4px;">Feels Like: <span id="rf">--</span></div>
+                        </div>
                     </div>
                 </div>
 
-                <div class="card">
-                    <canvas id="windCanvas"></canvas>
-                    <div class="label">Wind Dynamics</div>
-                    <div class="compass-ui"><div id="needle"></div></div>
-                    <div class="main-val"><span id="w">0.0</span><span id="wd_bracket" style="font-size:18px; color:var(--muted); margin-left:8px; font-weight:700">(--)</span><span class="unit">km/h</span></div>
-                    <div class="sub-pill">● Live Gust: <span id="wg" style="margin-left:4px">--</span></div>
-                    <div class="sub-box-4">
-                        <div class="badge"><span class="badge-label">Max Speed</span><span id="mw" class="badge-val">--</span></div>
-                        <div class="badge"><span class="badge-label">Max Gust</span><span id="mg" class="badge-val">--</span></div>
+                <div class="widget">
+                    <canvas id="windCanvas" style="position: absolute; top:0; left:0; width:100%; height:100%; z-index:0; border-radius: 28px; opacity: 0.5; pointer-events: none;"></canvas>
+                    <div style="position: relative; z-index: 5; height: 100%; display: flex; flex-direction: column;">
+                        <div class="widget-label" style="display: flex; justify-content: space-between; align-items: flex-start; width: 100%;">
+                            <span><span style="color:#f59e0b; font-size: 14px;">●</span> Wind</span>
+                            <div class="compass-ui" style="position: static !important; width: 32px; height: 32px; border: 1.5px solid var(--border); margin-top: -4px;"><div id="needle" style="height: 20px;"></div></div>
+                        </div>
+                        <div style="margin-top: auto; margin-bottom: 10px;">
+                            <div class="widget-main-val" style="display: flex; align-items: baseline;"><span id="w">0.0</span><span style="font-size: 16px; font-weight: 700; color: var(--muted); margin-left: 4px;">km/h</span></div>
+                            <div style="font-size: 13px; font-weight: 800; color: var(--accent); margin-top: 2px;"><span id="wd_bracket">(--)</span></div>
+                        </div>
+                        <div class="widget-foot" style="display: flex; flex-direction: column; gap: 4px;">
+                            <div style="color: var(--text); font-weight: 800; font-size: 13px;">Gust: <span id="wg">--</span></div>
+                            <div style="display:flex; flex-direction: column; gap: 2px; font-size: 11px;">
+                                <span style="display: flex; justify-content: space-between;"><span>Max S:</span> <strong id="mw">--</strong></span>
+                                <span style="display: flex; justify-content: space-between;"><span>Max G:</span> <strong id="mg">--</strong></span>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
-                <div class="card">
-                    <div class="label">Rain Realm</div>
-                    <div class="main-val"><span id="r_tot">0.0</span><span class="unit">mm</span></div>
-                    <div class="sub-pill">● Rain Rate: <span id="r_rate">0.0</span> mm/h</div>
-                    <div class="sub-box-4">
-                        <div class="badge" style="grid-column: span 2;"><span class="badge-label">Max Rate Today</span><span id="mr" class="badge-val">--</span></div>
-                        <div class="badge"><span class="badge-label">Weekly</span><span id="r_week" class="badge-val">--</span></div>
-                        <div class="badge"><span class="badge-label">Monthly</span><span id="r_month" class="badge-val">--</span></div>
-                        <div class="badge" style="grid-column: span 2;"><span class="badge-label">Yearly</span><span id="r_year" class="badge-val">--</span></div>
+                <div class="widget">
+                    <div class="widget-label"><span style="color:#3b82f6; font-size: 14px;">●</span> Rainfall</div>
+                    <div style="margin-top: auto; margin-bottom: 10px;">
+                        <div class="widget-main-val" style="display: flex; align-items: baseline;"><span id="r_tot">0.0</span><span style="font-size: 16px; font-weight: 700; color: var(--muted); margin-left: 4px;">mm</span></div>
+                        <div style="font-size: 13px; font-weight: 800; color: #3b82f6; margin-top: 2px;">Rate: <span id="r_rate">0.0</span> mm/h</div>
+                    </div>
+                    <div class="widget-foot" style="display: flex; flex-direction: column; gap: 4px;">
+                        <div style="color: var(--text); font-weight: 800; font-size: 12px; display: flex; justify-content: space-between;"><span>Max Rate:</span> <span id="mr">--</span></div>
+                        <div style="display: flex; justify-content: space-between; font-size: 11px; padding-top: 6px; border-top: 1px solid var(--border);">
+                            <div style="display:flex; flex-direction: column; align-items: center;"><span style="opacity:0.6">Wk</span><strong id="r_week">--</strong></div>
+                            <div style="display:flex; flex-direction: column; align-items: center;"><span style="opacity:0.6">Mo</span><strong id="r_month">--</strong></div>
+                            <div style="display:flex; flex-direction: column; align-items: center;"><span style="opacity:0.6">Yr</span><strong id="r_year">--</strong></div>
+                        </div>
                     </div>
                 </div>
 
-                <div class="card">
-                    <div class="label">Atmospheric <span id="pIcon"></span></div>
-                    <div class="main-val"><span id="pr">--</span><span class="unit">hPa</span></div>
-                    <div class="sub-box-4">
-                        <div class="badge"><span class="badge-label">Solar Rad</span><span id="sol" class="badge-val">--</span></div>
-                        <div class="badge"><span class="badge-label">UV Index</span><span id="uv" class="badge-val">--</span></div>
+                <div class="widget">
+                    <div class="widget-label"><span style="color:#10b981; font-size: 14px;">●</span> Moisture</div>
+                    <div style="display: flex; flex-direction: column; justify-content: space-around; height: 100%; margin-top: 10px;">
+                        <div style="background: var(--badge); padding: 10px 14px; border-radius: 16px;">
+                            <div class="inner-label">Humidity</div>
+                            <div class="widget-main-val" style="font-size: 28px;"><span id="h_val">--</span></div>
+                        </div>
+                        <div style="background: var(--badge); padding: 10px 14px; border-radius: 16px;">
+                            <div class="inner-label">Dew Point</div>
+                            <div class="widget-main-val" style="font-size: 28px;"><span id="d_val">--</span></div>
+                        </div>
                     </div>
                 </div>
+
+                <div class="widget">
+                    <div class="widget-label"><span style="color:#8b5cf6; font-size: 14px;">●</span> Pressure</div>
+                    <div style="margin-top: auto; margin-bottom: auto; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+                        <div class="widget-main-val" style="font-size: 38px; text-align: center;"><span id="pr">--</span></div>
+                        <div style="font-size: 14px; font-weight: 800; color: var(--muted); display: flex; align-items: center; gap: 6px; margin-top: 4px;">hPa <span id="pIcon" style="font-size: 18px;"></span></div>
+                    </div>
+                </div>
+
+                <div class="widget">
+                    <div class="widget-label"><span style="color:#f59e0b; font-size: 14px;">●</span> UV Index</div>
+                    <div style="margin-top: auto; margin-bottom: auto; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+                        <div class="widget-main-val" style="font-size: 56px; color: #f59e0b;"><span id="uv">--</span></div>
+                        <div style="font-size: 12px; font-weight: 800; color: var(--muted); text-transform: uppercase; margin-top: 4px;">Exposure</div>
+                    </div>
+                </div>
+
+                <div class="widget">
+                    <div class="widget-label"><span style="color:#eab308; font-size: 14px;">●</span> Solar Rad</div>
+                    <div style="margin-top: auto; margin-bottom: auto; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+                        <div class="widget-main-val" style="font-size: 38px;"><span id="sol">--</span></div>
+                        <div style="font-size: 13px; font-weight: 800; color: var(--muted); margin-top: 4px;">W/m²</div>
+                    </div>
+                </div>
+
             </div>
+
 
             <div class="sub-tabs-section" style="margin-top: 35px;">
                 <div style="display: flex; gap: 10px; margin-bottom: 20px; justify-content: center;">
