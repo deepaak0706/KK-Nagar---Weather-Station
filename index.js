@@ -35,6 +35,7 @@ let state = {
     tRR: null,
     lastArchivedDate: null,
     dataChangedSinceLastRead: false,
+    dbFailCount: 0, // NEW: Track consecutive DB failures
     summaryCache: null,
     lastSummaryFetchDate: null,
 };
@@ -203,7 +204,7 @@ async function syncWithEcowitt(forceWrite = false) {
         const liveHum = d.outdoor.humidity.value || 0;
         const livePress = parseFloat((d.pressure.relative.value * 33.8639).toFixed(1));
 
-        if (forceWrite) {
+                if (forceWrite) {
             const client = await pool.connect();
             try {
                 await client.query('BEGIN');
@@ -213,6 +214,7 @@ async function syncWithEcowitt(forceWrite = false) {
                     timeSql = "(date_trunc('day', NOW() AT TIME ZONE 'Asia/Kolkata') AT TIME ZONE 'Asia/Kolkata') - INTERVAL '1 second'";
                 }
 
+                // FIX: Priority check. Use buffered peak from memory, fallback to live only if buffer is empty.
                 const dbMaxT = state.bufMaxT === -999 ? d.outdoor.temperature.value : state.bufMaxT;
                 const dbMinT = state.bufMinT === 999 ? d.outdoor.temperature.value : state.bufMinT;
                 const dbW = state.tW === null ? d.wind.wind_speed.value : state.bufW;
@@ -235,6 +237,7 @@ async function syncWithEcowitt(forceWrite = false) {
                     d.pressure.relative.value || 0
                 ]);
 
+                // --- MIDNIGHT LOGIC (UNTOUCHED AS REQUESTED) ---
                 if (hour === 0 && minute < 30 && state.lastArchivedDate !== todayISTStr) {
                     await client.query(`
                         INSERT INTO daily_max_records (record_date, max_temp_c, min_temp_c, max_wind_kmh, max_gust_kmh, total_rain_mm)
@@ -260,14 +263,33 @@ async function syncWithEcowitt(forceWrite = false) {
                 }
 
                 await client.query('COMMIT');
+                
+                // --- THE FIX: ONLY RESET ON SUCCESSFUL COMMIT ---
+                state.dbFailCount = 0; // Reset fail tracker
                 state.dataChangedSinceLastRead = true;
                 resetStateBuffers(); 
+                console.log("DB Write Success: Buffers Cleared.");
 
             } catch (err) { 
                 await client.query('ROLLBACK'); 
-                console.error("CRITICAL: DB Write Failed. Buffer held for next attempt.", err); 
-            } finally { client.release(); }
+                
+                // Track failure but DO NOT reset buffers. 
+                // This keeps the 12:23 peak alive for the next 10-20 mins.
+                state.dbFailCount = (state.dbFailCount || 0) + 1;
+                console.error(`DB Write Failed (Attempt ${state.dbFailCount}). Buffer HELD for next run.`, err); 
+
+                // Safety: If it fails for more than 30 mins (3 tries), 
+                // then we clear it to prevent stale data stuck forever.
+                if (state.dbFailCount > 3) {
+                    console.warn("Too many DB failures. Resetting buffers to prevent stale data.");
+                    resetStateBuffers();
+                    state.dbFailCount = 0;
+                }
+            } finally { 
+                client.release(); 
+            }
         }
+
 
         let tempRate = state.cachedData?.temp?.rate || 0, humRate = state.cachedData?.atmo?.hTrend || 0, pressRate = state.cachedData?.atmo?.pTrend || 0;
         let mx_t = state.cachedData?.temp?.max || liveTemp, mn_t = state.cachedData?.temp?.min || liveTemp;
