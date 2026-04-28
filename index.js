@@ -726,6 +726,109 @@ body.is-night .glass-select option {
     color: #f1f5f9;
 }
 
+/* Modern Temperature UI Styles */
+.modern-temp-container {
+    background: var(--card);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-radius: 40px;
+    padding: 32px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    grid-column: span 1; /* Keep it in the grid, or use 'span 2' if you want it wider */
+    box-shadow: var(--glow);
+    border: 1px solid var(--border);
+    position: relative;
+    overflow: hidden;
+}
+
+.temp-hero {
+    display: flex;
+    flex-direction: column;
+}
+
+.temp-status-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 12px;
+}
+
+.real-feel-row {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--muted);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding-left: 4px;
+}
+
+.rf-val {
+    color: var(--text);
+    font-weight: 800;
+}
+
+.temp-stats-aside {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    border-left: 1px solid var(--border);
+    padding-left: 32px;
+}
+
+.stat-pair {
+    display: flex;
+    gap: 24px;
+}
+
+.stat-item {
+    display: flex;
+    flex-direction: column;
+    min-width: 80px;
+}
+
+.stat-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-weight: 800;
+    color: var(--muted);
+    margin-bottom: 4px;
+}
+
+.stat-val {
+    font-size: 18px;
+    font-weight: 900;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+/* Specific styling for High/Low */
+.stat-val .time-mark {
+    font-size: 8px;
+    opacity: 0.6;
+}
+
+/* Responsive fix for Mobile */
+@media (max-width: 600px) {
+    .modern-temp-container {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 32px;
+    }
+    .temp-stats-aside {
+        border-left: none;
+        border-top: 1px solid var(--border);
+        padding-left: 0;
+        padding-top: 24px;
+        width: 100%;
+    }
+}
+
+
 
 
     </style>
@@ -751,20 +854,47 @@ body.is-night .glass-select option {
        </div>
 
         <div id="page-dashboard">
-            
-            <div class="grid-system">
-                <div class="card">
-                    <div class="label">Temperature</div>
-                    <div class="main-val"><span id="t">0.0</span><span class="unit">°C</span></div>
+    <div class="grid-system">
+        <div class="modern-temp-container">
+            <div class="temp-hero">
+                <div class="label">Temperature</div>
+                <div class="main-val"><span id="t">0.0</span><span class="unit">°C</span></div>
+                
+                <div class="temp-status-group">
                     <div id="tTrendBox" class="sub-pill">--</div>
-                    <div class="sub-box-4">
-                        <div class="badge"><span class="badge-label">Today High</span><span id="mx" class="badge-val" style="color:#ef4444">--</span></div>
-                        <div class="badge"><span class="badge-label">Today Low</span><span id="mn" class="badge-val" style="color:#0ea5e9">--</span></div>
-                        <div class="badge"><span class="badge-label">Humidity</span><span id="h_val" class="badge-val">--</span></div>
-                        <div class="badge"><span class="badge-label">Dew Point</span><span id="d_val" class="badge-val">--</span></div>
-                        <div class="badge" style="grid-column: span 2;"><span class="badge-label">Feels Like</span><span id="rf" class="badge-val">--</span></div>
+                    <div class="real-feel-row">
+                        <span class="rf-label">Feels like</span>
+                        <span id="rf" class="rf-val">--</span>
                     </div>
                 </div>
+            </div>
+
+            <div class="temp-stats-aside">
+                <div class="stat-pair">
+                    <div class="stat-item high">
+                        <span class="stat-label">High</span>
+                        <span id="mx" class="stat-val">--</span>
+                    </div>
+                    <div class="stat-item low">
+                        <span class="stat-label">Low</span>
+                        <span id="mn" class="stat-val">--</span>
+                    </div>
+                </div>
+                <div class="stat-pair">
+                    <div class="stat-item">
+                        <span class="stat-label">Humidity</span>
+                        <span id="h_val" class="stat-val">--</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Dew Point</span>
+                        <span id="d_val" class="stat-val">--</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 
                 <div class="card">
                     <canvas id="windCanvas"></canvas>
