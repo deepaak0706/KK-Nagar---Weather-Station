@@ -203,7 +203,15 @@ async function syncWithEcowitt(forceWrite = false) {
         const liveHum = d.outdoor.humidity.value || 0;
         const livePress = parseFloat((d.pressure.relative.value * 33.8639).toFixed(1));
 
-        if (forceWrite) {
+                if (forceWrite) {
+            // 1. SNAPSHOT: Capture buffers at this exact millisecond
+            const snap = {
+                maxT: state.bufMaxT, minT: state.bufMinT,
+                w: state.bufW, g: state.bufG, rr: state.bufRR,
+                tMaxT: state.tMaxT, tMinT: state.tMinT,
+                tW: state.tW, tG: state.tG, tRR: state.tRR
+            };
+
             const client = await pool.connect();
             try {
                 await client.query('BEGIN');
@@ -213,11 +221,12 @@ async function syncWithEcowitt(forceWrite = false) {
                     timeSql = "(date_trunc('day', NOW() AT TIME ZONE 'Asia/Kolkata') AT TIME ZONE 'Asia/Kolkata') - INTERVAL '1 second'";
                 }
 
-                const dbMaxT = state.bufMaxT === -999 ? d.outdoor.temperature.value : state.bufMaxT;
-                const dbMinT = state.bufMinT === 999 ? d.outdoor.temperature.value : state.bufMinT;
-                const dbW = state.tW === null ? d.wind.wind_speed.value : state.bufW;
-                const dbG = state.tG === null ? d.wind.wind_gust.value : state.bufG;
-                const dbRR = state.tRR === null ? (state.lastCalculatedRate || 0) : state.bufRR;
+                // 2. USE SNAPSHOTS: This ensures the data is consistent even if buffers change during 'await'
+                const dbMaxT = snap.maxT === -999 ? d.outdoor.temperature.value : snap.maxT;
+                const dbMinT = snap.minT === 999 ? d.outdoor.temperature.value : snap.minT;
+                const dbW = snap.tW === null ? d.wind.wind_speed.value : snap.w;
+                const dbG = snap.tG === null ? d.wind.wind_gust.value : snap.g;
+                const dbRR = snap.tRR === null ? (state.lastCalculatedRate || 0) : snap.rr;
 
                 await client.query(`
                     INSERT INTO weather_history 
@@ -226,15 +235,16 @@ async function syncWithEcowitt(forceWrite = false) {
                     VALUES (${timeSql}, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
                 `, [
                     dbMaxT, dbMinT, liveHum, dbW, dbG, dbRR, d.rainfall.daily.value,
-                    state.tW || new Date().toISOString(), 
-                    state.tMaxT || new Date().toISOString(), 
-                    state.tMinT || new Date().toISOString(), 
-                    state.tRR || (state.lastRainTime ? new Date(state.lastRainTime).toISOString() : new Date().toISOString()),
-                    state.tG || new Date().toISOString(), 
+                    snap.tW || new Date().toISOString(), 
+                    snap.tMaxT || new Date().toISOString(), 
+                    snap.tMinT || new Date().toISOString(), 
+                    snap.tRR || (state.lastRainTime ? new Date(state.lastRainTime).toISOString() : new Date().toISOString()),
+                    snap.tG || new Date().toISOString(), 
                     d.solar_and_uvi?.solar?.value || 0, 
                     d.pressure.relative.value || 0
                 ]);
 
+                // Midnight Roll-up (Intact)
                 if (hour === 0 && minute < 30 && state.lastArchivedDate !== todayISTStr) {
                     await client.query(`
                         INSERT INTO daily_max_records (record_date, max_temp_c, min_temp_c, max_wind_kmh, max_gust_kmh, total_rain_mm)
@@ -253,7 +263,6 @@ async function syncWithEcowitt(forceWrite = false) {
                     `, [todayISTStr]);
 
                     await client.query(`DELETE FROM weather_history WHERE (time AT TIME ZONE 'Asia/Kolkata')::date < $1::date`, [todayISTStr]);
-                    
                     state.lastArchivedDate = todayISTStr;
                     state.cachedData = null; 
                     resetStateBuffers(); 
@@ -261,13 +270,21 @@ async function syncWithEcowitt(forceWrite = false) {
 
                 await client.query('COMMIT');
                 state.dataChangedSinceLastRead = true;
-                resetStateBuffers(); 
+
+                // 3. SELECTIVE RESET: Only clear what we just successfully saved
+                // If a new peak arrived while we were writing, keep the buffer!
+                if (state.bufMaxT === snap.maxT) { state.bufMaxT = -999; state.tMaxT = null; }
+                if (state.bufMinT === snap.minT) { state.bufMinT = 999; state.tMinT = null; }
+                if (state.bufW === snap.w) { state.bufW = 0; state.tW = null; }
+                if (state.bufG === snap.g) { state.bufG = 0; state.tG = null; }
+                if (state.bufRR === snap.rr) { state.bufRR = 0; state.tRR = null; }
 
             } catch (err) { 
                 await client.query('ROLLBACK'); 
                 console.error("CRITICAL: DB Write Failed. Buffer held for next attempt.", err); 
             } finally { client.release(); }
         }
+
 
         let tempRate = state.cachedData?.temp?.rate || 0, humRate = state.cachedData?.atmo?.hTrend || 0, pressRate = state.cachedData?.atmo?.pTrend || 0;
         let mx_t = state.cachedData?.temp?.max || liveTemp, mn_t = state.cachedData?.temp?.min || liveTemp;
