@@ -147,6 +147,7 @@ async function syncWithEcowitt(forceWrite = false) {
             state.cachedData.atmo.press = livePress;
             state.cachedData.atmo.hum = liveHum;
             state.cachedData.temp.realFeel = calculateRealFeel(liveTemp, liveHum);
+            state.cachedData.temp.dew = liveDewC;
 
             const fmtL = () => new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' });
             const fmtIso = (isoStr) => isoStr ? new Date(isoStr).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' }) : fmtL();
