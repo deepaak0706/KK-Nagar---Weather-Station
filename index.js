@@ -457,36 +457,18 @@ app.get("/api/history_graphs", async (req, res) => {
 });
 
 // NEW: Route to handle Historical Rainfall Fetch
-app.get("/api/historical-rain", async (req, res) => {
-    const year = req.query.year;
+app.get('/api/historical-rain', async (req, res) => {
+    const { year } = req.query;
     if (!year) return res.status(400).json({ error: "Year is required" });
 
     try {
-        const result = await pool.query(`
-            SELECT month_val, rainfall_mm 
-            FROM monthly_rainfall_history 
-            WHERE year_val = $1 
-            ORDER BY 
-                CASE 
-                    WHEN month_val = 'January' THEN 1
-                    WHEN month_val = 'February' THEN 2
-                    WHEN month_val = 'March' THEN 3
-                    WHEN month_val = 'April' THEN 4
-                    WHEN month_val = 'May' THEN 5
-                    WHEN month_val = 'June' THEN 6
-                    WHEN month_val = 'July' THEN 7
-                    WHEN month_val = 'August' THEN 8
-                    WHEN month_val = 'September' THEN 9
-                    WHEN month_val = 'October' THEN 10
-                    WHEN month_val = 'November' THEN 11
-                    WHEN month_val = 'December' THEN 12
-                    ELSE 13 
-                END
-        `, [year]);
-
-        res.json({ data: result.rows });
-    } catch (error) {
-        console.error("Database Error:", error);
+        const result = await pool.query(
+            'SELECT month_val, rainfall_mm FROM historical_rainfall WHERE year_val = $1 ORDER BY id ASC',
+            [parseInt(year)]
+        );
+        res.json({ year: year, data: result.rows });
+    } catch (err) {
+        console.error("Historical DB Error:", err);
         res.status(500).json({ error: "Database query failed" });
     }
 });
@@ -544,32 +526,43 @@ app.get("/", (req, res) => {
         .live-dot { width: 6px; height: 6px; background: #10b981; border-radius: 50%; animation: blink 2s infinite; }
         @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
         
-        /* NEW COMPACT GRID SYSTEM */
-        .grid-system { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }
-        .card { background: var(--card); padding: 20px; border-radius: 24px; border: 1px solid var(--border); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); box-shadow: var(--glow); position: relative; overflow: hidden; transition: background 0.5s ease; display: flex; flex-direction: column; }
-        #windCanvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; border-radius: 24px; }
+        .grid-system { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
+        .card { background: var(--card); padding: 28px; border-radius: 32px; border: 1px solid var(--border); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); box-shadow: var(--glow); position: relative; overflow: hidden; transition: background 0.5s ease; }
+        #windCanvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; border-radius: 32px; }
         .card > *:not(canvas) { position: relative; z-index: 5; }
 
-        .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; z-index: 5; }
-        .label { color: var(--accent); font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 2px; margin: 0; }
-        .main-val { font-size: 42px; font-weight: 900; margin: 0 0 16px 0; letter-spacing: -1.5px; display: flex; align-items: baseline; line-height: 1; z-index: 5; }
+        .label { color: var(--accent); font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 6px; }
+        .main-val { font-size: 56px; font-weight: 900; margin: 0; letter-spacing: -2px; display: flex; align-items: baseline; line-height: 1.1; }
         
-        /* COMPACT LIST STATS */
-        .stat-group { display: flex; flex-direction: column; background: var(--badge); border-radius: 16px; padding: 4px 16px; z-index: 5; flex-grow: 1; }
-        .stat-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--border); }
-        .stat-row:last-child { border-bottom: none; }
-        .stat-label { font-size: 11px; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
-        .stat-val { font-size: 14px; font-weight: 800; display: flex; align-items: center; gap: 6px; }
+        /* MODERN TRANSIENT EFFECTS */
+        .main-val span:not(.unit), .badge-val { 
+            display: inline-block; 
+            transition: all 0.6s cubic-bezier(0.34, 1.56, 0.64, 1); 
+            font-variant-numeric: tabular-nums; 
+        }
 
-        .compass-ui { width: 36px; height: 36px; border: 2px solid var(--border); border-radius: 50%; display: flex; align-items: center; justify-content: center; z-index: 10; background: var(--card); box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
-        #needle { width: 3px; height: 22px; background: linear-gradient(to bottom, #ef4444 50%, var(--muted) 50%); clip-path: polygon(50% 0%, 100% 100%, 50% 85%, 0% 100%); transition: transform 2s cubic-bezier(0.1, 0.9, 0.2, 1); }
-        .trend-badge { font-size: 11px; font-weight: 800; padding: 4px 10px; border-radius: 8px; background: var(--badge); display: inline-flex; align-items: center; gap: 4px; }
+        /* The "Magic" Animation */
+        @keyframes magicFade {
+            0% { opacity: 0; filter: blur(12px); transform: scale(0.8) translateY(10px); color: #10b981; }
+            30% { opacity: 0.8; filter: blur(4px); }
+            100% { opacity: 1; filter: blur(0); transform: scale(1) translateY(0); }
+        }
 
-        /* TRANSIENT EFFECTS */
-        .main-val span:not(.unit), .stat-val { display: inline-block; transition: all 0.6s cubic-bezier(0.34, 1.56, 0.64, 1); font-variant-numeric: tabular-nums; }
-        @keyframes magicFade { 0% { opacity: 0; filter: blur(12px); transform: scale(0.8) translateY(10px); color: #10b981; } 30% { opacity: 0.8; filter: blur(4px); } 100% { opacity: 1; filter: blur(0); transform: scale(1) translateY(0); } }
-        .fade-update { animation: magicFade 1.5s cubic-bezier(0.16, 1, 0.3, 1); will-change: transform, opacity, filter; }
+        .fade-update { 
+            animation: magicFade 1.5s cubic-bezier(0.16, 1, 0.3, 1); 
+            will-change: transform, opacity, filter;
+        }
+
         .unit { font-size: 20px; font-weight: 600; color: var(--muted); margin-left: 4px; letter-spacing: 0; }
+        .sub-pill { font-size: 12px; font-weight: 800; padding: 6px 12px; border-radius: 10px; background: var(--badge); display: inline-flex; align-items: center; gap: 4px; margin: 12px 0 20px 0; }
+
+        .sub-box-4 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding-top: 20px; border-top: 1px solid var(--border); }
+        .badge { padding: 12px; border-radius: 18px; background: var(--badge); display: flex; flex-direction: column; gap: 2px; }
+        .badge-label { font-size: 9px; color: var(--muted); text-transform: uppercase; font-weight: 800; }
+        .badge-val { font-size: 16px; font-weight: 800; }
+
+        .compass-ui { position: absolute !important; top: 28px !important; right: 28px !important; width: 50px; height: 50px; border: 2px solid var(--border); border-radius: 50%; display: flex; align-items: center; justify-content: center; z-index: 10; }
+        #needle { width: 3px; height: 32px; background: linear-gradient(to bottom, #ef4444 50%, var(--muted) 50%); clip-path: polygon(50% 0%, 100% 100%, 50% 85%, 0% 100%); transition: transform 2s cubic-bezier(0.1, 0.9, 0.2, 1); }
 
         .graphs-wrapper { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin-top: 20px; }
         .graph-card { background: var(--card); padding: 24px; border-radius: 32px; border: 1px solid var(--border); height: 320px; box-shadow: var(--glow); display: flex; flex-direction: column; overflow: hidden; transition: background 0.5s ease; }
@@ -581,7 +574,10 @@ app.get("/", (req, res) => {
 
         /* SUMMARY SYSTEM */
         .nav-tabs { display: flex; gap: 8px; margin-bottom: 25px; }
-        .tab-btn { background: var(--card); border: 1px solid var(--border); padding: 12px 24px; border-radius: 16px; color: var(--text); font-weight: 700; cursor: pointer; transition: 0.3s; }
+        .tab-btn { 
+            background: var(--card); border: 1px solid var(--border); padding: 12px 24px; 
+            border-radius: 16px; color: var(--text); font-weight: 700; cursor: pointer; transition: 0.3s; 
+        }
         .tab-btn.active { background: var(--accent); color: white; border-color: var(--accent); box-shadow: var(--glow); }
 
         .month-section { margin-bottom: 35px; animation: fadeIn 0.5s ease; }
@@ -756,56 +752,48 @@ body.is-night .glass-select option {
             
             <div class="grid-system">
                 <div class="card">
-                    <div class="card-header">
-                        <div class="label">Temperature</div>
-                        <div id="tTrendBox" class="trend-badge">--</div>
-                    </div>
+                    <div class="label">Temperature</div>
                     <div class="main-val"><span id="t">0.0</span><span class="unit">°C</span></div>
-                    <div class="stat-group">
-                        <div class="stat-row"><span class="stat-label">Feels Like</span><span id="rf" class="stat-val">--</span></div>
-                        <div class="stat-row"><span class="stat-label">Today High</span><span id="mx" class="stat-val" style="color:#ef4444">--</span></div>
-                        <div class="stat-row"><span class="stat-label">Today Low</span><span id="mn" class="stat-val" style="color:#0ea5e9">--</span></div>
-                        <div class="stat-row"><span class="stat-label">Humidity</span><span id="h_val" class="stat-val">--</span></div>
-                        <div class="stat-row"><span class="stat-label">Dew Point</span><span id="d_val" class="stat-val">--</span></div>
+                    <div id="tTrendBox" class="sub-pill">--</div>
+                    <div class="sub-box-4">
+                        <div class="badge"><span class="badge-label">Today High</span><span id="mx" class="badge-val" style="color:#ef4444">--</span></div>
+                        <div class="badge"><span class="badge-label">Today Low</span><span id="mn" class="badge-val" style="color:#0ea5e9">--</span></div>
+                        <div class="badge"><span class="badge-label">Humidity</span><span id="h_val" class="badge-val">--</span></div>
+                        <div class="badge"><span class="badge-label">Dew Point</span><span id="d_val" class="badge-val">--</span></div>
+                        <div class="badge" style="grid-column: span 2;"><span class="badge-label">Feels Like</span><span id="rf" class="badge-val">--</span></div>
                     </div>
                 </div>
 
                 <div class="card">
                     <canvas id="windCanvas"></canvas>
-                    <div class="card-header">
-                        <div class="label">Wind Dynamics</div>
-                        <div class="compass-ui"><div id="needle"></div></div>
-                    </div>
-                    <div class="main-val"><span id="w">0.0</span><span id="wd_bracket" style="font-size:16px; color:var(--muted); margin-left:6px; font-weight:700">(--)</span><span class="unit">km/h</span></div>
-                    <div class="stat-group">
-                        <div class="stat-row"><span class="stat-label">Live Gust</span><span id="wg" class="stat-val">--</span></div>
-                        <div class="stat-row"><span class="stat-label">Max Speed</span><span id="mw" class="stat-val">--</span></div>
-                        <div class="stat-row"><span class="stat-label">Max Gust</span><span id="mg" class="stat-val">--</span></div>
+                    <div class="label">Wind Dynamics</div>
+                    <div class="compass-ui"><div id="needle"></div></div>
+                    <div class="main-val"><span id="w">0.0</span><span id="wd_bracket" style="font-size:18px; color:var(--muted); margin-left:8px; font-weight:700">(--)</span><span class="unit">km/h</span></div>
+                    <div class="sub-pill">● Live Gust: <span id="wg" style="margin-left:4px">--</span></div>
+                    <div class="sub-box-4">
+                        <div class="badge"><span class="badge-label">Max Speed</span><span id="mw" class="badge-val">--</span></div>
+                        <div class="badge"><span class="badge-label">Max Gust</span><span id="mg" class="badge-val">--</span></div>
                     </div>
                 </div>
 
                 <div class="card">
-                    <div class="card-header">
-                        <div class="label">Precipitation</div>
-                        <div class="trend-badge"><span id="r_rate" style="color:#3b82f6;">0.0</span> <span style="color:var(--muted); margin-left:2px;">mm/h</span></div>
-                    </div>
+                    <div class="label">Rain Realm</div>
                     <div class="main-val"><span id="r_tot">0.0</span><span class="unit">mm</span></div>
-                    <div class="stat-group">
-                        <div class="stat-row"><span class="stat-label">Max Rate Today</span><span id="mr" class="stat-val">--</span></div>
-                        <div class="stat-row"><span class="stat-label">Weekly Total</span><span id="r_week" class="stat-val">--</span></div>
-                        <div class="stat-row"><span class="stat-label">Monthly Total</span><span id="r_month" class="stat-val">--</span></div>
-                        <div class="stat-row"><span class="stat-label">Yearly Total</span><span id="r_year" class="stat-val">--</span></div>
+                    <div class="sub-pill">● Rain Rate: <span id="r_rate">0.0</span> mm/h</div>
+                    <div class="sub-box-4">
+                        <div class="badge" style="grid-column: span 2;"><span class="badge-label">Max Rate Today</span><span id="mr" class="badge-val">--</span></div>
+                        <div class="badge"><span class="badge-label">Weekly</span><span id="r_week" class="badge-val">--</span></div>
+                        <div class="badge"><span class="badge-label">Monthly</span><span id="r_month" class="badge-val">--</span></div>
+                        <div class="badge" style="grid-column: span 2;"><span class="badge-label">Yearly</span><span id="r_year" class="badge-val">--</span></div>
                     </div>
                 </div>
 
                 <div class="card">
-                    <div class="card-header">
-                        <div class="label">Atmospheric <span id="pIcon"></span></div>
-                    </div>
+                    <div class="label">Atmospheric <span id="pIcon"></span></div>
                     <div class="main-val"><span id="pr">--</span><span class="unit">hPa</span></div>
-                    <div class="stat-group">
-                        <div class="stat-row"><span class="stat-label">Solar Rad</span><span id="sol" class="stat-val">--</span></div>
-                        <div class="stat-row"><span class="stat-label">UV Index</span><span id="uv" class="stat-val">--</span></div>
+                    <div class="sub-box-4">
+                        <div class="badge"><span class="badge-label">Solar Rad</span><span id="sol" class="badge-val">--</span></div>
+                        <div class="badge"><span class="badge-label">UV Index</span><span id="uv" class="badge-val">--</span></div>
                     </div>
                 </div>
             </div>
@@ -1342,7 +1330,7 @@ window.fetchHistoricalData = async function() {
     var year = document.getElementById('histYearSelect').value;
     var resultsTable = document.getElementById('historical-results-table');
     
-    resultsTable.innerHTML = '<div style="text-align:center; padding:40px; color: #64748b;">Syncing Archive...</div>';
+    resultsTable.innerHTML = '<div style="text-align:center; padding:40px; color: var(--text-muted, #64748b);">Syncing Archive...</div>';
 
     try {
         var response = await fetch('/api/historical-rain?year=' + year);
@@ -1372,15 +1360,19 @@ window.fetchHistoricalData = async function() {
             var rf = parseFloat(d.rainfall_mm) || 0;
             var mKey = d.month_val.substring(0, 3).toUpperCase();
             var mainTextColor = 'var(--text, #1e293b)'; 
+            
+            // Default Neutral Styles (Jan-May)
             var bgColor = 'var(--card, rgba(30, 41, 59, 0.04))';
             var borderColor = 'var(--border, rgba(255,255,255,0.1))';
             var monthTextColor = 'var(--text-muted, #64748b)';
 
             if (['JUN', 'JUL', 'AUG', 'SEP'].indexOf(mKey) !== -1) {
+                // SWM - Now Amber
                 bgColor = 'rgba(245, 158, 11, 0.08)';       
                 borderColor = 'rgba(245, 158, 11, 0.4)';
                 monthTextColor = '#d97706';
             } else if (['OCT', 'NOV', 'DEC'].indexOf(mKey) !== -1) {
+                // NEM - Now Emerald
                 bgColor = 'rgba(5, 150, 105, 0.08)';        
                 borderColor = 'rgba(5, 150, 105, 0.4)';
                 monthTextColor = '#059669';
@@ -1401,41 +1393,50 @@ window.fetchHistoricalData = async function() {
         html += '<div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 5px;">';
         var seasonalStyle = 'border-radius: 16px; padding: 20px 5px; text-align: center; border: 2.5px solid;';
         
+        // Pre-Monsoon Summary (Neutral)
         html += '<div style="' + seasonalStyle + ' background: var(--card); border-color: var(--border);">' +
                     '<div style="font-size: 0.8rem; font-weight: 900; color: var(--text-muted); letter-spacing: 1px; margin-bottom: 6px;">JAN-MAY</div>' +
-                    '<div style="font-size: 1.7rem; font-weight: 900; color: var(--text);">' + preMonsoonTotal.toFixed(1) + '</div>' +
+                    '<div style="font-size: 1.7rem; font-weight: 900; color: var(--text, #1e293b);">' + preMonsoonTotal.toFixed(1) + '</div>' +
                 '</div>';
 
+        // SWM Summary (Amber)
         html += '<div style="' + seasonalStyle + ' background: rgba(245, 158, 11, 0.12); border-color: rgba(245, 158, 11, 0.5);">' +
                     '<div style="font-size: 0.8rem; font-weight: 900; color: #d97706; letter-spacing: 1px; margin-bottom: 6px;">SWM</div>' +
-                    '<div style="font-size: 1.7rem; font-weight: 900; color: var(--text);">' + swmTotal.toFixed(1) + '</div>' +
+                    '<div style="font-size: 1.7rem; font-weight: 900; color: var(--text, #1e293b);">' + swmTotal.toFixed(1) + '</div>' +
                 '</div>';
 
+        // NEM Summary (Emerald)
         html += '<div style="' + seasonalStyle + ' background: rgba(5, 150, 105, 0.12); border-color: rgba(5, 150, 105, 0.5);">' +
                     '<div style="font-size: 0.8rem; font-weight: 900; color: #059669; letter-spacing: 1px; margin-bottom: 6px;">NEM</div>' +
-                    '<div style="font-size: 1.7rem; font-weight: 900; color: var(--text);">' + nemTotal.toFixed(1) + '</div>' +
+                    '<div style="font-size: 1.7rem; font-weight: 900; color: var(--text, #1e293b);">' + nemTotal.toFixed(1) + '</div>' +
                 '</div>';
         html += '</div>';
 
+        // Annual Total Footer (Neutral Theme)
         if (annualRow) {
-            html += '<div style="margin-top: 15px; background: var(--card); border: 2px solid #64748b; border-radius: 18px; padding: 24px; text-align: center;">' +
+            html += '<div style="margin-top: 15px; background: var(--card, #f8fafc); border: 2px solid #64748b; border-radius: 18px; padding: 24px; text-align: center; box-shadow: 0 4px 20px rgba(0,0,0,0.08);">' +
                         '<div style="font-size: 0.8rem; color: #64748b; font-weight: 900; letter-spacing: 2px; margin-bottom: 6px;">' + year + ' ANNUAL TOTAL</div>' +
-                        '<div style="font-size: 3rem; font-weight: 950; color: var(--text); line-height: 1;">' + parseFloat(annualRow.rainfall_mm).toFixed(1) + '<span style="font-size: 1.2rem; opacity: 0.4; margin-left: 6px; font-weight: 700;">mm</span></div>' +
+                        '<div style="font-size: 3rem; font-weight: 950; color: var(--text, #1e293b); line-height: 1;">' + parseFloat(annualRow.rainfall_mm).toFixed(1) + '<span style="font-size: 1.2rem; opacity: 0.4; margin-left: 6px; font-weight: 700;">mm</span></div>' +
                     '</div>';
         }
 
-        // Apply the generated HTML to the container
         resultsTable.innerHTML = html;
 
     } catch (error) {
-        console.error("Fetch Error:", error);
-        resultsTable.innerHTML = '<div style="color:red; padding:20px; text-align:center;">Failed to fetch records.</div>';
+        resultsTable.innerHTML = '<div style="text-align:center; padding:40px; color: #ef4444;">Connection failed.</div>';
     }
 };
 
-// 3. SERVER LISTENER (Must be outside the app.get block)
+
+
+</script>
+</body>
+</html>
+    `);
+});
+
 if (process.env.NODE_ENV !== 'production') {
-    app.listen(3000, () => console.log(`Server running at http://localhost:3000`));
+    app.listen(3000, () => console.log(`Running at http://localhost:3000`));
 }
 
 module.exports = app;
