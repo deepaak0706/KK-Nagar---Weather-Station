@@ -457,18 +457,36 @@ app.get("/api/history_graphs", async (req, res) => {
 });
 
 // NEW: Route to handle Historical Rainfall Fetch
-app.get('/api/historical-rain', async (req, res) => {
-    const { year } = req.query;
+app.get("/api/historical-rain", async (req, res) => {
+    const year = req.query.year;
     if (!year) return res.status(400).json({ error: "Year is required" });
 
     try {
-        const result = await pool.query(
-            'SELECT month_val, rainfall_mm FROM historical_rainfall WHERE year_val = $1 ORDER BY id ASC',
-            [parseInt(year)]
-        );
-        res.json({ year: year, data: result.rows });
-    } catch (err) {
-        console.error("Historical DB Error:", err);
+        const result = await pool.query(`
+            SELECT month_val, rainfall_mm 
+            FROM monthly_rainfall_history 
+            WHERE year_val = $1 
+            ORDER BY 
+                CASE 
+                    WHEN month_val = 'January' THEN 1
+                    WHEN month_val = 'February' THEN 2
+                    WHEN month_val = 'March' THEN 3
+                    WHEN month_val = 'April' THEN 4
+                    WHEN month_val = 'May' THEN 5
+                    WHEN month_val = 'June' THEN 6
+                    WHEN month_val = 'July' THEN 7
+                    WHEN month_val = 'August' THEN 8
+                    WHEN month_val = 'September' THEN 9
+                    WHEN month_val = 'October' THEN 10
+                    WHEN month_val = 'November' THEN 11
+                    WHEN month_val = 'December' THEN 12
+                    ELSE 13 
+                END
+        `, [year]);
+
+        res.json({ data: result.rows });
+    } catch (error) {
+        console.error("Database Error:", error);
         res.status(500).json({ error: "Database query failed" });
     }
 });
@@ -1324,7 +1342,7 @@ window.fetchHistoricalData = async function() {
     var year = document.getElementById('histYearSelect').value;
     var resultsTable = document.getElementById('historical-results-table');
     
-    resultsTable.innerHTML = '<div style="text-align:center; padding:40px; color: var(--text-muted, #64748b);">Syncing Archive...</div>';
+    resultsTable.innerHTML = '<div style="text-align:center; padding:40px; color: #64748b;">Syncing Archive...</div>';
 
     try {
         var response = await fetch('/api/historical-rain?year=' + year);
@@ -1354,19 +1372,15 @@ window.fetchHistoricalData = async function() {
             var rf = parseFloat(d.rainfall_mm) || 0;
             var mKey = d.month_val.substring(0, 3).toUpperCase();
             var mainTextColor = 'var(--text, #1e293b)'; 
-            
-            // Default Neutral Styles (Jan-May)
             var bgColor = 'var(--card, rgba(30, 41, 59, 0.04))';
             var borderColor = 'var(--border, rgba(255,255,255,0.1))';
             var monthTextColor = 'var(--text-muted, #64748b)';
 
             if (['JUN', 'JUL', 'AUG', 'SEP'].indexOf(mKey) !== -1) {
-                // SWM - Now Amber
                 bgColor = 'rgba(245, 158, 11, 0.08)';       
                 borderColor = 'rgba(245, 158, 11, 0.4)';
                 monthTextColor = '#d97706';
             } else if (['OCT', 'NOV', 'DEC'].indexOf(mKey) !== -1) {
-                // NEM - Now Emerald
                 bgColor = 'rgba(5, 150, 105, 0.08)';        
                 borderColor = 'rgba(5, 150, 105, 0.4)';
                 monthTextColor = '#059669';
@@ -1387,51 +1401,37 @@ window.fetchHistoricalData = async function() {
         html += '<div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 5px;">';
         var seasonalStyle = 'border-radius: 16px; padding: 20px 5px; text-align: center; border: 2.5px solid;';
         
-        // Pre-Monsoon Summary (Neutral)
         html += '<div style="' + seasonalStyle + ' background: var(--card); border-color: var(--border);">' +
                     '<div style="font-size: 0.8rem; font-weight: 900; color: var(--text-muted); letter-spacing: 1px; margin-bottom: 6px;">JAN-MAY</div>' +
-                    '<div style="font-size: 1.7rem; font-weight: 900; color: var(--text, #1e293b);">' + preMonsoonTotal.toFixed(1) + '</div>' +
+                    '<div style="font-size: 1.7rem; font-weight: 900; color: var(--text);">' + preMonsoonTotal.toFixed(1) + '</div>' +
                 '</div>';
 
-        // SWM Summary (Amber)
         html += '<div style="' + seasonalStyle + ' background: rgba(245, 158, 11, 0.12); border-color: rgba(245, 158, 11, 0.5);">' +
                     '<div style="font-size: 0.8rem; font-weight: 900; color: #d97706; letter-spacing: 1px; margin-bottom: 6px;">SWM</div>' +
-                    '<div style="font-size: 1.7rem; font-weight: 900; color: var(--text, #1e293b);">' + swmTotal.toFixed(1) + '</div>' +
+                    '<div style="font-size: 1.7rem; font-weight: 900; color: var(--text);">' + swmTotal.toFixed(1) + '</div>' +
                 '</div>';
 
-        // NEM Summary (Emerald)
         html += '<div style="' + seasonalStyle + ' background: rgba(5, 150, 105, 0.12); border-color: rgba(5, 150, 105, 0.5);">' +
                     '<div style="font-size: 0.8rem; font-weight: 900; color: #059669; letter-spacing: 1px; margin-bottom: 6px;">NEM</div>' +
-                    '<div style="font-size: 1.7rem; font-weight: 900; color: var(--text, #1e293b);">' + nemTotal.toFixed(1) + '</div>' +
+                    '<div style="font-size: 1.7rem; font-weight: 900; color: var(--text);">' + nemTotal.toFixed(1) + '</div>' +
                 '</div>';
-        // ... (previous SWM/NEM summary code) ...
         html += '</div>';
 
         if (annualRow) {
-            html += '<div style="margin-top: 15px; background: var(--card, #f8fafc); border: 2px solid #64748b; border-radius: 18px; padding: 24px; text-align: center; box-shadow: 0 4px 20px rgba(0,0,0,0.08);">' +
+            html += '<div style="margin-top: 15px; background: var(--card); border: 2px solid #64748b; border-radius: 18px; padding: 24px; text-align: center;">' +
                         '<div style="font-size: 0.8rem; color: #64748b; font-weight: 900; letter-spacing: 2px; margin-bottom: 6px;">' + year + ' ANNUAL TOTAL</div>' +
-                        '<div style="font-size: 3rem; font-weight: 950; color: var(--text, #1e293b); line-height: 1;">' + parseFloat(annualRow.rainfall_mm).toFixed(1) + '<span style="font-size: 1.2rem; opacity: 0.4; margin-left: 6px; font-weight: 700;">mm</span></div>' +
+                        '<div style="font-size: 3rem; font-weight: 950; color: var(--text); line-height: 1;">' + parseFloat(annualRow.rainfall_mm).toFixed(1) + '<span style="font-size: 1.2rem; opacity: 0.4; margin-left: 6px; font-weight: 700;">mm</span></div>' +
                     '</div>';
         }
 
-        // ... (Keep your SWM/NEM/Annual Total logic here) ...
-        html += '</div>'; // This closes the last container
-
-        // 1. ADD THE CLOSING HTML TAGS TO THE STRING
-        html += `
-                    </div> 
-                </body>
-            </html>`;
-
-        // 2. SEND THE ENTIRE STRING TO THE BROWSER
-        res.send(html);
+        // Apply the generated HTML to the container
+        resultsTable.innerHTML = html;
 
     } catch (error) {
-        console.error("Database Error:", error);
-        // On error, send a valid HTML response back
-        res.status(500).send('<div style="color:red; padding:20px;">Database Connection Failed.</div>');
+        console.error("Fetch Error:", error);
+        resultsTable.innerHTML = '<div style="color:red; padding:20px; text-align:center;">Failed to fetch records.</div>';
     }
-}); // This closes app.get("/")
+};
 
 // 3. SERVER LISTENER (Must be outside the app.get block)
 if (process.env.NODE_ENV !== 'production') {
