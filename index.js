@@ -1414,24 +1414,28 @@ window.fetchHistoricalData = async function() {
                     '</div>';
         }
 
-        // Add the closing tags for the HTML document inside the string
-        html += `
-                </div>
-            </body>
-        </html>`;
+        // ... (Keep your SWM/NEM/Annual Total logic here) ...
+        html += '</div>'; // This closes the last container
 
-        // FINALLY: Send the completed string to the browser
+        // 1. ADD THE CLOSING HTML TAGS TO THE STRING
+        html += `
+                    </div> 
+                </body>
+            </html>`;
+
+        // 2. SEND THE ENTIRE STRING TO THE BROWSER
         res.send(html);
 
     } catch (error) {
-        console.error(error);
-        res.status(500).send('<div style="text-align:center; padding:40px; color: #ef4444;">Server Error: Connection failed.</div>');
+        console.error("Database Error:", error);
+        // On error, send a valid HTML response back
+        res.status(500).send('<div style="color:red; padding:20px;">Database Connection Failed.</div>');
     }
-});
+}); // This closes app.get("/")
 
-// Server listener (Outside of the app.get block)
+// 3. SERVER LISTENER (Must be outside the app.get block)
 if (process.env.NODE_ENV !== 'production') {
-    app.listen(3000, () => console.log(`Running at http://localhost:3000`));
+    app.listen(3000, () => console.log(`Server running at http://localhost:3000`));
 }
 
 module.exports = app;
