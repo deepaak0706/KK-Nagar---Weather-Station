@@ -1404,9 +1404,9 @@ window.fetchHistoricalData = async function() {
                     '<div style="font-size: 0.8rem; font-weight: 900; color: #059669; letter-spacing: 1px; margin-bottom: 6px;">NEM</div>' +
                     '<div style="font-size: 1.7rem; font-weight: 900; color: var(--text, #1e293b);">' + nemTotal.toFixed(1) + '</div>' +
                 '</div>';
+        // ... (previous SWM/NEM summary code) ...
         html += '</div>';
 
-        // Annual Total Footer (Neutral Theme)
         if (annualRow) {
             html += '<div style="margin-top: 15px; background: var(--card, #f8fafc); border: 2px solid #64748b; border-radius: 18px; padding: 24px; text-align: center; box-shadow: 0 4px 20px rgba(0,0,0,0.08);">' +
                         '<div style="font-size: 0.8rem; color: #64748b; font-weight: 900; letter-spacing: 2px; margin-bottom: 6px;">' + year + ' ANNUAL TOTAL</div>' +
@@ -1414,19 +1414,22 @@ window.fetchHistoricalData = async function() {
                     '</div>';
         }
 
-        resultsTable.innerHTML = html;
+        // Add the closing tags for the HTML document inside the string
+        html += `
+                </div>
+            </body>
+        </html>`;
+
+        // FINALLY: Send the completed string to the browser
+        res.send(html);
 
     } catch (error) {
-        resultsTable.innerHTML = '<div style="text-align:center; padding:40px; color: #ef4444;">Connection failed.</div>';
+        console.error(error);
+        res.status(500).send('<div style="text-align:center; padding:40px; color: #ef4444;">Server Error: Connection failed.</div>');
     }
-};
+});
 
-
-
-</script>
-</body>
-</html>
-
+// Server listener (Outside of the app.get block)
 if (process.env.NODE_ENV !== 'production') {
     app.listen(3000, () => console.log(`Running at http://localhost:3000`));
 }
