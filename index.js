@@ -777,36 +777,50 @@ body.is-night .glass-select option {
     </style>
 </head>
 <body>
+<div class="header">
+    <h1>KK Nagar Weather Hub</h1>
+    <div class="header-actions">
+        <div class="status-bar">
+            <div class="live-dot"></div>
+            <div class="timestamp"><span id="ts">--:--:--</span></div>
+        </div>
+        <div class="theme-toggle" id="themeToggle">
+            <div class="theme-btn" id="btn-light">LIGHT</div>
+            <div class="theme-btn" id="btn-dark">DARK</div>
+            <div class="theme-btn active" id="btn-auto">AUTO</div>
+        </div>
+    </div>
+</div>
+
+    
     <div id="page-dashboard">
     <div class="bento-dashboard">
         
-        <!-- 1. HERO: Primary Temperature & Comfort -->
+        <!-- TEMPERATURE HERO -->
         <div class="bento-item bento-hero">
             <div>
                 <div class="bento-label">Live Temperature</div>
-                <div class="bento-value"><span id="t">0.0</span><span class="bento-unit">°C</span></div>
+                <div class="bento-value"><span id="t">--.-</span><span class="bento-unit">°C</span></div>
                 
-                <!-- Trend and Feels Like Grouped Together -->
                 <div style="display: flex; gap: 8px; flex-wrap: wrap;">
                     <div id="tTrendBox" class="bento-sub-pill">--</div>
                     <div class="bento-sub-pill" style="color: var(--accent);">
-                        Feels Like: <span id="rf" style="margin-left: 4px;">--</span>°C
+                        Feels Like: <span id="rf" style="margin-left: 4px;">--</span>
                     </div>
                 </div>
             </div>
             
-            <!-- Max, Min, Hum, Dew all moved here! -->
             <div class="bento-stats-grid">
-                <div class="bento-stat"><span>Today High</span><span id="mx" style="color:#ef4444">--</span></div>
-                <div class="bento-stat"><span>Today Low</span><span id="mn" style="color:#0ea5e9">--</span></div>
+                <div class="bento-stat"><span>Today High</span><span id="mx">--</span></div>
+                <div class="bento-stat"><span>Today Low</span><span id="mn">--</span></div>
                 <div class="bento-stat"><span>Humidity</span><span id="h_val">--</span></div>
                 <div class="bento-stat"><span>Dew Point</span><span id="d_val">--</span></div>
             </div>
         </div>
 
-        <!-- 2. HERO: Wind Dynamics -->
+        <!-- WIND HERO -->
         <div class="bento-item bento-hero">
-            <canvas id="windCanvas" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; opacity: 0.5; pointer-events: none; border-radius: 24px;"></canvas>
+            <canvas id="windCanvas"></canvas>
             <div style="position: relative; z-index: 1; display: flex; flex-direction: column; height: 100%;">
                 <div style="display: flex; justify-content: space-between;">
                     <div>
@@ -814,152 +828,56 @@ body.is-night .glass-select option {
                         <div class="bento-value"><span id="w">0.0</span><span class="bento-unit">km/h</span></div>
                         <div class="bento-sub-pill" style="font-size: 1rem; margin-top: 4px;"><span id="wd_bracket">(--)</span></div>
                     </div>
-                    <div class="compass-ui" style="transform: scale(0.9); transform-origin: top right;"><div id="needle"></div></div>
+                    <div class="compass-ui"><div id="needle"></div></div>
                 </div>
-                
-                <div class="bento-sub-pill" style="align-self: flex-start; margin-top: 8px;">● Live Gust: <span id="wg" style="margin-left:4px">--</span></div>
-                
-                <div class="bento-stats-grid" style="margin-top: auto;">
+                <div class="bento-sub-pill">● Live Gust: <span id="wg">--</span></div>
+                <div class="bento-stats-grid">
                     <div class="bento-stat"><span>Max Speed</span><span id="mw">--</span></div>
                     <div class="bento-stat"><span>Max Gust</span><span id="mg">--</span></div>
                 </div>
             </div>
         </div>
 
-        <!-- 3. HERO: Rain Realm (Now holds Live AND Archives) -->
+        <!-- RAIN HERO (Live + Archive Grouped) -->
         <div class="bento-item bento-hero">
-            <div style="display: flex; justify-content: space-between; align-items: flex-start;">
-                <div>
-                    <div class="bento-label">Rain Realm</div>
-                    <div class="bento-value" style="font-size: 3rem; color: #3b82f6;"><span id="r_tot">0.0</span><span class="bento-unit">mm</span></div>
-                    <div class="bento-sub-pill" style="color: #3b82f6; background: rgba(59, 130, 246, 0.1);">● Rate: <span id="r_rate" style="margin: 0 4px;">0.0</span> mm/h</div>
-                </div>
-                <div class="bento-stat" style="text-align: right; min-width: 100px;">
-                    <span>Max Rate Today</span>
-                    <span id="mr" style="color: #3b82f6;">--</span>
+            <div>
+                <div class="bento-label">Rain Realm</div>
+                <div class="bento-value" style="color: #3b82f6;"><span id="r_tot">0.0</span><span class="bento-unit">mm</span></div>
+                <div class="bento-sub-pill" style="color: #3b82f6; background: rgba(59, 130, 246, 0.1);">
+                    ● Rate: <span id="r_rate">0.0</span> mm/h
                 </div>
             </div>
             
-            <!-- Archives Grouped Here! -->
-            <div class="bento-label" style="margin-top: 16px; margin-bottom: 8px; font-size: 0.75rem;">Archives</div>
-            <div class="bento-stats-grid" style="grid-template-columns: repeat(3, 1fr); margin-top: 0;">
+            <div class="bento-stats-grid" style="grid-template-columns: 1fr 1fr; margin-bottom: 12px;">
+                <div class="bento-stat" style="grid-column: span 2;"><span>Max Rate Today</span><span id="mr">--</span></div>
+            </div>
+
+            <div class="bento-label" style="font-size: 0.7rem; margin-bottom: 8px;">Rainfall Archives</div>
+            <div class="bento-stats-grid" style="grid-template-columns: repeat(3, 1fr);">
                 <div class="bento-stat"><span>Weekly</span><span id="r_week">--</span></div>
                 <div class="bento-stat"><span>Monthly</span><span id="r_month">--</span></div>
                 <div class="bento-stat"><span>Yearly</span><span id="r_year">--</span></div>
             </div>
         </div>
 
-        <!-- 4. WIDE: Atmospheric Pressure -->
-        <div class="bento-item bento-wide" style="display: flex; flex-direction: row; align-items: center; justify-content: space-between;">
-            <div>
-                <div class="bento-label" style="margin-bottom: 4px;">Atmospheric Pressure <span id="pIcon"></span></div>
-                <div class="bento-value" style="font-size: 2.2rem; margin-bottom: 0;"><span id="pr">--</span><span class="bento-unit" style="font-size: 1rem;">hPa</span></div>
-            </div>
+        <!-- ATMOSPHERE & SOLAR (Secondary) -->
+        <div class="bento-item bento-wide">
+            <div class="bento-label">Pressure <span id="pIcon"></span></div>
+            <div class="bento-value" style="font-size: 2.2rem;"><span id="pr">--</span><span class="bento-unit">hPa</span></div>
         </div>
 
-        <!-- 5. SQUARE: Solar Radiation -->
         <div class="bento-item bento-square">
-            <div class="bento-label">Solar Rad</div>
-            <div class="bento-value" style="font-size: 2rem; margin-top: auto; color: #eab308;"><span id="sol">--</span></div>
-            <div class="bento-unit" style="font-size: 0.8rem; margin-left: 0;">W/m²</div>
+            <div class="bento-label">Solar</div>
+            <div class="bento-value" style="font-size: 1.8rem; color: #eab308;"><span id="sol">--</span></div>
         </div>
 
-        <!-- 6. SQUARE: UV Index -->
         <div class="bento-item bento-square">
             <div class="bento-label">UV Index</div>
-            <div class="bento-value" style="font-size: 2.8rem; margin-top: auto; color: #a855f7;"><span id="uv">--</span></div>
-        </div>
-
-    </div>
-</div>
-
-            <div class="sub-tabs-section" style="margin-top: 35px;">
-                <div style="display: flex; gap: 10px; margin-bottom: 20px; justify-content: center;">
-                    <button onclick="switchSubView('summary')" id="btn-sub-sum" class="tab-btn active">24H Summary</button>
-                    <button onclick="switchSubView('graphs')" id="btn-sub-graph" class="tab-btn">24H Graphs</button>
-                </div>
-
-                
-                <div id="sub-view-summary" style="display: block; animation: fadeIn 0.4s ease;">
-    <div class="pro-summary-table">
-        
-        <div class="pro-row">
-            <div class="pro-label">
-                <span style="color:#ef4444; margin-right:10px; font-size:18px;">●</span>Temperature
-            </div>
-            <div class="pro-data-group">
-                <div class="pro-data-item">
-                    <span class="pro-sub">Maximum</span>
-                    <span id="s-mx" class="pro-val" style="color: #ef4444;">--</span>
-                </div>
-                <div class="pro-divider"></div>
-                <div class="pro-data-item">
-                    <span class="pro-sub">Minimum</span>
-                    <span id="s-mn" class="pro-val" style="color: #0ea5e9;">--</span>
-                </div>
-            </div>
-        </div>
-
-        <div class="pro-row">
-            <div class="pro-label">
-                <span style="color:#f59e0b; margin-right:10px; font-size:18px;">●</span>Wind
-            </div>
-            <div class="pro-data-group">
-                <div class="pro-data-item">
-                    <span class="pro-sub">Sustained</span>
-                    <span id="s-mw" class="pro-val">--</span>
-                </div>
-                <div class="pro-divider"></div>
-                <div class="pro-data-item">
-                    <span class="pro-sub">Peak Gust</span>
-                    <span id="s-mg" class="pro-val">--</span>
-                </div>
-            </div>
-        </div>
-
-    <div class="pro-row">
-    <div class="pro-label">
-        <span style="color:#3b82f6; margin-right:10px; font-size:18px;">●</span>Rainfall
-    </div>
-    <div class="pro-data-group">
-        <div class="pro-data-item">
-            <span id="s-rt" class="pro-val" style="color: #3b82f6;">--</span>
-        </div>
-        <div class="pro-divider" style="visibility: hidden;"></div>
-        <div class="pro-data-item" style="visibility: hidden;">
-            <span class="pro-val">--</span>
+            <div class="bento-value" style="font-size: 2.5rem; color: #a855f7;"><span id="uv">--</span></div>
         </div>
     </div>
 </div>
 
-    </div>
-</div>
-
-
-</div>
-
-
-                <div id="sub-view-graphs" style="display: none; animation: fadeIn 0.4s ease;">
-                    
-                    <div id="graphs-loading" style="text-align: center; padding: 40px; color: var(--muted); font-weight: 700; font-size: 14px; display: none;">
-                        <span style="display: inline-block; animation: blink 1.5s infinite;">Loading 24H Graph Data from Database...</span>
-                    </div>
-                    
-                    <div id="graphs-error" style="text-align: center; padding: 40px; color: #ef4444; font-weight: 700; font-size: 14px; display: none;">
-                        Failed to load graph data.
-                    </div>
-                    
-                    <div class="graphs-wrapper" id="graphs-wrapper-inner" style="margin-top: 0; display: none;">
-                        <div class="graph-card"><div class="label" style="margin-bottom: 8px;">Temperature Trend</div><div style="flex-grow: 1; position: relative;"><canvas id="cT"></canvas></div></div>
-                        <div class="graph-card"><div class="label" style="margin-bottom: 8px;">Humidity Levels</div><div style="flex-grow: 1; position: relative;"><canvas id="cH"></canvas></div></div>
-                        <div class="graph-card"><div class="label" style="margin-bottom: 8px;">Wind Velocity</div><div style="flex-grow: 1; position: relative;"><canvas id="cW"></canvas></div></div>
-                        <div class="graph-card"><div class="label" style="margin-bottom: 8px;">Precipitation</div><div style="flex-grow: 1; position: relative;"><canvas id="cR"></canvas></div></div>
-                    </div>
-
-                </div>
-            </div>
-            
-        </div> 
         
         <div id="page-summary" style="display: none;">
             <div id="summary-content"></div>
@@ -1135,65 +1053,80 @@ body.is-night .glass-select option {
         }
 
         async function update() {
-            try {
-                const res = await fetch('/weather?v=' + Date.now()); 
-                const d = await res.json(); 
-                if (!d || d.error) return;
+    try {
+        const res = await fetch('/weather?v=' + Date.now()); 
+        const d = await res.json(); 
+        if (!d || d.error) return;
 
-                updateValueWithFade('t', d.temp.current, 1);
-                updateValueWithFade('w', d.wind.speed, 1);
-                updateValueWithFade('r_tot', d.rain.total, 1);
-                updateValueWithFade('r_rate', d.rain.rate, 1);
-                updateValueWithFade('wg', d.wind.gust, 1, ' km/h'); 
-
-                document.getElementById('tTrendBox').innerHTML = d.temp.rate > 0 ? '<span class="trend-up">▲</span> +' + d.temp.rate + '°C /hr' : d.temp.rate < 0 ? '<span class="trend-down">▼</span> ' + d.temp.rate + '°C /hr' : '● Steady';
-                document.getElementById('mx').innerHTML = d.temp.max + '°C <span class="time-mark">' + d.temp.maxTime + '</span>';
-                document.getElementById('mn').innerHTML = d.temp.min + '°C <span class="time-mark">' + d.temp.minTime + '</span>';
-                const feels = d.temp.realFeel;
-                const heatColor = feels >= 54 ? '#ef4444' : feels >= 41 ? '#f97316' : feels >= 32 ? '#eab308' : 'var(--text)';
-                document.getElementById('rf').style.color = heatColor;
-                document.getElementById('rf').innerText = feels + '°C';
-                document.getElementById('h_val').innerHTML = d.atmo.hum + '% ' + (d.atmo.hTrend > 0 ? '▲' : d.atmo.hTrend < 0 ? '▼' : '●');
-                document.getElementById('d_val').innerText = d.temp.dew + '°C';
-                
-                document.getElementById('wd_bracket').innerText = '(' + d.wind.card + ')';
-                document.getElementById('mw').innerHTML = d.wind.maxS + ' km/h <span class="time-mark">' + d.wind.maxSTime + '</span>';
-                document.getElementById('mg').innerHTML = d.wind.maxG + ' km/h <span class="time-mark">' + d.wind.maxGTime + '</span>';
-                document.getElementById('needle').style.transform = 'rotate(' + d.wind.deg + 'deg)';
-                liveWindSpeed = d.wind.speed; liveWindDeg = d.wind.deg;
-                
-                document.getElementById('r_week').innerText = d.rain.weekly + ' mm';
-                document.getElementById('r_month').innerText = d.rain.monthly + ' mm';
-                document.getElementById('r_year').innerText = d.rain.yearly + ' mm';
-                document.getElementById('mr').innerHTML = d.rain.maxR > 0 ? d.rain.maxR + ' mm/h <span class="time-mark">' + d.rain.maxRTime + '</span>' : '0 mm/h';
-
-                const pTrend = d.atmo.pTrend;
-                let pArrow = '●';
-                if (pTrend >= 0.1) pArrow = '<span class="trend-up" style="color:#ef4444">▲</span>';
-                if (pTrend <= -0.1) pArrow = '<span class="trend-down" style="color:#0ea5e9">▼</span>';
-                document.getElementById('pIcon').innerHTML = pArrow;
-                
-                document.getElementById('pr').innerText = d.atmo.press;
-                document.getElementById('sol').innerText = d.atmo.sol + ' W/m²'; 
-                document.getElementById('uv').innerText = d.atmo.uv;
-                document.getElementById('ts').innerText = new Date(d.lastSync).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-                
-                // POPULATE THE MODERNIZED 24H SUMMARY CARDS
-                if(document.getElementById('s-mx')) {
-                    document.getElementById('s-mx').innerText = d.temp.max + '°C';
-                    document.getElementById('s-mn').innerText = d.temp.min + '°C';
-                    document.getElementById('s-mw').innerText = d.wind.maxS + ' km/h';
-                    document.getElementById('s-mg').innerText = (d.wind.maxG || d.wind.maxS) + ' km/h';
-                    document.getElementById('s-rt').innerText = d.rain.total + ' mm';
-                }
-
-                // IF GRAPHS TAB IS OPEN, RE-FETCH GRAPH DATA TO UPDATE
-                if (graphDataLoaded && document.getElementById('sub-view-graphs').style.display === 'block') {
-                    fetchGraphDataFromDB();
-                }
-
-            } catch (e) { console.error(e); }
+        // Use your existing fade function for main values
+        if (typeof updateValueWithFade === "function") {
+            updateValueWithFade('t', d.temp.current, 1);
+            updateValueWithFade('w', d.wind.speed, 1);
+            updateValueWithFade('r_tot', d.rain.total, 1);
+            updateValueWithFade('r_rate', d.rain.rate, 1);
+            updateValueWithFade('wg', d.wind.gust, 1, ' km/h'); 
+        } else {
+            document.getElementById('t').innerText = d.temp.current;
+            document.getElementById('w').innerText = d.wind.speed;
         }
+
+        // Temperature Card Group
+        document.getElementById('tTrendBox').innerHTML = d.temp.rate > 0 ? '<span class="trend-up">▲</span> +' + d.temp.rate + '°C /hr' : d.temp.rate < 0 ? '<span class="trend-down">▼</span> ' + d.temp.rate + '°C /hr' : '● Steady';
+        document.getElementById('mx').innerHTML = d.temp.max + '°C <span class="time-mark">' + d.temp.maxTime + '</span>';
+        document.getElementById('mn').innerHTML = d.temp.min + '°C <span class="time-mark">' + d.temp.minTime + '</span>';
+        
+        const feels = d.temp.realFeel;
+        const rfEl = document.getElementById('rf');
+        rfEl.style.color = feels >= 54 ? '#ef4444' : feels >= 41 ? '#f97316' : feels >= 32 ? '#eab308' : 'var(--text)';
+        rfEl.innerText = feels + '°C';
+        
+        document.getElementById('h_val').innerHTML = d.atmo.hum + '% ' + (d.atmo.hTrend > 0 ? '▲' : d.atmo.hTrend < 0 ? '▼' : '●');
+        document.getElementById('d_val').innerText = d.temp.dew + '°C';
+
+        // Wind Card Group
+        document.getElementById('wd_bracket').innerText = '(' + d.wind.card + ')';
+        document.getElementById('mw').innerHTML = d.wind.maxS + ' km/h <span class="time-mark">' + d.wind.maxSTime + '</span>';
+        document.getElementById('mg').innerHTML = d.wind.maxG + ' km/h <span class="time-mark">' + d.wind.maxGTime + '</span>';
+        document.getElementById('needle').style.transform = 'rotate(' + d.wind.deg + 'deg)';
+        liveWindSpeed = d.wind.speed; 
+        liveWindDeg = d.wind.deg;
+
+        // Rain Card Group (Live + Archives)
+        document.getElementById('r_week').innerText = d.rain.weekly + ' mm';
+        document.getElementById('r_month').innerText = d.rain.monthly + ' mm';
+        document.getElementById('r_year').innerText = d.rain.yearly + ' mm';
+        document.getElementById('mr').innerHTML = d.rain.maxR > 0 ? d.rain.maxR + ' mm/h <span class="time-mark">' + d.rain.maxRTime + '</span>' : '0 mm/h';
+
+        // Atmosphere / Solar
+        const pTrend = d.atmo.pTrend;
+        let pArrow = '●';
+        if (pTrend >= 0.1) pArrow = '<span class="trend-up" style="color:#ef4444">▲</span>';
+        if (pTrend <= -0.1) pArrow = '<span class="trend-down" style="color:#0ea5e9">▼</span>';
+        document.getElementById('pIcon').innerHTML = pArrow;
+        
+        document.getElementById('pr').innerText = d.atmo.press;
+        document.getElementById('sol').innerText = d.atmo.sol; // Removed unit here since it's in HTML
+        document.getElementById('uv').innerText = d.atmo.uv;
+        
+        // Header Sync Time
+        document.getElementById('ts').innerText = new Date(d.lastSync).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+        // 24H Summary Pop-up (if exists)
+        if(document.getElementById('s-mx')) {
+            document.getElementById('s-mx').innerText = d.temp.max + '°C';
+            document.getElementById('s-mn').innerText = d.temp.min + '°C';
+            document.getElementById('s-mw').innerText = d.wind.maxS + ' km/h';
+            document.getElementById('s-mg').innerText = (d.wind.maxG || d.wind.maxS) + ' km/h';
+            document.getElementById('s-rt').innerText = d.rain.total + ' mm';
+        }
+
+        if (window.graphDataLoaded && document.getElementById('sub-view-graphs').style.display === 'block') {
+            fetchGraphDataFromDB();
+        }
+
+    } catch (e) { console.error("Update Error: ", e); }
+}
+
 
         function animateWind() {
             wCanvas.width = wCanvas.offsetWidth; wCanvas.height = wCanvas.offsetHeight;
