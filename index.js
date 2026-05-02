@@ -724,17 +724,10 @@ body.is-night .glass-select option {
     color: #f1f5f9;
 }
 
-
-
-    </style>
-</head>
-<body>
-    <style>
-    /* Modern Bento Grid Layout */
-    .bento-dashboard {
+.bento-dashboard {
         display: grid;
         grid-template-columns: repeat(4, 1fr);
-        grid-auto-rows: minmax(120px, auto);
+        grid-auto-rows: minmax(140px, auto); /* Slightly taller base for better spacing */
         gap: 16px;
         width: 100%;
         max-width: 1200px;
@@ -742,15 +735,16 @@ body.is-night .glass-select option {
     }
 
     .bento-item {
-        background: var(--card, #1e293b); /* Fallback color */
+        background: var(--card, #1e293b);
         border-radius: 24px;
-        padding: 20px;
+        padding: 22px;
         border: 1px solid var(--border, rgba(255,255,255,0.05));
         display: flex;
         flex-direction: column;
         justify-content: space-between;
         position: relative;
         overflow: hidden;
+        box-shadow: var(--glow);
     }
 
     /* Grid Sizing Rules */
@@ -760,8 +754,7 @@ body.is-night .glass-select option {
     
     @media (max-width: 900px) {
         .bento-dashboard { grid-template-columns: repeat(2, 1fr); }
-        .bento-hero { grid-column: span 2; }
-        .bento-wide { grid-column: span 2; }
+        .bento-hero, .bento-wide { grid-column: span 2; }
         .bento-square { grid-column: span 1; }
     }
 
@@ -770,47 +763,58 @@ body.is-night .glass-select option {
         .bento-hero, .bento-wide, .bento-square { grid-column: span 1; }
     }
 
-    /* Modern Typography & Badges */
-    .bento-label { font-size: 0.85rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--muted, #64748b); margin-bottom: 12px; }
-    .bento-value { font-size: 3rem; font-weight: 800; line-height: 1; margin-bottom: 8px; }
-    .bento-unit { font-size: 1.2rem; font-weight: 600; opacity: 0.6; }
-    .bento-sub-pill { display: inline-flex; background: rgba(0,0,0,0.2); padding: 4px 10px; border-radius: 20px; font-size: 0.8rem; font-weight: 600; margin-bottom: 12px; align-items: center; }
-    .bento-stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: auto; }
-    .bento-stat { background: rgba(255,255,255,0.03); padding: 10px; border-radius: 12px; display: flex; flex-direction: column; }
-    .bento-stat span:first-child { font-size: 0.7rem; opacity: 0.7; text-transform: uppercase; margin-bottom: 4px; }
-    .bento-stat span:last-child { font-size: 1rem; font-weight: 700; }
+    /* Typography & Badges */
+    .bento-label { font-size: 0.85rem; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; color: var(--muted, #64748b); margin-bottom: 12px; }
+    .bento-value { font-size: 3.2rem; font-weight: 900; line-height: 1; margin-bottom: 8px; letter-spacing: -1px; }
+    .bento-unit { font-size: 1.2rem; font-weight: 700; opacity: 0.5; margin-left: 4px; }
+    .bento-sub-pill { display: inline-flex; background: var(--badge); padding: 6px 12px; border-radius: 12px; font-size: 0.85rem; font-weight: 700; margin-bottom: 12px; align-items: center; border: 1px solid var(--border); }
+    .bento-stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: auto; }
+    .bento-stat { background: var(--badge); padding: 12px; border-radius: 16px; display: flex; flex-direction: column; border: 1px solid var(--border); }
+    .bento-stat span:first-child { font-size: 0.7rem; color: var(--muted); text-transform: uppercase; font-weight: 800; margin-bottom: 4px; letter-spacing: 0.5px; }
+    .bento-stat span:last-child { font-size: 1.1rem; font-weight: 800; }
 </style>
 
-<div id="page-dashboard">
+    </style>
+</head>
+<body>
+    <div id="page-dashboard">
     <div class="bento-dashboard">
         
-        <!-- 1. HERO: Primary Temperature -->
+        <!-- 1. HERO: Primary Temperature & Comfort -->
         <div class="bento-item bento-hero">
             <div>
                 <div class="bento-label">Live Temperature</div>
                 <div class="bento-value"><span id="t">0.0</span><span class="bento-unit">°C</span></div>
-                <div id="tTrendBox" class="bento-sub-pill">--</div>
+                
+                <!-- Trend and Feels Like Grouped Together -->
+                <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                    <div id="tTrendBox" class="bento-sub-pill">--</div>
+                    <div class="bento-sub-pill" style="color: var(--accent);">
+                        Feels Like: <span id="rf" style="margin-left: 4px;">--</span>°C
+                    </div>
+                </div>
             </div>
             
+            <!-- Max, Min, Hum, Dew all moved here! -->
             <div class="bento-stats-grid">
-                <div class="bento-stat"><span>Feels Like</span><span id="rf" style="font-size: 1.2rem;">--</span></div>
                 <div class="bento-stat"><span>Today High</span><span id="mx" style="color:#ef4444">--</span></div>
                 <div class="bento-stat"><span>Today Low</span><span id="mn" style="color:#0ea5e9">--</span></div>
+                <div class="bento-stat"><span>Humidity</span><span id="h_val">--</span></div>
                 <div class="bento-stat"><span>Dew Point</span><span id="d_val">--</span></div>
             </div>
         </div>
 
         <!-- 2. HERO: Wind Dynamics -->
         <div class="bento-item bento-hero">
-            <canvas id="windCanvas" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; opacity: 0.5; pointer-events: none;"></canvas>
+            <canvas id="windCanvas" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; opacity: 0.5; pointer-events: none; border-radius: 24px;"></canvas>
             <div style="position: relative; z-index: 1; display: flex; flex-direction: column; height: 100%;">
                 <div style="display: flex; justify-content: space-between;">
                     <div>
                         <div class="bento-label">Wind Dynamics</div>
                         <div class="bento-value"><span id="w">0.0</span><span class="bento-unit">km/h</span></div>
-                        <div class="bento-sub-pill" style="font-size: 1rem;"><span id="wd_bracket">(--)</span></div>
+                        <div class="bento-sub-pill" style="font-size: 1rem; margin-top: 4px;"><span id="wd_bracket">(--)</span></div>
                     </div>
-                    <div class="compass-ui" style="transform: scale(0.8); transform-origin: top right;"><div id="needle"></div></div>
+                    <div class="compass-ui" style="transform: scale(0.9); transform-origin: top right;"><div id="needle"></div></div>
                 </div>
                 
                 <div class="bento-sub-pill" style="align-self: flex-start; margin-top: 8px;">● Live Gust: <span id="wg" style="margin-left:4px">--</span></div>
@@ -822,60 +826,52 @@ body.is-night .glass-select option {
             </div>
         </div>
 
-        <!-- 3. WIDE: Rainfall Live -->
-        <div class="bento-item bento-wide">
+        <!-- 3. HERO: Rain Realm (Now holds Live AND Archives) -->
+        <div class="bento-item bento-hero">
             <div style="display: flex; justify-content: space-between; align-items: flex-start;">
                 <div>
                     <div class="bento-label">Rain Realm</div>
-                    <div class="bento-value" style="font-size: 2.2rem; color: #3b82f6;"><span id="r_tot">0.0</span><span class="bento-unit">mm</span></div>
-                    <div class="bento-sub-pill">● Rate: <span id="r_rate" style="margin: 0 4px;">0.0</span> mm/h</div>
+                    <div class="bento-value" style="font-size: 3rem; color: #3b82f6;"><span id="r_tot">0.0</span><span class="bento-unit">mm</span></div>
+                    <div class="bento-sub-pill" style="color: #3b82f6; background: rgba(59, 130, 246, 0.1);">● Rate: <span id="r_rate" style="margin: 0 4px;">0.0</span> mm/h</div>
                 </div>
-                <div class="bento-stat" style="text-align: right; min-width: 120px;">
+                <div class="bento-stat" style="text-align: right; min-width: 100px;">
                     <span>Max Rate Today</span>
                     <span id="mr" style="color: #3b82f6;">--</span>
                 </div>
             </div>
-        </div>
-
-        <!-- 4. SQUARE: Humidity -->
-        <div class="bento-item bento-square" style="align-items: center; justify-content: center; text-align: center;">
-            <div class="bento-label">Humidity</div>
-            <div class="bento-value" style="font-size: 2.2rem;"><span id="h_val">--</span></div>
-        </div>
-
-        <!-- 5. SQUARE: Atmosphere -->
-        <div class="bento-item bento-square" style="align-items: center; justify-content: center; text-align: center;">
-            <div class="bento-label">Pressure <span id="pIcon"></span></div>
-            <div class="bento-value" style="font-size: 1.8rem;"><span id="pr">--</span></div>
-            <div class="bento-unit" style="font-size: 0.9rem;">hPa</div>
-        </div>
-
-        <!-- 6. WIDE: Rain History -->
-        <div class="bento-item bento-wide">
-            <div class="bento-label">Rainfall Archive</div>
-            <div style="display: flex; justify-content: space-between; margin-top: auto;">
-                <div class="bento-stat" style="flex: 1; margin-right: 8px;"><span>Weekly</span><span id="r_week">--</span></div>
-                <div class="bento-stat" style="flex: 1; margin-right: 8px;"><span>Monthly</span><span id="r_month">--</span></div>
-                <div class="bento-stat" style="flex: 1;"><span>Yearly</span><span id="r_year">--</span></div>
+            
+            <!-- Archives Grouped Here! -->
+            <div class="bento-label" style="margin-top: 16px; margin-bottom: 8px; font-size: 0.75rem;">Archives</div>
+            <div class="bento-stats-grid" style="grid-template-columns: repeat(3, 1fr); margin-top: 0;">
+                <div class="bento-stat"><span>Weekly</span><span id="r_week">--</span></div>
+                <div class="bento-stat"><span>Monthly</span><span id="r_month">--</span></div>
+                <div class="bento-stat"><span>Yearly</span><span id="r_year">--</span></div>
             </div>
         </div>
 
-        <!-- 7. SQUARE: Solar -->
-        <div class="bento-item bento-square">
-            <div class="bento-label">Solar Rad</div>
-            <div class="bento-value" style="font-size: 1.8rem; margin-top: auto; color: #eab308;"><span id="sol">--</span></div>
-            <div class="bento-unit" style="font-size: 0.8rem;">W/m²</div>
+        <!-- 4. WIDE: Atmospheric Pressure -->
+        <div class="bento-item bento-wide" style="display: flex; flex-direction: row; align-items: center; justify-content: space-between;">
+            <div>
+                <div class="bento-label" style="margin-bottom: 4px;">Atmospheric Pressure <span id="pIcon"></span></div>
+                <div class="bento-value" style="font-size: 2.2rem; margin-bottom: 0;"><span id="pr">--</span><span class="bento-unit" style="font-size: 1rem;">hPa</span></div>
+            </div>
         </div>
 
-        <!-- 8. SQUARE: UV Index -->
+        <!-- 5. SQUARE: Solar Radiation -->
+        <div class="bento-item bento-square">
+            <div class="bento-label">Solar Rad</div>
+            <div class="bento-value" style="font-size: 2rem; margin-top: auto; color: #eab308;"><span id="sol">--</span></div>
+            <div class="bento-unit" style="font-size: 0.8rem; margin-left: 0;">W/m²</div>
+        </div>
+
+        <!-- 6. SQUARE: UV Index -->
         <div class="bento-item bento-square">
             <div class="bento-label">UV Index</div>
-            <div class="bento-value" style="font-size: 2.5rem; margin-top: auto; color: #a855f7;"><span id="uv">--</span></div>
+            <div class="bento-value" style="font-size: 2.8rem; margin-top: auto; color: #a855f7;"><span id="uv">--</span></div>
         </div>
 
     </div>
 </div>
-
 
             <div class="sub-tabs-section" style="margin-top: 35px;">
                 <div style="display: flex; gap: 10px; margin-bottom: 20px; justify-content: center;">
