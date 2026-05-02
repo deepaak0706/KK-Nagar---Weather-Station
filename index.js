@@ -729,74 +729,153 @@ body.is-night .glass-select option {
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <h1>KK Nagar Weather Hub</h1>
-            <div class="header-actions">
-                <div class="status-bar"><div class="live-dot"></div><div class="timestamp"><span id="ts">--:--:--</span></div></div>
-                <div class="theme-toggle" id="themeToggle">
-                    <div class="theme-btn" id="btn-light">LIGHT</div>
-                    <div class="theme-btn" id="btn-dark">DARK</div>
-                    <div class="theme-btn active" id="btn-auto">AUTO</div>
+    <style>
+    /* Modern Bento Grid Layout */
+    .bento-dashboard {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        grid-auto-rows: minmax(120px, auto);
+        gap: 16px;
+        width: 100%;
+        max-width: 1200px;
+        margin: 0 auto;
+    }
+
+    .bento-item {
+        background: var(--card, #1e293b); /* Fallback color */
+        border-radius: 24px;
+        padding: 20px;
+        border: 1px solid var(--border, rgba(255,255,255,0.05));
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        position: relative;
+        overflow: hidden;
+    }
+
+    /* Grid Sizing Rules */
+    .bento-hero { grid-column: span 2; grid-row: span 2; }
+    .bento-wide { grid-column: span 2; grid-row: span 1; }
+    .bento-square { grid-column: span 1; grid-row: span 1; }
+    
+    @media (max-width: 900px) {
+        .bento-dashboard { grid-template-columns: repeat(2, 1fr); }
+        .bento-hero { grid-column: span 2; }
+        .bento-wide { grid-column: span 2; }
+        .bento-square { grid-column: span 1; }
+    }
+
+    @media (max-width: 500px) {
+        .bento-dashboard { grid-template-columns: 1fr; }
+        .bento-hero, .bento-wide, .bento-square { grid-column: span 1; }
+    }
+
+    /* Modern Typography & Badges */
+    .bento-label { font-size: 0.85rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--muted, #64748b); margin-bottom: 12px; }
+    .bento-value { font-size: 3rem; font-weight: 800; line-height: 1; margin-bottom: 8px; }
+    .bento-unit { font-size: 1.2rem; font-weight: 600; opacity: 0.6; }
+    .bento-sub-pill { display: inline-flex; background: rgba(0,0,0,0.2); padding: 4px 10px; border-radius: 20px; font-size: 0.8rem; font-weight: 600; margin-bottom: 12px; align-items: center; }
+    .bento-stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: auto; }
+    .bento-stat { background: rgba(255,255,255,0.03); padding: 10px; border-radius: 12px; display: flex; flex-direction: column; }
+    .bento-stat span:first-child { font-size: 0.7rem; opacity: 0.7; text-transform: uppercase; margin-bottom: 4px; }
+    .bento-stat span:last-child { font-size: 1rem; font-weight: 700; }
+</style>
+
+<div id="page-dashboard">
+    <div class="bento-dashboard">
+        
+        <!-- 1. HERO: Primary Temperature -->
+        <div class="bento-item bento-hero">
+            <div>
+                <div class="bento-label">Live Temperature</div>
+                <div class="bento-value"><span id="t">0.0</span><span class="bento-unit">°C</span></div>
+                <div id="tTrendBox" class="bento-sub-pill">--</div>
+            </div>
+            
+            <div class="bento-stats-grid">
+                <div class="bento-stat"><span>Feels Like</span><span id="rf" style="font-size: 1.2rem;">--</span></div>
+                <div class="bento-stat"><span>Today High</span><span id="mx" style="color:#ef4444">--</span></div>
+                <div class="bento-stat"><span>Today Low</span><span id="mn" style="color:#0ea5e9">--</span></div>
+                <div class="bento-stat"><span>Dew Point</span><span id="d_val">--</span></div>
+            </div>
+        </div>
+
+        <!-- 2. HERO: Wind Dynamics -->
+        <div class="bento-item bento-hero">
+            <canvas id="windCanvas" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; opacity: 0.5; pointer-events: none;"></canvas>
+            <div style="position: relative; z-index: 1; display: flex; flex-direction: column; height: 100%;">
+                <div style="display: flex; justify-content: space-between;">
+                    <div>
+                        <div class="bento-label">Wind Dynamics</div>
+                        <div class="bento-value"><span id="w">0.0</span><span class="bento-unit">km/h</span></div>
+                        <div class="bento-sub-pill" style="font-size: 1rem;"><span id="wd_bracket">(--)</span></div>
+                    </div>
+                    <div class="compass-ui" style="transform: scale(0.8); transform-origin: top right;"><div id="needle"></div></div>
+                </div>
+                
+                <div class="bento-sub-pill" style="align-self: flex-start; margin-top: 8px;">● Live Gust: <span id="wg" style="margin-left:4px">--</span></div>
+                
+                <div class="bento-stats-grid" style="margin-top: auto;">
+                    <div class="bento-stat"><span>Max Speed</span><span id="mw">--</span></div>
+                    <div class="bento-stat"><span>Max Gust</span><span id="mg">--</span></div>
                 </div>
             </div>
         </div>
 
-       <div class="nav-tabs">
-        <button onclick="showPage('dashboard')" id="tab-dash" class="tab-btn active">Live Dashboard</button>
-        <button onclick="showPage('summary')" id="tab-sum" class="tab-btn">Monthly Summary</button>
-        <button onclick="showPage('historical')" id="tab-hist" class="tab-btn">Historical Data</button>
-       </div>
-
-        <div id="page-dashboard">
-            
-            <div class="grid-system">
-                <div class="card">
-                    <div class="label">Temperature</div>
-                    <div class="main-val"><span id="t">0.0</span><span class="unit">°C</span></div>
-                    <div id="tTrendBox" class="sub-pill">--</div>
-                    <div class="sub-box-4">
-                        <div class="badge"><span class="badge-label">Today High</span><span id="mx" class="badge-val" style="color:#ef4444">--</span></div>
-                        <div class="badge"><span class="badge-label">Today Low</span><span id="mn" class="badge-val" style="color:#0ea5e9">--</span></div>
-                        <div class="badge"><span class="badge-label">Humidity</span><span id="h_val" class="badge-val">--</span></div>
-                        <div class="badge"><span class="badge-label">Dew Point</span><span id="d_val" class="badge-val">--</span></div>
-                        <div class="badge" style="grid-column: span 2;"><span class="badge-label">Feels Like</span><span id="rf" class="badge-val">--</span></div>
-                    </div>
+        <!-- 3. WIDE: Rainfall Live -->
+        <div class="bento-item bento-wide">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                <div>
+                    <div class="bento-label">Rain Realm</div>
+                    <div class="bento-value" style="font-size: 2.2rem; color: #3b82f6;"><span id="r_tot">0.0</span><span class="bento-unit">mm</span></div>
+                    <div class="bento-sub-pill">● Rate: <span id="r_rate" style="margin: 0 4px;">0.0</span> mm/h</div>
                 </div>
-
-                <div class="card">
-                    <canvas id="windCanvas"></canvas>
-                    <div class="label">Wind Dynamics</div>
-                    <div class="compass-ui"><div id="needle"></div></div>
-                    <div class="main-val"><span id="w">0.0</span><span id="wd_bracket" style="font-size:18px; color:var(--muted); margin-left:8px; font-weight:700">(--)</span><span class="unit">km/h</span></div>
-                    <div class="sub-pill">● Live Gust: <span id="wg" style="margin-left:4px">--</span></div>
-                    <div class="sub-box-4">
-                        <div class="badge"><span class="badge-label">Max Speed</span><span id="mw" class="badge-val">--</span></div>
-                        <div class="badge"><span class="badge-label">Max Gust</span><span id="mg" class="badge-val">--</span></div>
-                    </div>
-                </div>
-
-                <div class="card">
-                    <div class="label">Rain Realm</div>
-                    <div class="main-val"><span id="r_tot">0.0</span><span class="unit">mm</span></div>
-                    <div class="sub-pill">● Rain Rate: <span id="r_rate">0.0</span> mm/h</div>
-                    <div class="sub-box-4">
-                        <div class="badge" style="grid-column: span 2;"><span class="badge-label">Max Rate Today</span><span id="mr" class="badge-val">--</span></div>
-                        <div class="badge"><span class="badge-label">Weekly</span><span id="r_week" class="badge-val">--</span></div>
-                        <div class="badge"><span class="badge-label">Monthly</span><span id="r_month" class="badge-val">--</span></div>
-                        <div class="badge" style="grid-column: span 2;"><span class="badge-label">Yearly</span><span id="r_year" class="badge-val">--</span></div>
-                    </div>
-                </div>
-
-                <div class="card">
-                    <div class="label">Atmospheric <span id="pIcon"></span></div>
-                    <div class="main-val"><span id="pr">--</span><span class="unit">hPa</span></div>
-                    <div class="sub-box-4">
-                        <div class="badge"><span class="badge-label">Solar Rad</span><span id="sol" class="badge-val">--</span></div>
-                        <div class="badge"><span class="badge-label">UV Index</span><span id="uv" class="badge-val">--</span></div>
-                    </div>
+                <div class="bento-stat" style="text-align: right; min-width: 120px;">
+                    <span>Max Rate Today</span>
+                    <span id="mr" style="color: #3b82f6;">--</span>
                 </div>
             </div>
+        </div>
+
+        <!-- 4. SQUARE: Humidity -->
+        <div class="bento-item bento-square" style="align-items: center; justify-content: center; text-align: center;">
+            <div class="bento-label">Humidity</div>
+            <div class="bento-value" style="font-size: 2.2rem;"><span id="h_val">--</span></div>
+        </div>
+
+        <!-- 5. SQUARE: Atmosphere -->
+        <div class="bento-item bento-square" style="align-items: center; justify-content: center; text-align: center;">
+            <div class="bento-label">Pressure <span id="pIcon"></span></div>
+            <div class="bento-value" style="font-size: 1.8rem;"><span id="pr">--</span></div>
+            <div class="bento-unit" style="font-size: 0.9rem;">hPa</div>
+        </div>
+
+        <!-- 6. WIDE: Rain History -->
+        <div class="bento-item bento-wide">
+            <div class="bento-label">Rainfall Archive</div>
+            <div style="display: flex; justify-content: space-between; margin-top: auto;">
+                <div class="bento-stat" style="flex: 1; margin-right: 8px;"><span>Weekly</span><span id="r_week">--</span></div>
+                <div class="bento-stat" style="flex: 1; margin-right: 8px;"><span>Monthly</span><span id="r_month">--</span></div>
+                <div class="bento-stat" style="flex: 1;"><span>Yearly</span><span id="r_year">--</span></div>
+            </div>
+        </div>
+
+        <!-- 7. SQUARE: Solar -->
+        <div class="bento-item bento-square">
+            <div class="bento-label">Solar Rad</div>
+            <div class="bento-value" style="font-size: 1.8rem; margin-top: auto; color: #eab308;"><span id="sol">--</span></div>
+            <div class="bento-unit" style="font-size: 0.8rem;">W/m²</div>
+        </div>
+
+        <!-- 8. SQUARE: UV Index -->
+        <div class="bento-item bento-square">
+            <div class="bento-label">UV Index</div>
+            <div class="bento-value" style="font-size: 2.5rem; margin-top: auto; color: #a855f7;"><span id="uv">--</span></div>
+        </div>
+
+    </div>
+</div>
+
 
             <div class="sub-tabs-section" style="margin-top: 35px;">
                 <div style="display: flex; gap: 10px; margin-bottom: 20px; justify-content: center;">
