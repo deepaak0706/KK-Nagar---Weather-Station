@@ -509,30 +509,30 @@ app.get("/", (req, res) => {
 
         body { 
             margin: 0; font-family: 'Outfit', sans-serif; background: var(--bg); color: var(--text); 
-            padding: 20px 16px 120px 16px; transition: background 0.5s ease, color 0.5s ease; 
+            padding: 16px 12px 100px 12px; transition: background 0.5s ease, color 0.5s ease; 
             min-height: 100vh; overflow-x: hidden; 
         }
 
         .container { width: 100%; max-width: 1200px; margin: 0 auto; }
-        .header { margin-bottom: 32px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; }
-        .header h1 { font-size: 28px; font-weight: 900; margin: 0; letter-spacing: -1px; }
+        .header { margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; }
+        .header h1 { font-size: 26px; font-weight: 900; margin: 0; letter-spacing: -1px; }
         .header-actions { display: flex; align-items: center; gap: 12px; }
         
-        .theme-toggle { background: var(--card); border: 1px solid var(--border); padding: 4px; border-radius: 12px; display: flex; gap: 4px; box-shadow: var(--glow); cursor: pointer; }
-        .theme-btn { padding: 6px 10px; border-radius: 8px; font-size: 11px; font-weight: 700; transition: 0.3s; color: var(--muted); }
+        .theme-toggle { background: var(--card); border: 1px solid var(--border); padding: 3px; border-radius: 10px; display: flex; gap: 3px; box-shadow: var(--glow); cursor: pointer; }
+        .theme-btn { padding: 5px 9px; border-radius: 7px; font-size: 10px; font-weight: 700; transition: 0.3s; color: var(--muted); }
         .theme-btn.active { background: var(--accent); color: white; }
 
-        .status-bar { display: flex; align-items: center; gap: 8px; background: var(--card); padding: 6px 16px; border-radius: 100px; border: 1px solid var(--border); box-shadow: var(--glow); font-size: 13px; }
-        .live-dot { width: 6px; height: 6px; background: #10b981; border-radius: 50%; animation: blink 2s infinite; }
+        .status-bar { display: flex; align-items: center; gap: 6px; background: var(--card); padding: 5px 12px; border-radius: 100px; border: 1px solid var(--border); box-shadow: var(--glow); font-size: 12px; }
+        .live-dot { width: 5px; height: 5px; background: #10b981; border-radius: 50%; animation: blink 2s infinite; }
         @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
         
-        .grid-system { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
-        .card { background: var(--card); padding: 28px; border-radius: 32px; border: 1px solid var(--border); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); box-shadow: var(--glow); position: relative; overflow: hidden; transition: background 0.5s ease; }
-        #windCanvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; border-radius: 32px; }
+        .grid-system { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; }
+        .card { background: var(--card); padding: 20px; border-radius: 24px; border: 1px solid var(--border); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); box-shadow: var(--glow); position: relative; overflow: hidden; transition: background 0.5s ease; }
+        #windCanvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; border-radius: 24px; }
         .card > *:not(canvas) { position: relative; z-index: 5; }
 
-        .label { color: var(--accent); font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 6px; }
-        .main-val { font-size: 56px; font-weight: 900; margin: 0; letter-spacing: -2px; display: flex; align-items: baseline; line-height: 1.1; }
+        .label { color: var(--accent); font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 1.8px; margin-bottom: 4px; }
+        .main-val { font-size: 42px; font-weight: 900; margin: 0; letter-spacing: -1.5px; display: flex; align-items: baseline; line-height: 1.1; }
         
         /* MODERN TRANSIENT EFFECTS */
         .main-val span:not(.unit), .badge-val { 
@@ -553,41 +553,41 @@ app.get("/", (req, res) => {
             will-change: transform, opacity, filter;
         }
 
-        .unit { font-size: 20px; font-weight: 600; color: var(--muted); margin-left: 4px; letter-spacing: 0; }
-        .sub-pill { font-size: 12px; font-weight: 800; padding: 6px 12px; border-radius: 10px; background: var(--badge); display: inline-flex; align-items: center; gap: 4px; margin: 12px 0 20px 0; }
+        .unit { font-size: 16px; font-weight: 600; color: var(--muted); margin-left: 4px; letter-spacing: 0; }
+        .sub-pill { font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 8px; background: var(--badge); display: inline-flex; align-items: center; gap: 4px; margin: 8px 0 14px 0; }
 
-        .sub-box-4 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding-top: 20px; border-top: 1px solid var(--border); }
-        .badge { padding: 12px; border-radius: 18px; background: var(--badge); display: flex; flex-direction: column; gap: 2px; }
-        .badge-label { font-size: 9px; color: var(--muted); text-transform: uppercase; font-weight: 800; }
-        .badge-val { font-size: 16px; font-weight: 800; }
+        .sub-box-4 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding-top: 14px; border-top: 1px solid var(--border); }
+        .badge { padding: 10px; border-radius: 14px; background: var(--badge); display: flex; flex-direction: column; gap: 2px; }
+        .badge-label { font-size: 8px; color: var(--muted); text-transform: uppercase; font-weight: 800; letter-spacing: 0.8px; }
+        .badge-val { font-size: 14px; font-weight: 800; }
 
-        .compass-ui { position: absolute !important; top: 28px !important; right: 28px !important; width: 50px; height: 50px; border: 2px solid var(--border); border-radius: 50%; display: flex; align-items: center; justify-content: center; z-index: 10; }
-        #needle { width: 3px; height: 32px; background: linear-gradient(to bottom, #ef4444 50%, var(--muted) 50%); clip-path: polygon(50% 0%, 100% 100%, 50% 85%, 0% 100%); transition: transform 2s cubic-bezier(0.1, 0.9, 0.2, 1); }
+        .compass-ui { position: absolute !important; top: 20px !important; right: 20px !important; width: 44px; height: 44px; border: 2px solid var(--border); border-radius: 50%; display: flex; align-items: center; justify-content: center; z-index: 10; }
+        #needle { width: 2.5px; height: 28px; background: linear-gradient(to bottom, #ef4444 50%, var(--muted) 50%); clip-path: polygon(50% 0%, 100% 100%, 50% 85%, 0% 100%); transition: transform 2s cubic-bezier(0.1, 0.9, 0.2, 1); }
 
-        .graphs-wrapper { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin-top: 20px; }
-        .graph-card { background: var(--card); padding: 24px; border-radius: 32px; border: 1px solid var(--border); height: 320px; box-shadow: var(--glow); display: flex; flex-direction: column; overflow: hidden; transition: background 0.5s ease; }
+        .graphs-wrapper { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; margin-top: 16px; }
+        .graph-card { background: var(--card); padding: 16px; border-radius: 24px; border: 1px solid var(--border); height: 280px; box-shadow: var(--glow); display: flex; flex-direction: column; overflow: hidden; transition: background 0.5s ease; }
         .graph-card canvas { flex-grow: 1; width: 100% !important; height: 100% !important; }
 
         .trend-up { color: #f43f5e; } .trend-down { color: #0ea5e9; }
-        .time-mark { font-size: 9px; color: var(--muted); font-weight: 600; margin-left: 2px; background: rgba(0,0,0,0.04); padding: 1px 4px; border-radius: 4px; }
+        .time-mark { font-size: 8px; color: var(--muted); font-weight: 600; margin-left: 2px; background: rgba(0,0,0,0.04); padding: 0.5px 3px; border-radius: 3px; }
         body.is-night .time-mark { background: rgba(255,255,255,0.1); }
 
         /* SUMMARY SYSTEM */
-        .nav-tabs { display: flex; gap: 8px; margin-bottom: 25px; }
+        .nav-tabs { display: flex; gap: 6px; margin-bottom: 22px; }
         .tab-btn { 
-            background: var(--card); border: 1px solid var(--border); padding: 12px 24px; 
-            border-radius: 16px; color: var(--text); font-weight: 700; cursor: pointer; transition: 0.3s; 
+            background: var(--card); border: 1px solid var(--border); padding: 10px 20px; 
+            border-radius: 14px; color: var(--text); font-weight: 700; cursor: pointer; transition: 0.3s; font-size: 13px;
         }
         .tab-btn.active { background: var(--accent); color: white; border-color: var(--accent); box-shadow: var(--glow); }
 
-        .month-section { margin-bottom: 35px; animation: fadeIn 0.5s ease; }
-        .month-header { font-size: 20px; font-weight: 800; margin: 25px 0 15px 0; color: var(--accent); display: flex; align-items: center; gap: 10px; }
+        .month-section { margin-bottom: 30px; animation: fadeIn 0.5s ease; }
+        .month-header { font-size: 18px; font-weight: 800; margin: 20px 0 12px 0; color: var(--accent); display: flex; align-items: center; gap: 10px; }
         .month-header::after { content: ""; height: 2px; flex-grow: 1; background: var(--border); }
 
-        .summary-table-wrapper { overflow-x: auto; background: var(--card); border-radius: 24px; border: 1px solid var(--border); box-shadow: var(--glow); }
+        .summary-table-wrapper { overflow-x: auto; background: var(--card); border-radius: 20px; border: 1px solid var(--border); box-shadow: var(--glow); }
         .summary-table { width: 100%; border-collapse: collapse; min-width: 600px; }
-        .summary-table th { padding: 16px; background: var(--badge); text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); }
-        .summary-table td { padding: 16px; border-top: 1px solid var(--border); font-size: 14px; }
+        .summary-table th { padding: 12px; background: var(--badge); text-align: left; font-size: 10px; text-transform: uppercase; letter-spacing: 0.8px; color: var(--muted); }
+        .summary-table td { padding: 12px; border-top: 1px solid var(--border); font-size: 13px; }
         .summary-table tr:hover { background: var(--badge); }
 
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
@@ -598,7 +598,7 @@ app.get("/", (req, res) => {
     backdrop-filter: blur(24px);
     -webkit-backdrop-filter: blur(24px);
     border: 1px solid var(--border);
-    border-radius: 24px;
+    border-radius: 20px;
     box-shadow: var(--glow);
     overflow: hidden;
     display: flex;
@@ -609,58 +609,58 @@ app.get("/", (req, res) => {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 24px 30px;
+    padding: 18px 22px;
     border-bottom: 1px solid var(--border);
     transition: background 0.3s ease;
-    gap: 20px; /* Ensures a minimum gap between label and data */
+    gap: 16px;
 }
 
 .pro-row:last-child { border-bottom: none; }
 
 .pro-label {
-    font-size: 15px;
+    font-size: 14px;
     font-weight: 800;
     color: var(--text);
-    letter-spacing: 0.5px;
+    letter-spacing: 0.3px;
     display: flex;
     align-items: center;
-    flex: 0 0 160px; /* Lock the label width so data doesn't overlap it */
+    flex: 0 0 140px;
 }
 
 .pro-data-group {
     display: flex;
     align-items: center;
-    gap: 40px; /* Increased spacing between the two values */
+    gap: 30px;
     flex: 1;
-    justify-content: flex-end; /* Keeps data anchored to the right */
+    justify-content: flex-end;
 }
 
 .pro-data-item {
     display: flex;
     flex-direction: column;
     align-items: flex-end;
-    min-width: 100px; /* Ensures consistent alignment across different rows */
+    min-width: 90px;
 }
 
 .pro-sub {
-    font-size: 10px;
+    font-size: 9px;
     text-transform: uppercase;
-    letter-spacing: 1.5px;
+    letter-spacing: 1.2px;
     color: var(--muted);
     font-weight: 800;
-    margin-bottom: 6px;
+    margin-bottom: 4px;
 }
 
 .pro-val {
-    font-size: 26px;
+    font-size: 22px;
     font-weight: 900;
     line-height: 1;
-    letter-spacing: -0.5px;
+    letter-spacing: -0.3px;
 }
 
 .pro-divider {
     width: 1px;
-    height: 32px;
+    height: 28px;
     background: var(--border);
     opacity: 0.5;
 }
@@ -668,18 +668,18 @@ app.get("/", (req, res) => {
 /* Responsive fix for smaller screens to prevent squeezing */
 @media (max-width: 650px) {
     .pro-row {
-        padding: 20px;
-        gap: 10px;
+        padding: 16px;
+        gap: 8px;
     }
     .pro-label {
-        flex: 0 0 120px;
-        font-size: 13px;
+        flex: 0 0 110px;
+        font-size: 12px;
     }
     .pro-data-group {
-        gap: 20px;
+        gap: 16px;
     }
     .pro-val {
-        font-size: 20px;
+        font-size: 18px;
     }
 }
 
@@ -798,8 +798,8 @@ body.is-night .glass-select option {
                 </div>
             </div>
 
-            <div class="sub-tabs-section" style="margin-top: 35px;">
-                <div style="display: flex; gap: 10px; margin-bottom: 20px; justify-content: center;">
+            <div class="sub-tabs-section" style="margin-top: 24px;">
+                <div style="display: flex; gap: 8px; margin-bottom: 16px; justify-content: center;">
                     <button onclick="switchSubView('summary')" id="btn-sub-sum" class="tab-btn active">24H Summary</button>
                     <button onclick="switchSubView('graphs')" id="btn-sub-graph" class="tab-btn">24H Graphs</button>
                 </div>
