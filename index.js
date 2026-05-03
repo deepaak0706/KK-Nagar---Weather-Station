@@ -724,48 +724,78 @@ body.is-night .glass-select option {
     color: #f1f5f9;
 }
 
-/* ULTRA AGGRESSIVE COMPACT UI FOR LIVE CARDS */
-.u-grid { 
-    display: grid; 
-    grid-template-columns: repeat(4, 1fr); 
-    gap: 12px; 
-    margin-bottom: 24px; 
+/* ULTRA-COMPACT MODERN LIVE GRID */
+.live-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin-bottom: 30px;
 }
-@media (max-width: 1024px) { .u-grid { grid-template-columns: repeat(2, 1fr); } }
-@media (max-width: 500px) { .u-grid { grid-template-columns: 1fr; gap: 10px; } }
 
-.u-card { 
-    background: var(--card); 
-    border-radius: 12px; 
-    padding: 16px; 
-    border: 1px solid var(--border); 
-    box-shadow: var(--glow); 
-    display: flex; 
-    flex-direction: column; 
-    justify-content: space-between; 
-    position: relative; 
-    overflow: hidden; 
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
+.compact-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 16px;
+    box-shadow: var(--glow);
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    min-height: 180px;
 }
-.u-label { font-size: 0.7rem; text-transform: uppercase; font-weight: 900; letter-spacing: 1.5px; color: var(--accent); margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
-.u-val-container { display: flex; align-items: baseline; gap: 4px; margin-bottom: 12px; }
-.u-val { font-size: 2.4rem; font-weight: 900; color: var(--text); line-height: 1; letter-spacing: -1px; font-variant-numeric: tabular-nums; }
-.u-unit { font-size: 0.85rem; font-weight: 800; color: var(--muted); }
 
-.u-sub-row { font-size: 0.65rem; color: var(--muted); font-weight: 800; letter-spacing: 0.5px; display: flex; justify-content: space-between; border-top: 1px solid var(--border); padding-top: 10px; margin-top: auto; }
-.u-sub-item { display: flex; gap: 4px; align-items: center; }
-.u-sub-val { color: var(--text); font-weight: 900; }
+.compact-card .c-label {
+    font-size: 10px;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    color: var(--accent);
+    margin-bottom: 4px;
+}
 
-/* Aggressive Color Accents */
-.u-temp { border-left: 4px solid #ef4444; }
-.u-wind { border-left: 4px solid #8b5cf6; }
-.u-rain { border-left: 4px solid #3b82f6; }
-.u-atmos { border-left: 4px solid #10b981; }
+.compact-card .c-main {
+    font-size: 32px;
+    font-weight: 900;
+    letter-spacing: -1.5px;
+    line-height: 1;
+    display: flex;
+    align-items: baseline;
+    margin-bottom: 8px;
+}
 
-/* Critical: Safely hides extra DOM nodes so JS doesn't crash */
-.u-hidden-ids { display: none !important; }
+.compact-card .c-unit { font-size: 14px; color: var(--muted); margin-left: 4px; font-weight: 600; }
 
+.compact-pill {
+    font-size: 10px;
+    font-weight: 800;
+    padding: 4px 8px;
+    background: var(--badge);
+    border-radius: 8px;
+    display: inline-block;
+    margin-bottom: 12px;
+    width: fit-content;
+}
+
+.c-sub-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+    border-top: 1px solid var(--border);
+    padding-top: 10px;
+}
+
+.c-stat { display: flex; flex-direction: column; }
+.c-stat-label { font-size: 8px; text-transform: uppercase; color: var(--muted); font-weight: 800; }
+.c-stat-val { font-size: 12px; font-weight: 800; color: var(--text); }
+
+/* Wind Canvas Overlay */
+#windCanvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0.3; pointer-events: none; }
+.c-compass { position: absolute; top: 12px; right: 12px; transform: scale(0.6); }
+
+@media (max-width: 1100px) { .live-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 600px) { .live-grid { grid-template-columns: 1fr; } }
 
     </style>
 </head>
@@ -791,47 +821,56 @@ body.is-night .glass-select option {
 
         <div id="page-dashboard">
             
-            <div class="u-grid">
-    <div class="u-card u-temp">
-        <div class="u-label">🌡️ Temperature</div>
-        <div class="u-val-container"><span class="u-val fade-update" id="t">0.0</span><span class="u-unit">°C</span></div>
-        <div class="u-sub-row">
-            <span class="u-sub-item">H: <span id="mx" class="u-sub-val" style="color:#ef4444">--</span></span>
-            <span class="u-sub-item">L: <span id="mn" class="u-sub-val" style="color:#0ea5e9">--</span></span>
-            <span class="u-sub-item">RH: <span id="h_val" class="u-sub-val">--</span></span>
+            <div class="live-grid">
+    <div class="compact-card" style="border-top: 4px solid #ef4444;">
+        <div>
+            <div class="c-label">Temperature</div>
+            <div class="c-main"><span id="t">0.0</span><span class="unit">°C</span></div>
+            <div id="tTrendBox" class="compact-pill">--</div>
         </div>
-        <div class="u-hidden-ids"><span id="tTrendBox"></span><span id="d_val"></span><span id="rf"></span></div>
-    </div>
-
-    <div class="u-card u-wind">
-        <div class="u-label">💨 Wind Dynamics</div>
-        <div class="u-val-container"><span class="u-val fade-update" id="w">0.0</span><span class="u-unit">km/h</span></div>
-        <div class="u-sub-row">
-            <span class="u-sub-item">GUST: <span id="wg" class="u-sub-val">--</span></span>
-            <span class="u-sub-item">DIR: <span id="wd_bracket" class="u-sub-val">(--)</span></span>
-        </div>
-        <div class="u-hidden-ids">
-            <canvas id="windCanvas"></canvas><div id="needle"></div>
-            <span id="mw"></span><span id="mg"></span>
+        <div class="c-sub-grid">
+            <div class="c-stat"><span class="c-stat-label">High/Low</span><span class="c-stat-val"><span id="mx" style="color:#ef4444">--</span> / <span id="mn" style="color:#0ea5e9">--</span></span></div>
+            <div class="c-stat"><span class="c-stat-label">Humidity</span><span id="h_val" class="c-stat-val">--</span></div>
+            <div class="c-stat"><span class="c-stat-label">Dew Point</span><span id="d_val" class="c-stat-val">--</span></div>
+            <div class="c-stat"><span class="c-stat-label">Feels Like</span><span id="rf" class="c-stat-val">--</span></div>
         </div>
     </div>
 
-    <div class="u-card u-rain">
-        <div class="u-label">🌧️ Rain Realm</div>
-        <div class="u-val-container"><span class="u-val fade-update" id="r_tot">0.0</span><span class="u-unit">mm</span></div>
-        <div class="u-sub-row">
-            <span class="u-sub-item">RATE: <span id="r_rate" class="u-sub-val">0.0</span> mm/h</span>
-            <span class="u-sub-item">MAX: <span id="mr" class="u-sub-val">--</span></span>
+    <div class="compact-card" style="border-top: 4px solid #8b5cf6;">
+        <canvas id="windCanvas"></canvas>
+        <div class="c-compass"><div class="compass-ui" style="position:relative; top:0; right:0;"><div id="needle"></div></div></div>
+        <div>
+            <div class="c-label">Wind Dynamics</div>
+            <div class="c-main"><span id="w">0.0</span><span id="wd_bracket" style="font-size:12px; margin-left:5px;">(--)</span><span class="unit">km/h</span></div>
+            <div class="compact-pill">Gust: <span id="wg">--</span></div>
         </div>
-        <div class="u-hidden-ids"><span id="r_week"></span><span id="r_month"></span><span id="r_year"></span></div>
+        <div class="c-sub-grid">
+            <div class="c-stat"><span class="c-stat-label">Max Speed</span><span id="mw" class="c-stat-val">--</span></div>
+            <div class="c-stat"><span class="c-stat-label">Max Gust</span><span id="mg" class="c-stat-val">--</span></div>
+        </div>
     </div>
 
-    <div class="u-card u-atmos">
-        <div class="u-label">☁️ Atmospheric <span id="pIcon"></span></div>
-        <div class="u-val-container"><span class="u-val fade-update" id="pr">--</span><span class="u-unit">hPa</span></div>
-        <div class="u-sub-row">
-            <span class="u-sub-item">UV: <span id="uv" class="u-sub-val">--</span></span>
-            <span class="u-sub-item">SOL: <span id="sol" class="u-sub-val">--</span> W/m²</span>
+    <div class="compact-card" style="border-top: 4px solid #3b82f6;">
+        <div>
+            <div class="c-label">Rain Realm</div>
+            <div class="c-main"><span id="r_tot">0.0</span><span class="unit">mm</span></div>
+            <div class="compact-pill">Rate: <span id="r_rate">0.0</span> <span id="mr" style="font-size:8px; opacity:0.7"></span></div>
+        </div>
+        <div class="c-sub-grid">
+            <div class="c-stat"><span class="c-stat-label">Week/Mon</span><span class="c-stat-val"><span id="r_week">--</span> / <span id="r_month">--</span></span></div>
+            <div class="c-stat"><span class="c-stat-label">Year Total</span><span id="r_year" class="c-stat-val">--</span></div>
+        </div>
+    </div>
+
+    <div class="compact-card" style="border-top: 4px solid #10b981;">
+        <div>
+            <div class="c-label">Atmospheric <span id="pIcon"></span></div>
+            <div class="c-main"><span id="pr">--</span><span class="unit">hPa</span></div>
+            <div class="compact-pill">Live UV/Solar</div>
+        </div>
+        <div class="c-sub-grid">
+            <div class="c-stat"><span class="c-stat-label">Solar Rad</span><span id="sol" class="c-stat-val">--</span></div>
+            <div class="c-stat"><span class="c-stat-label">UV Index</span><span id="uv" class="c-stat-val">--</span></div>
         </div>
     </div>
 </div>
