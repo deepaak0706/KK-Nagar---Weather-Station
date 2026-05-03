@@ -527,21 +527,21 @@ app.get("/", (req, res) => {
         @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
         
         /* MODERN DASHBOARD GRID */
-        .grid-system { display: grid; grid-template-columns: repeat(12, 1fr); gap: 16px; }
+        .grid-system { display: grid; grid-template-columns: repeat(12, 1fr); gap: 18px; }
         
-        .card { background: var(--card); padding: 24px; border-radius: 28px; border: 1px solid var(--border); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); box-shadow: var(--glow); position: relative; overflow: hidden; transition: all 0.5s ease; }
+        .card { background: var(--card); padding: 28px; border-radius: 28px; border: 1px solid var(--border); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); box-shadow: var(--glow); position: relative; overflow: hidden; transition: all 0.5s ease; }
         .card:hover { transform: translateY(-2px); box-shadow: 0 20px 60px rgba(0,0,0,0.15); }
         
         /* CARD SIZING */
         .card-hero { grid-column: span 12; }
-        .card-weather { grid-column: span 6; }
+        .card-weather { grid-column: span 4; }
         .card-compact { grid-column: span 3; }
         
         #windCanvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; border-radius: 28px; }
         .card > *:not(canvas) { position: relative; z-index: 5; }
 
-        .label { color: var(--accent); font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 8px; opacity: 0.9; }
-        .main-val { font-size: 48px; font-weight: 950; margin: 0; letter-spacing: -2px; display: flex; align-items: baseline; line-height: 1; }
+        .label { color: var(--accent); font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 12px; opacity: 0.9; }
+        .main-val { font-size: 56px; font-weight: 950; margin: 0; letter-spacing: -2px; display: flex; align-items: baseline; line-height: 1; }
         
         /* MODERN TRANSIENT EFFECTS */
         .main-val span:not(.unit), .badge-val { 
@@ -563,12 +563,12 @@ app.get("/", (req, res) => {
         }
 
         .unit { font-size: 18px; font-weight: 600; color: var(--muted); margin-left: 6px; letter-spacing: 0; }
-        .sub-pill { font-size: 12px; font-weight: 700; padding: 6px 14px; border-radius: 10px; background: var(--badge); display: inline-flex; align-items: center; gap: 6px; margin: 12px 0 20px 0; }
+        .sub-pill { font-size: 13px; font-weight: 600; padding: 0; border-radius: 0; background: transparent; display: inline-flex; align-items: center; gap: 6px; margin: 12px 0 0 0; color: var(--muted); }
 
         .sub-box-4 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding-top: 16px; border-top: 1px solid var(--border); }
-        .badge { padding: 14px; border-radius: 16px; background: var(--badge); display: flex; flex-direction: column; gap: 4px; }
+        .badge { padding: 16px; border-radius: 16px; background: var(--badge); display: flex; flex-direction: column; gap: 4px; }
         .badge-label { font-size: 9px; color: var(--muted); text-transform: uppercase; font-weight: 800; letter-spacing: 1px; }
-        .badge-val { font-size: 18px; font-weight: 900; letter-spacing: -0.5px; }
+        .badge-val { font-size: 20px; font-weight: 900; letter-spacing: -0.5px; }
         
         /* TIMESTAMP STYLING */
         .time-left { position: absolute; left: 16px; top: 50%; transform: translateY(-50%); font-size: 9px; color: var(--muted); font-weight: 700; opacity: 0.7; text-align: right; }
@@ -584,7 +584,7 @@ app.get("/", (req, res) => {
         
         /* REAL FEEL SECTION */
         .realfeel-container { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; }
-        .realfeel-item { padding: 12px; background: var(--badge); border-radius: 12px; display: flex; flex-direction: column; gap: 4px; }
+        .realfeel-item { padding: 16px; background: var(--badge); border-radius: 16px; display: flex; flex-direction: column; gap: 4px; }
         .realfeel-label { font-size: 9px; color: var(--muted); text-transform: uppercase; font-weight: 700; letter-spacing: 1px; }
         .realfeel-value { font-size: 24px; font-weight: 900; letter-spacing: -0.8px; }
 
@@ -609,8 +609,8 @@ app.get("/", (req, res) => {
             .card-hero { grid-column: span 12; }
             .card-weather { grid-column: span 12; }
             .card-compact { grid-column: span 6; }
-            .main-val { font-size: 40px; }
-            .badge-val { font-size: 16px; }
+            .main-val { font-size: 48px; }
+            .badge-val { font-size: 18px; }
         }
 
         /* SUMMARY SYSTEM */
@@ -793,33 +793,39 @@ body.is-night .glass-select option {
             
             <div class="grid-system">
                 
-                <!-- HERO CARD: MAIN TEMPERATURE -->
+        <!-- HERO CARD: MAIN TEMPERATURE -->
                 <div class="card card-hero">
-                    <div class="label">Current Conditions</div>
-                    <div style="display: grid; grid-template-columns: 1.5fr 1fr; gap: 24px; align-items: center;">
+                    <div class="label" style="margin-bottom: 12px;">Current Conditions</div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 32px; align-items: start;">
+                        <!-- LEFT: TEMP + TREND -->
                         <div>
-                            <div class="main-val"><span id="t">0.0</span><span class="unit">°C</span></div>
-                            <div id="tTrendBox" class="sub-pill" style="margin-top: 16px;">--</div>
+                            <div class="main-val" style="font-size: 64px; line-height: 1;"><span id="t">0.0</span><span class="unit" style="font-size: 28px;">°C</span></div>
+                            <div id="tTrendBox" class="sub-pill" style="margin-top: 16px; background: transparent; border: none; padding: 0; font-size: 13px;">--</div>
                         </div>
-                        <div>
-                            <div class="section-title">Comfort</div>
-                            <div class="realfeel-container">
-                                <div class="realfeel-item">
-                                    <span class="realfeel-label">Feels Like</span>
-                                    <span id="rf" class="realfeel-value" style="color: var(--text);">--</span>
-                                </div>
-                                <div class="realfeel-item">
-                                    <span class="realfeel-label">Humidity</span>
-                                    <span id="h_val" class="realfeel-value">--</span>
-                                </div>
+                        <!-- RIGHT: FEELS LIKE + HUMIDITY IN 2x2 GRID -->
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                            <div class="badge" style="padding: 16px; border-radius: 16px;">
+                                <span class="badge-label" style="font-size: 8px;">Feels Like</span>
+                                <span id="rf" class="badge-val" style="font-size: 28px; margin-top: 4px; color: var(--text);">--</span>
+                            </div>
+                            <div class="badge" style="padding: 16px; border-radius: 16px;">
+                                <span class="badge-label" style="font-size: 8px;">Humidity</span>
+                                <span id="h_val" class="badge-val" style="font-size: 28px; margin-top: 4px;">--</span>
+                            </div>
+                            <div class="badge" style="padding: 16px; border-radius: 16px;">
+                                <span class="badge-label" style="font-size: 8px;">Dew Point</span>
+                                <span id="d_val" class="badge-val" style="font-size: 24px; margin-top: 4px;">--</span>
+                            </div>
+                            <div class="badge" style="padding: 16px; border-radius: 16px;">
+                                <span class="badge-label" style="font-size: 8px;">Pressure</span>
+                                <span id="pr" class="badge-val" style="font-size: 20px; margin-top: 4px;">--</span><span id="pIcon" style="margin-left: 6px; font-size: 16px;">●</span>
                             </div>
                         </div>
                     </div>
-                    <div class="sub-box-4" style="margin-top: 16px;">
+                    <!-- TODAY HIGHS/LOWS -->
+                    <div class="sub-box-4" style="margin-top: 24px;">
                         <div class="badge"><span class="badge-label">Today High</span><span id="mx" class="badge-val" style="color:#ef4444">--</span><span class="time-mark" id="mx-time"></span></div>
                         <div class="badge"><span class="badge-label">Today Low</span><span id="mn" class="badge-val" style="color:#0ea5e9">--</span><span class="time-mark" id="mn-time"></span></div>
-                        <div class="badge"><span class="badge-label">Dew Point</span><span id="d_val" class="badge-val">--</span></div>
-                        <div class="badge"><span class="badge-label">Pressure</span><span id="pr" class="badge-val">--</span><span id="pIcon" style="margin-left: 4px; font-size: 14px;">●</span></div>
                     </div>
                 </div>
 
@@ -828,11 +834,28 @@ body.is-night .glass-select option {
                     <canvas id="windCanvas"></canvas>
                     <div class="label">Wind Dynamics</div>
                     <div class="compass-ui"><div id="needle"></div></div>
-                    <div class="main-val"><span id="w">0.0</span><span id="wd_bracket" style="font-size:20px; color:var(--muted); margin-left:8px; font-weight:700">(--)</span><span class="unit">km/h</span></div>
-                    <div class="sub-pill" style="margin-top: 14px;">● Gust: <span id="wg" style="margin-left:6px; font-weight: 800;">--</span></div>
-                    <div class="sub-box-4">
+                    <div class="main-val" style="font-size: 52px;"><span id="w">0.0</span><span id="wd_bracket" style="font-size:24px; color:var(--muted); margin-left:10px; font-weight:700">(--)</span><span class="unit">km/h</span></div>
+                    <div class="sub-pill" style="margin-top: 14px; background: transparent; border: none; padding: 0;">● Gust: <span id="wg" style="margin-left:6px; font-weight: 800;">--</span></div>
+                    <div class="sub-box-4" style="margin-top: 14px;">
                         <div class="badge"><span class="badge-label">Max Speed</span><span id="mw" class="badge-val">--</span><span class="time-mark" id="mw-time"></span></div>
                         <div class="badge"><span class="badge-label">Max Gust</span><span id="mg" class="badge-val">--</span><span class="time-mark" id="mg-time"></span></div>
+                    </div>
+                </div>
+
+                <!-- PRECIPITATION CARD -->
+                <div class="card card-weather">
+                    <div class="label">Precipitation</div>
+                    <div style="display: flex; align-items: baseline; gap: 8px;">
+                        <div class="main-val" style="font-size: 52px;"><span id="r_tot">0.0</span><span class="unit">mm</span></div>
+                    </div>
+                    <div class="sub-pill" style="margin-top: 14px; background: transparent; border: none; padding: 0;">● Rate: <span id="r_rate">0.0</span> mm/h</div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding-top: 16px; border-top: 1px solid var(--border);">
+                        <div class="badge"><span class="badge-label">Weekly</span><span id="r_week" class="badge-val">--</span></div>
+                        <div class="badge"><span class="badge-label">Monthly</span><span id="r_month" class="badge-val">--</span></div>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px;">
+                        <div class="badge"><span class="badge-label">Yearly</span><span id="r_year" class="badge-val">--</span></div>
+                        <div class="badge"><span class="badge-label">Max Rate</span><span id="mr" class="badge-val">--</span><span class="time-mark" id="mr-time"></span></div>
                     </div>
                 </div>
 
@@ -840,25 +863,12 @@ body.is-night .glass-select option {
                 <div class="card card-weather">
                     <div class="label">Atmospheric</div>
                     <div style="display: flex; align-items: baseline; gap: 8px;">
-                        <div class="main-val" style="font-size: 44px;"><span id="pr2">--</span><span class="unit">hPa</span></div>
+                        <div class="main-val" style="font-size: 52px;"><span id="pr2">--</span><span class="unit">hPa</span></div>
                     </div>
                     <div class="sub-box-4" style="margin-top: 16px;">
                         <div class="badge"><span class="badge-label">Solar Radiation</span><span id="sol" class="badge-val">--</span></div>
                         <div class="badge"><span class="badge-label">UV Index</span><span id="uv" class="badge-val">--</span></div>
                     </div>
-                </div>
-
-                <!-- RAIN REALM CARD - EXPANDED -->
-                <div class="card card-weather">
-                    <div class="label">Precipitation</div>
-                    <div class="main-val"><span id="r_tot">0.0</span><span class="unit">mm</span></div>
-                    <div class="sub-pill" style="margin-top: 14px;">● Rate: <span id="r_rate">0.0</span> mm/h</div>
-                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; padding-top: 16px; border-top: 1px solid var(--border);">
-                        <div class="badge"><span class="badge-label">Weekly</span><span id="r_week" class="badge-val">--</span></div>
-                        <div class="badge"><span class="badge-label">Monthly</span><span id="r_month" class="badge-val">--</span></div>
-                        <div class="badge"><span class="badge-label">Yearly</span><span id="r_year" class="badge-val">--</span></div>
-                    </div>
-                    <div class="badge" style="grid-column: span 2; margin-top: 10px;"><span class="badge-label">Max Rate Today</span><span id="mr" class="badge-val">--</span><span class="time-mark" id="mr-time"></span></div>
                 </div>
 
             </div>
