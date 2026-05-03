@@ -509,39 +509,30 @@ app.get("/", (req, res) => {
 
         body { 
             margin: 0; font-family: 'Outfit', sans-serif; background: var(--bg); color: var(--text); 
-            padding: 16px 12px 100px 12px; transition: background 0.5s ease, color 0.5s ease; 
+            padding: 20px 16px 120px 16px; transition: background 0.5s ease, color 0.5s ease; 
             min-height: 100vh; overflow-x: hidden; 
         }
 
         .container { width: 100%; max-width: 1200px; margin: 0 auto; }
-        .header { margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; }
-        .header h1 { font-size: 26px; font-weight: 900; margin: 0; letter-spacing: -1px; }
+        .header { margin-bottom: 32px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; }
+        .header h1 { font-size: 28px; font-weight: 900; margin: 0; letter-spacing: -1px; }
         .header-actions { display: flex; align-items: center; gap: 12px; }
         
-        .theme-toggle { background: var(--card); border: 1px solid var(--border); padding: 3px; border-radius: 10px; display: flex; gap: 3px; box-shadow: var(--glow); cursor: pointer; }
-        .theme-btn { padding: 5px 9px; border-radius: 7px; font-size: 10px; font-weight: 700; transition: 0.3s; color: var(--muted); }
+        .theme-toggle { background: var(--card); border: 1px solid var(--border); padding: 4px; border-radius: 12px; display: flex; gap: 4px; box-shadow: var(--glow); cursor: pointer; }
+        .theme-btn { padding: 6px 10px; border-radius: 8px; font-size: 11px; font-weight: 700; transition: 0.3s; color: var(--muted); }
         .theme-btn.active { background: var(--accent); color: white; }
 
-        .status-bar { display: flex; align-items: center; gap: 6px; background: var(--card); padding: 5px 12px; border-radius: 100px; border: 1px solid var(--border); box-shadow: var(--glow); font-size: 12px; }
-        .live-dot { width: 5px; height: 5px; background: #10b981; border-radius: 50%; animation: blink 2s infinite; }
+        .status-bar { display: flex; align-items: center; gap: 8px; background: var(--card); padding: 6px 16px; border-radius: 100px; border: 1px solid var(--border); box-shadow: var(--glow); font-size: 13px; }
+        .live-dot { width: 6px; height: 6px; background: #10b981; border-radius: 50%; animation: blink 2s infinite; }
         @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
         
-        /* MODERN DASHBOARD GRID */
-        .grid-system { display: grid; grid-template-columns: repeat(12, 1fr); gap: 18px; }
-        
-        .card { background: var(--card); padding: 28px; border-radius: 28px; border: 1px solid var(--border); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); box-shadow: var(--glow); position: relative; overflow: hidden; transition: all 0.5s ease; }
-        .card:hover { transform: translateY(-2px); box-shadow: 0 20px 60px rgba(0,0,0,0.15); }
-        
-        /* CARD SIZING */
-        .card-hero { grid-column: span 12; }
-        .card-weather { grid-column: span 4; }
-        .card-compact { grid-column: span 3; }
-        
-        #windCanvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; border-radius: 28px; }
+        .grid-system { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
+        .card { background: var(--card); padding: 28px; border-radius: 32px; border: 1px solid var(--border); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); box-shadow: var(--glow); position: relative; overflow: hidden; transition: background 0.5s ease; }
+        #windCanvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; border-radius: 32px; }
         .card > *:not(canvas) { position: relative; z-index: 5; }
 
-        .label { color: var(--accent); font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 12px; opacity: 0.9; }
-        .main-val { font-size: 56px; font-weight: 950; margin: 0; letter-spacing: -2px; display: flex; align-items: baseline; line-height: 1; }
+        .label { color: var(--accent); font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 6px; }
+        .main-val { font-size: 56px; font-weight: 900; margin: 0; letter-spacing: -2px; display: flex; align-items: baseline; line-height: 1.1; }
         
         /* MODERN TRANSIENT EFFECTS */
         .main-val span:not(.unit), .badge-val { 
@@ -562,73 +553,41 @@ app.get("/", (req, res) => {
             will-change: transform, opacity, filter;
         }
 
-        .unit { font-size: 18px; font-weight: 600; color: var(--muted); margin-left: 6px; letter-spacing: 0; }
-        .sub-pill { font-size: 13px; font-weight: 600; padding: 0; border-radius: 0; background: transparent; display: inline-flex; align-items: center; gap: 6px; margin: 12px 0 0 0; color: var(--muted); }
+        .unit { font-size: 20px; font-weight: 600; color: var(--muted); margin-left: 4px; letter-spacing: 0; }
+        .sub-pill { font-size: 12px; font-weight: 800; padding: 6px 12px; border-radius: 10px; background: var(--badge); display: inline-flex; align-items: center; gap: 4px; margin: 12px 0 20px 0; }
 
-        .sub-box-4 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding-top: 16px; border-top: 1px solid var(--border); }
-        .badge { padding: 16px; border-radius: 16px; background: var(--badge); display: flex; flex-direction: column; gap: 4px; }
-        .badge-label { font-size: 9px; color: var(--muted); text-transform: uppercase; font-weight: 800; letter-spacing: 1px; }
-        .badge-val { font-size: 20px; font-weight: 900; letter-spacing: -0.5px; }
-        
-        /* TIMESTAMP STYLING */
-        .time-left { position: absolute; left: 16px; top: 50%; transform: translateY(-50%); font-size: 9px; color: var(--muted); font-weight: 700; opacity: 0.7; text-align: right; }
-        .time-right { position: absolute; right: 16px; top: 50%; transform: translateY(-50%); font-size: 9px; color: var(--muted); font-weight: 700; opacity: 0.7; text-align: left; }
+        .sub-box-4 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding-top: 20px; border-top: 1px solid var(--border); }
+        .badge { padding: 12px; border-radius: 18px; background: var(--badge); display: flex; flex-direction: column; gap: 2px; }
+        .badge-label { font-size: 9px; color: var(--muted); text-transform: uppercase; font-weight: 800; }
+        .badge-val { font-size: 16px; font-weight: 800; }
 
-        .compass-ui { position: absolute !important; top: 24px !important; right: 24px !important; width: 56px; height: 56px; border: 2px solid var(--border); border-radius: 50%; display: flex; align-items: center; justify-content: center; z-index: 10; background: rgba(0,0,0,0.02); }
-        body.is-night .compass-ui { background: rgba(255,255,255,0.02); }
+        .compass-ui { position: absolute !important; top: 28px !important; right: 28px !important; width: 50px; height: 50px; border: 2px solid var(--border); border-radius: 50%; display: flex; align-items: center; justify-content: center; z-index: 10; }
         #needle { width: 3px; height: 32px; background: linear-gradient(to bottom, #ef4444 50%, var(--muted) 50%); clip-path: polygon(50% 0%, 100% 100%, 50% 85%, 0% 100%); transition: transform 2s cubic-bezier(0.1, 0.9, 0.2, 1); }
-        
-        /* SECTION HEADERS */
-        .section-title { font-size: 13px; font-weight: 900; color: var(--accent); text-transform: uppercase; letter-spacing: 2px; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
-        .section-title::before { content: ''; width: 4px; height: 4px; background: var(--accent); border-radius: 50%; }
-        
-        /* REAL FEEL SECTION */
-        .realfeel-container { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; }
-        .realfeel-item { padding: 16px; background: var(--badge); border-radius: 16px; display: flex; flex-direction: column; gap: 4px; }
-        .realfeel-label { font-size: 9px; color: var(--muted); text-transform: uppercase; font-weight: 700; letter-spacing: 1px; }
-        .realfeel-value { font-size: 24px; font-weight: 900; letter-spacing: -0.8px; }
 
-        .graphs-wrapper { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; margin-top: 16px; }
-        .graph-card { background: var(--card); padding: 16px; border-radius: 24px; border: 1px solid var(--border); height: 280px; box-shadow: var(--glow); display: flex; flex-direction: column; overflow: hidden; transition: background 0.5s ease; }
+        .graphs-wrapper { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin-top: 20px; }
+        .graph-card { background: var(--card); padding: 24px; border-radius: 32px; border: 1px solid var(--border); height: 320px; box-shadow: var(--glow); display: flex; flex-direction: column; overflow: hidden; transition: background 0.5s ease; }
         .graph-card canvas { flex-grow: 1; width: 100% !important; height: 100% !important; }
 
         .trend-up { color: #f43f5e; } .trend-down { color: #0ea5e9; }
-        .time-mark { font-size: 9px; color: var(--muted); font-weight: 600; margin-left: 4px; background: rgba(0,0,0,0.06); padding: 2px 6px; border-radius: 4px; }
+        .time-mark { font-size: 9px; color: var(--muted); font-weight: 600; margin-left: 2px; background: rgba(0,0,0,0.04); padding: 1px 4px; border-radius: 4px; }
         body.is-night .time-mark { background: rgba(255,255,255,0.1); }
-        
-        /* RESPONSIVE GRID */
-        @media (max-width: 1024px) {
-            .card-hero { grid-column: span 12; }
-            .card-weather { grid-column: span 6; }
-            .card-compact { grid-column: span 4; }
-        }
-        
-        @media (max-width: 768px) {
-            .grid-system { gap: 12px; }
-            .card { padding: 20px; }
-            .card-hero { grid-column: span 12; }
-            .card-weather { grid-column: span 12; }
-            .card-compact { grid-column: span 6; }
-            .main-val { font-size: 48px; }
-            .badge-val { font-size: 18px; }
-        }
 
         /* SUMMARY SYSTEM */
-        .nav-tabs { display: flex; gap: 6px; margin-bottom: 22px; }
+        .nav-tabs { display: flex; gap: 8px; margin-bottom: 25px; }
         .tab-btn { 
-            background: var(--card); border: 1px solid var(--border); padding: 10px 20px; 
-            border-radius: 14px; color: var(--text); font-weight: 700; cursor: pointer; transition: 0.3s; font-size: 13px;
+            background: var(--card); border: 1px solid var(--border); padding: 12px 24px; 
+            border-radius: 16px; color: var(--text); font-weight: 700; cursor: pointer; transition: 0.3s; 
         }
         .tab-btn.active { background: var(--accent); color: white; border-color: var(--accent); box-shadow: var(--glow); }
 
-        .month-section { margin-bottom: 30px; animation: fadeIn 0.5s ease; }
-        .month-header { font-size: 18px; font-weight: 800; margin: 20px 0 12px 0; color: var(--accent); display: flex; align-items: center; gap: 10px; }
+        .month-section { margin-bottom: 35px; animation: fadeIn 0.5s ease; }
+        .month-header { font-size: 20px; font-weight: 800; margin: 25px 0 15px 0; color: var(--accent); display: flex; align-items: center; gap: 10px; }
         .month-header::after { content: ""; height: 2px; flex-grow: 1; background: var(--border); }
 
-        .summary-table-wrapper { overflow-x: auto; background: var(--card); border-radius: 20px; border: 1px solid var(--border); box-shadow: var(--glow); }
+        .summary-table-wrapper { overflow-x: auto; background: var(--card); border-radius: 24px; border: 1px solid var(--border); box-shadow: var(--glow); }
         .summary-table { width: 100%; border-collapse: collapse; min-width: 600px; }
-        .summary-table th { padding: 12px; background: var(--badge); text-align: left; font-size: 10px; text-transform: uppercase; letter-spacing: 0.8px; color: var(--muted); }
-        .summary-table td { padding: 12px; border-top: 1px solid var(--border); font-size: 13px; }
+        .summary-table th { padding: 16px; background: var(--badge); text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); }
+        .summary-table td { padding: 16px; border-top: 1px solid var(--border); font-size: 14px; }
         .summary-table tr:hover { background: var(--badge); }
 
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
@@ -639,7 +598,7 @@ app.get("/", (req, res) => {
     backdrop-filter: blur(24px);
     -webkit-backdrop-filter: blur(24px);
     border: 1px solid var(--border);
-    border-radius: 20px;
+    border-radius: 24px;
     box-shadow: var(--glow);
     overflow: hidden;
     display: flex;
@@ -650,58 +609,58 @@ app.get("/", (req, res) => {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 18px 22px;
+    padding: 24px 30px;
     border-bottom: 1px solid var(--border);
     transition: background 0.3s ease;
-    gap: 16px;
+    gap: 20px; /* Ensures a minimum gap between label and data */
 }
 
 .pro-row:last-child { border-bottom: none; }
 
 .pro-label {
-    font-size: 14px;
+    font-size: 15px;
     font-weight: 800;
     color: var(--text);
-    letter-spacing: 0.3px;
+    letter-spacing: 0.5px;
     display: flex;
     align-items: center;
-    flex: 0 0 140px;
+    flex: 0 0 160px; /* Lock the label width so data doesn't overlap it */
 }
 
 .pro-data-group {
     display: flex;
     align-items: center;
-    gap: 30px;
+    gap: 40px; /* Increased spacing between the two values */
     flex: 1;
-    justify-content: flex-end;
+    justify-content: flex-end; /* Keeps data anchored to the right */
 }
 
 .pro-data-item {
     display: flex;
     flex-direction: column;
     align-items: flex-end;
-    min-width: 90px;
+    min-width: 100px; /* Ensures consistent alignment across different rows */
 }
 
 .pro-sub {
-    font-size: 9px;
+    font-size: 10px;
     text-transform: uppercase;
-    letter-spacing: 1.2px;
+    letter-spacing: 1.5px;
     color: var(--muted);
     font-weight: 800;
-    margin-bottom: 4px;
+    margin-bottom: 6px;
 }
 
 .pro-val {
-    font-size: 22px;
+    font-size: 26px;
     font-weight: 900;
     line-height: 1;
-    letter-spacing: -0.3px;
+    letter-spacing: -0.5px;
 }
 
 .pro-divider {
     width: 1px;
-    height: 28px;
+    height: 32px;
     background: var(--border);
     opacity: 0.5;
 }
@@ -709,18 +668,18 @@ app.get("/", (req, res) => {
 /* Responsive fix for smaller screens to prevent squeezing */
 @media (max-width: 650px) {
     .pro-row {
-        padding: 16px;
-        gap: 8px;
+        padding: 20px;
+        gap: 10px;
     }
     .pro-label {
-        flex: 0 0 110px;
-        font-size: 12px;
+        flex: 0 0 120px;
+        font-size: 13px;
     }
     .pro-data-group {
-        gap: 16px;
+        gap: 20px;
     }
     .pro-val {
-        font-size: 18px;
+        font-size: 20px;
     }
 }
 
@@ -792,89 +751,55 @@ body.is-night .glass-select option {
         <div id="page-dashboard">
             
             <div class="grid-system">
-                
-        <!-- HERO CARD: MAIN TEMPERATURE -->
-                <div class="card card-hero">
-                    <div class="label" style="margin-bottom: 12px;">Current Conditions</div>
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 32px; align-items: start;">
-                        <!-- LEFT: TEMP + TREND -->
-                        <div>
-                            <div class="main-val" style="font-size: 64px; line-height: 1;"><span id="t">0.0</span><span class="unit" style="font-size: 28px;">°C</span></div>
-                            <div id="tTrendBox" class="sub-pill" style="margin-top: 16px; background: transparent; border: none; padding: 0; font-size: 13px;">--</div>
-                        </div>
-                        <!-- RIGHT: FEELS LIKE + HUMIDITY IN 2x2 GRID -->
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
-                            <div class="badge" style="padding: 16px; border-radius: 16px;">
-                                <span class="badge-label" style="font-size: 8px;">Feels Like</span>
-                                <span id="rf" class="badge-val" style="font-size: 28px; margin-top: 4px; color: var(--text);">--</span>
-                            </div>
-                            <div class="badge" style="padding: 16px; border-radius: 16px;">
-                                <span class="badge-label" style="font-size: 8px;">Humidity</span>
-                                <span id="h_val" class="badge-val" style="font-size: 28px; margin-top: 4px;">--</span>
-                            </div>
-                            <div class="badge" style="padding: 16px; border-radius: 16px;">
-                                <span class="badge-label" style="font-size: 8px;">Dew Point</span>
-                                <span id="d_val" class="badge-val" style="font-size: 24px; margin-top: 4px;">--</span>
-                            </div>
-                            <div class="badge" style="padding: 16px; border-radius: 16px;">
-                                <span class="badge-label" style="font-size: 8px;">Pressure</span>
-                                <span id="pr" class="badge-val" style="font-size: 20px; margin-top: 4px;">--</span><span id="pIcon" style="margin-left: 6px; font-size: 16px;">●</span>
-                            </div>
-                        </div>
-                    </div>
-                    <!-- TODAY HIGHS/LOWS -->
-                    <div class="sub-box-4" style="margin-top: 24px;">
-                        <div class="badge"><span class="badge-label">Today High</span><span id="mx" class="badge-val" style="color:#ef4444">--</span><span class="time-mark" id="mx-time"></span></div>
-                        <div class="badge"><span class="badge-label">Today Low</span><span id="mn" class="badge-val" style="color:#0ea5e9">--</span><span class="time-mark" id="mn-time"></span></div>
+                <div class="card">
+                    <div class="label">Temperature</div>
+                    <div class="main-val"><span id="t">0.0</span><span class="unit">°C</span></div>
+                    <div id="tTrendBox" class="sub-pill">--</div>
+                    <div class="sub-box-4">
+                        <div class="badge"><span class="badge-label">Today High</span><span id="mx" class="badge-val" style="color:#ef4444">--</span></div>
+                        <div class="badge"><span class="badge-label">Today Low</span><span id="mn" class="badge-val" style="color:#0ea5e9">--</span></div>
+                        <div class="badge"><span class="badge-label">Humidity</span><span id="h_val" class="badge-val">--</span></div>
+                        <div class="badge"><span class="badge-label">Dew Point</span><span id="d_val" class="badge-val">--</span></div>
+                        <div class="badge" style="grid-column: span 2;"><span class="badge-label">Feels Like</span><span id="rf" class="badge-val">--</span></div>
                     </div>
                 </div>
 
-                <!-- WIND CARD -->
-                <div class="card card-weather">
+                <div class="card">
                     <canvas id="windCanvas"></canvas>
                     <div class="label">Wind Dynamics</div>
                     <div class="compass-ui"><div id="needle"></div></div>
-                    <div class="main-val" style="font-size: 52px;"><span id="w">0.0</span><span id="wd_bracket" style="font-size:24px; color:var(--muted); margin-left:10px; font-weight:700">(--)</span><span class="unit">km/h</span></div>
-                    <div class="sub-pill" style="margin-top: 14px; background: transparent; border: none; padding: 0;">● Gust: <span id="wg" style="margin-left:6px; font-weight: 800;">--</span></div>
-                    <div class="sub-box-4" style="margin-top: 14px;">
-                        <div class="badge"><span class="badge-label">Max Speed</span><span id="mw" class="badge-val">--</span><span class="time-mark" id="mw-time"></span></div>
-                        <div class="badge"><span class="badge-label">Max Gust</span><span id="mg" class="badge-val">--</span><span class="time-mark" id="mg-time"></span></div>
+                    <div class="main-val"><span id="w">0.0</span><span id="wd_bracket" style="font-size:18px; color:var(--muted); margin-left:8px; font-weight:700">(--)</span><span class="unit">km/h</span></div>
+                    <div class="sub-pill">● Live Gust: <span id="wg" style="margin-left:4px">--</span></div>
+                    <div class="sub-box-4">
+                        <div class="badge"><span class="badge-label">Max Speed</span><span id="mw" class="badge-val">--</span></div>
+                        <div class="badge"><span class="badge-label">Max Gust</span><span id="mg" class="badge-val">--</span></div>
                     </div>
                 </div>
 
-                <!-- PRECIPITATION CARD -->
-                <div class="card card-weather">
-                    <div class="label">Precipitation</div>
-                    <div style="display: flex; align-items: baseline; gap: 8px;">
-                        <div class="main-val" style="font-size: 52px;"><span id="r_tot">0.0</span><span class="unit">mm</span></div>
-                    </div>
-                    <div class="sub-pill" style="margin-top: 14px; background: transparent; border: none; padding: 0;">● Rate: <span id="r_rate">0.0</span> mm/h</div>
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding-top: 16px; border-top: 1px solid var(--border);">
+                <div class="card">
+                    <div class="label">Rain Realm</div>
+                    <div class="main-val"><span id="r_tot">0.0</span><span class="unit">mm</span></div>
+                    <div class="sub-pill">● Rain Rate: <span id="r_rate">0.0</span> mm/h</div>
+                    <div class="sub-box-4">
+                        <div class="badge" style="grid-column: span 2;"><span class="badge-label">Max Rate Today</span><span id="mr" class="badge-val">--</span></div>
                         <div class="badge"><span class="badge-label">Weekly</span><span id="r_week" class="badge-val">--</span></div>
                         <div class="badge"><span class="badge-label">Monthly</span><span id="r_month" class="badge-val">--</span></div>
-                    </div>
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px;">
-                        <div class="badge"><span class="badge-label">Yearly</span><span id="r_year" class="badge-val">--</span></div>
-                        <div class="badge"><span class="badge-label">Max Rate</span><span id="mr" class="badge-val">--</span><span class="time-mark" id="mr-time"></span></div>
+                        <div class="badge" style="grid-column: span 2;"><span class="badge-label">Yearly</span><span id="r_year" class="badge-val">--</span></div>
                     </div>
                 </div>
 
-                <!-- ATMOSPHERIC CARD -->
-                <div class="card card-weather">
-                    <div class="label">Atmospheric</div>
-                    <div style="display: flex; align-items: baseline; gap: 8px;">
-                        <div class="main-val" style="font-size: 52px;"><span id="pr2">--</span><span class="unit">hPa</span></div>
-                    </div>
-                    <div class="sub-box-4" style="margin-top: 16px;">
-                        <div class="badge"><span class="badge-label">Solar Radiation</span><span id="sol" class="badge-val">--</span></div>
+                <div class="card">
+                    <div class="label">Atmospheric <span id="pIcon"></span></div>
+                    <div class="main-val"><span id="pr">--</span><span class="unit">hPa</span></div>
+                    <div class="sub-box-4">
+                        <div class="badge"><span class="badge-label">Solar Rad</span><span id="sol" class="badge-val">--</span></div>
                         <div class="badge"><span class="badge-label">UV Index</span><span id="uv" class="badge-val">--</span></div>
                     </div>
                 </div>
-
             </div>
 
-            <div class="sub-tabs-section" style="margin-top: 24px;">
-                <div style="display: flex; gap: 8px; margin-bottom: 16px; justify-content: center;">
+            <div class="sub-tabs-section" style="margin-top: 35px;">
+                <div style="display: flex; gap: 10px; margin-bottom: 20px; justify-content: center;">
                     <button onclick="switchSubView('summary')" id="btn-sub-sum" class="tab-btn active">24H Summary</button>
                     <button onclick="switchSubView('graphs')" id="btn-sub-graph" class="tab-btn">24H Graphs</button>
                 </div>
@@ -1147,34 +1072,25 @@ body.is-night .glass-select option {
                 updateValueWithFade('wg', d.wind.gust, 1, ' km/h'); 
 
                 document.getElementById('tTrendBox').innerHTML = d.temp.rate > 0 ? '<span class="trend-up">▲</span> +' + d.temp.rate + '°C /hr' : d.temp.rate < 0 ? '<span class="trend-down">▼</span> ' + d.temp.rate + '°C /hr' : '● Steady';
-                
-                // Temperature with timestamps on side
-                document.getElementById('mx').innerHTML = d.temp.max + '°C';
-                document.getElementById('mx-time').innerHTML = d.temp.maxTime;
-                document.getElementById('mn').innerHTML = d.temp.min + '°C';
-                document.getElementById('mn-time').innerHTML = d.temp.minTime;
-                
+                document.getElementById('mx').innerHTML = d.temp.max + '°C <span class="time-mark">' + d.temp.maxTime + '</span>';
+                document.getElementById('mn').innerHTML = d.temp.min + '°C <span class="time-mark">' + d.temp.minTime + '</span>';
                 const feels = d.temp.realFeel;
                 const heatColor = feels >= 54 ? '#ef4444' : feels >= 41 ? '#f97316' : feels >= 32 ? '#eab308' : 'var(--text)';
                 document.getElementById('rf').style.color = heatColor;
                 document.getElementById('rf').innerText = feels + '°C';
-                
-                document.getElementById('h_val').innerHTML = d.atmo.hum + '%';
+                document.getElementById('h_val').innerHTML = d.atmo.hum + '% ' + (d.atmo.hTrend > 0 ? '▲' : d.atmo.hTrend < 0 ? '▼' : '●');
                 document.getElementById('d_val').innerText = d.temp.dew + '°C';
                 
                 document.getElementById('wd_bracket').innerText = '(' + d.wind.card + ')';
-                document.getElementById('mw').innerHTML = d.wind.maxS + ' km/h';
-                document.getElementById('mw-time').innerHTML = d.wind.maxSTime;
-                document.getElementById('mg').innerHTML = d.wind.maxG + ' km/h';
-                document.getElementById('mg-time').innerHTML = d.wind.maxGTime;
+                document.getElementById('mw').innerHTML = d.wind.maxS + ' km/h <span class="time-mark">' + d.wind.maxSTime + '</span>';
+                document.getElementById('mg').innerHTML = d.wind.maxG + ' km/h <span class="time-mark">' + d.wind.maxGTime + '</span>';
                 document.getElementById('needle').style.transform = 'rotate(' + d.wind.deg + 'deg)';
                 liveWindSpeed = d.wind.speed; liveWindDeg = d.wind.deg;
                 
                 document.getElementById('r_week').innerText = d.rain.weekly + ' mm';
                 document.getElementById('r_month').innerText = d.rain.monthly + ' mm';
                 document.getElementById('r_year').innerText = d.rain.yearly + ' mm';
-                document.getElementById('mr').innerHTML = d.rain.maxR > 0 ? d.rain.maxR + ' mm/h' : '0 mm/h';
-                document.getElementById('mr-time').innerHTML = d.rain.maxRTime;
+                document.getElementById('mr').innerHTML = d.rain.maxR > 0 ? d.rain.maxR + ' mm/h <span class="time-mark">' + d.rain.maxRTime + '</span>' : '0 mm/h';
 
                 const pTrend = d.atmo.pTrend;
                 let pArrow = '●';
@@ -1183,7 +1099,6 @@ body.is-night .glass-select option {
                 document.getElementById('pIcon').innerHTML = pArrow;
                 
                 document.getElementById('pr').innerText = d.atmo.press;
-                document.getElementById('pr2').innerText = d.atmo.press;
                 document.getElementById('sol').innerText = d.atmo.sol + ' W/m²'; 
                 document.getElementById('uv').innerText = d.atmo.uv;
                 document.getElementById('ts').innerText = new Date(d.lastSync).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
