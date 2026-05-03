@@ -724,6 +724,47 @@ body.is-night .glass-select option {
     color: #f1f5f9;
 }
 
+/* ULTRA AGGRESSIVE COMPACT UI FOR LIVE CARDS */
+.u-grid { 
+    display: grid; 
+    grid-template-columns: repeat(4, 1fr); 
+    gap: 12px; 
+    margin-bottom: 24px; 
+}
+@media (max-width: 1024px) { .u-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 500px) { .u-grid { grid-template-columns: 1fr; gap: 10px; } }
+
+.u-card { 
+    background: var(--card); 
+    border-radius: 12px; 
+    padding: 16px; 
+    border: 1px solid var(--border); 
+    box-shadow: var(--glow); 
+    display: flex; 
+    flex-direction: column; 
+    justify-content: space-between; 
+    position: relative; 
+    overflow: hidden; 
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+}
+.u-label { font-size: 0.7rem; text-transform: uppercase; font-weight: 900; letter-spacing: 1.5px; color: var(--accent); margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+.u-val-container { display: flex; align-items: baseline; gap: 4px; margin-bottom: 12px; }
+.u-val { font-size: 2.4rem; font-weight: 900; color: var(--text); line-height: 1; letter-spacing: -1px; font-variant-numeric: tabular-nums; }
+.u-unit { font-size: 0.85rem; font-weight: 800; color: var(--muted); }
+
+.u-sub-row { font-size: 0.65rem; color: var(--muted); font-weight: 800; letter-spacing: 0.5px; display: flex; justify-content: space-between; border-top: 1px solid var(--border); padding-top: 10px; margin-top: auto; }
+.u-sub-item { display: flex; gap: 4px; align-items: center; }
+.u-sub-val { color: var(--text); font-weight: 900; }
+
+/* Aggressive Color Accents */
+.u-temp { border-left: 4px solid #ef4444; }
+.u-wind { border-left: 4px solid #8b5cf6; }
+.u-rain { border-left: 4px solid #3b82f6; }
+.u-atmos { border-left: 4px solid #10b981; }
+
+/* Critical: Safely hides extra DOM nodes so JS doesn't crash */
+.u-hidden-ids { display: none !important; }
 
 
     </style>
@@ -750,53 +791,50 @@ body.is-night .glass-select option {
 
         <div id="page-dashboard">
             
-            <div class="grid-system">
-                <div class="card">
-                    <div class="label">Temperature</div>
-                    <div class="main-val"><span id="t">0.0</span><span class="unit">°C</span></div>
-                    <div id="tTrendBox" class="sub-pill">--</div>
-                    <div class="sub-box-4">
-                        <div class="badge"><span class="badge-label">Today High</span><span id="mx" class="badge-val" style="color:#ef4444">--</span></div>
-                        <div class="badge"><span class="badge-label">Today Low</span><span id="mn" class="badge-val" style="color:#0ea5e9">--</span></div>
-                        <div class="badge"><span class="badge-label">Humidity</span><span id="h_val" class="badge-val">--</span></div>
-                        <div class="badge"><span class="badge-label">Dew Point</span><span id="d_val" class="badge-val">--</span></div>
-                        <div class="badge" style="grid-column: span 2;"><span class="badge-label">Feels Like</span><span id="rf" class="badge-val">--</span></div>
-                    </div>
-                </div>
+            <div class="u-grid">
+    <div class="u-card u-temp">
+        <div class="u-label">🌡️ Temperature</div>
+        <div class="u-val-container"><span class="u-val fade-update" id="t">0.0</span><span class="u-unit">°C</span></div>
+        <div class="u-sub-row">
+            <span class="u-sub-item">H: <span id="mx" class="u-sub-val" style="color:#ef4444">--</span></span>
+            <span class="u-sub-item">L: <span id="mn" class="u-sub-val" style="color:#0ea5e9">--</span></span>
+            <span class="u-sub-item">RH: <span id="h_val" class="u-sub-val">--</span></span>
+        </div>
+        <div class="u-hidden-ids"><span id="tTrendBox"></span><span id="d_val"></span><span id="rf"></span></div>
+    </div>
 
-                <div class="card">
-                    <canvas id="windCanvas"></canvas>
-                    <div class="label">Wind Dynamics</div>
-                    <div class="compass-ui"><div id="needle"></div></div>
-                    <div class="main-val"><span id="w">0.0</span><span id="wd_bracket" style="font-size:18px; color:var(--muted); margin-left:8px; font-weight:700">(--)</span><span class="unit">km/h</span></div>
-                    <div class="sub-pill">● Live Gust: <span id="wg" style="margin-left:4px">--</span></div>
-                    <div class="sub-box-4">
-                        <div class="badge"><span class="badge-label">Max Speed</span><span id="mw" class="badge-val">--</span></div>
-                        <div class="badge"><span class="badge-label">Max Gust</span><span id="mg" class="badge-val">--</span></div>
-                    </div>
-                </div>
+    <div class="u-card u-wind">
+        <div class="u-label">💨 Wind Dynamics</div>
+        <div class="u-val-container"><span class="u-val fade-update" id="w">0.0</span><span class="u-unit">km/h</span></div>
+        <div class="u-sub-row">
+            <span class="u-sub-item">GUST: <span id="wg" class="u-sub-val">--</span></span>
+            <span class="u-sub-item">DIR: <span id="wd_bracket" class="u-sub-val">(--)</span></span>
+        </div>
+        <div class="u-hidden-ids">
+            <canvas id="windCanvas"></canvas><div id="needle"></div>
+            <span id="mw"></span><span id="mg"></span>
+        </div>
+    </div>
 
-                <div class="card">
-                    <div class="label">Rain Realm</div>
-                    <div class="main-val"><span id="r_tot">0.0</span><span class="unit">mm</span></div>
-                    <div class="sub-pill">● Rain Rate: <span id="r_rate">0.0</span> mm/h</div>
-                    <div class="sub-box-4">
-                        <div class="badge" style="grid-column: span 2;"><span class="badge-label">Max Rate Today</span><span id="mr" class="badge-val">--</span></div>
-                        <div class="badge"><span class="badge-label">Weekly</span><span id="r_week" class="badge-val">--</span></div>
-                        <div class="badge"><span class="badge-label">Monthly</span><span id="r_month" class="badge-val">--</span></div>
-                        <div class="badge" style="grid-column: span 2;"><span class="badge-label">Yearly</span><span id="r_year" class="badge-val">--</span></div>
-                    </div>
-                </div>
+    <div class="u-card u-rain">
+        <div class="u-label">🌧️ Rain Realm</div>
+        <div class="u-val-container"><span class="u-val fade-update" id="r_tot">0.0</span><span class="u-unit">mm</span></div>
+        <div class="u-sub-row">
+            <span class="u-sub-item">RATE: <span id="r_rate" class="u-sub-val">0.0</span> mm/h</span>
+            <span class="u-sub-item">MAX: <span id="mr" class="u-sub-val">--</span></span>
+        </div>
+        <div class="u-hidden-ids"><span id="r_week"></span><span id="r_month"></span><span id="r_year"></span></div>
+    </div>
 
-                <div class="card">
-                    <div class="label">Atmospheric <span id="pIcon"></span></div>
-                    <div class="main-val"><span id="pr">--</span><span class="unit">hPa</span></div>
-                    <div class="sub-box-4">
-                        <div class="badge"><span class="badge-label">Solar Rad</span><span id="sol" class="badge-val">--</span></div>
-                        <div class="badge"><span class="badge-label">UV Index</span><span id="uv" class="badge-val">--</span></div>
-                    </div>
-                </div>
-            </div>
+    <div class="u-card u-atmos">
+        <div class="u-label">☁️ Atmospheric <span id="pIcon"></span></div>
+        <div class="u-val-container"><span class="u-val fade-update" id="pr">--</span><span class="u-unit">hPa</span></div>
+        <div class="u-sub-row">
+            <span class="u-sub-item">UV: <span id="uv" class="u-sub-val">--</span></span>
+            <span class="u-sub-item">SOL: <span id="sol" class="u-sub-val">--</span> W/m²</span>
+        </div>
+    </div>
+</div>
 
             <div class="sub-tabs-section" style="margin-top: 35px;">
                 <div style="display: flex; gap: 10px; margin-bottom: 20px; justify-content: center;">
