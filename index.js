@@ -526,10 +526,90 @@ app.get("/", (req, res) => {
         .live-dot { width: 6px; height: 6px; background: #10b981; border-radius: 50%; animation: blink 2s infinite; }
         @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
         
-        .grid-system { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
-        .card { background: var(--card); padding: 28px; border-radius: 32px; border: 1px solid var(--border); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); box-shadow: var(--glow); position: relative; overflow: hidden; transition: background 0.5s ease; }
-        #windCanvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; border-radius: 32px; }
-        .card > *:not(canvas) { position: relative; z-index: 5; }
+        /* ULTRA AGGRESSIVE MODERN UI OVERRIDE */
+.grid-system { 
+    display: grid; 
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); 
+    gap: 12px; 
+    margin-bottom: 30px; 
+}
+
+.card { 
+    background: #000000 !important; /* Deep black for that aggressive look */
+    padding: 20px !important; 
+    border-radius: 24px !important; 
+    border: 1px solid rgba(255,255,255,0.1) !important;
+    box-shadow: 0 20px 40px rgba(0,0,0,0.4) !important;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    min-height: 240px;
+}
+
+/* Label Styling */
+.label { 
+    font-size: 10px !important; 
+    font-weight: 900 !important; 
+    color: var(--accent) !important; 
+    letter-spacing: 1.5px !important; 
+    margin-bottom: 12px !important;
+}
+
+/* Main Value Styling */
+.main-val { 
+    font-size: 52px !important; 
+    line-height: 0.9 !important; 
+    letter-spacing: -3px !important;
+    margin-bottom: 15px !important;
+}
+
+/* Data Pill (Trend/Rate) */
+.sub-pill { 
+    background: rgba(255,255,255,0.05) !important; 
+    border: 1px solid rgba(255,255,255,0.1);
+    color: #fff !important;
+    font-size: 10px !important;
+    padding: 4px 10px !important;
+    border-radius: 8px !important;
+    width: fit-content;
+}
+
+/* High Density Sub-Box */
+.sub-box-4 { 
+    display: grid !important; 
+    grid-template-columns: 1fr 1fr !important; 
+    gap: 8px !important; 
+    border-top: 1px solid rgba(255,255,255,0.1) !important;
+    padding-top: 15px !important;
+    margin-top: 15px !important;
+}
+
+.badge { 
+    background: transparent !important; 
+    padding: 0 !important; 
+    border-radius: 0 !important;
+}
+
+.badge-label { 
+    font-size: 8px !important; 
+    color: #64748b !important; 
+    text-transform: uppercase; 
+    font-weight: 900;
+}
+
+.badge-val { 
+    font-size: 16px !important; 
+    font-weight: 950 !important; 
+    color: #fff !important;
+}
+
+/* Specific Accent Glows */
+.card-temp { border-top: 3px solid #ff4757 !important; }
+.card-wind { border-top: 3px solid #747d8c !important; }
+.card-rain { border-top: 3px solid #2e86de !important; }
+.card-atmos { border-top: 3px solid #ffa502 !important; }
+
+#windCanvas { opacity: 0.4; }
 
         .label { color: var(--accent); font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 6px; }
         .main-val { font-size: 56px; font-weight: 900; margin: 0; letter-spacing: -2px; display: flex; align-items: baseline; line-height: 1.1; }
@@ -820,57 +900,58 @@ body.is-night .glass-select option {
        </div>
 
         <div id="page-dashboard">
-            
-            <div class="live-grid">
-    <div class="compact-card" style="border-top: 4px solid #ef4444;">
+            <div class="grid-system">
+    <div class="card card-temp">
         <div>
-            <div class="c-label">Temperature</div>
-            <div class="c-main"><span id="t">0.0</span><span class="unit">°C</span></div>
-            <div id="tTrendBox" class="compact-pill">--</div>
+            <div class="label">TEMPERATURE</div>
+            <div class="main-val"><span id="t">0.0</span><span class="unit">°C</span></div>
+            <div id="tTrendBox" class="sub-pill">--</div>
         </div>
-        <div class="c-sub-grid">
-            <div class="c-stat"><span class="c-stat-label">High/Low</span><span class="c-stat-val"><span id="mx" style="color:#ef4444">--</span> / <span id="mn" style="color:#0ea5e9">--</span></span></div>
-            <div class="c-stat"><span class="c-stat-label">Humidity</span><span id="h_val" class="c-stat-val">--</span></div>
-            <div class="c-stat"><span class="c-stat-label">Dew Point</span><span id="d_val" class="c-stat-val">--</span></div>
-            <div class="c-stat"><span class="c-stat-label">Feels Like</span><span id="rf" class="c-stat-val">--</span></div>
+        <div class="sub-box-4">
+            <div class="badge"><span class="badge-label">FEELS LIKE</span><span id="rf" class="badge-val">--</span></div>
+            <div class="badge"><span class="badge-label">HUMIDITY</span><span id="h_val" class="badge-val">--</span></div>
+            <div class="badge"><span class="badge-label">DEW POINT</span><span id="d_val" class="badge-val">--</span></div>
+            <div class="badge"><span class="badge-label">HI/LO</span><span class="badge-val"><span id="mx" style="color:#ff4757">--</span>/<span id="mn" style="color:#2e86de">--</span></span></div>
         </div>
     </div>
 
-    <div class="compact-card" style="border-top: 4px solid #8b5cf6;">
+    <div class="card card-wind">
         <canvas id="windCanvas"></canvas>
-        <div class="c-compass"><div class="compass-ui" style="position:relative; top:0; right:0;"><div id="needle"></div></div></div>
+        <div class="compass-ui" style="top:15px; right:15px; scale:0.7;"><div id="needle"></div></div>
         <div>
-            <div class="c-label">Wind Dynamics</div>
-            <div class="c-main"><span id="w">0.0</span><span id="wd_bracket" style="font-size:12px; margin-left:5px;">(--)</span><span class="unit">km/h</span></div>
-            <div class="compact-pill">Gust: <span id="wg">--</span></div>
+            <div class="label">WIND DYNAMICS</div>
+            <div class="main-val"><span id="w">0.0</span><span id="wd_bracket" style="font-size:14px; color:#64748b; margin-left:8px;">(--)</span><span class="unit">km/h</span></div>
+            <div class="sub-pill">GUST: <span id="wg">--</span></div>
         </div>
-        <div class="c-sub-grid">
-            <div class="c-stat"><span class="c-stat-label">Max Speed</span><span id="mw" class="c-stat-val">--</span></div>
-            <div class="c-stat"><span class="c-stat-label">Max Gust</span><span id="mg" class="c-stat-val">--</span></div>
+        <div class="sub-box-4">
+            <div class="badge"><span class="badge-label">MAX SPEED</span><span id="mw" class="badge-val">--</span></div>
+            <div class="badge"><span class="badge-label">MAX GUST</span><span id="mg" class="badge-val">--</span></div>
         </div>
     </div>
 
-    <div class="compact-card" style="border-top: 4px solid #3b82f6;">
+    <div class="card card-rain">
         <div>
-            <div class="c-label">Rain Realm</div>
-            <div class="c-main"><span id="r_tot">0.0</span><span class="unit">mm</span></div>
-            <div class="compact-pill">Rate: <span id="r_rate">0.0</span> <span id="mr" style="font-size:8px; opacity:0.7"></span></div>
+            <div class="label">RAIN REALM</div>
+            <div class="main-val"><span id="r_tot">0.0</span><span class="unit">mm</span></div>
+            <div class="sub-pill">RATE: <span id="r_rate">0.0</span> mm/h</div>
         </div>
-        <div class="c-sub-grid">
-            <div class="c-stat"><span class="c-stat-label">Week/Mon</span><span class="c-stat-val"><span id="r_week">--</span> / <span id="r_month">--</span></span></div>
-            <div class="c-stat"><span class="c-stat-label">Year Total</span><span id="r_year" class="c-stat-val">--</span></div>
+        <div class="sub-box-4">
+            <div class="badge"><span class="badge-label">MAX RATE</span><span id="mr" class="badge-val">--</span></div>
+            <div class="badge"><span class="badge-label">WEEKLY</span><span id="r_week" class="badge-val">--</span></div>
+            <div class="badge"><span class="badge-label">MONTHLY</span><span id="r_month" class="badge-val">--</span></div>
+            <div class="badge"><span class="badge-label">YEARLY</span><span id="r_year" class="badge-val">--</span></div>
         </div>
     </div>
 
-    <div class="compact-card" style="border-top: 4px solid #10b981;">
+    <div class="card card-atmos">
         <div>
-            <div class="c-label">Atmospheric <span id="pIcon"></span></div>
-            <div class="c-main"><span id="pr">--</span><span class="unit">hPa</span></div>
-            <div class="compact-pill">Live UV/Solar</div>
+            <div class="label">ATMOSPHERIC <span id="pIcon"></span></div>
+            <div class="main-val"><span id="pr">--</span><span class="unit">hPa</span></div>
+            <div class="sub-pill">ENVIRONMENTAL SENSORS</div>
         </div>
-        <div class="c-sub-grid">
-            <div class="c-stat"><span class="c-stat-label">Solar Rad</span><span id="sol" class="c-stat-val">--</span></div>
-            <div class="c-stat"><span class="c-stat-label">UV Index</span><span id="uv" class="c-stat-val">--</span></div>
+        <div class="sub-box-4">
+            <div class="badge"><span class="badge-label">SOLAR RAD</span><span id="sol" class="badge-val">--</span></div>
+            <div class="badge"><span class="badge-label">UV INDEX</span><span id="uv" class="badge-val">--</span></div>
         </div>
     </div>
 </div>
