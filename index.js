@@ -481,332 +481,260 @@ app.get("/", (req, res) => {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>KK Nagar Weather Hub</title>
+    <title>KK Nagar Weather Hub | Pro</title>
+    
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;700;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300..900&display=swap" rel="stylesheet">
+
     <style>
-        :root { 
-            --bg: #e0f2fe !important; 
-            --card: rgba(255, 255, 255, 0.85); 
+        :root {
+            /* Light Palette */
+            --bg: #f0f4f8;
+            --mesh: radial-gradient(at 0% 0%, #e0f2fe 0, transparent 50%), 
+                    radial-gradient(at 100% 100%, #f0f9ff 0, transparent 50%);
+            --card: rgba(255, 255, 255, 0.7);
             --border: rgba(2, 132, 199, 0.1);
-            --text: #0f172a !important; 
-            --muted: #64748b; 
-            --accent: #0284c7; 
-            --glow: 0 10px 40px -10px rgba(2, 132, 199, 0.15);
-            --badge: rgba(2, 132, 199, 0.05);
+            --text-main: #0f172a;
+            --text-muted: #64748b;
+            --accent: #0284c7;
+            --accent-glow: rgba(2, 132, 199, 0.2);
+            --shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
         }
 
-        body.is-night {
-            --bg: #0f172a !important; 
-            --card: rgba(30, 41, 59, 0.7); 
-            --border: rgba(255, 255, 255, 0.08);
-            --text: #f1f5f9 !important; 
-            --muted: #94a3b8; 
-            --accent: #38bdf8; 
-            --glow: 0 15px 50px -12px rgba(0,0,0,0.6);
-            --badge: rgba(255, 255, 255, 0.04);
+        [data-theme="dark"] {
+            --bg: #0b0f1a;
+            --mesh: radial-gradient(at 0% 0%, #1e293b 0, transparent 50%), 
+                    radial-gradient(at 100% 100%, #0f172a 0, transparent 50%);
+            --card: rgba(30, 41, 59, 0.5);
+            --border: rgba(255, 255, 255, 0.05);
+            --text-main: #f1f5f9;
+            --text-muted: #94a3b8;
+            --accent: #38bdf8;
+            --accent-glow: rgba(56, 189, 248, 0.2);
+            --shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
         }
 
-        body { 
-            margin: 0; font-family: 'Outfit', sans-serif; background: var(--bg); color: var(--text); 
-            padding: 20px 16px 120px 16px; transition: background 0.5s ease, color 0.5s ease; 
-            min-height: 100vh; overflow-x: hidden; 
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            font-family: 'Outfit', sans-serif;
+            background: var(--bg);
+            background-image: var(--mesh);
+            color: var(--text-main);
+            min-height: 100vh;
+            padding: 24px 16px 100px;
+            transition: background 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            line-height: 1.5;
         }
 
-        .container { width: 100%; max-width: 1200px; margin: 0 auto; }
-        .header { margin-bottom: 32px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; }
-        .header h1 { font-size: 28px; font-weight: 900; margin: 0; letter-spacing: -1px; }
-        .header-actions { display: flex; align-items: center; gap: 12px; }
-        
-        .theme-toggle { background: var(--card); border: 1px solid var(--border); padding: 4px; border-radius: 12px; display: flex; gap: 4px; box-shadow: var(--glow); cursor: pointer; }
-        .theme-btn { padding: 6px 10px; border-radius: 8px; font-size: 11px; font-weight: 700; transition: 0.3s; color: var(--muted); }
-        .theme-btn.active { background: var(--accent); color: white; }
-
-        .status-bar { display: flex; align-items: center; gap: 8px; background: var(--card); padding: 6px 16px; border-radius: 100px; border: 1px solid var(--border); box-shadow: var(--glow); font-size: 13px; }
-        .live-dot { width: 6px; height: 6px; background: #10b981; border-radius: 50%; animation: blink 2s infinite; }
-        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
-        
-        .grid-system { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
-        .card { background: var(--card); padding: 28px; border-radius: 32px; border: 1px solid var(--border); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); box-shadow: var(--glow); position: relative; overflow: hidden; transition: background 0.5s ease; }
-        #windCanvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; border-radius: 32px; }
-        .card > *:not(canvas) { position: relative; z-index: 5; }
-
-        .label { color: var(--accent); font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 6px; }
-        .main-val { font-size: 56px; font-weight: 900; margin: 0; letter-spacing: -2px; display: flex; align-items: baseline; line-height: 1.1; }
-        
-        /* MODERN TRANSIENT EFFECTS */
-        .main-val span:not(.unit), .badge-val { 
-            display: inline-block; 
-            transition: all 0.6s cubic-bezier(0.34, 1.56, 0.64, 1); 
-            font-variant-numeric: tabular-nums; 
+        /* Container & Layout */
+        .app-container {
+            max-width: 1240px;
+            margin: 0 auto;
         }
 
-        /* The "Magic" Animation */
-        @keyframes magicFade {
-            0% { opacity: 0; filter: blur(12px); transform: scale(0.8) translateY(10px); color: #10b981; }
-            30% { opacity: 0.8; filter: blur(4px); }
-            100% { opacity: 1; filter: blur(0); transform: scale(1) translateY(0); }
+        .main-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 40px;
+            flex-wrap: wrap;
+            gap: 20px;
+
+            h1 {
+                font-size: clamp(24px, 5vw, 32px);
+                font-weight: 900;
+                letter-spacing: -0.04em;
+                margin: 0;
+                background: linear-gradient(135deg, var(--text-main) 60%, var(--accent));
+                -webkit-background-clip: text;
+                -webkit-text-fill-color: transparent;
+            }
         }
 
-        .fade-update { 
-            animation: magicFade 1.5s cubic-bezier(0.16, 1, 0.3, 1); 
-            will-change: transform, opacity, filter;
+        /* Glass Cards */
+        .glass-card {
+            background: var(--card);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid var(--border);
+            border-radius: 28px;
+            padding: 32px;
+            box-shadow: var(--shadow);
+            transition: transform 0.3s ease, border-color 0.3s ease;
+
+            &:hover {
+                border-color: var(--accent-glow);
+                transform: translateY(-4px);
+            }
         }
 
-        .unit { font-size: 20px; font-weight: 600; color: var(--muted); margin-left: 4px; letter-spacing: 0; }
-        .sub-pill { font-size: 12px; font-weight: 800; padding: 6px 12px; border-radius: 10px; background: var(--badge); display: inline-flex; align-items: center; gap: 4px; margin: 12px 0 20px 0; }
-
-        .sub-box-4 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding-top: 20px; border-top: 1px solid var(--border); }
-        .badge { padding: 12px; border-radius: 18px; background: var(--badge); display: flex; flex-direction: column; gap: 2px; }
-        .badge-label { font-size: 9px; color: var(--muted); text-transform: uppercase; font-weight: 800; }
-        .badge-val { font-size: 16px; font-weight: 800; }
-
-        .compass-ui { position: absolute !important; top: 28px !important; right: 28px !important; width: 50px; height: 50px; border: 2px solid var(--border); border-radius: 50%; display: flex; align-items: center; justify-content: center; z-index: 10; }
-        #needle { width: 3px; height: 32px; background: linear-gradient(to bottom, #ef4444 50%, var(--muted) 50%); clip-path: polygon(50% 0%, 100% 100%, 50% 85%, 0% 100%); transition: transform 2s cubic-bezier(0.1, 0.9, 0.2, 1); }
-
-        .graphs-wrapper { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin-top: 20px; }
-        .graph-card { background: var(--card); padding: 24px; border-radius: 32px; border: 1px solid var(--border); height: 320px; box-shadow: var(--glow); display: flex; flex-direction: column; overflow: hidden; transition: background 0.5s ease; }
-        .graph-card canvas { flex-grow: 1; width: 100% !important; height: 100% !important; }
-
-        .trend-up { color: #f43f5e; } .trend-down { color: #0ea5e9; }
-        .time-mark { font-size: 9px; color: var(--muted); font-weight: 600; margin-left: 2px; background: rgba(0,0,0,0.04); padding: 1px 4px; border-radius: 4px; }
-        body.is-night .time-mark { background: rgba(255,255,255,0.1); }
-
-        /* SUMMARY SYSTEM */
-        .nav-tabs { display: flex; gap: 8px; margin-bottom: 25px; }
-        .tab-btn { 
-            background: var(--card); border: 1px solid var(--border); padding: 12px 24px; 
-            border-radius: 16px; color: var(--text); font-weight: 700; cursor: pointer; transition: 0.3s; 
+        /* Metric Typography */
+        .label-caps {
+            color: var(--accent);
+            font-size: 11px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+            margin-bottom: 8px;
         }
-        .tab-btn.active { background: var(--accent); color: white; border-color: var(--accent); box-shadow: var(--glow); }
 
-        .month-section { margin-bottom: 35px; animation: fadeIn 0.5s ease; }
-        .month-header { font-size: 20px; font-weight: 800; margin: 25px 0 15px 0; color: var(--accent); display: flex; align-items: center; gap: 10px; }
-        .month-header::after { content: ""; height: 2px; flex-grow: 1; background: var(--border); }
+        .value-hero {
+            font-size: clamp(48px, 8vw, 64px);
+            font-weight: 900;
+            letter-spacing: -0.03em;
+            line-height: 1;
+            display: flex;
+            align-items: baseline;
 
-        .summary-table-wrapper { overflow-x: auto; background: var(--card); border-radius: 24px; border: 1px solid var(--border); box-shadow: var(--glow); }
-        .summary-table { width: 100%; border-collapse: collapse; min-width: 600px; }
-        .summary-table th { padding: 16px; background: var(--badge); text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); }
-        .summary-table td { padding: 16px; border-top: 1px solid var(--border); font-size: 14px; }
-        .summary-table tr:hover { background: var(--badge); }
+            .unit {
+                font-size: 0.4em;
+                color: var(--text-muted);
+                margin-left: 6px;
+                font-weight: 500;
+            }
+        }
 
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        /* Animations */
+        @keyframes valueUpdate {
+            0% { opacity: 0; transform: translateY(10px); filter: blur(10px); }
+            100% { opacity: 1; transform: translateY(0); filter: blur(0); }
+        }
 
-        /* REFINED ROW-BASED SUMMARY */
-.pro-summary-table {
-    background: var(--card);
-    backdrop-filter: blur(24px);
-    -webkit-backdrop-filter: blur(24px);
-    border: 1px solid var(--border);
-    border-radius: 24px;
-    box-shadow: var(--glow);
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-}
+        .animate-update {
+            animation: valueUpdate 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
 
-.pro-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 24px 30px;
-    border-bottom: 1px solid var(--border);
-    transition: background 0.3s ease;
-    gap: 20px; /* Ensures a minimum gap between label and data */
-}
+        /* Navigation Tabs */
+        .nav-scroller {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 32px;
+            overflow-x: auto;
+            padding-bottom: 8px;
+            scrollbar-width: none;
+            
+            &::-webkit-scrollbar { display: none; }
+        }
 
-.pro-row:last-child { border-bottom: none; }
+        .nav-btn {
+            background: var(--card);
+            border: 1px solid var(--border);
+            padding: 12px 24px;
+            border-radius: 16px;
+            color: var(--text-main);
+            font-weight: 700;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: all 0.2s ease;
 
-.pro-label {
-    font-size: 15px;
-    font-weight: 800;
-    color: var(--text);
-    letter-spacing: 0.5px;
-    display: flex;
-    align-items: center;
-    flex: 0 0 160px; /* Lock the label width so data doesn't overlap it */
-}
+            &.active {
+                background: var(--accent);
+                color: white;
+                border-color: var(--accent);
+                box-shadow: 0 10px 20px -5px var(--accent-glow);
+            }
+        }
 
-.pro-data-group {
-    display: flex;
-    align-items: center;
-    gap: 40px; /* Increased spacing between the two values */
-    flex: 1;
-    justify-content: flex-end; /* Keeps data anchored to the right */
-}
+        /* Data Grid */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 24px;
+        }
 
-.pro-data-item {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-    min-width: 100px; /* Ensures consistent alignment across different rows */
-}
+        /* Sub-Data Pill Grid */
+        .mini-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-top: 24px;
+            padding-top: 24px;
+            border-top: 1px solid var(--border);
+        }
 
-.pro-sub {
-    font-size: 10px;
-    text-transform: uppercase;
-    letter-spacing: 1.5px;
-    color: var(--muted);
-    font-weight: 800;
-    margin-bottom: 6px;
-}
-
-.pro-val {
-    font-size: 26px;
-    font-weight: 900;
-    line-height: 1;
-    letter-spacing: -0.5px;
-}
-
-.pro-divider {
-    width: 1px;
-    height: 32px;
-    background: var(--border);
-    opacity: 0.5;
-}
-
-/* Responsive fix for smaller screens to prevent squeezing */
-@media (max-width: 650px) {
-    .pro-row {
-        padding: 20px;
-        gap: 10px;
-    }
-    .pro-label {
-        flex: 0 0 120px;
-        font-size: 13px;
-    }
-    .pro-data-group {
-        gap: 20px;
-    }
-    .pro-val {
-        font-size: 20px;
-    }
-}
-
-.glass-select {
-    background: var(--card) !important;
-    border: 1px solid var(--border);
-    border-radius: 12px; /* Smoother corners */
-    padding: 8px 12px;
-    font-family: inherit;
-    font-weight: 600;
-    color: var(--text) !important;
-    outline: none;
-    cursor: pointer;
-    transition: all 0.2s ease; /* Smooth hover transition */
-    appearance: none; /* Removes default browser styling */
-    -webkit-appearance: none;
-    background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
-    background-repeat: no-repeat;
-    background-position: right 10px center;
-    background-size: 1em;
-    padding-right: 40px;
-}
-
-.glass-select:hover {
-    border-color: var(--accent);
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-}
-
-/* Forces the dropdown list (popup) to be dark and prevents the white blink */
-.glass-select option {
-    background-color: #ffffff;
-    color: #000000;
-}
-
-body.is-night .glass-select {
-    color-scheme: dark; /* CRITICAL: Tells browser the interior of the select is dark */
-}
-
-body.is-night .glass-select option {
-    background-color: #1e293b;
-    color: #f1f5f9;
-}
-
-
-
+        .mini-pill {
+            background: var(--border);
+            padding: 14px;
+            border-radius: 18px;
+            
+            .pill-label { font-size: 9px; text-transform: uppercase; color: var(--text-muted); font-weight: 800; display: block; margin-bottom: 4px; }
+            .pill-val { font-size: 16px; font-weight: 800; }
+        }
     </style>
 </head>
-<body>
-    <div class="container">
-        <div class="header">
+
+<body data-theme="dark">
+    <div class="app-container">
+        <header class="main-header">
             <h1>KK Nagar Weather Hub</h1>
-            <div class="header-actions">
-                <div class="status-bar"><div class="live-dot"></div><div class="timestamp"><span id="ts">--:--:--</span></div></div>
-                <div class="theme-toggle" id="themeToggle">
-                    <div class="theme-btn" id="btn-light">LIGHT</div>
-                    <div class="theme-btn" id="btn-dark">DARK</div>
-                    <div class="theme-btn active" id="btn-auto">AUTO</div>
+            <div class="header-actions" style="display: flex; align-items: center; gap: 16px;">
+                <div class="glass-card" style="padding: 8px 20px; border-radius: 100px; display: flex; align-items: center; gap: 10px;">
+                    <span style="width: 8px; height: 8px; background: #10b981; border-radius: 50%; box-shadow: 0 0 10px #10b981;"></span>
+                    <span id="ts" style="font-size: 14px; font-weight: 600; font-variant-numeric: tabular-nums;">09:34:35 pm</span>
+                </div>
+                <div class="nav-btn" onclick="document.body.dataset.theme = document.body.dataset.theme === 'dark' ? 'light' : 'dark'">
+                    🌓
                 </div>
             </div>
-        </div>
+        </header>
 
-       <div class="nav-tabs">
-        <button onclick="showPage('dashboard')" id="tab-dash" class="tab-btn active">Live Dashboard</button>
-        <button onclick="showPage('summary')" id="tab-sum" class="tab-btn">Monthly Summary</button>
-        <button onclick="showPage('historical')" id="tab-hist" class="tab-btn">Historical Data</button>
-       </div>
+        <nav class="nav-scroller">
+            <button class="nav-btn active">Live Dashboard</button>
+            <button class="nav-btn">Monthly Summary</button>
+            <button class="nav-btn">Historical Data</button>
+        </nav>
 
-        <div id="page-dashboard">
-            
-            <div class="grid-system">
-                <div class="card">
-                    <div class="label">Temperature</div>
-                    <div class="main-val"><span id="t">0.0</span><span class="unit">°C</span></div>
-                    <div id="tTrendBox" class="sub-pill">--</div>
-                    <div class="sub-box-4">
-                        <div class="badge"><span class="badge-label">Today High</span><span id="mx" class="badge-val" style="color:#ef4444">--</span></div>
-                        <div class="badge"><span class="badge-label">Today Low</span><span id="mn" class="badge-val" style="color:#0ea5e9">--</span></div>
-                        <div class="badge"><span class="badge-label">Humidity</span><span id="h_val" class="badge-val">--</span></div>
-                        <div class="badge"><span class="badge-label">Dew Point</span><span id="d_val" class="badge-val">--</span></div>
-                        <div class="badge" style="grid-column: span 2;"><span class="badge-label">Feels Like</span><span id="rf" class="badge-val">--</span></div>
+        <main class="stats-grid">
+            <section class="glass-card">
+                <div class="label-caps">Temperature</div>
+                <div class="value-hero">
+                    <span id="t">32.6</span><span class="unit">°C</span>
+                </div>
+                <div style="margin-top: 12px; color: #10b981; font-weight: 700; font-size: 14px;">
+                    ↓ 0.4°C /hr
+                </div>
+
+                <div class="mini-grid">
+                    <div class="mini-pill">
+                        <span class="pill-label">Today High</span>
+                        <span class="pill-val" style="color: #ef4444;">39.2°C</span>
+                    </div>
+                    <div class="mini-pill">
+                        <span class="pill-label">Today Low</span>
+                        <span class="pill-val" style="color: #0ea5e9;">30.3°C</span>
+                    </div>
+                    <div class="mini-pill">
+                        <span class="pill-label">Humidity</span>
+                        <span class="pill-val">67%</span>
+                    </div>
+                    <div class="mini-pill">
+                        <span class="pill-label">Feels Like</span>
+                        <span class="pill-val">41°C</span>
                     </div>
                 </div>
+            </section>
 
-                <div class="card">
-                    <canvas id="windCanvas"></canvas>
-                    <div class="label">Wind Dynamics</div>
-                    <div class="compass-ui"><div id="needle"></div></div>
-                    <div class="main-val"><span id="w">0.0</span><span id="wd_bracket" style="font-size:18px; color:var(--muted); margin-left:8px; font-weight:700">(--)</span><span class="unit">km/h</span></div>
-                    <div class="sub-pill">● Live Gust: <span id="wg" style="margin-left:4px">--</span></div>
-                    <div class="sub-box-4">
-                        <div class="badge"><span class="badge-label">Max Speed</span><span id="mw" class="badge-val">--</span></div>
-                        <div class="badge"><span class="badge-label">Max Gust</span><span id="mg" class="badge-val">--</span></div>
-                    </div>
+            <section class="glass-card" style="position: relative; overflow: hidden;">
+                <div class="label-caps">Wind Dynamics</div>
+                <div class="value-hero">
+                    <span id="w">2.6</span>
+                    <span style="font-size: 18px; color: var(--text-muted); margin-left: 10px;">SSE</span>
+                    <span class="unit">km/h</span>
                 </div>
-
-                <div class="card">
-                    <div class="label">Rain Realm</div>
-                    <div class="main-val"><span id="r_tot">0.0</span><span class="unit">mm</span></div>
-                    <div class="sub-pill">● Rain Rate: <span id="r_rate">0.0</span> mm/h</div>
-                    <div class="sub-box-4">
-                        <div class="badge" style="grid-column: span 2;"><span class="badge-label">Max Rate Today</span><span id="mr" class="badge-val">--</span></div>
-                        <div class="badge"><span class="badge-label">Weekly</span><span id="r_week" class="badge-val">--</span></div>
-                        <div class="badge"><span class="badge-label">Monthly</span><span id="r_month" class="badge-val">--</span></div>
-                        <div class="badge" style="grid-column: span 2;"><span class="badge-label">Yearly</span><span id="r_year" class="badge-val">--</span></div>
-                    </div>
-                </div>
-
-                <div class="card">
-                    <div class="label">Atmospheric <span id="pIcon"></span></div>
-                    <div class="main-val"><span id="pr">--</span><span class="unit">hPa</span></div>
-                    <div class="sub-box-4">
-                        <div class="badge"><span class="badge-label">Solar Rad</span><span id="sol" class="badge-val">--</span></div>
-                        <div class="badge"><span class="badge-label">UV Index</span><span id="uv" class="badge-val">--</span></div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="sub-tabs-section" style="margin-top: 35px;">
-                <div style="display: flex; gap: 10px; margin-bottom: 20px; justify-content: center;">
-                    <button onclick="switchSubView('summary')" id="btn-sub-sum" class="tab-btn active">24H Summary</button>
-                    <button onclick="switchSubView('graphs')" id="btn-sub-graph" class="tab-btn">24H Graphs</button>
-                </div>
-
                 
-                <div id="sub-view-summary" style="display: block; animation: fadeIn 0.4s ease;">
-    <div class="pro-summary-table">
+                <div class="mini-grid">
+                    <div class="mini-pill">
+                        <span class="pill-label">Max Speed</span>
+                        <span class="pill-val">12.2 km/h</span>
+                    </div>
+                    <div class="mini-pill">
+                        <span class="pill-label">Max Gust</span>
+                        <span class="pill-val">20.1 km/h</span>
+                    </div>
+                </div>
+            
         
         <div class="pro-row">
             <div class="pro-label">
