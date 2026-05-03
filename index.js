@@ -526,13 +526,22 @@ app.get("/", (req, res) => {
         .live-dot { width: 5px; height: 5px; background: #10b981; border-radius: 50%; animation: blink 2s infinite; }
         @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
         
-        .grid-system { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; }
-        .card { background: var(--card); padding: 20px; border-radius: 24px; border: 1px solid var(--border); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); box-shadow: var(--glow); position: relative; overflow: hidden; transition: background 0.5s ease; }
-        #windCanvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; border-radius: 24px; }
+        /* MODERN DASHBOARD GRID */
+        .grid-system { display: grid; grid-template-columns: repeat(12, 1fr); gap: 16px; }
+        
+        .card { background: var(--card); padding: 24px; border-radius: 28px; border: 1px solid var(--border); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); box-shadow: var(--glow); position: relative; overflow: hidden; transition: all 0.5s ease; }
+        .card:hover { transform: translateY(-2px); box-shadow: 0 20px 60px rgba(0,0,0,0.15); }
+        
+        /* CARD SIZING */
+        .card-hero { grid-column: span 12; }
+        .card-weather { grid-column: span 6; }
+        .card-compact { grid-column: span 3; }
+        
+        #windCanvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; border-radius: 28px; }
         .card > *:not(canvas) { position: relative; z-index: 5; }
 
-        .label { color: var(--accent); font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 1.8px; margin-bottom: 4px; }
-        .main-val { font-size: 42px; font-weight: 900; margin: 0; letter-spacing: -1.5px; display: flex; align-items: baseline; line-height: 1.1; }
+        .label { color: var(--accent); font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 8px; opacity: 0.9; }
+        .main-val { font-size: 48px; font-weight: 950; margin: 0; letter-spacing: -2px; display: flex; align-items: baseline; line-height: 1; }
         
         /* MODERN TRANSIENT EFFECTS */
         .main-val span:not(.unit), .badge-val { 
@@ -553,24 +562,56 @@ app.get("/", (req, res) => {
             will-change: transform, opacity, filter;
         }
 
-        .unit { font-size: 16px; font-weight: 600; color: var(--muted); margin-left: 4px; letter-spacing: 0; }
-        .sub-pill { font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 8px; background: var(--badge); display: inline-flex; align-items: center; gap: 4px; margin: 8px 0 14px 0; }
+        .unit { font-size: 18px; font-weight: 600; color: var(--muted); margin-left: 6px; letter-spacing: 0; }
+        .sub-pill { font-size: 12px; font-weight: 700; padding: 6px 14px; border-radius: 10px; background: var(--badge); display: inline-flex; align-items: center; gap: 6px; margin: 12px 0 20px 0; }
 
-        .sub-box-4 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding-top: 14px; border-top: 1px solid var(--border); }
-        .badge { padding: 10px; border-radius: 14px; background: var(--badge); display: flex; flex-direction: column; gap: 2px; }
-        .badge-label { font-size: 8px; color: var(--muted); text-transform: uppercase; font-weight: 800; letter-spacing: 0.8px; }
-        .badge-val { font-size: 14px; font-weight: 800; }
+        .sub-box-4 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding-top: 16px; border-top: 1px solid var(--border); }
+        .badge { padding: 14px; border-radius: 16px; background: var(--badge); display: flex; flex-direction: column; gap: 4px; }
+        .badge-label { font-size: 9px; color: var(--muted); text-transform: uppercase; font-weight: 800; letter-spacing: 1px; }
+        .badge-val { font-size: 18px; font-weight: 900; letter-spacing: -0.5px; }
+        
+        /* TIMESTAMP STYLING */
+        .time-left { position: absolute; left: 16px; top: 50%; transform: translateY(-50%); font-size: 9px; color: var(--muted); font-weight: 700; opacity: 0.7; text-align: right; }
+        .time-right { position: absolute; right: 16px; top: 50%; transform: translateY(-50%); font-size: 9px; color: var(--muted); font-weight: 700; opacity: 0.7; text-align: left; }
 
-        .compass-ui { position: absolute !important; top: 20px !important; right: 20px !important; width: 44px; height: 44px; border: 2px solid var(--border); border-radius: 50%; display: flex; align-items: center; justify-content: center; z-index: 10; }
-        #needle { width: 2.5px; height: 28px; background: linear-gradient(to bottom, #ef4444 50%, var(--muted) 50%); clip-path: polygon(50% 0%, 100% 100%, 50% 85%, 0% 100%); transition: transform 2s cubic-bezier(0.1, 0.9, 0.2, 1); }
+        .compass-ui { position: absolute !important; top: 24px !important; right: 24px !important; width: 56px; height: 56px; border: 2px solid var(--border); border-radius: 50%; display: flex; align-items: center; justify-content: center; z-index: 10; background: rgba(0,0,0,0.02); }
+        body.is-night .compass-ui { background: rgba(255,255,255,0.02); }
+        #needle { width: 3px; height: 32px; background: linear-gradient(to bottom, #ef4444 50%, var(--muted) 50%); clip-path: polygon(50% 0%, 100% 100%, 50% 85%, 0% 100%); transition: transform 2s cubic-bezier(0.1, 0.9, 0.2, 1); }
+        
+        /* SECTION HEADERS */
+        .section-title { font-size: 13px; font-weight: 900; color: var(--accent); text-transform: uppercase; letter-spacing: 2px; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+        .section-title::before { content: ''; width: 4px; height: 4px; background: var(--accent); border-radius: 50%; }
+        
+        /* REAL FEEL SECTION */
+        .realfeel-container { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; }
+        .realfeel-item { padding: 12px; background: var(--badge); border-radius: 12px; display: flex; flex-direction: column; gap: 4px; }
+        .realfeel-label { font-size: 9px; color: var(--muted); text-transform: uppercase; font-weight: 700; letter-spacing: 1px; }
+        .realfeel-value { font-size: 24px; font-weight: 900; letter-spacing: -0.8px; }
 
         .graphs-wrapper { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; margin-top: 16px; }
         .graph-card { background: var(--card); padding: 16px; border-radius: 24px; border: 1px solid var(--border); height: 280px; box-shadow: var(--glow); display: flex; flex-direction: column; overflow: hidden; transition: background 0.5s ease; }
         .graph-card canvas { flex-grow: 1; width: 100% !important; height: 100% !important; }
 
         .trend-up { color: #f43f5e; } .trend-down { color: #0ea5e9; }
-        .time-mark { font-size: 8px; color: var(--muted); font-weight: 600; margin-left: 2px; background: rgba(0,0,0,0.04); padding: 0.5px 3px; border-radius: 3px; }
+        .time-mark { font-size: 9px; color: var(--muted); font-weight: 600; margin-left: 4px; background: rgba(0,0,0,0.06); padding: 2px 6px; border-radius: 4px; }
         body.is-night .time-mark { background: rgba(255,255,255,0.1); }
+        
+        /* RESPONSIVE GRID */
+        @media (max-width: 1024px) {
+            .card-hero { grid-column: span 12; }
+            .card-weather { grid-column: span 6; }
+            .card-compact { grid-column: span 4; }
+        }
+        
+        @media (max-width: 768px) {
+            .grid-system { gap: 12px; }
+            .card { padding: 20px; }
+            .card-hero { grid-column: span 12; }
+            .card-weather { grid-column: span 12; }
+            .card-compact { grid-column: span 6; }
+            .main-val { font-size: 40px; }
+            .badge-val { font-size: 16px; }
+        }
 
         /* SUMMARY SYSTEM */
         .nav-tabs { display: flex; gap: 6px; margin-bottom: 22px; }
@@ -751,51 +792,75 @@ body.is-night .glass-select option {
         <div id="page-dashboard">
             
             <div class="grid-system">
-                <div class="card">
-                    <div class="label">Temperature</div>
-                    <div class="main-val"><span id="t">0.0</span><span class="unit">°C</span></div>
-                    <div id="tTrendBox" class="sub-pill">--</div>
-                    <div class="sub-box-4">
-                        <div class="badge"><span class="badge-label">Today High</span><span id="mx" class="badge-val" style="color:#ef4444">--</span></div>
-                        <div class="badge"><span class="badge-label">Today Low</span><span id="mn" class="badge-val" style="color:#0ea5e9">--</span></div>
-                        <div class="badge"><span class="badge-label">Humidity</span><span id="h_val" class="badge-val">--</span></div>
+                
+                <!-- HERO CARD: MAIN TEMPERATURE -->
+                <div class="card card-hero">
+                    <div class="label">Current Conditions</div>
+                    <div style="display: grid; grid-template-columns: 1.5fr 1fr; gap: 24px; align-items: center;">
+                        <div>
+                            <div class="main-val"><span id="t">0.0</span><span class="unit">°C</span></div>
+                            <div id="tTrendBox" class="sub-pill" style="margin-top: 16px;">--</div>
+                        </div>
+                        <div>
+                            <div class="section-title">Comfort</div>
+                            <div class="realfeel-container">
+                                <div class="realfeel-item">
+                                    <span class="realfeel-label">Feels Like</span>
+                                    <span id="rf" class="realfeel-value" style="color: var(--text);">--</span>
+                                </div>
+                                <div class="realfeel-item">
+                                    <span class="realfeel-label">Humidity</span>
+                                    <span id="h_val" class="realfeel-value">--</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="sub-box-4" style="margin-top: 16px;">
+                        <div class="badge"><span class="badge-label">Today High</span><span id="mx" class="badge-val" style="color:#ef4444">--</span><span class="time-mark" id="mx-time"></span></div>
+                        <div class="badge"><span class="badge-label">Today Low</span><span id="mn" class="badge-val" style="color:#0ea5e9">--</span><span class="time-mark" id="mn-time"></span></div>
                         <div class="badge"><span class="badge-label">Dew Point</span><span id="d_val" class="badge-val">--</span></div>
-                        <div class="badge" style="grid-column: span 2;"><span class="badge-label">Feels Like</span><span id="rf" class="badge-val">--</span></div>
+                        <div class="badge"><span class="badge-label">Pressure</span><span id="pr" class="badge-val">--</span><span id="pIcon" style="margin-left: 4px; font-size: 14px;">●</span></div>
                     </div>
                 </div>
 
-                <div class="card">
+                <!-- WIND CARD -->
+                <div class="card card-weather">
                     <canvas id="windCanvas"></canvas>
                     <div class="label">Wind Dynamics</div>
                     <div class="compass-ui"><div id="needle"></div></div>
-                    <div class="main-val"><span id="w">0.0</span><span id="wd_bracket" style="font-size:18px; color:var(--muted); margin-left:8px; font-weight:700">(--)</span><span class="unit">km/h</span></div>
-                    <div class="sub-pill">● Live Gust: <span id="wg" style="margin-left:4px">--</span></div>
+                    <div class="main-val"><span id="w">0.0</span><span id="wd_bracket" style="font-size:20px; color:var(--muted); margin-left:8px; font-weight:700">(--)</span><span class="unit">km/h</span></div>
+                    <div class="sub-pill" style="margin-top: 14px;">● Gust: <span id="wg" style="margin-left:6px; font-weight: 800;">--</span></div>
                     <div class="sub-box-4">
-                        <div class="badge"><span class="badge-label">Max Speed</span><span id="mw" class="badge-val">--</span></div>
-                        <div class="badge"><span class="badge-label">Max Gust</span><span id="mg" class="badge-val">--</span></div>
+                        <div class="badge"><span class="badge-label">Max Speed</span><span id="mw" class="badge-val">--</span><span class="time-mark" id="mw-time"></span></div>
+                        <div class="badge"><span class="badge-label">Max Gust</span><span id="mg" class="badge-val">--</span><span class="time-mark" id="mg-time"></span></div>
                     </div>
                 </div>
 
-                <div class="card">
-                    <div class="label">Rain Realm</div>
-                    <div class="main-val"><span id="r_tot">0.0</span><span class="unit">mm</span></div>
-                    <div class="sub-pill">● Rain Rate: <span id="r_rate">0.0</span> mm/h</div>
-                    <div class="sub-box-4">
-                        <div class="badge" style="grid-column: span 2;"><span class="badge-label">Max Rate Today</span><span id="mr" class="badge-val">--</span></div>
-                        <div class="badge"><span class="badge-label">Weekly</span><span id="r_week" class="badge-val">--</span></div>
-                        <div class="badge"><span class="badge-label">Monthly</span><span id="r_month" class="badge-val">--</span></div>
-                        <div class="badge" style="grid-column: span 2;"><span class="badge-label">Yearly</span><span id="r_year" class="badge-val">--</span></div>
+                <!-- ATMOSPHERIC CARD -->
+                <div class="card card-weather">
+                    <div class="label">Atmospheric</div>
+                    <div style="display: flex; align-items: baseline; gap: 8px;">
+                        <div class="main-val" style="font-size: 44px;"><span id="pr2">--</span><span class="unit">hPa</span></div>
                     </div>
-                </div>
-
-                <div class="card">
-                    <div class="label">Atmospheric <span id="pIcon"></span></div>
-                    <div class="main-val"><span id="pr">--</span><span class="unit">hPa</span></div>
-                    <div class="sub-box-4">
-                        <div class="badge"><span class="badge-label">Solar Rad</span><span id="sol" class="badge-val">--</span></div>
+                    <div class="sub-box-4" style="margin-top: 16px;">
+                        <div class="badge"><span class="badge-label">Solar Radiation</span><span id="sol" class="badge-val">--</span></div>
                         <div class="badge"><span class="badge-label">UV Index</span><span id="uv" class="badge-val">--</span></div>
                     </div>
                 </div>
+
+                <!-- RAIN REALM CARD - EXPANDED -->
+                <div class="card card-weather">
+                    <div class="label">Precipitation</div>
+                    <div class="main-val"><span id="r_tot">0.0</span><span class="unit">mm</span></div>
+                    <div class="sub-pill" style="margin-top: 14px;">● Rate: <span id="r_rate">0.0</span> mm/h</div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; padding-top: 16px; border-top: 1px solid var(--border);">
+                        <div class="badge"><span class="badge-label">Weekly</span><span id="r_week" class="badge-val">--</span></div>
+                        <div class="badge"><span class="badge-label">Monthly</span><span id="r_month" class="badge-val">--</span></div>
+                        <div class="badge"><span class="badge-label">Yearly</span><span id="r_year" class="badge-val">--</span></div>
+                    </div>
+                    <div class="badge" style="grid-column: span 2; margin-top: 10px;"><span class="badge-label">Max Rate Today</span><span id="mr" class="badge-val">--</span><span class="time-mark" id="mr-time"></span></div>
+                </div>
+
             </div>
 
             <div class="sub-tabs-section" style="margin-top: 24px;">
@@ -1072,25 +1137,34 @@ body.is-night .glass-select option {
                 updateValueWithFade('wg', d.wind.gust, 1, ' km/h'); 
 
                 document.getElementById('tTrendBox').innerHTML = d.temp.rate > 0 ? '<span class="trend-up">▲</span> +' + d.temp.rate + '°C /hr' : d.temp.rate < 0 ? '<span class="trend-down">▼</span> ' + d.temp.rate + '°C /hr' : '● Steady';
-                document.getElementById('mx').innerHTML = d.temp.max + '°C <span class="time-mark">' + d.temp.maxTime + '</span>';
-                document.getElementById('mn').innerHTML = d.temp.min + '°C <span class="time-mark">' + d.temp.minTime + '</span>';
+                
+                // Temperature with timestamps on side
+                document.getElementById('mx').innerHTML = d.temp.max + '°C';
+                document.getElementById('mx-time').innerHTML = d.temp.maxTime;
+                document.getElementById('mn').innerHTML = d.temp.min + '°C';
+                document.getElementById('mn-time').innerHTML = d.temp.minTime;
+                
                 const feels = d.temp.realFeel;
                 const heatColor = feels >= 54 ? '#ef4444' : feels >= 41 ? '#f97316' : feels >= 32 ? '#eab308' : 'var(--text)';
                 document.getElementById('rf').style.color = heatColor;
                 document.getElementById('rf').innerText = feels + '°C';
-                document.getElementById('h_val').innerHTML = d.atmo.hum + '% ' + (d.atmo.hTrend > 0 ? '▲' : d.atmo.hTrend < 0 ? '▼' : '●');
+                
+                document.getElementById('h_val').innerHTML = d.atmo.hum + '%';
                 document.getElementById('d_val').innerText = d.temp.dew + '°C';
                 
                 document.getElementById('wd_bracket').innerText = '(' + d.wind.card + ')';
-                document.getElementById('mw').innerHTML = d.wind.maxS + ' km/h <span class="time-mark">' + d.wind.maxSTime + '</span>';
-                document.getElementById('mg').innerHTML = d.wind.maxG + ' km/h <span class="time-mark">' + d.wind.maxGTime + '</span>';
+                document.getElementById('mw').innerHTML = d.wind.maxS + ' km/h';
+                document.getElementById('mw-time').innerHTML = d.wind.maxSTime;
+                document.getElementById('mg').innerHTML = d.wind.maxG + ' km/h';
+                document.getElementById('mg-time').innerHTML = d.wind.maxGTime;
                 document.getElementById('needle').style.transform = 'rotate(' + d.wind.deg + 'deg)';
                 liveWindSpeed = d.wind.speed; liveWindDeg = d.wind.deg;
                 
                 document.getElementById('r_week').innerText = d.rain.weekly + ' mm';
                 document.getElementById('r_month').innerText = d.rain.monthly + ' mm';
                 document.getElementById('r_year').innerText = d.rain.yearly + ' mm';
-                document.getElementById('mr').innerHTML = d.rain.maxR > 0 ? d.rain.maxR + ' mm/h <span class="time-mark">' + d.rain.maxRTime + '</span>' : '0 mm/h';
+                document.getElementById('mr').innerHTML = d.rain.maxR > 0 ? d.rain.maxR + ' mm/h' : '0 mm/h';
+                document.getElementById('mr-time').innerHTML = d.rain.maxRTime;
 
                 const pTrend = d.atmo.pTrend;
                 let pArrow = '●';
@@ -1099,6 +1173,7 @@ body.is-night .glass-select option {
                 document.getElementById('pIcon').innerHTML = pArrow;
                 
                 document.getElementById('pr').innerText = d.atmo.press;
+                document.getElementById('pr2').innerText = d.atmo.press;
                 document.getElementById('sol').innerText = d.atmo.sol + ' W/m²'; 
                 document.getElementById('uv').innerText = d.atmo.uv;
                 document.getElementById('ts').innerText = new Date(d.lastSync).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
