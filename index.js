@@ -775,10 +775,10 @@ body.is-night .glass-select option {
     color: #f1f5f9;
 }
 
-/* Modern Pluvial Layout - Fixed Placement */
+/* Modern Pluvial Layout */
 .rain-card-body {
     display: grid;
-    grid-template-columns: 0.8fr 3px 1.2fr; /* Divider shifted left, Intensity gets more room */
+    grid-template-columns: 0.8fr 3px 1.2fr; /* Divider shifted left */
     align-items: center;
     padding: 20px 0;
 }
@@ -790,49 +790,49 @@ body.is-night .glass-select option {
     letter-spacing: 2px;
     text-transform: uppercase;
     display: block;
-    margin-top: -12px; /* Positions it directly under 'RAIN REALM' */
-    margin-bottom: 10px;
+    margin-top: -12px; /* Positions it under 'RAIN REALM' */
+    margin-bottom: 15px;
     opacity: 0.7;
 }
 
 .modern-thick-divider {
-    height: 90px;
-    background: #3b82f6; /* Solid Modern Blue */
+    height: 85px;
+    background: #3b82f6; 
     width: 3px;
     border-radius: 4px;
-    box-shadow: 0 0 10px rgba(59, 130, 246, 0.3); /* Subtle glow for pluvial feel */
+    box-shadow: 0 0 10px rgba(59, 130, 246, 0.2);
 }
 
 .intensity-highlight-zone {
     padding-left: 30px;
     display: flex;
     flex-direction: column;
-    gap: 20px; /* Strong spacing for prominence */
+    gap: 18px;
 }
 
 .stat-label-modern {
     font-size: 9px;
     font-weight: 900;
     text-transform: uppercase;
-    letter-spacing: 1.5px;
+    letter-spacing: 1.2px;
     color: var(--muted);
     margin-bottom: 4px;
 }
 
 .intensity-value-large {
-    font-size: 26px; /* Bigger, bolder prominence */
+    font-size: 26px; 
     font-weight: 900;
     color: #3b82f6;
     line-height: 1;
 }
 
 .peak-value-large {
-    font-size: 20px; /* Equalized importance */
+    font-size: 20px;
     font-weight: 800;
     color: var(--text);
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
 }
 
 .timestamp-modern {
@@ -844,10 +844,6 @@ body.is-night .glass-select option {
     border-radius: 6px;
 }
 
-/* Remove dashes and clutter */
-#mr_time:empty, #mr_time:contains("--") {
-    display: none;
-}
 
     </style>
 </head>
@@ -917,7 +913,7 @@ body.is-night .glass-select option {
                 <div class="stat-label-modern">Current Intensity</div>
                 <div class="intensity-value-large">
                     <span id="r_rate">0.0</span> 
-                    <small style="font-size: 12px; opacity: 0.6; vertical-align: middle;">mm/h</small>
+                    <small style="font-size: 12px; opacity: 0.6;">mm/h</small>
                 </div>
             </div>
             
@@ -925,7 +921,7 @@ body.is-night .glass-select option {
                 <div class="stat-label-modern">Peak Intensity</div>
                 <div class="peak-value-large">
                     <span id="mr">0.0</span>
-                    <span class="timestamp-modern" id="mr_time">07:35:09</span>
+                    <span class="timestamp-modern" id="mr_time">--:--</span>
                 </div>
             </div>
         </div>
@@ -946,6 +942,7 @@ body.is-night .glass-select option {
         </div>
     </div>
 </div>
+
 
 
 
