@@ -776,85 +776,77 @@ body.is-night .glass-select option {
 }
 
 
-/* Modern Instrument Style - Rain Realm */
-.rain-instrument-grid {
+/* Pluviophile Accent Design */
+.rain-dynamic-grid {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 20px 5px;
-    margin-bottom: 20px;
+    padding: 15px 0 25px 0;
 }
 
-.rain-total-block {
+.rain-main-display {
+    flex: 1.1;
+}
+
+.rain-accent-divider {
+    width: 2px;
+    height: 60px;
+    background: linear-gradient(to bottom, #3b82f6, transparent); /* Blue accent peak */
+    margin: 0 25px;
+    border-radius: 2px;
+}
+
+.rain-live-metrics {
     flex: 1;
-}
-
-.total-meta {
-    font-size: 10px;
-    font-weight: 800;
-    color: var(--accent);
-    text-transform: uppercase;
-    letter-spacing: 1.5px;
-    margin-top: -5px;
-    display: block;
-}
-
-.live-intensity-sidebar {
-    border-left: 2px solid rgba(59, 130, 246, 0.3); /* Subtle blue glow bar */
-    padding-left: 25px;
     display: flex;
     flex-direction: column;
-    gap: 15px;
+    gap: 18px; /* Increased prominence through spacing */
 }
 
-.intensity-stat-group {
+.metric-item {
     display: flex;
     flex-direction: column;
 }
 
-.intensity-label-pro {
+.metric-label {
     font-size: 9px;
     font-weight: 900;
-    color: var(--muted);
     text-transform: uppercase;
-    letter-spacing: 1px;
+    letter-spacing: 1.5px;
+    color: var(--muted);
     margin-bottom: 2px;
 }
 
-.intensity-val-pro {
-    font-size: 18px;
+.metric-value-live {
+    font-size: 20px;
     font-weight: 900;
-    color: #3b82f6; /* Electric Rain Blue */
+    color: #3b82f6;
     line-height: 1;
 }
 
-.peak-val-pro {
-    font-size: 14px;
+.metric-value-peak {
+    font-size: 15px;
     font-weight: 800;
     color: var(--text);
-    opacity: 0.9;
 }
 
-.peak-time-tiny {
-    font-size: 9px;
+.timestamp-pill {
+    font-size: 8px;
     background: var(--badge);
     padding: 2px 6px;
     border-radius: 4px;
-    margin-left: 5px;
-    font-weight: 600;
+    margin-left: 6px;
+    vertical-align: middle;
+    opacity: 0.8;
 }
 
-/* History Ledger - Wide & Clean */
-.history-wide-row {
+.history-clean-row {
     display: flex;
-    justify-content: space-around;
+    justify-content: space-between;
     padding-top: 20px;
-    border-top: 1px solid rgba(255,255,255,0.05);
+    border-top: 1px solid var(--border);
 }
 
-.history-item-minimal {
-    text-align: center;
-}
 
 
     </style>
@@ -908,50 +900,56 @@ body.is-night .glass-select option {
                 </div>
 
                 <div class="card">
-    <div class="label" style="display: flex; justify-content: space-between; align-items: center;">
-        RAIN REALM
-        <span style="font-size: 8px; background: rgba(59, 130, 246, 0.1); color: #3b82f6; padding: 2px 8px; border-radius: 10px; letter-spacing: 1px;">DAILY LIVE</span>
+    <div class="label" style="display: flex; align-items: center; gap: 10px;">
+        RAIN REALM 
+        <span style="font-size: 8px; color: var(--accent); letter-spacing: 1px; font-weight: 800; opacity: 0.7;">• DAILY</span>
     </div>
 
-    <div class="rain-instrument-grid">
-        <div class="rain-total-block">
-            <div class="main-val" style="margin: 0; font-size: 48px; letter-spacing: -3px;">
-                <span id="r_tot">0.0</span><span class="unit" style="font-size: 18px; letter-spacing: 0;">mm</span>
+    <div class="rain-dynamic-grid">
+        <div class="rain-main-display">
+            <div class="main-val" style="margin: 0; font-size: 52px; letter-spacing: -3px;">
+                <span id="r_tot">0.0</span><span class="unit" style="font-size: 18px; letter-spacing: 0; margin-left: 2px;">mm</span>
             </div>
-            <span class="total-meta">24H Total Volume</span>
         </div>
 
-        <div class="live-intensity-sidebar">
-            <div class="intensity-stat-group">
-                <span class="intensity-label-pro">Current Intensity</span>
-                <span class="intensity-val-pro"><span id="r_rate">0.0</span> <small style="font-size: 10px; opacity: 0.6;">mm/h</small></span>
+        <div class="rain-accent-divider"></div>
+
+        <div class="rain-live-metrics">
+            <div class="metric-item">
+                <span class="metric-label">Current Intensity</span>
+                <span class="metric-value-live">
+                    <span id="r_rate">0.0</span> 
+                    <small style="font-size: 10px; opacity: 0.5; letter-spacing: 0;">mm/h</small>
+                </span>
             </div>
-            <div class="intensity-stat-group">
-                <span class="intensity-label-pro">Peak Intensity</span>
-                <span class="peak-val-pro"><span id="mr">--</span><span class="peak-time-tiny" id="mr_time">00:00</span></span>
+            <div class="metric-item">
+                <span class="metric-label">Peak Intensity</span>
+                <span class="metric-value-peak">
+                    <span id="mr">--</span><span class="timestamp-pill" id="mr_time">00:00</span>
+                </span>
             </div>
         </div>
     </div>
 
-    <div class="history-wide-row">
-        <div class="history-item-minimal">
-            <span class="intensity-label-pro">Weekly</span>
-            <div id="r_week" style="font-size: 15px; font-weight: 900; margin-top: 4px;">--</div>
+    <div class="history-clean-row">
+        <div class="history-item-minimal" style="text-align: center; flex: 1;">
+            <span class="metric-label">Weekly</span>
+            <div id="r_week" style="font-size: 16px; font-weight: 900; margin-top: 4px;">--</div>
         </div>
-        <div class="history-item-minimal">
-            <span class="intensity-label-pro">Monthly</span>
-            <div id="r_month" style="font-size: 15px; font-weight: 900; margin-top: 4px;">--</div>
+        <div class="history-item-minimal" style="text-align: center; flex: 1; border-left: 1px solid var(--border); border-right: 1px solid var(--border);">
+            <span class="metric-label">Monthly</span>
+            <div id="r_month" style="font-size: 16px; font-weight: 900; margin-top: 4px;">--</div>
         </div>
-        <div class="history-item-minimal">
-            <span class="intensity-label-pro">Yearly</span>
-            <div id="r_year" style="font-size: 15px; font-weight: 900; margin-top: 4px;">--</div>
+        <div class="history-item-minimal" style="text-align: center; flex: 1;">
+            <span class="metric-label">Yearly</span>
+            <div id="r_year" style="font-size: 16px; font-weight: 900; margin-top: 4px;">--</div>
         </div>
     </div>
 </div>
 
 
 
-                
+                 
                 <div class="card">
                     <div class="label">Atmospheric <span id="pIcon"></span></div>
                     <div class="main-val"><span id="pr">--</span><span class="unit">hPa</span></div>
