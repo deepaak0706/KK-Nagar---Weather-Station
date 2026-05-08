@@ -775,107 +775,99 @@ body.is-night .glass-select option {
     color: #f1f5f9;
 }
 
-/* Pluviophile Pro - Modernized Rain Layout */
-.rain-pro-container {
+/* Unified Pluviophile Design - v3 */
+.rain-card-header {
+    background: var(--badge);
+    border-radius: 14px;
+    padding: 10px 18px;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 10px 0;
-    margin-bottom: 30px; /* More air below the main section */
+    margin-bottom: 24px;
+    border: 1px solid var(--border);
 }
 
-.rain-pro-main {
-    flex: 1.2;
+.daily-label-tag {
+    font-size: 10px;
+    font-weight: 900;
+    letter-spacing: 2px;
+    color: var(--accent);
+    text-transform: uppercase;
 }
 
-.rain-type-badge {
+.rain-main-layout {
+    display: grid;
+    grid-template-columns: 1.1fr 1px 1fr;
+    align-items: center;
+    gap: 0; /* Managed by margins for precision */
+    margin-bottom: 32px;
+}
+
+.rain-total-zone {
+    padding-right: 20px;
+}
+
+.stat-sub-label {
     font-size: 9px;
     font-weight: 800;
-    color: var(--accent);
-    background: var(--badge);
-    padding: 3px 8px;
-    border-radius: 6px;
-    margin-left: 8px;
-    vertical-align: middle;
-}
-
-.rain-pro-divider {
-    width: 1px;
-    height: 70px;
-    background: linear-gradient(to bottom, transparent, var(--border), transparent);
-    margin: 0 30px; /* Increased horizontal spacing */
-}
-
-.rain-pro-intensity-side {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    gap: 16px; /* Better spacing between Current and Peak */
-}
-
-.modern-stat-box {
-    display: flex;
-    flex-direction: column;
-    position: relative;
-}
-
-.modern-stat-label {
-    font-size: 10px;
-    font-weight: 800;
-    text-transform: uppercase;
-    letter-spacing: 1.5px;
     color: var(--muted);
-    margin-bottom: 4px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-top: 4px;
+    display: block;
 }
 
-.modern-stat-val {
-    font-size: 20px;
+.v-divider {
+    height: 65px;
+    background: linear-gradient(to bottom, transparent, var(--border), transparent);
+    width: 1px;
+}
+
+.intensity-zone {
+    padding-left: 30px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.intensity-stat {
+    display: flex;
+    flex-direction: column;
+}
+
+.intensity-num {
+    font-size: 22px;
     font-weight: 900;
-    letter-spacing: -0.5px;
-    color: #3b82f6; /* Rain Blue */
+    color: #3b82f6;
     line-height: 1;
 }
 
-.peak-accent {
-    color: var(--text);
-    font-size: 15px;
+.peak-num {
+    font-size: 14px;
     font-weight: 800;
-    opacity: 0.9;
+    color: var(--text);
 }
 
-.rain-pro-ledger {
-    display: flex;
-    justify-content: space-between;
-    padding-top: 25px;
-    border-top: 1px solid var(--border);
-    gap: 15px;
+.history-grid-clean {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    padding-top: 22px;
+    border-top: 1px dashed var(--border);
 }
 
-.ledger-item-pro {
-    flex: 1;
+.hist-item {
     text-align: center;
-    position: relative;
+    border-right: 1px solid var(--border);
 }
 
-/* Vertical dividers between ledger items instead of boxes */
-.ledger-item-pro:not(:last-child)::after {
-    content: "";
-    position: absolute;
-    right: -8px;
-    top: 20%;
-    height: 60%;
-    width: 1px;
-    background: var(--border);
-}
+.hist-item:last-child { border-right: none; }
 
-.ledger-val-pro {
-    font-size: 17px;
+.hist-val {
+    font-size: 16px;
     font-weight: 900;
     display: block;
-    margin-top: 5px;
-    letter-spacing: -0.5px;
+    margin-top: 4px;
 }
-
 
     </style>
 </head>
@@ -931,48 +923,48 @@ body.is-night .glass-select option {
                 <div class="card">
     <div class="label">Rain Realm</div>
     
-    <div class="rain-pro-container">
-        <div class="rain-pro-main">
-            <div class="main-val">
+    <div class="rain-card-header">
+        <span class="daily-label-tag">Daily Rainfall</span>
+        <span style="font-size: 9px; font-weight: 700; opacity: 0.6; color: var(--accent);">STATION LIVE</span>
+    </div>
+
+    <div class="rain-main-layout">
+        <div class="rain-total-zone">
+            <div class="main-val" style="margin:0;">
                 <span id="r_tot">0.0</span><span class="unit">mm</span>
-                <span class="rain-type-badge">DAILY</span>
             </div>
+            <span class="stat-sub-label">Total Volume</span>
         </div>
 
-        <div class="rain-pro-divider"></div>
+        <div class="v-divider"></div>
 
-        <div class="rain-pro-intensity-side">
-            <div class="modern-stat-box">
-                <span class="modern-stat-label">Intensity</span>
-                <span class="modern-stat-val">
-                    <span id="r_rate">0.0</span> 
-                    <span style="font-size: 10px; opacity: 0.6; letter-spacing: 0;">mm/h</span>
-                </span>
+        <div class="intensity-zone">
+            <div class="intensity-stat">
+                <span class="stat-sub-label" style="margin-bottom:4px;">Intensity</span>
+                <span class="intensity-num"><span id="r_rate">0.0</span> <small style="font-size:10px; opacity:0.5;">mm/h</small></span>
             </div>
-            <div class="modern-stat-box">
-                <span class="modern-stat-label">Day Peak</span>
-                <span id="mr" class="peak-accent">--</span>
+            <div class="intensity-stat">
+                <span class="stat-sub-label" style="margin-bottom:2px;">Peak</span>
+                <span id="mr" class="peak-num">--</span>
             </div>
         </div>
     </div>
 
-    <div class="rain-pro-ledger">
-        <div class="ledger-item-pro">
-            <span class="modern-stat-label">Weekly</span>
-            <span id="r_week" class="ledger-val-pro">--</span>
+    <div class="history-grid-clean">
+        <div class="hist-item">
+            <span class="stat-sub-label">Weekly</span>
+            <span id="r_week" class="hist-val">--</span>
         </div>
-        <div class="ledger-item-pro">
-            <span class="modern-stat-label">Monthly</span>
-            <span id="r_month" class="ledger-val-pro">--</span>
+        <div class="hist-item">
+            <span class="stat-sub-label">Monthly</span>
+            <span id="r_month" class="hist-val">--</span>
         </div>
-        <div class="ledger-item-pro">
-            <span class="modern-stat-label">Yearly</span>
-            <span id="r_year" class="ledger-val-pro">--</span>
+        <div class="hist-item">
+            <span class="stat-sub-label">Yearly</span>
+            <span id="r_year" class="hist-val">--</span>
         </div>
     </div>
 </div>
-
-
 
                
                 <div class="card">
