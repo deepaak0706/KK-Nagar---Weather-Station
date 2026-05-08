@@ -775,78 +775,78 @@ body.is-night .glass-select option {
     color: #f1f5f9;
 }
 
-
-/* Pluviophile Accent Design */
-.rain-dynamic-grid {
-    display: flex;
-    justify-content: space-between;
+/* Pluviophile Wow Layout */
+.rain-wow-grid {
+    display: grid;
+    grid-template-columns: 1fr 2px 1.2fr; /* Intensity gets more room */
     align-items: center;
-    padding: 15px 0 25px 0;
+    padding: 10px 0 25px 0;
 }
 
-.rain-main-display {
-    flex: 1.1;
-}
-
-.rain-accent-divider {
-    width: 2px;
-    height: 60px;
-    background: linear-gradient(to bottom, #3b82f6, transparent); /* Blue accent peak */
-    margin: 0 25px;
-    border-radius: 2px;
-}
-
-.rain-live-metrics {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    gap: 18px; /* Increased prominence through spacing */
-}
-
-.metric-item {
-    display: flex;
-    flex-direction: column;
-}
-
-.metric-label {
-    font-size: 9px;
-    font-weight: 900;
-    text-transform: uppercase;
-    letter-spacing: 1.5px;
-    color: var(--muted);
-    margin-bottom: 2px;
-}
-
-.metric-value-live {
-    font-size: 20px;
-    font-weight: 900;
-    color: #3b82f6;
-    line-height: 1;
-}
-
-.metric-value-peak {
-    font-size: 15px;
+.daily-sub-tag {
+    font-size: 10px;
     font-weight: 800;
-    color: var(--text);
-}
-
-.timestamp-pill {
-    font-size: 8px;
-    background: var(--badge);
-    padding: 2px 6px;
-    border-radius: 4px;
-    margin-left: 6px;
-    vertical-align: middle;
+    color: var(--accent);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-top: -8px; /* Pulls it right under the big mm number */
+    display: block;
     opacity: 0.8;
 }
 
-.history-clean-row {
-    display: flex;
-    justify-content: space-between;
-    padding-top: 20px;
-    border-top: 1px solid var(--border);
+.rain-divider-thick {
+    height: 80px;
+    background: linear-gradient(to bottom, transparent, var(--border), transparent);
+    width: 2px;
+    border-radius: 2px;
 }
 
+.intensity-section-wow {
+    padding-left: 25px;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.wow-label {
+    font-size: 9px;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--muted);
+}
+
+.wow-val-main {
+    font-size: 24px; /* Significantly bigger */
+    font-weight: 900;
+    color: #3b82f6; /* Prominent Blue */
+    line-height: 1;
+    display: flex;
+    align-items: baseline;
+    gap: 4px;
+}
+
+.wow-val-peak {
+    font-size: 18px; /* Prominent Peak */
+    font-weight: 800;
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.peak-ts {
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--muted);
+    font-style: italic;
+}
+
+/* Highlighting effect when raining */
+.is-raining {
+    text-shadow: 0 0 15px rgba(59, 130, 246, 0.4);
+    color: #60a5fa !important;
+}
 
 
     </style>
@@ -899,57 +899,56 @@ body.is-night .glass-select option {
                     </div>
                 </div>
 
+
                 <div class="card">
-    <div class="label" style="display: flex; align-items: center; gap: 10px;">
-        RAIN REALM 
-        <span style="font-size: 8px; color: var(--accent); letter-spacing: 1px; font-weight: 800; opacity: 0.7;">• DAILY</span>
-    </div>
+    <div class="label">RAIN REALM</div>
 
-    <div class="rain-dynamic-grid">
-        <div class="rain-main-display">
+    <div class="rain-wow-grid">
+        <div class="rain-left-total">
             <div class="main-val" style="margin: 0; font-size: 52px; letter-spacing: -3px;">
-                <span id="r_tot">0.0</span><span class="unit" style="font-size: 18px; letter-spacing: 0; margin-left: 2px;">mm</span>
+                <span id="r_tot">0.0</span><span class="unit" style="font-size: 18px; letter-spacing: 0;">mm</span>
             </div>
+            <span class="daily-sub-tag">Daily</span>
         </div>
 
-        <div class="rain-accent-divider"></div>
+        <div class="rain-divider-thick"></div>
 
-        <div class="rain-live-metrics">
-            <div class="metric-item">
-                <span class="metric-label">Current Intensity</span>
-                <span class="metric-value-live">
-                    <span id="r_rate">0.0</span> 
-                    <small style="font-size: 10px; opacity: 0.5; letter-spacing: 0;">mm/h</small>
-                </span>
+        <div class="intensity-section-wow">
+            <div class="wow-item">
+                <span class="wow-label">Current Intensity</span>
+                <div class="wow-val-main" id="rate-container">
+                    <span id="r_rate">0.0</span>
+                    <span style="font-size: 12px; opacity: 0.5; font-weight: 700;">mm/h</span>
+                </div>
             </div>
-            <div class="metric-item">
-                <span class="metric-label">Peak Intensity</span>
-                <span class="metric-value-peak">
-                    <span id="mr">--</span><span class="timestamp-pill" id="mr_time">00:00</span>
-                </span>
+            
+            <div class="wow-item">
+                <span class="wow-label">Peak Intensity</span>
+                <div class="wow-val-peak">
+                    <span id="mr">0.0</span>
+                    <span class="peak-ts">(<span id="mr_time">--:--</span>)</span>
+                </div>
             </div>
         </div>
     </div>
 
-    <div class="history-clean-row">
-        <div class="history-item-minimal" style="text-align: center; flex: 1;">
-            <span class="metric-label">Weekly</span>
+    <div class="history-clean-row" style="display: flex; justify-content: space-between; padding-top: 20px; border-top: 1px solid var(--border);">
+        <div style="text-align: center; flex: 1;">
+            <span class="wow-label">Weekly</span>
             <div id="r_week" style="font-size: 16px; font-weight: 900; margin-top: 4px;">--</div>
         </div>
-        <div class="history-item-minimal" style="text-align: center; flex: 1; border-left: 1px solid var(--border); border-right: 1px solid var(--border);">
-            <span class="metric-label">Monthly</span>
+        <div style="text-align: center; flex: 1; border-left: 1px solid var(--border); border-right: 1px solid var(--border);">
+            <span class="wow-label">Monthly</span>
             <div id="r_month" style="font-size: 16px; font-weight: 900; margin-top: 4px;">--</div>
         </div>
-        <div class="history-item-minimal" style="text-align: center; flex: 1;">
-            <span class="metric-label">Yearly</span>
+        <div style="text-align: center; flex: 1;">
+            <span class="wow-label">Yearly</span>
             <div id="r_year" style="font-size: 16px; font-weight: 900; margin-top: 4px;">--</div>
         </div>
     </div>
 </div>
 
 
-
-                 
                 <div class="card">
                     <div class="label">Atmospheric <span id="pIcon"></span></div>
                     <div class="main-val"><span id="pr">--</span><span class="unit">hPa</span></div>
