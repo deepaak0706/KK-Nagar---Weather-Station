@@ -775,6 +775,79 @@ body.is-night .glass-select option {
     color: #f1f5f9;
 }
 
+/* Pluviophile Rain Card Modernization */
+.rain-card-container {
+    display: grid;
+    grid-template-columns: 1fr 120px; /* Separates live data from records */
+    gap: 20px;
+}
+
+.rain-main-display {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.rain-rate-highlight {
+    background: rgba(59, 130, 246, 0.1);
+    border-left: 3px solid #3b82f6;
+    padding: 12px;
+    border-radius: 0 12px 12px 0;
+    margin: 15px 0;
+}
+
+.rain-rate-val {
+    font-size: 24px;
+    font-weight: 900;
+    color: #3b82f6;
+}
+
+.rain-records-column {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    border-left: 1px solid var(--border);
+    padding-left: 15px;
+}
+
+.rain-mini-badge {
+    display: flex;
+    flex-direction: column;
+    padding: 8px;
+    background: var(--badge);
+    border-radius: 12px;
+}
+
+.rain-mini-label {
+    font-size: 9px;
+    text-transform: uppercase;
+    font-weight: 800;
+    color: var(--muted);
+}
+
+.rain-mini-val {
+    font-size: 14px;
+    font-weight: 700;
+}
+
+/* Pluviophile Pulse for Active Rain */
+.pulse-blue {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    background: #3b82f6;
+    border-radius: 50%;
+    margin-right: 6px;
+    box-shadow: 0 0 0 rgba(59, 130, 246, 0.4);
+    animation: pulse-blue 2s infinite;
+}
+
+@keyframes pulse-blue {
+    0% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7); }
+    70% { box-shadow: 0 0 0 10px rgba(59, 130, 246, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0); }
+}
+
 
 
     </style>
@@ -828,16 +901,43 @@ body.is-night .glass-select option {
                 </div>
 
                 <div class="card">
-                    <div class="label">Rain Realm</div>
-                    <div class="main-val"><span id="r_tot">0.0</span><span class="unit">mm</span></div>
-                    <div class="sub-pill">● Rain Rate: <span id="r_rate">0.0</span> mm/h</div>
-                    <div class="sub-box-4">
-                        <div class="badge" style="grid-column: span 2;"><span class="badge-label">Max Rate Today</span><span id="mr" class="badge-val">--</span></div>
-                        <div class="badge"><span class="badge-label">Weekly</span><span id="r_week" class="badge-val">--</span></div>
-                        <div class="badge"><span class="badge-label">Monthly</span><span id="r_month" class="badge-val">--</span></div>
-                        <div class="badge" style="grid-column: span 2;"><span class="badge-label">Yearly</span><span id="r_year" class="badge-val">--</span></div>
-                    </div>
-                </div>
+    <div class="label">Rain Realm</div>
+    <div class="rain-card-container">
+        
+        <div class="rain-main-display">
+            <div class="main-val">
+                <span id="r_tot">0.0</span><span class="unit">mm</span>
+            </div>
+            
+            <div class="rain-rate-highlight">
+                <div class="rain-mini-label"><span class="pulse-blue"></span>Current Intensity</div>
+                <div class="rain-rate-val"><span id="r_rate">0.0</span> <span style="font-size:12px; opacity:0.6">mm/h</span></div>
+            </div>
+
+            <div class="badge" style="background: transparent; padding: 0;">
+                <span class="badge-label">Peak Intensity Today</span>
+                <span id="mr" class="badge-val" style="font-size: 14px; color: var(--accent);">--</span>
+            </div>
+        </div>
+
+        <div class="rain-records-column">
+            <div class="rain-mini-badge">
+                <span class="rain-mini-label">Weekly</span>
+                <span id="r_week" class="rain-mini-val">--</span>
+            </div>
+            <div class="rain-mini-badge">
+                <span class="rain-mini-label">Monthly</span>
+                <span id="r_month" class="rain-mini-val">--</span>
+            </div>
+            <div class="rain-mini-badge">
+                <span class="rain-mini-label">Yearly</span>
+                <span id="r_year" class="rain-mini-val">--</span>
+            </div>
+        </div>
+
+    </div>
+</div>
+
 
                 <div class="card">
                     <div class="label">Atmospheric <span id="pIcon"></span></div>
