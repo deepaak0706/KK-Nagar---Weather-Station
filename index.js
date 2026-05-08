@@ -60,8 +60,9 @@ function calculateRealFeel(tempC, humidity) {
 }
 
 /**
+
+/**
  * 1-MIN CRON: Memory Buffer Only (No DB)
- * Hits Ecowitt, updates high-frequency peaks in RAM.
  */
 async function bufferOnlyUpdate() {
     const now = Date.now();
@@ -74,21 +75,14 @@ async function bufferOnlyUpdate() {
         if (!json.data) throw new Error("Invalid API Response");
         const d = json.data;
 
-        // Convert the high-precision mm back to high-precision inches
-// 1.19 mm / 25.4 = 0.04685039... inches
-const preciseDailyInches = parseFloat(d.rainfall.daily.value) / 25.4;
-const preciseWeeklyInches = parseFloat(d.rainfall.weekly.value) / 25.4;
-const preciseMonthlyInches = parseFloat(d.rainfall.monthly.value) / 25.4;
-const preciseYearlyInches = parseFloat(d.rainfall.yearly.value) / 25.4;
+        // High Precision Conversion
+        const preciseDailyInches = parseFloat(d.rainfall.daily.value) / 25.4;
+        d.rainfall.daily.value = preciseDailyInches;
+        d.rainfall.weekly.value = parseFloat(d.rainfall.weekly.value) / 25.4;
+        d.rainfall.monthly.value = parseFloat(d.rainfall.monthly.value) / 25.4;
+        d.rainfall.yearly.value = parseFloat(d.rainfall.yearly.value) / 25.4;
 
-// Overwrite the API values with our high-precision version
-d.rainfall.daily.value = preciseDailyInches;
-d.rainfall.weekly.value = preciseWeeklyInches;
-d.rainfall.monthly.value = preciseMonthlyInches;
-d.rainfall.yearly.value = preciseYearlyInches;
-
-
-        // Peak Detection (Imperial for accuracy)
+        // Peak Detection
         const apiW = parseFloat(d.wind.wind_speed.value);
         const apiG = parseFloat(d.wind.wind_gust.value);
         const apiT = parseFloat(d.outdoor.temperature.value);
@@ -98,7 +92,7 @@ d.rainfall.yearly.value = preciseYearlyInches;
         if (state.tMaxT === null || apiT > state.bufMaxT) { state.bufMaxT = apiT; state.tMaxT = currentTimeStamp; }
         if (state.tMinT === null || apiT < state.bufMinT) { state.bufMinT = apiT; state.tMinT = currentTimeStamp; }
 
-        // DAVIS PRO 2 RAIN LOGIC (INTACT)
+        // DAVIS PRO 2 RAIN LOGIC
         const rawDailyInches = d.rainfall.daily.value;
         const timeElapsedSec = state.lastFetchTime ? (now - state.lastFetchTime) / 1000 : 0;
         let customRateIn = 0;
@@ -106,7 +100,7 @@ d.rainfall.yearly.value = preciseYearlyInches;
         if (state.lastRainRaw !== null && timeElapsedSec > 0) {
             const deltaRain = rawDailyInches - state.lastRainRaw;
             if (deltaRain < 0) {
-                state.lastRainTime = now; state.lastCalculatedRate = 0; state.lastRainRaw = rawDailyInches;
+                state.lastRainTime = now; state.lastCalculatedRate = 0;
             } else if (deltaRain > 0 && timeElapsedSec >= 30) {
                 customRateIn = deltaRain * (3600 / timeElapsedSec);
                 state.lastCalculatedRate = customRateIn; state.lastRainTime = now;
@@ -118,15 +112,18 @@ d.rainfall.yearly.value = preciseYearlyInches;
                 customRateIn = state.lastCalculatedRate;
             }
         } else {
-            state.lastRainRaw = rawDailyInches; state.lastRainTime = now; state.lastCalculatedRate = 0;
+            state.lastRainTime = now; state.lastCalculatedRate = 0;
         }
-        state.lastRainRaw = rawDailyInches;
-        if (state.tRR === null || customRateIn > state.bufRR) { state.bufRR = customRateIn; state.tRR = currentTimeStamp; }
 
+        // Update state after calculations
+        state.lastRainRaw = rawDailyInches; 
+        if (state.tRR === null || customRateIn > state.bufRR) { state.bufRR = customRateIn; state.tRR = currentTimeStamp; }
         state.lastFetchTime = now;
+
         return { ok: true, buffered: true };
     } catch (e) { return { error: e.message }; }
 }
+
 
 /**
  * MAIN SYNC: Handles Dashboard, 10-Min DB Write, and Midnight Reset
