@@ -775,78 +775,72 @@ body.is-night .glass-select option {
     color: #f1f5f9;
 }
 
-/* Pluviophile Rain Card Modernization */
-.rain-card-container {
-    display: grid;
-    grid-template-columns: 1fr 120px; /* Separates live data from records */
-    gap: 20px;
+/* Modern Pluviophile Rain Card */
+.rain-flex-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    margin-bottom: 24px;
 }
 
-.rain-main-display {
+.rain-intensity-stack {
+    text-align: right;
     display: flex;
     flex-direction: column;
-    justify-content: center;
+    gap: 4px;
 }
 
-.rain-rate-highlight {
-    background: rgba(59, 130, 246, 0.1);
-    border-left: 3px solid #3b82f6;
-    padding: 12px;
-    border-radius: 0 12px 12px 0;
-    margin: 15px 0;
+.intensity-item {
+    display: flex;
+    flex-direction: column;
 }
 
-.rain-rate-val {
-    font-size: 24px;
+.intensity-label {
+    font-size: 9px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--muted);
+}
+
+.intensity-val {
+    font-size: 18px;
     font-weight: 900;
     color: #3b82f6;
 }
 
-.rain-records-column {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    border-left: 1px solid var(--border);
-    padding-left: 15px;
+.peak-val {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text);
+    opacity: 0.8;
 }
 
-.rain-mini-badge {
-    display: flex;
-    flex-direction: column;
-    padding: 8px;
-    background: var(--badge);
-    border-radius: 12px;
+.rain-ledger-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
 }
 
-.rain-mini-label {
-    font-size: 9px;
-    text-transform: uppercase;
+.ledger-item {
+    text-align: center;
+}
+
+.ledger-label {
+    font-size: 8px;
     font-weight: 800;
     color: var(--muted);
+    text-transform: uppercase;
+    margin-bottom: 2px;
 }
 
-.rain-mini-val {
+.ledger-val {
     font-size: 14px;
-    font-weight: 700;
+    font-weight: 800;
 }
 
-/* Pluviophile Pulse for Active Rain */
-.pulse-blue {
-    display: inline-block;
-    width: 8px;
-    height: 8px;
-    background: #3b82f6;
-    border-radius: 50%;
-    margin-right: 6px;
-    box-shadow: 0 0 0 rgba(59, 130, 246, 0.4);
-    animation: pulse-blue 2s infinite;
-}
-
-@keyframes pulse-blue {
-    0% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7); }
-    70% { box-shadow: 0 0 0 10px rgba(59, 130, 246, 0); }
-    100% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0); }
-}
 
 
 
@@ -902,41 +896,40 @@ body.is-night .glass-select option {
 
                 <div class="card">
     <div class="label">Rain Realm</div>
-    <div class="rain-card-container">
+    
+    <div class="rain-flex-header">
+        <div class="main-val">
+            <span id="r_tot">0.0</span><span class="unit">mm</span>
+        </div>
         
-        <div class="rain-main-display">
-            <div class="main-val">
-                <span id="r_tot">0.0</span><span class="unit">mm</span>
+        <div class="rain-intensity-stack">
+            <div class="intensity-item">
+                <span class="intensity-label">Current Intensity</span>
+                <span class="intensity-val"><span id="r_rate">0.0</span> <small style="font-size:10px">mm/h</small></span>
             </div>
-            
-            <div class="rain-rate-highlight">
-                <div class="rain-mini-label"><span class="pulse-blue"></span>Current Intensity</div>
-                <div class="rain-rate-val"><span id="r_rate">0.0</span> <span style="font-size:12px; opacity:0.6">mm/h</span></div>
-            </div>
-
-            <div class="badge" style="background: transparent; padding: 0;">
-                <span class="badge-label">Peak Intensity Today</span>
-                <span id="mr" class="badge-val" style="font-size: 14px; color: var(--accent);">--</span>
+            <div class="intensity-item" style="margin-top: 8px;">
+                <span class="intensity-label">Daily Peak</span>
+                <span id="mr" class="peak-val">--</span>
             </div>
         </div>
+    </div>
 
-        <div class="rain-records-column">
-            <div class="rain-mini-badge">
-                <span class="rain-mini-label">Weekly</span>
-                <span id="r_week" class="rain-mini-val">--</span>
-            </div>
-            <div class="rain-mini-badge">
-                <span class="rain-mini-label">Monthly</span>
-                <span id="r_month" class="rain-mini-val">--</span>
-            </div>
-            <div class="rain-mini-badge">
-                <span class="rain-mini-label">Yearly</span>
-                <span id="r_year" class="rain-mini-val">--</span>
-            </div>
+    <div class="rain-ledger-row">
+        <div class="ledger-item">
+            <div class="ledger-label">Weekly</div>
+            <div id="r_week" class="ledger-val">--</div>
         </div>
-
+        <div class="ledger-item" style="border-left: 1px solid var(--border); border-right: 1px solid var(--border);">
+            <div class="ledger-label">Monthly</div>
+            <div id="r_month" class="ledger-val">--</div>
+        </div>
+        <div class="ledger-item">
+            <div class="ledger-label">Yearly</div>
+            <div id="r_year" class="ledger-val">--</div>
+        </div>
     </div>
 </div>
+
 
 
                 <div class="card">
