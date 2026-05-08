@@ -392,7 +392,15 @@ async function syncWithEcowitt(forceWrite = false) {
             temp: { current: liveTemp, max: mx_t, maxTime: mx_t_time, min: mn_t, minTime: mn_t_time, realFeel: calculateRealFeel(liveTemp, liveHum), rate: tempRate, dew: liveDewC },
             atmo: { hum: liveHum, hTrend: humRate, press: livePress, pTrend: pressRate, sol: d.solar_and_uvi?.solar?.value || 0, uv: d.solar_and_uvi?.uvi?.value || 0 },
             wind: { speed: liveWind, gust: liveGust, maxS: mx_w, maxSTime: mx_w_t, maxG: mx_g, maxGTime: mx_g_t, deg: d.wind.wind_direction.value, card: getCard(d.wind.wind_direction.value) },
-            rain: { total: parseFloat((d.rainfall.daily.value * 25.4).toFixed(1)), rate: liveRR, maxR: mx_r, maxRTime: mx_r_t, weekly: parseFloat((d.rainfall.weekly.value * 25.4).toFixed(1)), monthly: parseFloat((d.rainfall.monthly.value * 25.4).toFixed(1)), yearly: parseFloat((d.rainfall.yearly.value * 25.4).toFixed(1)) },
+            rain: { 
+    total: parseFloat((d.rainfall.daily.value * 25.4).toFixed(2)), 
+    rate: liveRR, 
+    maxR: mx_r, 
+    maxRTime: mx_r_t, 
+    weekly: parseFloat((d.rainfall.weekly.value * 25.4).toFixed(2)), 
+    monthly: parseFloat((d.rainfall.monthly.value * 25.4).toFixed(2)), 
+    yearly: parseFloat((d.rainfall.yearly.value * 25.4).toFixed(2)) 
+},
             lastSync: new Date().toISOString()
         };
 
