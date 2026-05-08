@@ -169,6 +169,13 @@ if (!forceWrite && state.cachedData && (now - state.lastFetchTime < 540000)) {
             state.cachedData.atmo.hum = liveHum;
             state.cachedData.temp.realFeel = calculateRealFeel(liveTemp, liveHum);
             state.cachedData.temp.dew = liveDewC;
+            // Update the rain total and rate for visitors
+            state.cachedData.rain.total = Math.round(d.rainfall.daily.value * 2540) / 100;
+            state.cachedData.rain.rate = parseFloat((state.lastCalculatedRate * 25.4).toFixed(1));
+
+            // CRITICAL: Update the raw tracker so the next calculation is accurate
+            state.lastRainRaw = d.rainfall.daily.value; 
+
 
             const fmtL = () => new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' });
             const fmtIso = (isoStr) => isoStr ? new Date(isoStr).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' }) : fmtL();
