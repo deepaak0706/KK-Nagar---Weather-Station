@@ -775,79 +775,79 @@ body.is-night .glass-select option {
     color: #f1f5f9;
 }
 
-/* Pluviophile Wow Layout */
-.rain-wow-grid {
+/* Modern Pluvial Layout - Fixed Placement */
+.rain-card-body {
     display: grid;
-    grid-template-columns: 1fr 2px 1.2fr; /* Intensity gets more room */
+    grid-template-columns: 0.8fr 3px 1.2fr; /* Divider shifted left, Intensity gets more room */
     align-items: center;
-    padding: 10px 0 25px 0;
+    padding: 20px 0;
 }
 
-.daily-sub-tag {
+.daily-subtitle {
     font-size: 10px;
     font-weight: 800;
     color: var(--accent);
     letter-spacing: 2px;
     text-transform: uppercase;
-    margin-top: -8px; /* Pulls it right under the big mm number */
     display: block;
-    opacity: 0.8;
+    margin-top: -12px; /* Positions it directly under 'RAIN REALM' */
+    margin-bottom: 10px;
+    opacity: 0.7;
 }
 
-.rain-divider-thick {
-    height: 80px;
-    background: linear-gradient(to bottom, transparent, var(--border), transparent);
-    width: 2px;
-    border-radius: 2px;
+.modern-thick-divider {
+    height: 90px;
+    background: #3b82f6; /* Solid Modern Blue */
+    width: 3px;
+    border-radius: 4px;
+    box-shadow: 0 0 10px rgba(59, 130, 246, 0.3); /* Subtle glow for pluvial feel */
 }
 
-.intensity-section-wow {
-    padding-left: 25px;
+.intensity-highlight-zone {
+    padding-left: 30px;
     display: flex;
     flex-direction: column;
-    gap: 15px;
+    gap: 20px; /* Strong spacing for prominence */
 }
 
-.wow-label {
+.stat-label-modern {
     font-size: 9px;
     font-weight: 900;
     text-transform: uppercase;
-    letter-spacing: 1px;
+    letter-spacing: 1.5px;
     color: var(--muted);
+    margin-bottom: 4px;
 }
 
-.wow-val-main {
-    font-size: 24px; /* Significantly bigger */
+.intensity-value-large {
+    font-size: 26px; /* Bigger, bolder prominence */
     font-weight: 900;
-    color: #3b82f6; /* Prominent Blue */
+    color: #3b82f6;
     line-height: 1;
-    display: flex;
-    align-items: baseline;
-    gap: 4px;
 }
 
-.wow-val-peak {
-    font-size: 18px; /* Prominent Peak */
+.peak-value-large {
+    font-size: 20px; /* Equalized importance */
     font-weight: 800;
     color: var(--text);
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 10px;
 }
 
-.peak-ts {
+.timestamp-modern {
     font-size: 10px;
-    font-weight: 600;
+    font-weight: 700;
     color: var(--muted);
-    font-style: italic;
+    background: var(--badge);
+    padding: 2px 8px;
+    border-radius: 6px;
 }
 
-/* Highlighting effect when raining */
-.is-raining {
-    text-shadow: 0 0 15px rgba(59, 130, 246, 0.4);
-    color: #60a5fa !important;
+/* Remove dashes and clutter */
+#mr_time:empty, #mr_time:contains("--") {
+    display: none;
 }
-
 
     </style>
 </head>
@@ -899,56 +899,57 @@ body.is-night .glass-select option {
                     </div>
                 </div>
 
-
                 <div class="card">
     <div class="label">RAIN REALM</div>
+    <span class="daily-subtitle">DAILY</span>
 
-    <div class="rain-wow-grid">
-        <div class="rain-left-total">
+    <div class="rain-card-body">
+        <div class="rain-total-display">
             <div class="main-val" style="margin: 0; font-size: 52px; letter-spacing: -3px;">
                 <span id="r_tot">0.0</span><span class="unit" style="font-size: 18px; letter-spacing: 0;">mm</span>
             </div>
-            <span class="daily-sub-tag">Daily</span>
         </div>
 
-        <div class="rain-divider-thick"></div>
+        <div class="modern-thick-divider"></div>
 
-        <div class="intensity-section-wow">
-            <div class="wow-item">
-                <span class="wow-label">Current Intensity</span>
-                <div class="wow-val-main" id="rate-container">
-                    <span id="r_rate">0.0</span>
-                    <span style="font-size: 12px; opacity: 0.5; font-weight: 700;">mm/h</span>
+        <div class="intensity-highlight-zone">
+            <div class="stat-group">
+                <div class="stat-label-modern">Current Intensity</div>
+                <div class="intensity-value-large">
+                    <span id="r_rate">0.0</span> 
+                    <small style="font-size: 12px; opacity: 0.6; vertical-align: middle;">mm/h</small>
                 </div>
             </div>
             
-            <div class="wow-item">
-                <span class="wow-label">Peak Intensity</span>
-                <div class="wow-val-peak">
+            <div class="stat-group">
+                <div class="stat-label-modern">Peak Intensity</div>
+                <div class="peak-value-large">
                     <span id="mr">0.0</span>
-                    <span class="peak-ts">(<span id="mr_time">--:--</span>)</span>
+                    <span class="timestamp-modern" id="mr_time">07:35:09</span>
                 </div>
             </div>
         </div>
     </div>
 
-    <div class="history-clean-row" style="display: flex; justify-content: space-between; padding-top: 20px; border-top: 1px solid var(--border);">
+    <div class="history-clean-row" style="display: flex; justify-content: space-between; padding-top: 25px; border-top: 1px solid var(--border);">
         <div style="text-align: center; flex: 1;">
-            <span class="wow-label">Weekly</span>
+            <div class="stat-label-modern">Weekly</div>
             <div id="r_week" style="font-size: 16px; font-weight: 900; margin-top: 4px;">--</div>
         </div>
         <div style="text-align: center; flex: 1; border-left: 1px solid var(--border); border-right: 1px solid var(--border);">
-            <span class="wow-label">Monthly</span>
+            <div class="stat-label-modern">Monthly</div>
             <div id="r_month" style="font-size: 16px; font-weight: 900; margin-top: 4px;">--</div>
         </div>
         <div style="text-align: center; flex: 1;">
-            <span class="wow-label">Yearly</span>
+            <div class="stat-label-modern">Yearly</div>
             <div id="r_year" style="font-size: 16px; font-weight: 900; margin-top: 4px;">--</div>
         </div>
     </div>
 </div>
 
 
+
+                
                 <div class="card">
                     <div class="label">Atmospheric <span id="pIcon"></span></div>
                     <div class="main-val"><span id="pr">--</span><span class="unit">hPa</span></div>
