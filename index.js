@@ -775,38 +775,38 @@ body.is-night .glass-select option {
     color: #f1f5f9;
 }
 
-/* Pluvial Master UI - Cleaned & Aligned */
+/* Pluvial Centric Layout - Final Polish */
 .rain-body-grid {
     display: grid;
-    grid-template-columns: 0.9fr 2px 1.1fr; /* Shifted left to give intensity room */
-    align-items: center; /* FIXES THE SAGGING */
+    grid-template-columns: 1fr 2px 1.2fr; /* Intensity gets more width for prominence */
+    align-items: center; /* Fixes the 'sagging' alignment */
     padding: 15px 0 25px 0;
-    min-height: 100px;
+    min-height: 110px;
 }
 
-.daily-sub {
+.daily-subtitle {
     font-size: 10px;
     font-weight: 800;
     color: var(--accent);
     letter-spacing: 2px;
     text-transform: uppercase;
-    margin-top: 4px; /* Added breathing room below title */
     display: block;
+    margin: 4px 0 12px 0; /* Clear space below the title */
     opacity: 0.6;
 }
 
-.divider-sleek {
-    height: 70px;
+.sleek-divider {
+    height: 75px;
     background: linear-gradient(to bottom, transparent, #3b82f6, transparent);
     width: 2px;
     border-radius: 10px;
 }
 
 .intensity-engine {
-    padding-left: 25px;
+    padding-left: 30px;
     display: flex;
     flex-direction: column;
-    gap: 15px; /* Clean spacing between the two readings */
+    gap: 18px;
 }
 
 .stat-label-modern {
@@ -818,23 +818,23 @@ body.is-night .glass-select option {
     margin-bottom: 2px;
 }
 
-.val-intensity {
-    font-size: 24px; /* High prominence */
+.val-intensity-big {
+    font-size: 26px; /* High visibility for live data */
     font-weight: 900;
     color: #3b82f6;
     line-height: 1;
 }
 
-.val-peak {
-    font-size: 18px; /* High prominence */
+.val-peak-big {
+    font-size: 19px; /* Strong visibility for the daily high */
     font-weight: 800;
     color: var(--text);
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 10px;
 }
 
-.ts-pill {
+.ts-pill-modern {
     font-size: 10px;
     font-weight: 700;
     color: var(--muted);
@@ -843,8 +843,9 @@ body.is-night .glass-select option {
     border-radius: 5px;
 }
 
-/* Removes ghost clutter if no time is present */
-#mr_time:empty { display: none; }
+/* Automatically hide the pill if timestamp is missing */
+.ts-pill-modern:empty { display: none; }
+
 
     </style>
 </head>
@@ -896,24 +897,23 @@ body.is-night .glass-select option {
                     </div>
                 </div>
 
-
                 <div class="card">
     <div class="label">RAIN REALM</div>
-    <span class="daily-sub">DAILY</span>
+    <span class="daily-subtitle">DAILY</span>
 
     <div class="rain-body-grid">
-        <div class="rain-left-zone" style="text-align: center;">
-            <div class="main-val" style="margin: 0; font-size: 52px; letter-spacing: -3px;">
-                <span id="r_tot">0.0</span><span class="unit" style="font-size: 18px; letter-spacing: 0;">mm</span>
+        <div class="rain-total-engine">
+            <div class="main-val" style="margin: 0; font-size: 52px; letter-spacing: -3px; text-align: center;">
+                <span id="r_tot">1.5</span><span class="unit" style="font-size: 18px; letter-spacing: 0;">mm</span>
             </div>
         </div>
 
-        <div class="divider-sleek"></div>
+        <div class="sleek-divider"></div>
 
         <div class="intensity-engine">
             <div class="stat-unit">
                 <div class="stat-label-modern">Current Intensity</div>
-                <div class="val-intensity">
+                <div class="val-intensity-big">
                     <span id="r_rate">0.0</span> 
                     <small style="font-size: 11px; opacity: 0.5;">mm/h</small>
                 </div>
@@ -921,29 +921,30 @@ body.is-night .glass-select option {
             
             <div class="stat-unit">
                 <div class="stat-label-modern">Peak Intensity</div>
-                <div class="val-peak">
-                    <span id="mr">0.0</span>
-                    <span class="ts-pill" id="mr_time"></span>
+                <div class="val-peak-big">
+                    <span id="mr">14.6</span>
+                    <span class="ts-pill-modern" id="mr_time">07:35:09</span>
                 </div>
             </div>
         </div>
     </div>
 
-    <div class="history-clean-row" style="display: flex; justify-content: space-between; padding-top: 20px; border-top: 1px solid var(--border);">
+    <div class="history-clean-row" style="display: flex; justify-content: space-between; padding-top: 25px; border-top: 1px solid var(--border);">
         <div style="text-align: center; flex: 1;">
             <div class="stat-label-modern">Weekly</div>
-            <div id="r_week" style="font-size: 16px; font-weight: 900; margin-top: 4px;">--</div>
+            <div id="r_week" style="font-size: 16px; font-weight: 900; margin-top: 4px;">1.5 mm</div>
         </div>
         <div style="text-align: center; flex: 1; border-left: 1px solid var(--border); border-right: 1px solid var(--border);">
             <div class="stat-label-modern">Monthly</div>
-            <div id="r_month" style="font-size: 16px; font-weight: 900; margin-top: 4px;">--</div>
+            <div id="r_month" style="font-size: 16px; font-weight: 900; margin-top: 4px;">1.5 mm</div>
         </div>
         <div style="text-align: center; flex: 1;">
             <div class="stat-label-modern">Yearly</div>
-            <div id="r_year" style="font-size: 16px; font-weight: 900; margin-top: 4px;">--</div>
+            <div id="r_year" style="font-size: 16px; font-weight: 900; margin-top: 4px;">5813 mm</div>
         </div>
     </div>
 </div>
+
 
 
                 
