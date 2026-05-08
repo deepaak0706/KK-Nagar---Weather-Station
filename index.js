@@ -68,11 +68,25 @@ async function bufferOnlyUpdate() {
     const currentTimeStamp = new Date().toISOString();
 
     try {
-        const url = `https://api.ecowitt.net/api/v3/device/real_time?application_key=${APPLICATION_KEY}&api_key=${API_KEY}&mac=${MAC}`;
+        const url = `https://api.ecowitt.net/api/v3/device/real_time?application_key=${APPLICATION_KEY}&api_key=${API_KEY}&mac=${MAC}&rainfall_unitid=12`;
         const response = await fetch(url);
         const json = await response.json();
         if (!json.data) throw new Error("Invalid API Response");
         const d = json.data;
+
+        // Convert the high-precision mm back to high-precision inches
+// 1.19 mm / 25.4 = 0.04685039... inches
+const preciseDailyInches = parseFloat(d.rainfall.daily.value) / 25.4;
+const preciseWeeklyInches = parseFloat(d.rainfall.weekly.value) / 25.4;
+const preciseMonthlyInches = parseFloat(d.rainfall.monthly.value) / 25.4;
+const preciseYearlyInches = parseFloat(d.rainfall.yearly.value) / 25.4;
+
+// Overwrite the API values with our high-precision version
+d.rainfall.daily.value = preciseDailyInches;
+d.rainfall.weekly.value = preciseWeeklyInches;
+d.rainfall.monthly.value = preciseMonthlyInches;
+d.rainfall.yearly.value = preciseYearlyInches;
+
 
         // Peak Detection (Imperial for accuracy)
         const apiW = parseFloat(d.wind.wind_speed.value);
