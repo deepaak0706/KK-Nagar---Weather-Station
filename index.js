@@ -263,7 +263,8 @@ if (!forceWrite && state.cachedData && (now - state.lastFetchTime < 540000)) {
                 const dbMinT = snap.minT === 999 ? d.outdoor.temperature.value : snap.minT;
                 const dbW = snap.tW === null ? d.wind.wind_speed.value : snap.w;
                 const dbG = snap.tG === null ? d.wind.wind_gust.value : snap.g;
-                const dbRR = snap.tRR === null ? (state.lastCalculatedRate || 0) : snap.rr;
+                const currentLiveRR_Inches = state.lastCalculatedRate || 0;
+                const dbRR = Math.max(currentLiveRR_Inches, snap.rr || 0);
 
                 await client.query(`
                     INSERT INTO weather_history 
@@ -392,26 +393,30 @@ if (!forceWrite && state.cachedData && (now - state.lastFetchTime < 540000)) {
         if (liveRR > mx_r)   { mx_r = liveRR; mx_r_t = fmtL(); }
 
         // 2. Check the high-frequency 1-min Memory Buffers
-        if (state.bufMaxT !== -999) {
-            const bufMaxC = parseFloat(((state.bufMaxT - 32) * 5 / 9).toFixed(1));
-            if (bufMaxC > mx_t) { mx_t = bufMaxC; mx_t_time = fmtIso(state.tMaxT); }
-        }
-        if (state.bufMinT !== 999) {
-            const bufMinC = parseFloat(((state.bufMinT - 32) * 5 / 9).toFixed(1));
-            if (bufMinC < mn_t) { mn_t = bufMinC; mn_t_time = fmtIso(state.tMinT); }
-        }
-        if (state.bufW > 0) {
-            const bufWC = parseFloat((state.bufW * 1.60934).toFixed(1));
-            if (bufWC > mx_w) { mx_w = bufWC; mx_w_t = fmtIso(state.tW); }
-        }
-        if (state.bufG > 0) {
-            const bufGC = parseFloat((state.bufG * 1.60934).toFixed(1));
-            if (bufGC > mx_g) { mx_g = bufGC; mx_g_t = fmtIso(state.tG); }
-        }
-        if (state.bufRR > 0) {
-            const bufRRC = parseFloat((state.bufRR * 25.4).toFixed(1));
-            if (bufRRC > mx_r) { mx_r = bufRRC; mx_r_t = fmtIso(state.tRR); }
-        }
+// Use 'snap' (the frozen peak) if we just wrote to DB, otherwise use live 'state'
+const source = (forceWrite && typeof snap !== 'undefined') ? snap : state;
+
+if (source.maxT !== -999 && source.maxT !== undefined) {
+    const bufMaxC = parseFloat(((source.maxT - 32) * 5 / 9).toFixed(1));
+    if (bufMaxC > mx_t) { mx_t = bufMaxC; mx_t_time = fmtIso(source.tMaxT); }
+}
+if (source.minT !== 999 && source.minT !== undefined) {
+    const bufMinC = parseFloat(((source.minT - 32) * 5 / 9).toFixed(1));
+    if (bufMinC < mn_t) { mn_t = bufMinC; mn_t_time = fmtIso(source.tMinT); }
+}
+if (source.w > 0) {
+    const bufWC = parseFloat((source.w * 1.60934).toFixed(1));
+    if (bufWC > mx_w) { mx_w = bufWC; mx_w_t = fmtIso(source.tW); }
+}
+if (source.g > 0) {
+    const bufGC = parseFloat((source.g * 1.60934).toFixed(1));
+    if (bufGC > mx_g) { mx_g = bufGC; mx_g_t = fmtIso(source.tG); }
+}
+if (source.rr > 0) {
+    const bufRRC = parseFloat((source.rr * 25.4).toFixed(1));
+    if (bufRRC > mx_r) { mx_r = bufRRC; mx_r_t = fmtIso(source.tRR); }
+}
+
 
 
         state.cachedData = {
