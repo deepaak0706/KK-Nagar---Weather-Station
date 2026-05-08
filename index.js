@@ -393,14 +393,17 @@ async function syncWithEcowitt(forceWrite = false) {
             atmo: { hum: liveHum, hTrend: humRate, press: livePress, pTrend: pressRate, sol: d.solar_and_uvi?.solar?.value || 0, uv: d.solar_and_uvi?.uvi?.value || 0 },
             wind: { speed: liveWind, gust: liveGust, maxS: mx_w, maxSTime: mx_w_t, maxG: mx_g, maxGTime: mx_g_t, deg: d.wind.wind_direction.value, card: getCard(d.wind.wind_direction.value) },
             rain: { 
-    total: parseFloat((d.rainfall.daily.value * 25.4).toFixed(2)), 
+    // Multiply first, then round to 2 decimal places to catch the 1.27
+    total: Math.round(d.rainfall.daily.value * 2540) / 100, 
     rate: liveRR, 
     maxR: mx_r, 
     maxRTime: mx_r_t, 
-    weekly: parseFloat((d.rainfall.weekly.value * 25.4).toFixed(2)), 
-    monthly: parseFloat((d.rainfall.monthly.value * 25.4).toFixed(2)), 
-    yearly: parseFloat((d.rainfall.yearly.value * 25.4).toFixed(2)) 
+    // Use the same high-precision math for archives
+    weekly: Math.round(d.rainfall.weekly.value * 2540) / 100, 
+    monthly: Math.round(d.rainfall.monthly.value * 2540) / 100, 
+    yearly: Math.round(d.rainfall.yearly.value * 2540) / 100 
 },
+
             lastSync: new Date().toISOString()
         };
 
