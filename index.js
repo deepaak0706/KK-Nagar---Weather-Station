@@ -775,39 +775,38 @@ body.is-night .glass-select option {
     color: #f1f5f9;
 }
 
-/* Modern Pluvial Layout */
-.rain-card-body {
+/* Pluvial Master UI - Cleaned & Aligned */
+.rain-body-grid {
     display: grid;
-    grid-template-columns: 0.8fr 3px 1.2fr; /* Divider shifted left */
-    align-items: center;
-    padding: 20px 0;
+    grid-template-columns: 0.9fr 2px 1.1fr; /* Shifted left to give intensity room */
+    align-items: center; /* FIXES THE SAGGING */
+    padding: 15px 0 25px 0;
+    min-height: 100px;
 }
 
-.daily-subtitle {
+.daily-sub {
     font-size: 10px;
     font-weight: 800;
     color: var(--accent);
     letter-spacing: 2px;
     text-transform: uppercase;
+    margin-top: 4px; /* Added breathing room below title */
     display: block;
-    margin-top: -12px; /* Positions it under 'RAIN REALM' */
-    margin-bottom: 15px;
-    opacity: 0.7;
+    opacity: 0.6;
 }
 
-.modern-thick-divider {
-    height: 85px;
-    background: #3b82f6; 
-    width: 3px;
-    border-radius: 4px;
-    box-shadow: 0 0 10px rgba(59, 130, 246, 0.2);
+.divider-sleek {
+    height: 70px;
+    background: linear-gradient(to bottom, transparent, #3b82f6, transparent);
+    width: 2px;
+    border-radius: 10px;
 }
 
-.intensity-highlight-zone {
-    padding-left: 30px;
+.intensity-engine {
+    padding-left: 25px;
     display: flex;
     flex-direction: column;
-    gap: 18px;
+    gap: 15px; /* Clean spacing between the two readings */
 }
 
 .stat-label-modern {
@@ -816,18 +815,18 @@ body.is-night .glass-select option {
     text-transform: uppercase;
     letter-spacing: 1.2px;
     color: var(--muted);
-    margin-bottom: 4px;
+    margin-bottom: 2px;
 }
 
-.intensity-value-large {
-    font-size: 26px; 
+.val-intensity {
+    font-size: 24px; /* High prominence */
     font-weight: 900;
     color: #3b82f6;
     line-height: 1;
 }
 
-.peak-value-large {
-    font-size: 20px;
+.val-peak {
+    font-size: 18px; /* High prominence */
     font-weight: 800;
     color: var(--text);
     display: flex;
@@ -835,15 +834,17 @@ body.is-night .glass-select option {
     gap: 8px;
 }
 
-.timestamp-modern {
+.ts-pill {
     font-size: 10px;
     font-weight: 700;
     color: var(--muted);
     background: var(--badge);
     padding: 2px 8px;
-    border-radius: 6px;
+    border-radius: 5px;
 }
 
+/* Removes ghost clutter if no time is present */
+#mr_time:empty { display: none; }
 
     </style>
 </head>
@@ -895,39 +896,40 @@ body.is-night .glass-select option {
                     </div>
                 </div>
 
+
                 <div class="card">
     <div class="label">RAIN REALM</div>
-    <span class="daily-subtitle">DAILY</span>
+    <span class="daily-sub">DAILY</span>
 
-    <div class="rain-card-body">
-        <div class="rain-total-display">
+    <div class="rain-body-grid">
+        <div class="rain-left-zone" style="text-align: center;">
             <div class="main-val" style="margin: 0; font-size: 52px; letter-spacing: -3px;">
                 <span id="r_tot">0.0</span><span class="unit" style="font-size: 18px; letter-spacing: 0;">mm</span>
             </div>
         </div>
 
-        <div class="modern-thick-divider"></div>
+        <div class="divider-sleek"></div>
 
-        <div class="intensity-highlight-zone">
-            <div class="stat-group">
+        <div class="intensity-engine">
+            <div class="stat-unit">
                 <div class="stat-label-modern">Current Intensity</div>
-                <div class="intensity-value-large">
+                <div class="val-intensity">
                     <span id="r_rate">0.0</span> 
-                    <small style="font-size: 12px; opacity: 0.6;">mm/h</small>
+                    <small style="font-size: 11px; opacity: 0.5;">mm/h</small>
                 </div>
             </div>
             
-            <div class="stat-group">
+            <div class="stat-unit">
                 <div class="stat-label-modern">Peak Intensity</div>
-                <div class="peak-value-large">
+                <div class="val-peak">
                     <span id="mr">0.0</span>
-                    <span class="timestamp-modern" id="mr_time">--:--</span>
+                    <span class="ts-pill" id="mr_time"></span>
                 </div>
             </div>
         </div>
     </div>
 
-    <div class="history-clean-row" style="display: flex; justify-content: space-between; padding-top: 25px; border-top: 1px solid var(--border);">
+    <div class="history-clean-row" style="display: flex; justify-content: space-between; padding-top: 20px; border-top: 1px solid var(--border);">
         <div style="text-align: center; flex: 1;">
             <div class="stat-label-modern">Weekly</div>
             <div id="r_week" style="font-size: 16px; font-weight: 900; margin-top: 4px;">--</div>
@@ -942,8 +944,6 @@ body.is-night .glass-select option {
         </div>
     </div>
 </div>
-
-
 
 
                 
