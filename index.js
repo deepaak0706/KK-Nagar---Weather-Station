@@ -144,12 +144,19 @@ async function syncWithEcowitt(forceWrite = false) {
     }
 
         // --- PART 1: VISITOR PATH ---
-    if (!forceWrite && state.cachedData && (now - state.lastFetchTime < 540000)) {
-        try {
-            const url = `https://api.ecowitt.net/api/v3/device/real_time?application_key=${APPLICATION_KEY}&api_key=${API_KEY}&mac=${MAC}`;
-            const response = await fetch(url);
-            const json = await response.json();
-            const d = json.data;
+if (!forceWrite && state.cachedData && (now - state.lastFetchTime < 540000)) {
+    try {
+        const url = `https://api.ecowitt.net/api/v3/device/real_time?application_key=${APPLICATION_KEY}&api_key=${API_KEY}&mac=${MAC}&rainfall_unitid=12`;
+        const response = await fetch(url);
+        const json = await response.json();
+        const d = json.data;
+
+        // --- ADD THIS BLOCK HERE TOO! ---
+        d.rainfall.daily.value = parseFloat(d.rainfall.daily.value) / 25.4;
+        d.rainfall.weekly.value = parseFloat(d.rainfall.weekly.value) / 25.4;
+        d.rainfall.monthly.value = parseFloat(d.rainfall.monthly.value) / 25.4;
+        d.rainfall.yearly.value = parseFloat(d.rainfall.yearly.value) / 25.4;
+        // --------------------------------
 
             const liveTemp = parseFloat(((d.outdoor.temperature.value - 32) * 5 / 9).toFixed(1));
             const liveWind = parseFloat((d.wind.wind_speed.value * 1.60934).toFixed(1));
@@ -208,12 +215,21 @@ async function syncWithEcowitt(forceWrite = false) {
     }
 
 
-    // --- PART 2: WRITER PATH ---
+        // --- PART 2: WRITER PATH ---
     try {
-        const url = `https://api.ecowitt.net/api/v3/device/real_time?application_key=${APPLICATION_KEY}&api_key=${API_KEY}&mac=${MAC}`;
+        // ADDED &rainfall_unitid=12 HERE
+        const url = `https://api.ecowitt.net/api/v3/device/real_time?application_key=${APPLICATION_KEY}&api_key=${API_KEY}&mac=${MAC}&rainfall_unitid=12`;
         const response = await fetch(url);
         const json = await response.json();
         const d = json.data;
+
+        // --- HIGH PRECISION INTERCEPT ---
+        // Convert the API's mm (1.19) into high-precision inches for your DB
+        d.rainfall.daily.value = parseFloat(d.rainfall.daily.value) / 25.4;
+        d.rainfall.weekly.value = parseFloat(d.rainfall.weekly.value) / 25.4;
+        d.rainfall.monthly.value = parseFloat(d.rainfall.monthly.value) / 25.4;
+        d.rainfall.yearly.value = parseFloat(d.rainfall.yearly.value) / 25.4;
+        // --------------------------------
 
         const liveTemp = parseFloat(((d.outdoor.temperature.value - 32) * 5 / 9).toFixed(1));
         const liveDewC = parseFloat(((d.outdoor.dew_point.value - 32) * 5 / 9).toFixed(1)); 
