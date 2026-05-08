@@ -308,14 +308,6 @@ if (!forceWrite && state.cachedData && (now - state.lastFetchTime < 540000)) {
                 await client.query('COMMIT');
                 state.dataChangedSinceLastRead = true;
 
-                // 3. SELECTIVE RESET: Only clear what we just successfully saved
-                // If a new peak arrived while we were writing, keep the buffer!
-                if (state.bufMaxT === snap.maxT) { state.bufMaxT = -999; state.tMaxT = null; }
-                if (state.bufMinT === snap.minT) { state.bufMinT = 999; state.tMinT = null; }
-                if (state.bufW === snap.w) { state.bufW = 0; state.tW = null; }
-                if (state.bufG === snap.g) { state.bufG = 0; state.tG = null; }
-                if (state.bufRR === snap.rr) { state.bufRR = 0; state.tRR = null; }
-
             } catch (err) { 
                 await client.query('ROLLBACK'); 
                 console.error("CRITICAL: DB Write Failed. Buffer held for next attempt.", err); 
@@ -437,12 +429,21 @@ if (!forceWrite && state.cachedData && (now - state.lastFetchTime < 540000)) {
     monthly: Math.round(d.rainfall.monthly.value * 2540) / 100, 
     yearly: Math.round(d.rainfall.yearly.value * 2540) / 100 
 },
-
             lastSync: new Date().toISOString()
         };
 
+       // --- THE FIX: Wrap this in a safety check ---
+        if (forceWrite && typeof snap !== 'undefined') {
+            if (state.bufMaxT === snap.maxT) { state.bufMaxT = -999; state.tMaxT = null; }
+            if (state.bufMinT === snap.minT) { state.bufMinT = 999; state.tMinT = null; }
+            if (state.bufW === snap.w) { state.bufW = 0; state.tW = null; }
+            if (state.bufG === snap.g) { state.bufG = 0; state.tG = null; }
+            if (state.bufRR === snap.rr) { state.bufRR = 0; state.tRR = null; }
+        }
+
         state.lastFetchTime = now;
         return state.cachedData;
+        
     } catch (e) { console.error("Sync Error:", e); return state.cachedData; }
 }
 
