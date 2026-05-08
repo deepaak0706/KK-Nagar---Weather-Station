@@ -775,86 +775,107 @@ body.is-night .glass-select option {
     color: #f1f5f9;
 }
 
-/* Pluviophile Modernized Rain Card */
-.rain-container-main {
+/* Pluviophile Pro - Modernized Rain Layout */
+.rain-pro-container {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 24px;
+    padding: 10px 0;
+    margin-bottom: 30px; /* More air below the main section */
 }
 
-.rain-left {
-    flex: 1;
+.rain-pro-main {
+    flex: 1.2;
 }
 
-.rain-divider {
+.rain-type-badge {
+    font-size: 9px;
+    font-weight: 800;
+    color: var(--accent);
+    background: var(--badge);
+    padding: 3px 8px;
+    border-radius: 6px;
+    margin-left: 8px;
+    vertical-align: middle;
+}
+
+.rain-pro-divider {
     width: 1px;
-    height: 80px;
+    height: 70px;
     background: linear-gradient(to bottom, transparent, var(--border), transparent);
-    margin: 0 25px;
+    margin: 0 30px; /* Increased horizontal spacing */
 }
 
-.rain-right-intensity {
+.rain-pro-intensity-side {
     flex: 1;
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 16px; /* Better spacing between Current and Peak */
 }
 
-.intensity-block {
+.modern-stat-box {
     display: flex;
     flex-direction: column;
+    position: relative;
 }
 
-.intensity-label {
+.modern-stat-label {
     font-size: 10px;
     font-weight: 800;
     text-transform: uppercase;
-    letter-spacing: 1.2px;
+    letter-spacing: 1.5px;
     color: var(--muted);
-    margin-bottom: 2px;
+    margin-bottom: 4px;
 }
 
-.intensity-primary {
-    font-size: 22px; /* Increased prominence */
+.modern-stat-val {
+    font-size: 20px;
     font-weight: 900;
-    color: #3b82f6; /* Modern Blue */
+    letter-spacing: -0.5px;
+    color: #3b82f6; /* Rain Blue */
     line-height: 1;
 }
 
-.intensity-secondary {
-    font-size: 16px;
-    font-weight: 800;
+.peak-accent {
     color: var(--text);
+    font-size: 15px;
+    font-weight: 800;
+    opacity: 0.9;
 }
 
-.rain-ledger-modern {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 10px;
-    padding-top: 20px;
+.rain-pro-ledger {
+    display: flex;
+    justify-content: space-between;
+    padding-top: 25px;
     border-top: 1px solid var(--border);
+    gap: 15px;
 }
 
-.ledger-card {
-    background: var(--badge);
-    padding: 15px 10px;
-    border-radius: 20px;
+.ledger-item-pro {
+    flex: 1;
     text-align: center;
-    transition: transform 0.3s ease;
+    position: relative;
 }
 
-.ledger-card:hover {
-    transform: translateY(-3px);
-    background: rgba(59, 130, 246, 0.05);
+/* Vertical dividers between ledger items instead of boxes */
+.ledger-item-pro:not(:last-child)::after {
+    content: "";
+    position: absolute;
+    right: -8px;
+    top: 20%;
+    height: 60%;
+    width: 1px;
+    background: var(--border);
 }
 
-.ledger-val-large {
-    font-size: 18px; /* Bigger for better viewing */
+.ledger-val-pro {
+    font-size: 17px;
     font-weight: 900;
     display: block;
-    margin-top: 4px;
+    margin-top: 5px;
+    letter-spacing: -0.5px;
 }
+
 
     </style>
 </head>
@@ -910,45 +931,50 @@ body.is-night .glass-select option {
                 <div class="card">
     <div class="label">Rain Realm</div>
     
-    <div class="rain-container-main">
-        <div class="rain-left">
+    <div class="rain-pro-container">
+        <div class="rain-pro-main">
             <div class="main-val">
                 <span id="r_tot">0.0</span><span class="unit">mm</span>
+                <span class="rain-type-badge">DAILY</span>
             </div>
         </div>
 
-        <div class="rain-divider"></div>
+        <div class="rain-pro-divider"></div>
 
-        <div class="rain-right-intensity">
-            <div class="intensity-block">
-                <span class="intensity-label">Current Intensity</span>
-                <span class="intensity-primary"><span id="r_rate">0.0</span> <small style="font-size:12px">mm/h</small></span>
+        <div class="rain-pro-intensity-side">
+            <div class="modern-stat-box">
+                <span class="modern-stat-label">Intensity</span>
+                <span class="modern-stat-val">
+                    <span id="r_rate">0.0</span> 
+                    <span style="font-size: 10px; opacity: 0.6; letter-spacing: 0;">mm/h</span>
+                </span>
             </div>
-            <div class="intensity-block">
-                <span class="intensity-label">Daily Peak</span>
-                <span id="mr" class="intensity-secondary">--</span>
+            <div class="modern-stat-box">
+                <span class="modern-stat-label">Day Peak</span>
+                <span id="mr" class="peak-accent">--</span>
             </div>
         </div>
     </div>
 
-    <div class="rain-ledger-modern">
-        <div class="ledger-card">
-            <span class="intensity-label">Weekly</span>
-            <span id="r_week" class="ledger-val-large">--</span>
+    <div class="rain-pro-ledger">
+        <div class="ledger-item-pro">
+            <span class="modern-stat-label">Weekly</span>
+            <span id="r_week" class="ledger-val-pro">--</span>
         </div>
-        <div class="ledger-card">
-            <span class="intensity-label">Monthly</span>
-            <span id="r_month" class="ledger-val-large">--</span>
+        <div class="ledger-item-pro">
+            <span class="modern-stat-label">Monthly</span>
+            <span id="r_month" class="ledger-val-pro">--</span>
         </div>
-        <div class="ledger-card">
-            <span class="intensity-label">Yearly</span>
-            <span id="r_year" class="ledger-val-large">--</span>
+        <div class="ledger-item-pro">
+            <span class="modern-stat-label">Yearly</span>
+            <span id="r_year" class="ledger-val-pro">--</span>
         </div>
     </div>
 </div>
 
 
 
+               
                 <div class="card">
                     <div class="label">Atmospheric <span id="pIcon"></span></div>
                     <div class="main-val"><span id="pr">--</span><span class="unit">hPa</span></div>
