@@ -60,11 +60,10 @@ function calculateRealFeel(tempC, humidity) {
 }
 
 /**
-
-/**
  * 1-MIN CRON: Memory Buffer Only (No DB)
  */
-async function bufferOnlyUpdate() {
+
+ async function bufferOnlyUpdate() {
     const now = Date.now();
     const currentTimeStamp = new Date().toISOString();
 
@@ -76,13 +75,12 @@ async function bufferOnlyUpdate() {
         const d = json.data;
 
         // High Precision Conversion
-        const preciseDailyInches = parseFloat(d.rainfall.daily.value) / 25.4;
-        d.rainfall.daily.value = preciseDailyInches;
+        d.rainfall.daily.value = parseFloat(d.rainfall.daily.value) / 25.4;
         d.rainfall.weekly.value = parseFloat(d.rainfall.weekly.value) / 25.4;
         d.rainfall.monthly.value = parseFloat(d.rainfall.monthly.value) / 25.4;
         d.rainfall.yearly.value = parseFloat(d.rainfall.yearly.value) / 25.4;
 
-        // Peak Detection
+        // Peak Detection (Wind/Temp)
         const apiW = parseFloat(d.wind.wind_speed.value);
         const apiG = parseFloat(d.wind.wind_gust.value);
         const apiT = parseFloat(d.outdoor.temperature.value);
@@ -96,6 +94,7 @@ async function bufferOnlyUpdate() {
         const rawDailyInches = d.rainfall.daily.value;
         const timeElapsedSec = state.lastFetchTime ? (now - state.lastFetchTime) / 1000 : 0;
         let customRateIn = 0;
+        let isRealRainEvent = false;
 
         if (state.lastRainRaw !== null && timeElapsedSec > 0) {
             const deltaRain = rawDailyInches - state.lastRainRaw;
@@ -103,8 +102,11 @@ async function bufferOnlyUpdate() {
                 state.lastRainTime = now; state.lastCalculatedRate = 0;
             } else if (deltaRain > 0 && timeElapsedSec >= 30) {
                 customRateIn = deltaRain * (3600 / timeElapsedSec);
-                state.lastCalculatedRate = customRateIn; state.lastRainTime = now;
+                state.lastCalculatedRate = customRateIn; 
+                state.lastRainTime = now;
+                isRealRainEvent = true; // Tip detected
             } else if (state.lastCalculatedRate > 0) {
+                // Decay Logic
                 const timeSinceLastRain = (now - state.lastRainTime) / 1000;
                 const decayRate = 0.01 * (3600 / timeSinceLastRain);
                 if (timeSinceLastRain > 900) { state.lastCalculatedRate = 0; }
@@ -115,14 +117,22 @@ async function bufferOnlyUpdate() {
             state.lastRainTime = now; state.lastCalculatedRate = 0;
         }
 
-        // Update state after calculations
+        // Update persistence trackers
         state.lastRainRaw = rawDailyInches; 
-        if (state.tRR === null || customRateIn > state.bufRR) { state.bufRR = customRateIn; state.tRR = currentTimeStamp; }
         state.lastFetchTime = now;
+
+        // ONLY update peak buffer if it was a physical tip event
+        if (isRealRainEvent) {
+            if (state.tRR === null || customRateIn > state.bufRR) { 
+                state.bufRR = customRateIn; 
+                state.tRR = currentTimeStamp; 
+            }
+        }
 
         return { ok: true, buffered: true };
     } catch (e) { return { error: e.message }; }
 }
+
 
 
 /**
@@ -170,8 +180,6 @@ if (!forceWrite && state.cachedData && (now - state.lastFetchTime < 540000)) {
             state.cachedData.rain.total = Math.round(d.rainfall.daily.value * 2540) / 100;
             state.cachedData.rain.rate = parseFloat((state.lastCalculatedRate * 25.4).toFixed(1));
 
-            // CRITICAL: Update the raw tracker so the next calculation is accurate
-            state.lastRainRaw = d.rainfall.daily.value; 
 
 
             const fmtL = () => new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' });
@@ -264,7 +272,7 @@ if (!forceWrite && state.cachedData && (now - state.lastFetchTime < 540000)) {
                 const dbW = snap.tW === null ? d.wind.wind_speed.value : snap.w;
                 const dbG = snap.tG === null ? d.wind.wind_gust.value : snap.g;
                 const currentLiveRR_Inches = state.lastCalculatedRate || 0;
-                const dbRR = Math.max(currentLiveRR_Inches, snap.rr || 0);
+                const dbRR = snap.rr || 0; // Use only the peak captured in the 10-min window
 
                 await client.query(`
                     INSERT INTO weather_history 
