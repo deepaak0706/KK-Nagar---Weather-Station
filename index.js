@@ -61,41 +61,36 @@ function calculateRealFeel(tempC, humidity) {
 
 function processRainLogic(newDailyInches, currentTimeStamp) {
     const now = Date.now();
-    // 1. Force a minimum 60s window for rate calculation to match API refresh
-    const rawTimeElapsed = state.lastFetchTime ? (now - state.lastFetchTime) / 1000 : 60;
-    const timeElapsedSec = Math.max(rawTimeElapsed, 60); 
-    
+    const timeElapsedSec = state.lastFetchTime ? (now - state.lastFetchTime) / 1000 : 60;
     let isRealRainEvent = false;
 
     if (state.lastRainRaw !== null) {
-        // Use a small epsilon (0.0001) to avoid floating point noise triggering rain
         const deltaRain = newDailyInches - state.lastRainRaw;
         
-        if (deltaRain > 0.0001) { 
-            // Physical Tip: Calculate rate based on a minimum 1-minute bucket
-            // This prevents the "1009 mm/h" spikes
-            state.lastCalculatedRate = deltaRain * (3600 / timeElapsedSec);
+        // 1. If we see ANY increase (even small)
+        if (deltaRain > 0) { 
+            // Use a 60s floor ONLY for the math, not for the timing
+            const mathTime = Math.max(timeElapsedSec, 60);
+            state.lastCalculatedRate = deltaRain * (3600 / mathTime);
             state.lastRainTime = now;
             isRealRainEvent = true;
-        } else if (state.lastCalculatedRate > 0) {
-            // DECAY LOGIC
+        } 
+        // 2. Only decay if it's been more than 90 seconds (1.5 API cycles)
+        else if (state.lastCalculatedRate > 0) {
             const timeSinceLastRain = (now - state.lastRainTime) / 1000;
             
-            if (timeSinceLastRain > 900) { // 15 mins of no rain
-                state.lastCalculatedRate = 0; 
-            } else {
-                // Smooth linear decay: drop 10% of current rate every minute
-                // Adjust 0.90 to 0.95 for a slower/faster decay
-                state.lastCalculatedRate = state.lastCalculatedRate * 0.90;
-                
-                // Cutoff to zero if it gets too low
-                if (state.lastCalculatedRate < 0.01) state.lastCalculatedRate = 0;
+            if (timeSinceLastRain > 90) { 
+                // Slow, smooth decay instead of a hard drop to 0
+                state.lastCalculatedRate *= 0.85; 
+                if (state.lastCalculatedRate < 0.05) state.lastCalculatedRate = 0;
             }
+            // If it's been less than 90s, we keep the "lastCalculatedRate" 
+            // exactly as it was. This prevents it from flickering to 0.
         }
     }
 
     state.lastRainRaw = newDailyInches;
-    state.lastFetchTime = now; // Important: update this every cycle
+    state.lastFetchTime = now;
 
     if (isRealRainEvent) {
         if (state.tRR === null || state.lastCalculatedRate > state.bufRR) { 
@@ -105,6 +100,7 @@ function processRainLogic(newDailyInches, currentTimeStamp) {
     }
     return state.lastCalculatedRate;
 }
+
 
 /**
  * 1-MIN CRON: Memory Buffer Only (No DB)
