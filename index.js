@@ -75,21 +75,23 @@ function calculateRealFeel(tempC, humidity) {
         return 0;
     }
 
+    // --- MIDNIGHT RESET FIX ---
+    // If the API resets the daily total back to 0 (or a lower number)
+    if (newDailyInches < state.lastRainRaw) {
+        state.lastRainRaw = newDailyInches; // Reset our baseline tracker
+        return state.lastCalculatedRate;    // Exit without calculating a rate
+    }
+    // --------------------------
+
     const deltaRain = newDailyInches - state.lastRainRaw;
 
     if (deltaRain > 0.0001) { 
         let timeSinceLastTipSec = (now - state.lastRainTime) / 1000;
 
-        /**
-         * FRESH EVENT LOGIC:
-         * If it hasn't rained for more than 10 minutes (600s), 
-         * we ignore the long gap and treat this as a brand new 1-minute burst.
-         */
         if (timeSinceLastTipSec > 600) {
-            timeSinceLastTipSec = 60; // Reset to 1 minute
+            timeSinceLastTipSec = 60; 
         }
 
-        // Spike Protection: Ensure divisor is at least 60s
         const effectiveTime = Math.max(timeSinceLastTipSec, 60);
         
         state.lastCalculatedRate = deltaRain * (3600 / effectiveTime);
@@ -106,8 +108,7 @@ function calculateRealFeel(tempC, humidity) {
     return state.lastCalculatedRate;
 }
 
-
-
+ 
 // Fix the dangling return and the buffer function
 /**
  * 1-MIN CRON: Memory Buffer & Decay Engine
