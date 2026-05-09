@@ -60,10 +60,15 @@ function calculateRealFeel(tempC, humidity) {
 }
 
 
+/**
+ * PROCESS RAIN LOGIC
+ * Handles active tips and peak buffering. 
+ * Decay is now handled externally by the Cron.
+ */
 function processRainLogic(newDailyInches, currentTimeStamp) {
     const now = Date.now();
     
-    // 1. Initial boot-up: just set the baseline
+    // 1. Initial boot-up: Set baseline
     if (state.lastRainRaw === null) {
         state.lastRainRaw = newDailyInches;
         state.lastRainTime = now;
@@ -72,34 +77,22 @@ function processRainLogic(newDailyInches, currentTimeStamp) {
 
     const deltaRain = newDailyInches - state.lastRainRaw;
 
+    // 2. TIP DETECTED
     if (deltaRain > 0) { 
-        // 2. TIP DETECTED
-        // Calculate based on time since the LAST bucket tip event
         const timeSinceLastTipSec = (now - state.lastRainTime) / 1000;
 
-        // Safety: If the API bundled multiple tips into one update (very common), 
-        // we divide the total delta by the time since the last tip.
-        // We cap the denominator at 60s minimum if tips happen within the same API cycle 
-        // to prevent extreme mathematical spikes.
+        // Davis-style "Effective Time" 
+        // Prevents extreme spikes if multiple tips are bundled in one 60s API poll
         const effectiveTime = Math.max(timeSinceLastTipSec, 60);
         
         state.lastCalculatedRate = deltaRain * (3600 / effectiveTime);
         
-        // Update the "Event" markers
+        // Update markers
         state.lastRainRaw = newDailyInches;
         state.lastRainTime = now; 
     } 
-    else {
-        // 3. DECAY LOGIC (No new rain)
-        // If it hasn't rained in 5 minutes, start dropping the rate
-        const timeSinceLastTip = (now - state.lastRainTime) / 1000;
-        if (timeSinceLastTip > 300) { 
-            state.lastCalculatedRate *= 0.5; // Aggressive decay
-            if (state.lastCalculatedRate < 0.01) state.lastCalculatedRate = 0;
-        }
-    }
 
-    // Update the Peak Buffer for the 10-min DB record
+    // 3. PEAK BUFFERING (For 10-min DB records)
     if (state.lastCalculatedRate > (state.bufRR || 0)) { 
         state.bufRR = state.lastCalculatedRate; 
         state.tRR = currentTimeStamp; 
@@ -109,6 +102,9 @@ function processRainLogic(newDailyInches, currentTimeStamp) {
 }
 
 // Fix the dangling return and the buffer function
+/**
+ * 1-MIN CRON: Memory Buffer & Decay Engine
+ */
 async function bufferOnlyUpdate() {
     const now = Date.now();
     const currentTimeStamp = new Date().toISOString();
@@ -120,33 +116,35 @@ async function bufferOnlyUpdate() {
         if (!json.data) throw new Error("Invalid API Response");
         const d = json.data;
 
-        // High Precision Conversion
+        // 1. UPDATE RAIN RATE (Tips only)
         const dailyRainInches = parseFloat(d.rainfall.daily.value) / 25.4;
         processRainLogic(dailyRainInches, currentTimeStamp);
 
+        // 2. STABLE DECAY LOGIC (Independent of Visitors)
+        // If no rain for 5 minutes, halve the rate once per minute
+        const secondsSinceLastTip = (now - state.lastRainTime) / 1000;
+        if (secondsSinceLastTip > 300) { 
+            state.lastCalculatedRate *= 0.5; 
+            if (state.lastCalculatedRate < 0.01) state.lastCalculatedRate = 0;
+        }
+
+        // 3. WIND & TEMP PEAK BUFFERING
         const apiW = parseFloat(d.wind.wind_speed.value);
         const apiG = parseFloat(d.wind.wind_gust.value);
         const apiT = parseFloat(d.outdoor.temperature.value);
 
-        // Peak Buffering
         if (state.tW === null || apiW > state.bufW) { state.bufW = apiW; state.tW = currentTimeStamp; }
         if (state.tG === null || apiG > state.bufG) { state.bufG = apiG; state.tG = currentTimeStamp; }
         if (state.tMaxT === null || apiT > state.bufMaxT) { state.bufMaxT = apiT; state.tMaxT = currentTimeStamp; }
         if (state.tMinT === null || apiT < state.bufMinT) { state.bufMinT = apiT; state.tMinT = currentTimeStamp; }
 
         state.lastFetchTime = now;
-        return { ok: true, buffered: true };
+        return { ok: true, buffered: true, currentRate: state.lastCalculatedRate };
     } catch (e) { 
+        console.error("Cron Error:", e.message);
         return { error: e.message }; 
     }
-} // Removed the stray return state.lastCalculatedRate that was here
-/**
- * 1-MIN CRON: Memory Buffer Only (No DB)
- */
-
-
-
-
+}
 /**
  * MAIN SYNC: Handles Dashboard, 10-Min DB Write, and Midnight Reset
  */
