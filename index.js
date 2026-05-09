@@ -77,21 +77,27 @@ function calculateRealFeel(tempC, humidity) {
 
     const deltaRain = newDailyInches - state.lastRainRaw;
 
-    // ONLY calculate if the bucket actually tipped
     if (deltaRain > 0.0001) { 
-        const timeSinceLastTipSec = (now - state.lastRainTime) / 1000;
+        let timeSinceLastTipSec = (now - state.lastRainTime) / 1000;
 
-        // Spike Protection: Spread rain over at least 60s
+        /**
+         * FRESH EVENT LOGIC:
+         * If it hasn't rained for more than 10 minutes (600s), 
+         * we ignore the long gap and treat this as a brand new 1-minute burst.
+         */
+        if (timeSinceLastTipSec > 600) {
+            timeSinceLastTipSec = 60; // Reset to 1 minute
+        }
+
+        // Spike Protection: Ensure divisor is at least 60s
         const effectiveTime = Math.max(timeSinceLastTipSec, 60);
         
         state.lastCalculatedRate = deltaRain * (3600 / effectiveTime);
         
-        // Update markers
         state.lastRainRaw = newDailyInches;
         state.lastRainTime = now; 
     } 
 
-    // Update Peak Buffer
     if (state.lastCalculatedRate > (state.bufRR || 0)) { 
         state.bufRR = state.lastCalculatedRate; 
         state.tRR = currentTimeStamp; 
@@ -99,6 +105,7 @@ function calculateRealFeel(tempC, humidity) {
     
     return state.lastCalculatedRate;
 }
+
 
 
 // Fix the dangling return and the buffer function
