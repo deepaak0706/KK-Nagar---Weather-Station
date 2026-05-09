@@ -58,40 +58,47 @@ function calculateRealFeel(tempC, humidity) {
     }
     return parseFloat(((hi - 32) * 5 / 9).toFixed(1));
 }
-
-async function bufferOnlyUpdate() {
+function processRainLogic(newDailyInches, currentTimeStamp) {
     const now = Date.now();
-    const currentTimeStamp = new Date().toISOString();
+    
+    // 1. Determine time since the last SUCCESSFUL calculation
+    const timeElapsedSec = state.lastFetchTime ? (now - state.lastFetchTime) / 1000 : 60;
+    
+    // --- SAFETY GATE ---
+    if (timeElapsedSec < 55) {
+        return state.lastCalculatedRate || 0;
+    }
 
-    try {
-        const url = `https://api.ecowitt.net/api/v3/device/real_time?application_key=${APPLICATION_KEY}&api_key=${API_KEY}&mac=${MAC}&rainfall_unitid=12`;
-        const response = await fetch(url);
-        const json = await response.json();
-        if (!json.data) throw new Error("Invalid API Response");
-        const d = json.data;
+    if (state.lastRainRaw !== null) {
+        const deltaRain = newDailyInches - state.lastRainRaw;
+        
+        if (deltaRain > 0) { 
+            // Rate calculation
+            state.lastCalculatedRate = deltaRain * (3600 / timeElapsedSec);
+            state.lastRainTime = now; 
+        } 
+        else if (state.lastCalculatedRate > 0) {
+            // Decay logic
+            const timeSinceLastRain = (now - state.lastRainTime) / 1000;
+            if (timeSinceLastRain > 120) { 
+                state.lastCalculatedRate *= 0.75; 
+                if (state.lastCalculatedRate < 0.05) state.lastCalculatedRate = 0;
+            }
+        }
+    }
 
-        // High Precision Conversion (Inches)
-        const dailyRainInches = parseFloat(d.rainfall.daily.value) / 25.4;
+    // --- BASELINE UPDATES ---
+    state.lastRainRaw = newDailyInches;
+    // We don't update lastFetchTime here because the calling functions (bufferUpdate/Sync) handle it
 
-        // --- CRITICAL ADDITION: Run the Rain Logic ---
-        // This calculates the rate and updates state.bufRR for the DB
-        processRainLogic(dailyRainInches, currentTimeStamp);
-
-        // Peak Detection (Wind/Temp) - Remains as you had it
-        const apiW = parseFloat(d.wind.wind_speed.value);
-        const apiG = parseFloat(d.wind.wind_gust.value);
-        const apiT = parseFloat(d.outdoor.temperature.value);
-
-        if (state.tW === null || apiW > state.bufW)       { state.bufW = apiW; state.tW = currentTimeStamp; }
-        if (state.tG === null || apiG > state.bufG)       { state.bufG = apiG; state.tG = currentTimeStamp; }
-        if (state.tMaxT === null || apiT > state.bufMaxT) { state.bufMaxT = apiT; state.tMaxT = currentTimeStamp; }
-        if (state.tMinT === null || apiT < state.bufMinT) { state.bufMinT = apiT; state.tMinT = currentTimeStamp; }
-
-        state.lastFetchTime = now;
-        return { ok: true, buffered: true };
-    } catch (e) { return { error: e.message }; }
+    // Update the Peak Buffer for the 10-min DB record
+    if (state.lastCalculatedRate > (state.bufRR || 0)) { 
+        state.bufRR = state.lastCalculatedRate; 
+        state.tRR = currentTimeStamp; 
+    }
+    
+    return state.lastCalculatedRate;
 }
-
 
 async function bufferOnlyUpdate() {
     const now = Date.now();
@@ -143,38 +150,6 @@ async function bufferOnlyUpdate() {
  * 1-MIN CRON: Memory Buffer Only (No DB)
  */
 
- async function bufferOnlyUpdate() {
-    const now = Date.now();
-    const currentTimeStamp = new Date().toISOString();
-
-    try {
-        const url = `https://api.ecowitt.net/api/v3/device/real_time?application_key=${APPLICATION_KEY}&api_key=${API_KEY}&mac=${MAC}&rainfall_unitid=12`;
-        const response = await fetch(url);
-        const json = await response.json();
-        if (!json.data) throw new Error("Invalid API Response");
-        const d = json.data;
-
-        // High Precision Conversion
-        d.rainfall.daily.value = parseFloat(d.rainfall.daily.value) / 25.4;
-        d.rainfall.weekly.value = parseFloat(d.rainfall.weekly.value) / 25.4;
-        d.rainfall.monthly.value = parseFloat(d.rainfall.monthly.value) / 25.4;
-        d.rainfall.yearly.value = parseFloat(d.rainfall.yearly.value) / 25.4;
-
-        // Peak Detection (Wind/Temp)
-        const apiW = parseFloat(d.wind.wind_speed.value);
-        const apiG = parseFloat(d.wind.wind_gust.value);
-        const apiT = parseFloat(d.outdoor.temperature.value);
-
-        if (state.tW === null || apiW > state.bufW)       { state.bufW = apiW; state.tW = currentTimeStamp; }
-        if (state.tG === null || apiG > state.bufG)       { state.bufG = apiG; state.tG = currentTimeStamp; }
-        if (state.tMaxT === null || apiT > state.bufMaxT) { state.bufMaxT = apiT; state.tMaxT = currentTimeStamp; }
-        if (state.tMinT === null || apiT < state.bufMinT) { state.bufMinT = apiT; state.tMinT = currentTimeStamp; }
-
-
-        state.lastFetchTime = now;
-        return { ok: true, buffered: true };
-    } catch (e) { return { error: e.message }; }
-}
 
 
 
