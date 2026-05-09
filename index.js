@@ -61,38 +61,42 @@ function calculateRealFeel(tempC, humidity) {
 
 function processRainLogic(newDailyInches, currentTimeStamp) {
     const now = Date.now();
-    const timeElapsedSec = state.lastFetchTime ? (now - state.lastFetchTime) / 1000 : 0;
+    // 1. Force a minimum 60s window for rate calculation to match API refresh
+    const rawTimeElapsed = state.lastFetchTime ? (now - state.lastFetchTime) / 1000 : 60;
+    const timeElapsedSec = Math.max(rawTimeElapsed, 60); 
+    
     let isRealRainEvent = false;
 
-    if (state.lastRainRaw !== null && timeElapsedSec > 0) {
+    if (state.lastRainRaw !== null) {
+        // Use a small epsilon (0.0001) to avoid floating point noise triggering rain
         const deltaRain = newDailyInches - state.lastRainRaw;
         
-        if (deltaRain < 0) {
-            state.lastCalculatedRate = 0;
-            state.lastRainTime = now;
-        } else if (deltaRain > 0 && timeElapsedSec >= 5) { 
-            // Physical Tip Detected
+        if (deltaRain > 0.0001) { 
+            // Physical Tip: Calculate rate based on a minimum 1-minute bucket
+            // This prevents the "1009 mm/h" spikes
             state.lastCalculatedRate = deltaRain * (3600 / timeElapsedSec);
             state.lastRainTime = now;
             isRealRainEvent = true;
         } else if (state.lastCalculatedRate > 0) {
-            // Decay Logic: 15-minute window
+            // DECAY LOGIC
             const timeSinceLastRain = (now - state.lastRainTime) / 1000;
-            if (timeSinceLastRain > 900) { 
+            
+            if (timeSinceLastRain > 900) { // 15 mins of no rain
                 state.lastCalculatedRate = 0; 
             } else {
-                const decayRate = 0.01 * (3600 / timeSinceLastRain);
-                if (decayRate < state.lastCalculatedRate) state.lastCalculatedRate = decayRate;
+                // Smooth linear decay: drop 10% of current rate every minute
+                // Adjust 0.90 to 0.95 for a slower/faster decay
+                state.lastCalculatedRate = state.lastCalculatedRate * 0.90;
+                
+                // Cutoff to zero if it gets too low
+                if (state.lastCalculatedRate < 0.01) state.lastCalculatedRate = 0;
             }
         }
-    } else {
-        state.lastRainTime = now;
     }
 
-    // Update global trackers
     state.lastRainRaw = newDailyInches;
+    state.lastFetchTime = now; // Important: update this every cycle
 
-    // Update the 10-min Peak Buffer
     if (isRealRainEvent) {
         if (state.tRR === null || state.lastCalculatedRate > state.bufRR) { 
             state.bufRR = state.lastCalculatedRate; 
@@ -1317,7 +1321,7 @@ body.is-night .glass-select option {
             ctxW.stroke(); requestAnimationFrame(animateWind);
         }
 
-        applyTheme(); animateWind(); setInterval(update, 45000); update();
+        applyTheme(); animateWind(); setInterval(update, 60000); update();
 
         function showPage(pageId) {
     // 1. Toggle visibility of the three pages
