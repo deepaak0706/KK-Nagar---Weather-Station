@@ -132,17 +132,6 @@ async function bufferOnlyUpdate() {
         return { ok: true, buffered: true };
     } catch (e) { return { error: e.message }; }
 }
-
-    // --- BASELINE UPDATES ---
-    // We only update these if we passed the 55s Safety Gate.
-    state.lastRainRaw = newDailyInches;
-    state.lastFetchTime = now; 
-
-    // Update the Peak Buffer for the 10-min DB record
-    if (state.lastCalculatedRate > (state.bufRR || 0)) { 
-        state.bufRR = state.lastCalculatedRate; 
-        state.tRR = currentTimeStamp; 
-    }
     
     return state.lastCalculatedRate;
 }
