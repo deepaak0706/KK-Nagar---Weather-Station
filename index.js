@@ -59,43 +59,38 @@ function calculateRealFeel(tempC, humidity) {
     return parseFloat(((hi - 32) * 5 / 9).toFixed(1));
 }
 
-function processRainLogic(newDailyInches, currentTimeStamp) {
+async function bufferOnlyUpdate() {
     const now = Date.now();
-    
-    // 1. Determine time since the last SUCCESSFUL calculation
-    // If state.lastFetchTime is null, we assume 60s for the first run.
-    const timeElapsedSec = state.lastFetchTime ? (now - state.lastFetchTime) / 1000 : 60;
-    
-    // --- SAFETY GATE ---
-    // If an API call or visitor refresh triggers this in < 55s, 
-    // we ABORT to protect the 60s window math.
-    if (timeElapsedSec < 55) {
-        return state.lastCalculatedRate || 0;
-    }
+    const currentTimeStamp = new Date().toISOString();
 
-    if (state.lastRainRaw !== null) {
-        const deltaRain = newDailyInches - state.lastRainRaw;
-        
-        if (deltaRain > 0) { 
-            // DAVIS LOGIC: Rate = (Amount / Time Elapsed). 
-            // If 0.01" falls in 60s: (0.01 / 60) * 3600 = 0.6"/hr
-            state.lastCalculatedRate = deltaRain * (3600 / timeElapsedSec);
-            state.lastRainTime = now; // Mark the moment the rain was detected
-        } 
-        else if (state.lastCalculatedRate > 0) {
-            // NO NEW RAIN THIS MINUTE:
-            const timeSinceLastRain = (now - state.lastRainTime) / 1000;
-            
-            // Davis persistence: Hold the rate for 2 intervals (120s) before dropping.
-            if (timeSinceLastRain > 120) { 
-                // Decay by 25% each minute to simulate the "emptying" of the calculation bucket
-                state.lastCalculatedRate *= 0.75; 
-                
-                // Floor it to zero if it becomes negligible
-                if (state.lastCalculatedRate < 0.05) state.lastCalculatedRate = 0;
-            }
-        }
-    }
+    try {
+        const url = `https://api.ecowitt.net/api/v3/device/real_time?application_key=${APPLICATION_KEY}&api_key=${API_KEY}&mac=${MAC}&rainfall_unitid=12`;
+        const response = await fetch(url);
+        const json = await response.json();
+        if (!json.data) throw new Error("Invalid API Response");
+        const d = json.data;
+
+        // High Precision Conversion (Inches)
+        const dailyRainInches = parseFloat(d.rainfall.daily.value) / 25.4;
+
+        // --- CRITICAL ADDITION: Run the Rain Logic ---
+        // This calculates the rate and updates state.bufRR for the DB
+        processRainLogic(dailyRainInches, currentTimeStamp);
+
+        // Peak Detection (Wind/Temp) - Remains as you had it
+        const apiW = parseFloat(d.wind.wind_speed.value);
+        const apiG = parseFloat(d.wind.wind_gust.value);
+        const apiT = parseFloat(d.outdoor.temperature.value);
+
+        if (state.tW === null || apiW > state.bufW)       { state.bufW = apiW; state.tW = currentTimeStamp; }
+        if (state.tG === null || apiG > state.bufG)       { state.bufG = apiG; state.tG = currentTimeStamp; }
+        if (state.tMaxT === null || apiT > state.bufMaxT) { state.bufMaxT = apiT; state.tMaxT = currentTimeStamp; }
+        if (state.tMinT === null || apiT < state.bufMinT) { state.bufMinT = apiT; state.tMinT = currentTimeStamp; }
+
+        state.lastFetchTime = now;
+        return { ok: true, buffered: true };
+    } catch (e) { return { error: e.message }; }
+}
 
     // --- BASELINE UPDATES ---
     // We only update these if we passed the 55s Safety Gate.
