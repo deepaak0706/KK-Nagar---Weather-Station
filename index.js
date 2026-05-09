@@ -61,47 +61,43 @@ function calculateRealFeel(tempC, humidity) {
 
 function processRainLogic(newDailyInches, currentTimeStamp) {
     const now = Date.now();
+    // Only proceed if it's been at least 45 seconds since the last check
+    // This prevents "Double-Trigger" spikes from visitors
     const timeElapsedSec = state.lastFetchTime ? (now - state.lastFetchTime) / 1000 : 60;
-    let isRealRainEvent = false;
+    
+    if (timeElapsedSec < 45) return state.lastCalculatedRate; 
 
     if (state.lastRainRaw !== null) {
         const deltaRain = newDailyInches - state.lastRainRaw;
         
-        // 1. If we see ANY increase (even small)
         if (deltaRain > 0) { 
-            // Use a 60s floor ONLY for the math, not for the timing
+            // Davis-style: Spread the rain over the actual time elapsed, 
+            // but floor it at 60s to match the API refresh rate.
             const mathTime = Math.max(timeElapsedSec, 60);
             state.lastCalculatedRate = deltaRain * (3600 / mathTime);
             state.lastRainTime = now;
-            isRealRainEvent = true;
         } 
-        // 2. Only decay if it's been more than 90 seconds (1.5 API cycles)
         else if (state.lastCalculatedRate > 0) {
             const timeSinceLastRain = (now - state.lastRainTime) / 1000;
-            
-            if (timeSinceLastRain > 90) { 
-                // Slow, smooth decay instead of a hard drop to 0
-                state.lastCalculatedRate *= 0.85; 
-                if (state.lastCalculatedRate < 0.05) state.lastCalculatedRate = 0;
+            // Only start decaying after 2 minutes of no new rain data
+            if (timeSinceLastRain > 120) { 
+                state.lastCalculatedRate *= 0.8; // Smooth decay
+                if (state.lastCalculatedRate < 0.1) state.lastCalculatedRate = 0;
             }
-            // If it's been less than 90s, we keep the "lastCalculatedRate" 
-            // exactly as it was. This prevents it from flickering to 0.
         }
     }
 
     state.lastRainRaw = newDailyInches;
     state.lastFetchTime = now;
-
-    if (isRealRainEvent) {
-        if (state.tRR === null || state.lastCalculatedRate > state.bufRR) { 
-            state.bufRR = state.lastCalculatedRate; 
-            state.tRR = currentTimeStamp; 
-        }
+    
+    // Buffer the peak for the dashboard
+    if (state.lastCalculatedRate > state.bufRR) {
+        state.bufRR = state.lastCalculatedRate;
+        state.tRR = currentTimeStamp;
     }
+
     return state.lastCalculatedRate;
 }
-
-
 /**
  * 1-MIN CRON: Memory Buffer Only (No DB)
  */
@@ -170,8 +166,6 @@ if (!forceWrite && state.cachedData && (now - state.lastFetchTime < 540000)) {
         d.rainfall.monthly.value = parseFloat(d.rainfall.monthly.value) / 25.4;
         d.rainfall.yearly.value = parseFloat(d.rainfall.yearly.value) / 25.4;
         // --------------------------------
-
-        processRainLogic(d.rainfall.daily.value, new Date().toISOString());
 
             const liveTemp = parseFloat(((d.outdoor.temperature.value - 32) * 5 / 9).toFixed(1));
             const liveWind = parseFloat((d.wind.wind_speed.value * 1.60934).toFixed(1));
