@@ -92,6 +92,40 @@ async function bufferOnlyUpdate() {
     } catch (e) { return { error: e.message }; }
 }
 
+
+async function bufferOnlyUpdate() {
+    const now = Date.now();
+    const currentTimeStamp = new Date().toISOString();
+
+    try {
+        const url = `https://api.ecowitt.net/api/v3/device/real_time?application_key=${APPLICATION_KEY}&api_key=${API_KEY}&mac=${MAC}&rainfall_unitid=12`;
+        const response = await fetch(url);
+        const json = await response.json();
+        if (!json.data) throw new Error("Invalid API Response");
+        const d = json.data;
+
+        // High Precision Conversion (Inches)
+        const dailyRainInches = parseFloat(d.rainfall.daily.value) / 25.4;
+
+        // --- CRITICAL ADDITION: Run the Rain Logic ---
+        // This calculates the rate and updates state.bufRR for the DB
+        processRainLogic(dailyRainInches, currentTimeStamp);
+
+        // Peak Detection (Wind/Temp) - Remains as you had it
+        const apiW = parseFloat(d.wind.wind_speed.value);
+        const apiG = parseFloat(d.wind.wind_gust.value);
+        const apiT = parseFloat(d.outdoor.temperature.value);
+
+        if (state.tW === null || apiW > state.bufW)       { state.bufW = apiW; state.tW = currentTimeStamp; }
+        if (state.tG === null || apiG > state.bufG)       { state.bufG = apiG; state.tG = currentTimeStamp; }
+        if (state.tMaxT === null || apiT > state.bufMaxT) { state.bufMaxT = apiT; state.tMaxT = currentTimeStamp; }
+        if (state.tMinT === null || apiT < state.bufMinT) { state.bufMinT = apiT; state.tMinT = currentTimeStamp; }
+
+        state.lastFetchTime = now;
+        return { ok: true, buffered: true };
+    } catch (e) { return { error: e.message }; }
+}
+
     // --- BASELINE UPDATES ---
     // We only update these if we passed the 55s Safety Gate.
     state.lastRainRaw = newDailyInches;
