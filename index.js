@@ -300,7 +300,7 @@ async function syncWithEcowitt(forceWrite = false) {
                     INSERT INTO weather_history 
                     (time, temp_f, temp_min_f, humidity, wind_speed_mph, wind_gust_mph, rain_rate_in, daily_rain_in, 
                      max_w_time, max_t_time, min_t_time, max_r_time, max_g_time, solar_radiation, press_rel)
-                    VALUES (${timeSql}, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+                    VALUES (${timeSql}, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
                 `, [
                     dbMaxT, dbMinT, liveHum, dbW, dbG, dbRR, d.rainfall.daily.value,
                     snap.tW || new Date().toISOString(), 
