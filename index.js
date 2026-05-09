@@ -100,6 +100,7 @@ function processRainLogic(newDailyInches, currentTimeStamp) {
     return state.lastCalculatedRate;
 }
 
+// Fix the dangling return and the buffer function
 async function bufferOnlyUpdate() {
     const now = Date.now();
     const currentTimeStamp = new Date().toISOString();
@@ -111,30 +112,26 @@ async function bufferOnlyUpdate() {
         if (!json.data) throw new Error("Invalid API Response");
         const d = json.data;
 
-        // High Precision Conversion (Inches)
+        // High Precision Conversion
         const dailyRainInches = parseFloat(d.rainfall.daily.value) / 25.4;
-
-        // --- CRITICAL ADDITION: Run the Rain Logic ---
-        // This calculates the rate and updates state.bufRR for the DB
         processRainLogic(dailyRainInches, currentTimeStamp);
 
-        // Peak Detection (Wind/Temp) - Remains as you had it
         const apiW = parseFloat(d.wind.wind_speed.value);
         const apiG = parseFloat(d.wind.wind_gust.value);
         const apiT = parseFloat(d.outdoor.temperature.value);
 
-        if (state.tW === null || apiW > state.bufW)       { state.bufW = apiW; state.tW = currentTimeStamp; }
-        if (state.tG === null || apiG > state.bufG)       { state.bufG = apiG; state.tG = currentTimeStamp; }
+        // Peak Buffering
+        if (state.tW === null || apiW > state.bufW) { state.bufW = apiW; state.tW = currentTimeStamp; }
+        if (state.tG === null || apiG > state.bufG) { state.bufG = apiG; state.tG = currentTimeStamp; }
         if (state.tMaxT === null || apiT > state.bufMaxT) { state.bufMaxT = apiT; state.tMaxT = currentTimeStamp; }
         if (state.tMinT === null || apiT < state.bufMinT) { state.bufMinT = apiT; state.tMinT = currentTimeStamp; }
 
         state.lastFetchTime = now;
         return { ok: true, buffered: true };
-    } catch (e) { return { error: e.message }; }
-}
-    
-    return state.lastCalculatedRate;
-}
+    } catch (e) { 
+        return { error: e.message }; 
+    }
+} // Removed the stray return state.lastCalculatedRate that was here
 /**
  * 1-MIN CRON: Memory Buffer Only (No DB)
  */
