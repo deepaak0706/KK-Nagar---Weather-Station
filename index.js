@@ -65,10 +65,10 @@ function calculateRealFeel(tempC, humidity) {
  * Handles active tips and peak buffering. 
  * Decay is now handled externally by the Cron.
  */
-function processRainLogic(newDailyInches, currentTimeStamp) {
+
+ function processRainLogic(newDailyInches, currentTimeStamp) {
     const now = Date.now();
     
-    // 1. Initial boot-up: Set baseline
     if (state.lastRainRaw === null) {
         state.lastRainRaw = newDailyInches;
         state.lastRainTime = now;
@@ -77,12 +77,11 @@ function processRainLogic(newDailyInches, currentTimeStamp) {
 
     const deltaRain = newDailyInches - state.lastRainRaw;
 
-    // 2. TIP DETECTED
-    if (deltaRain > 0) { 
+    // ONLY calculate if the bucket actually tipped
+    if (deltaRain > 0.0001) { 
         const timeSinceLastTipSec = (now - state.lastRainTime) / 1000;
 
-        // Davis-style "Effective Time" 
-        // Prevents extreme spikes if multiple tips are bundled in one 60s API poll
+        // Spike Protection: Spread rain over at least 60s
         const effectiveTime = Math.max(timeSinceLastTipSec, 60);
         
         state.lastCalculatedRate = deltaRain * (3600 / effectiveTime);
@@ -92,7 +91,7 @@ function processRainLogic(newDailyInches, currentTimeStamp) {
         state.lastRainTime = now; 
     } 
 
-    // 3. PEAK BUFFERING (For 10-min DB records)
+    // Update Peak Buffer
     if (state.lastCalculatedRate > (state.bufRR || 0)) { 
         state.bufRR = state.lastCalculatedRate; 
         state.tRR = currentTimeStamp; 
@@ -101,10 +100,12 @@ function processRainLogic(newDailyInches, currentTimeStamp) {
     return state.lastCalculatedRate;
 }
 
+
 // Fix the dangling return and the buffer function
 /**
  * 1-MIN CRON: Memory Buffer & Decay Engine
  */
+
 async function bufferOnlyUpdate() {
     const now = Date.now();
     const currentTimeStamp = new Date().toISOString();
@@ -116,16 +117,21 @@ async function bufferOnlyUpdate() {
         if (!json.data) throw new Error("Invalid API Response");
         const d = json.data;
 
-        // 1. UPDATE RAIN RATE (Tips only)
+        // 1. Process physical tips first
         const dailyRainInches = parseFloat(d.rainfall.daily.value) / 25.4;
         processRainLogic(dailyRainInches, currentTimeStamp);
 
-        // 2. STABLE DECAY LOGIC (Independent of Visitors)
-        // If no rain for 5 minutes, halve the rate once per minute
+        // 2. STABLE DECAY ENGINE (Exclusive to Cron)
+        // We give 3 minutes (180s) of "grace" before dropping the rate.
+        // This bridges the gap between API updates during heavy rain.
         const secondsSinceLastTip = (now - state.lastRainTime) / 1000;
-        if (secondsSinceLastTip > 300) { 
-            state.lastCalculatedRate *= 0.5; 
-            if (state.lastCalculatedRate < 0.01) state.lastCalculatedRate = 0;
+        
+        if (secondsSinceLastTip > 180) { 
+            // Reduce by 20% every minute for a smooth curve
+            state.lastCalculatedRate *= 0.8; 
+            
+            // Cut to zero if it becomes negligible
+            if (state.lastCalculatedRate < 0.05) state.lastCalculatedRate = 0;
         }
 
         // 3. WIND & TEMP PEAK BUFFERING
@@ -145,6 +151,8 @@ async function bufferOnlyUpdate() {
         return { error: e.message }; 
     }
 }
+
+
 /**
  * MAIN SYNC: Handles Dashboard, 10-Min DB Write, and Midnight Reset
  */
