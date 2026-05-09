@@ -900,6 +900,106 @@ body.is-night .glass-select option {
     margin-top: 4px;
 }
 
+/* --- PRO TEMPERATURE CARD --- */
+.temp-card-pro {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+
+.temp-top-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+}
+
+/* Range Tracker */
+.day-range-container {
+    background: var(--badge);
+    padding: 16px 20px;
+    border-radius: 20px;
+    margin-top: 5px;
+    border: 1px solid var(--border);
+}
+
+.day-range-labels {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 12px;
+}
+
+.range-low { display: flex; flex-direction: column; align-items: flex-start; }
+.range-high { display: flex; flex-direction: column; align-items: flex-end; }
+
+.val-color-blue { color: #0ea5e9; font-size: 16px; font-weight: 900; line-height: 1.2; }
+.val-color-red { color: #ef4444; font-size: 16px; font-weight: 900; line-height: 1.2; }
+.time-sub { font-size: 9px; color: var(--muted); font-weight: 700; background: rgba(0,0,0,0.05); padding: 2px 6px; border-radius: 4px; margin-top: 4px; }
+body.is-night .time-sub { background: rgba(255,255,255,0.05); }
+
+/* The Sleek Gradient Bar */
+.range-track {
+    width: 100%;
+    height: 6px;
+    background: var(--border);
+    border-radius: 10px;
+    position: relative;
+}
+
+.range-gradient {
+    position: absolute;
+    left: 0; right: 0; top: 0; bottom: 0;
+    background: linear-gradient(90deg, #0ea5e9, #f59e0b, #ef4444);
+    border-radius: 10px;
+    opacity: 0.85;
+}
+
+.current-dot {
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    background: var(--text);
+    border: 3px solid var(--card);
+    border-radius: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    box-shadow: 0 0 10px rgba(0,0,0,0.3);
+    transition: left 1s cubic-bezier(0.16, 1, 0.3, 1); /* Smooth sliding animation */
+}
+
+/* Comfort Master Group */
+.comfort-master-group {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border);
+}
+
+.comfort-node {
+    background: var(--badge);
+    padding: 16px 8px;
+    border-radius: 18px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    transition: transform 0.3s ease;
+}
+
+.comfort-node:hover {
+    transform: translateY(-3px);
+    background: rgba(2, 132, 199, 0.08);
+}
+
+.comfort-icon {
+    color: var(--accent);
+    margin-bottom: 8px;
+    opacity: 0.8;
+}
+
+.comfort-node .badge-label { font-size: 10px; margin-bottom: 4px; letter-spacing: 0.5px; }
+.comfort-node .badge-val { font-size: 17px; font-weight: 900; }
 
 
     </style>
@@ -926,19 +1026,55 @@ body.is-night .glass-select option {
 
         <div id="page-dashboard">
             
-            <div class="grid-system">
-                <div class="card">
-                    <div class="label">Temperature</div>
-                    <div class="main-val"><span id="t">0.0</span><span class="unit">°C</span></div>
-                    <div id="tTrendBox" class="sub-pill">--</div>
-                    <div class="sub-box-4">
-                        <div class="badge"><span class="badge-label">Today High</span><span id="mx" class="badge-val" style="color:#ef4444">--</span></div>
-                        <div class="badge"><span class="badge-label">Today Low</span><span id="mn" class="badge-val" style="color:#0ea5e9">--</span></div>
-                        <div class="badge"><span class="badge-label">Humidity</span><span id="h_val" class="badge-val">--</span></div>
-                        <div class="badge"><span class="badge-label">Dew Point</span><span id="d_val" class="badge-val">--</span></div>
-                        <div class="badge" style="grid-column: span 2;"><span class="badge-label">Feels Like</span><span id="rf" class="badge-val">--</span></div>
-                    </div>
+            <div class="card temp-card-pro">
+    <div class="label">Temperature</div>
+
+    <div class="temp-hero">
+        <div class="temp-top-row">
+            <div>
+                <div class="main-val"><span id="t" class="fade-update">0.0</span><span class="unit">°C</span></div>
+                <div id="tTrendBox" class="sub-pill">--</div>
+            </div>
+        </div>
+
+        <div class="day-range-container">
+            <div class="day-range-labels">
+                <div class="range-low">
+                    <span class="badge-label">Today Low</span>
+                    <span id="mn" class="val-color-blue">--</span>
+                    <span class="time-sub" id="mn_time">--:--:--</span>
                 </div>
+                <div class="range-high">
+                    <span class="badge-label">Today High</span>
+                    <span id="mx" class="val-color-red">--</span>
+                    <span class="time-sub" id="mx_time">--:--:--</span>
+                </div>
+            </div>
+            <div class="range-track">
+                <div class="range-gradient"></div>
+                <div class="current-dot" id="tempDot" style="left: 50%;"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="comfort-master-group">
+        <div class="comfort-node">
+            <svg class="comfort-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"/></svg>
+            <span class="badge-label">Feels Like</span>
+            <span id="rf" class="badge-val" style="color: #f59e0b;">--</span>
+        </div>
+        <div class="comfort-node">
+            <svg class="comfort-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/></svg>
+            <span class="badge-label">Humidity</span>
+            <span id="h_val" class="badge-val">--</span>
+        </div>
+        <div class="comfort-node">
+            <svg class="comfort-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+            <span class="badge-label">Dew Point</span>
+            <span id="d_val" class="badge-val">--</span>
+        </div>
+    </div>
+</div>
 
                 <div class="card">
                     <canvas id="windCanvas"></canvas>
@@ -1140,6 +1276,22 @@ body.is-night .glass-select option {
             }
         });
 
+        // --- UI HELPER FUNCTIONS ---
+
+function updateTemperatureGauge(currentTemp, minTemp, maxTemp) {
+    const dot = document.getElementById("tempDot");
+    if (!dot || isNaN(currentTemp) || isNaN(minTemp) || isNaN(maxTemp)) return;
+    
+    if (minTemp === maxTemp) {
+        dot.style.left = "50%";
+        return;
+    }
+
+    let percent = ((currentTemp - minTemp) / (maxTemp - minTemp)) * 100;
+    percent = Math.max(0, Math.min(100, percent));
+    dot.style.left = percent + "%";
+}
+
         function applyTheme() {
             const hour = new Date().getHours();
             const isDark = currentMode === 'dark' || (currentMode === 'auto' && (hour >= 18 || hour < 6));
@@ -1316,6 +1468,31 @@ body.is-night .glass-select option {
                     document.getElementById('s-mg').innerText = (d.wind.maxG || d.wind.maxS) + ' km/h';
                     document.getElementById('s-rt').innerText = d.rain.total + ' mm';
                 }
+
+                async function fetchAndUpdateDashboard() {
+    try {
+        // 1. You fetch your data...
+        const response = await fetch('/api/weather'); // Or wherever you fetch from
+        const data = await response.json();
+
+        // 2. You update your text elements (you already have this code)
+        document.getElementById("t").innerText = data.temp;
+        document.getElementById("mx").innerText = data.tempHigh;
+        document.getElementById("mn").innerText = data.tempLow;
+        // ... updates for humidity, dew point, etc.
+
+        // --- ADD THIS NEW LINE HERE ---
+        // 3. Trigger the dot animation using the numbers you just fetched
+        updateTemperatureGauge(
+            parseFloat(data.temp), 
+            parseFloat(data.tempLow), 
+            parseFloat(data.tempHigh)
+        );
+
+    } catch (error) {
+        console.error("Error updating dashboard:", error);
+    }
+}
 
                 // IF GRAPHS TAB IS OPEN, RE-FETCH GRAPH DATA TO UPDATE
                 if (graphDataLoaded && document.getElementById('sub-view-graphs').style.display === 'block') {
