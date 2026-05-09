@@ -59,6 +59,49 @@ function calculateRealFeel(tempC, humidity) {
     return parseFloat(((hi - 32) * 5 / 9).toFixed(1));
 }
 
+function processRainLogic(newDailyInches, currentTimeStamp) {
+    const now = Date.now();
+    const timeElapsedSec = state.lastFetchTime ? (now - state.lastFetchTime) / 1000 : 0;
+    let isRealRainEvent = false;
+
+    if (state.lastRainRaw !== null && timeElapsedSec > 0) {
+        const deltaRain = newDailyInches - state.lastRainRaw;
+        
+        if (deltaRain < 0) {
+            state.lastCalculatedRate = 0;
+            state.lastRainTime = now;
+        } else if (deltaRain > 0 && timeElapsedSec >= 5) { 
+            // Physical Tip Detected
+            state.lastCalculatedRate = deltaRain * (3600 / timeElapsedSec);
+            state.lastRainTime = now;
+            isRealRainEvent = true;
+        } else if (state.lastCalculatedRate > 0) {
+            // Decay Logic: 15-minute window
+            const timeSinceLastRain = (now - state.lastRainTime) / 1000;
+            if (timeSinceLastRain > 900) { 
+                state.lastCalculatedRate = 0; 
+            } else {
+                const decayRate = 0.01 * (3600 / timeSinceLastRain);
+                if (decayRate < state.lastCalculatedRate) state.lastCalculatedRate = decayRate;
+            }
+        }
+    } else {
+        state.lastRainTime = now;
+    }
+
+    // Update global trackers
+    state.lastRainRaw = newDailyInches;
+
+    // Update the 10-min Peak Buffer
+    if (isRealRainEvent) {
+        if (state.tRR === null || state.lastCalculatedRate > state.bufRR) { 
+            state.bufRR = state.lastCalculatedRate; 
+            state.tRR = currentTimeStamp; 
+        }
+    }
+    return state.lastCalculatedRate;
+}
+
 /**
  * 1-MIN CRON: Memory Buffer Only (No DB)
  */
@@ -90,45 +133,8 @@ function calculateRealFeel(tempC, humidity) {
         if (state.tMaxT === null || apiT > state.bufMaxT) { state.bufMaxT = apiT; state.tMaxT = currentTimeStamp; }
         if (state.tMinT === null || apiT < state.bufMinT) { state.bufMinT = apiT; state.tMinT = currentTimeStamp; }
 
-        // DAVIS PRO 2 RAIN LOGIC
-        const rawDailyInches = d.rainfall.daily.value;
-        const timeElapsedSec = state.lastFetchTime ? (now - state.lastFetchTime) / 1000 : 0;
-        let customRateIn = 0;
-        let isRealRainEvent = false;
-
-        if (state.lastRainRaw !== null && timeElapsedSec > 0) {
-            const deltaRain = rawDailyInches - state.lastRainRaw;
-            if (deltaRain < 0) {
-                state.lastRainTime = now; state.lastCalculatedRate = 0;
-            } else if (deltaRain > 0 && timeElapsedSec >= 30) {
-                customRateIn = deltaRain * (3600 / timeElapsedSec);
-                state.lastCalculatedRate = customRateIn; 
-                state.lastRainTime = now;
-                isRealRainEvent = true; // Tip detected
-            } else if (state.lastCalculatedRate > 0) {
-                // Decay Logic
-                const timeSinceLastRain = (now - state.lastRainTime) / 1000;
-                const decayRate = 0.01 * (3600 / timeSinceLastRain);
-                if (timeSinceLastRain > 900) { state.lastCalculatedRate = 0; }
-                else if (decayRate < state.lastCalculatedRate) { state.lastCalculatedRate = decayRate; }
-                customRateIn = state.lastCalculatedRate;
-            }
-        } else {
-            state.lastRainTime = now; state.lastCalculatedRate = 0;
-        }
-
-        // Update persistence trackers
-        state.lastRainRaw = rawDailyInches; 
+        processRainLogic(d.rainfall.daily.value, currentTimeStamp);
         state.lastFetchTime = now;
-
-        // ONLY update peak buffer if it was a physical tip event
-        if (isRealRainEvent) {
-            if (state.tRR === null || customRateIn > state.bufRR) { 
-                state.bufRR = customRateIn; 
-                state.tRR = currentTimeStamp; 
-            }
-        }
-
         return { ok: true, buffered: true };
     } catch (e) { return { error: e.message }; }
 }
@@ -164,6 +170,8 @@ if (!forceWrite && state.cachedData && (now - state.lastFetchTime < 540000)) {
         d.rainfall.monthly.value = parseFloat(d.rainfall.monthly.value) / 25.4;
         d.rainfall.yearly.value = parseFloat(d.rainfall.yearly.value) / 25.4;
         // --------------------------------
+
+        processRainLogic(d.rainfall.daily.value, new Date().toISOString());
 
             const liveTemp = parseFloat(((d.outdoor.temperature.value - 32) * 5 / 9).toFixed(1));
             const liveWind = parseFloat((d.wind.wind_speed.value * 1.60934).toFixed(1));
@@ -243,6 +251,9 @@ if (!forceWrite && state.cachedData && (now - state.lastFetchTime < 540000)) {
         d.rainfall.yearly.value = parseFloat(d.rainfall.yearly.value) / 25.4;
         // --------------------------------
 
+        // ADD THIS:
+        processRainLogic(d.rainfall.daily.value, new Date().toISOString());
+
         const liveTemp = parseFloat(((d.outdoor.temperature.value - 32) * 5 / 9).toFixed(1));
         const liveDewC = parseFloat(((d.outdoor.dew_point.value - 32) * 5 / 9).toFixed(1)); 
         const liveHum = d.outdoor.humidity.value || 0;
@@ -278,7 +289,7 @@ if (!forceWrite && state.cachedData && (now - state.lastFetchTime < 540000)) {
                     INSERT INTO weather_history 
                     (time, temp_f, temp_min_f, humidity, wind_speed_mph, wind_gust_mph, rain_rate_in, daily_rain_in, 
                      max_w_time, max_t_time, min_t_time, max_r_time, max_g_time, solar_radiation, press_rel)
-                    VALUES (${timeSql}, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+                    VALUES (${timeSql}, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
                 `, [
                     dbMaxT, dbMinT, liveHum, dbW, dbG, dbRR, d.rainfall.daily.value,
                     snap.tW || new Date().toISOString(), 
