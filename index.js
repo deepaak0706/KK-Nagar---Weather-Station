@@ -58,38 +58,46 @@ function calculateRealFeel(tempC, humidity) {
     }
     return parseFloat(((hi - 32) * 5 / 9).toFixed(1));
 }
+
+
 function processRainLogic(newDailyInches, currentTimeStamp) {
     const now = Date.now();
     
-    // 1. Determine time since the last SUCCESSFUL calculation
-    const timeElapsedSec = state.lastFetchTime ? (now - state.lastFetchTime) / 1000 : 60;
-    
-    // --- SAFETY GATE ---
-    if (timeElapsedSec < 55) {
-        return state.lastCalculatedRate || 0;
+    // 1. Initial boot-up: just set the baseline
+    if (state.lastRainRaw === null) {
+        state.lastRainRaw = newDailyInches;
+        state.lastRainTime = now;
+        return 0;
     }
 
-    if (state.lastRainRaw !== null) {
-        const deltaRain = newDailyInches - state.lastRainRaw;
+    const deltaRain = newDailyInches - state.lastRainRaw;
+
+    if (deltaRain > 0) { 
+        // 2. TIP DETECTED
+        // Calculate based on time since the LAST bucket tip event
+        const timeSinceLastTipSec = (now - state.lastRainTime) / 1000;
+
+        // Safety: If the API bundled multiple tips into one update (very common), 
+        // we divide the total delta by the time since the last tip.
+        // We cap the denominator at 60s minimum if tips happen within the same API cycle 
+        // to prevent extreme mathematical spikes.
+        const effectiveTime = Math.max(timeSinceLastTipSec, 60);
         
-        if (deltaRain > 0) { 
-            // Rate calculation
-            state.lastCalculatedRate = deltaRain * (3600 / timeElapsedSec);
-            state.lastRainTime = now; 
-        } 
-        else if (state.lastCalculatedRate > 0) {
-            // Decay logic
-            const timeSinceLastRain = (now - state.lastRainTime) / 1000;
-            if (timeSinceLastRain > 120) { 
-                state.lastCalculatedRate *= 0.75; 
-                if (state.lastCalculatedRate < 0.05) state.lastCalculatedRate = 0;
-            }
+        state.lastCalculatedRate = deltaRain * (3600 / effectiveTime);
+        
+        // Update the "Event" markers
+        state.lastRainRaw = newDailyInches;
+        state.lastRainTime = now; 
+    } 
+    else {
+        // 3. DECAY LOGIC (No new rain)
+        // If it hasn't rained in 5 minutes, start dropping the rate
+        const timeSinceLastTip = (now - state.lastRainTime) / 1000;
+        if (timeSinceLastTip > 300) { 
+            state.lastCalculatedRate *= 0.5; // Aggressive decay
+            if (state.lastCalculatedRate < 0.01) state.lastCalculatedRate = 0;
         }
     }
-
-    // --- BASELINE UPDATES ---
-    state.lastRainRaw = newDailyInches;
-    // We don't update lastFetchTime here because the calling functions (bufferUpdate/Sync) handle it
 
     // Update the Peak Buffer for the 10-min DB record
     if (state.lastCalculatedRate > (state.bufRR || 0)) { 
@@ -154,51 +162,61 @@ async function syncWithEcowitt(forceWrite = false) {
         state.cachedData = null;
     }
 
-        // --- PART 1: VISITOR PATH ---
-if (!forceWrite && state.cachedData && (now - state.lastFetchTime < 540000)) {
-    try {
-        const url = `https://api.ecowitt.net/api/v3/device/real_time?application_key=${APPLICATION_KEY}&api_key=${API_KEY}&mac=${MAC}&rainfall_unitid=12`;
-        const response = await fetch(url);
-        const json = await response.json();
-        const d = json.data;
+       // --- PART 1: VISITOR PATH ---
+    // If not a forced write, and we have a cache younger than 9 minutes
+    if (!forceWrite && state.cachedData && (now - state.lastFetchTime < 540000)) {
+        try {
+            const url = `https://api.ecowitt.net/api/v3/device/real_time?application_key=${APPLICATION_KEY}&api_key=${API_KEY}&mac=${MAC}&rainfall_unitid=12`;
+            const response = await fetch(url);
+            const json = await response.json();
+            const d = json.data;
 
-        // --- ADD THIS BLOCK HERE TOO! ---
-        d.rainfall.daily.value = parseFloat(d.rainfall.daily.value) / 25.4;
-        d.rainfall.weekly.value = parseFloat(d.rainfall.weekly.value) / 25.4;
-        d.rainfall.monthly.value = parseFloat(d.rainfall.monthly.value) / 25.4;
-        d.rainfall.yearly.value = parseFloat(d.rainfall.yearly.value) / 25.4;
-        // --------------------------------
+            // 1. HIGH PRECISION RAIN INTERCEPT
+            // Convert API mm to raw inches for the logic engine
+            const currentDailyInches = parseFloat(d.rainfall.daily.value) / 25.4;
+            
+            // Trigger the engine to update state.lastCalculatedRate
+            processRainLogic(currentDailyInches, new Date().toISOString());
 
+            // Convert other rain fields to inches for internal consistency
+            d.rainfall.daily.value = currentDailyInches;
+            d.rainfall.weekly.value = parseFloat(d.rainfall.weekly.value) / 25.4;
+            d.rainfall.monthly.value = parseFloat(d.rainfall.monthly.value) / 25.4;
+            d.rainfall.yearly.value = parseFloat(d.rainfall.yearly.value) / 25.4;
+
+            // 2. LIVE CONVERSIONS (Imperial to Metric for Dashboard)
             const liveTemp = parseFloat(((d.outdoor.temperature.value - 32) * 5 / 9).toFixed(1));
             const liveWind = parseFloat((d.wind.wind_speed.value * 1.60934).toFixed(1));
             const liveGust = parseFloat((d.wind.wind_gust.value * 1.60934).toFixed(1));
             const liveHum = d.outdoor.humidity.value || 0;
             const livePress = parseFloat((d.pressure.relative.value * 33.8639).toFixed(1));
             const liveDewC = parseFloat(((d.outdoor.dew_point.value - 32) * 5 / 9).toFixed(1));
+            const liveRR = parseFloat((state.lastCalculatedRate * 25.4).toFixed(1));
             
+            // 3. UPDATE CACHED SNAPSHOT
             state.cachedData.atmo.press = livePress;
             state.cachedData.atmo.hum = liveHum;
             state.cachedData.temp.realFeel = calculateRealFeel(liveTemp, liveHum);
             state.cachedData.temp.dew = liveDewC;
-            // Update the rain total and rate for visitors
-            state.cachedData.rain.total = Math.round(d.rainfall.daily.value * 2540) / 100;
-            state.cachedData.rain.rate = parseFloat((state.lastCalculatedRate * 25.4).toFixed(1));
+            state.cachedData.temp.current = liveTemp;
+            state.cachedData.wind.speed = liveWind;
+            state.cachedData.wind.gust = liveGust;
+            
+            // High-precision rain total (prevents rounding errors)
+            state.cachedData.rain.total = Math.round(currentDailyInches * 2540) / 100;
+            state.cachedData.rain.rate = liveRR;
 
-
-
+            // 4. MAX/MIN LOGIC (Check live vs. existing cache)
             const fmtL = () => new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' });
             const fmtIso = (isoStr) => isoStr ? new Date(isoStr).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' }) : fmtL();
 
-            // 1. Check live instantaneous values
             if (liveTemp > state.cachedData.temp.max) { state.cachedData.temp.max = liveTemp; state.cachedData.temp.maxTime = fmtL(); }
             if (liveTemp < state.cachedData.temp.min) { state.cachedData.temp.min = liveTemp; state.cachedData.temp.minTime = fmtL(); }
             if (liveWind > state.cachedData.wind.maxS) { state.cachedData.wind.maxS = liveWind; state.cachedData.wind.maxSTime = fmtL(); }
             if (liveGust > state.cachedData.wind.maxG) { state.cachedData.wind.maxG = liveGust; state.cachedData.wind.maxGTime = fmtL(); }
-            
-            const liveRR = parseFloat((state.lastCalculatedRate * 25.4).toFixed(1));
             if (liveRR > state.cachedData.rain.maxR) { state.cachedData.rain.maxR = liveRR; state.cachedData.rain.maxRTime = fmtL(); }
 
-            // 2. NEW: Check Memory Buffers (Ensures live visitors don't miss 1-min peaks before DB write)
+            // 5. MEMORY BUFFER CHECK (Ensures visitors see 1-min peaks trapped in buffers)
             if (state.bufMaxT !== -999) {
                 const bMx = parseFloat(((state.bufMaxT - 32) * 5/9).toFixed(1));
                 if (bMx > state.cachedData.temp.max) { state.cachedData.temp.max = bMx; state.cachedData.temp.maxTime = fmtIso(state.tMaxT); }
@@ -220,16 +238,15 @@ if (!forceWrite && state.cachedData && (now - state.lastFetchTime < 540000)) {
                 if (bRR > state.cachedData.rain.maxR) { state.cachedData.rain.maxR = bRR; state.cachedData.rain.maxRTime = fmtIso(state.tRR); }
             }
 
-            state.cachedData.temp.current = liveTemp;
-            state.cachedData.wind.speed = liveWind;
-            state.cachedData.wind.gust = liveGust;
             state.cachedData.lastSync = new Date().toISOString();
-            
             state.lastFetchTime = now;
+            
             return state.cachedData;
-        } catch (e) { return state.cachedData; }
+        } catch (e) { 
+            console.error("Visitor Sync Error:", e);
+            return state.cachedData; 
+        }
     }
-
 
         // --- PART 2: WRITER PATH ---
     try {
@@ -247,7 +264,8 @@ if (!forceWrite && state.cachedData && (now - state.lastFetchTime < 540000)) {
         d.rainfall.yearly.value = parseFloat(d.rainfall.yearly.value) / 25.4;
         // --------------------------------
 
-
+        // ADD THIS LINE HERE:
+        processRainLogic(d.rainfall.daily.value, new Date().toISOString());
 
         const liveTemp = parseFloat(((d.outdoor.temperature.value - 32) * 5 / 9).toFixed(1));
         const liveDewC = parseFloat(((d.outdoor.dew_point.value - 32) * 5 / 9).toFixed(1)); 
@@ -390,8 +408,8 @@ if (!forceWrite && state.cachedData && (now - state.lastFetchTime < 540000)) {
         }
 
                 const liveWind = parseFloat((d.wind.wind_speed.value * 1.60934).toFixed(1));
-        const liveGust = parseFloat((d.wind.wind_gust.value * 1.60934).toFixed(1));
-        const liveRR = parseFloat((state.lastCalculatedRate * 25.4).toFixed(1));
+                const liveGust = parseFloat((d.wind.wind_gust.value * 1.60934).toFixed(1));
+                const liveRR = parseFloat((state.lastCalculatedRate * 25.4).toFixed(1));
 
         // --- FIX: Include Memory Buffers in Dashboard Max/Min Calculations ---
         const fmtIso = (isoStr) => {
@@ -438,12 +456,10 @@ if (source.rr > 0) {
             atmo: { hum: liveHum, hTrend: humRate, press: livePress, pTrend: pressRate, sol: d.solar_and_uvi?.solar?.value || 0, uv: d.solar_and_uvi?.uvi?.value || 0 },
             wind: { speed: liveWind, gust: liveGust, maxS: mx_w, maxSTime: mx_w_t, maxG: mx_g, maxGTime: mx_g_t, deg: d.wind.wind_direction.value, card: getCard(d.wind.wind_direction.value) },
             rain: { 
-    // Multiply first, then round to 2 decimal places to catch the 1.27
     total: Math.round(d.rainfall.daily.value * 2540) / 100, 
     rate: liveRR, 
     maxR: mx_r, 
-    maxRTime: mx_r_t, 
-    // Use the same high-precision math for archives
+    maxRTime: mx_r_t,
     weekly: Math.round(d.rainfall.weekly.value * 2540) / 100, 
     monthly: Math.round(d.rainfall.monthly.value * 2540) / 100, 
     yearly: Math.round(d.rainfall.yearly.value * 2540) / 100 
