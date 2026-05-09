@@ -61,41 +61,53 @@ function calculateRealFeel(tempC, humidity) {
 
 function processRainLogic(newDailyInches, currentTimeStamp) {
     const now = Date.now();
-    // Only proceed if it's been at least 45 seconds since the last check
-    // This prevents "Double-Trigger" spikes from visitors
+    
+    // 1. Determine time since the last SUCCESSFUL calculation
+    // If state.lastFetchTime is null, we assume 60s for the first run.
     const timeElapsedSec = state.lastFetchTime ? (now - state.lastFetchTime) / 1000 : 60;
     
-    if (timeElapsedSec < 45) return state.lastCalculatedRate; 
+    // --- SAFETY GATE ---
+    // If an API call or visitor refresh triggers this in < 55s, 
+    // we ABORT to protect the 60s window math.
+    if (timeElapsedSec < 55) {
+        return state.lastCalculatedRate || 0;
+    }
 
     if (state.lastRainRaw !== null) {
         const deltaRain = newDailyInches - state.lastRainRaw;
         
         if (deltaRain > 0) { 
-            // Davis-style: Spread the rain over the actual time elapsed, 
-            // but floor it at 60s to match the API refresh rate.
-            const mathTime = Math.max(timeElapsedSec, 60);
-            state.lastCalculatedRate = deltaRain * (3600 / mathTime);
-            state.lastRainTime = now;
+            // DAVIS LOGIC: Rate = (Amount / Time Elapsed). 
+            // If 0.01" falls in 60s: (0.01 / 60) * 3600 = 0.6"/hr
+            state.lastCalculatedRate = deltaRain * (3600 / timeElapsedSec);
+            state.lastRainTime = now; // Mark the moment the rain was detected
         } 
         else if (state.lastCalculatedRate > 0) {
+            // NO NEW RAIN THIS MINUTE:
             const timeSinceLastRain = (now - state.lastRainTime) / 1000;
-            // Only start decaying after 2 minutes of no new rain data
+            
+            // Davis persistence: Hold the rate for 2 intervals (120s) before dropping.
             if (timeSinceLastRain > 120) { 
-                state.lastCalculatedRate *= 0.8; // Smooth decay
-                if (state.lastCalculatedRate < 0.1) state.lastCalculatedRate = 0;
+                // Decay by 25% each minute to simulate the "emptying" of the calculation bucket
+                state.lastCalculatedRate *= 0.75; 
+                
+                // Floor it to zero if it becomes negligible
+                if (state.lastCalculatedRate < 0.05) state.lastCalculatedRate = 0;
             }
         }
     }
 
+    // --- BASELINE UPDATES ---
+    // We only update these if we passed the 55s Safety Gate.
     state.lastRainRaw = newDailyInches;
-    state.lastFetchTime = now;
-    
-    // Buffer the peak for the dashboard
-    if (state.lastCalculatedRate > state.bufRR) {
-        state.bufRR = state.lastCalculatedRate;
-        state.tRR = currentTimeStamp;
-    }
+    state.lastFetchTime = now; 
 
+    // Update the Peak Buffer for the 10-min DB record
+    if (state.lastCalculatedRate > (state.bufRR || 0)) { 
+        state.bufRR = state.lastCalculatedRate; 
+        state.tRR = currentTimeStamp; 
+    }
+    
     return state.lastCalculatedRate;
 }
 /**
@@ -129,7 +141,7 @@ function processRainLogic(newDailyInches, currentTimeStamp) {
         if (state.tMaxT === null || apiT > state.bufMaxT) { state.bufMaxT = apiT; state.tMaxT = currentTimeStamp; }
         if (state.tMinT === null || apiT < state.bufMinT) { state.bufMinT = apiT; state.tMinT = currentTimeStamp; }
 
-        processRainLogic(d.rainfall.daily.value, currentTimeStamp);
+
         state.lastFetchTime = now;
         return { ok: true, buffered: true };
     } catch (e) { return { error: e.message }; }
@@ -245,8 +257,7 @@ if (!forceWrite && state.cachedData && (now - state.lastFetchTime < 540000)) {
         d.rainfall.yearly.value = parseFloat(d.rainfall.yearly.value) / 25.4;
         // --------------------------------
 
-        // ADD THIS:
-        processRainLogic(d.rainfall.daily.value, new Date().toISOString());
+
 
         const liveTemp = parseFloat(((d.outdoor.temperature.value - 32) * 5 / 9).toFixed(1));
         const liveDewC = parseFloat(((d.outdoor.dew_point.value - 32) * 5 / 9).toFixed(1)); 
