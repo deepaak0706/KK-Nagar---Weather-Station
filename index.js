@@ -1458,3 +1458,9 @@ app.get(\"/\", (req, res) => {
 </html>
     `);
 });
+
+if (process.env.NODE_ENV !== 'production') {
+    app.listen(3000, () => console.log(`Running at http://localhost:3000`));
+}
+
+module.exports = app;
