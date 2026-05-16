@@ -569,7 +569,7 @@ app.get('/api/historical-rain', async (req, res) => {
 });
 
 // 5. The User Interface (Your HTML)
-app.get(\"/\", (req, res) => {
+app.get("/", (req, res)
     res.send(`
 <!DOCTYPE html>
 <html lang=\"en\">
