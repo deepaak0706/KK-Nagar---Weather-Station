@@ -621,13 +621,63 @@ app.get("/", (req, res) => {
         .live-dot { width: 6px; height: 6px; background: #10b981; border-radius: 50%; animation: blink 2s infinite; }
         @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
         
-        .grid-system { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
-        .card { background: var(--card); padding: 28px; border-radius: 32px; border: 1px solid var(--border); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); box-shadow: var(--glow); position: relative; overflow: hidden; transition: background 0.5s ease; }
+        .grid-system {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+    gap: 14px;
+    align-items: start;
+}
+        .card {
+    background:
+        linear-gradient(
+            145deg,
+            rgba(255,255,255,0.08),
+            rgba(255,255,255,0.02)
+        );
+    border: 1px solid rgba(255,255,255,0.08);
+    backdrop-filter: blur(30px);
+    -webkit-backdrop-filter: blur(30px);
+
+    padding: 18px;
+    border-radius: 24px;
+
+    position: relative;
+    overflow: hidden;
+
+    box-shadow:
+        0 10px 30px rgba(0,0,0,0.18),
+        inset 0 1px 0 rgba(255,255,255,0.05);
+
+    transition: all 0.35s ease;
+
+    min-height: unset;
+}
+
+.card:hover {
+    transform: translateY(-2px);
+    border-color: rgba(56,189,248,0.3);
+}
         #windCanvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; border-radius: 32px; }
         .card > *:not(canvas) { position: relative; z-index: 5; }
 
         .label { color: var(--accent); font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 6px; }
-        .main-val { font-size: 56px; font-weight: 900; margin: 0; letter-spacing: -2px; display: flex; align-items: baseline; line-height: 1.1; }
+        .main-val {
+    font-size: clamp(38px, 5vw, 58px);
+    font-weight: 900;
+    margin: 6px 0;
+
+    letter-spacing: -2px;
+
+    display: flex;
+    align-items: flex-end;
+
+    line-height: 0.95;
+
+    text-shadow:
+        0 0 12px rgba(56,189,248,0.35);
+
+    gap: 4px;
+}
         
         /* MODERN TRANSIENT EFFECTS */
         .main-val span:not(.unit), .badge-val { 
@@ -651,10 +701,50 @@ app.get("/", (req, res) => {
         .unit { font-size: 20px; font-weight: 600; color: var(--muted); margin-left: 4px; letter-spacing: 0; }
         .sub-pill { font-size: 12px; font-weight: 800; padding: 6px 12px; border-radius: 10px; background: var(--badge); display: inline-flex; align-items: center; gap: 4px; margin: 12px 0 20px 0; }
 
-        .sub-box-4 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding-top: 20px; border-top: 1px solid var(--border); }
-        .badge { padding: 12px; border-radius: 18px; background: var(--badge); display: flex; flex-direction: column; gap: 2px; }
+        .sub-box-4 {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0,1fr));
+    gap: 10px;
+
+    margin-top: 14px;
+    padding-top: 14px;
+
+    border-top: 1px solid rgba(255,255,255,0.06);
+}
+        .badge {
+    background:
+        linear-gradient(
+            180deg,
+            rgba(255,255,255,0.06),
+            rgba(255,255,255,0.03)
+        );
+
+    border: 1px solid rgba(255,255,255,0.05);
+
+    padding: 12px 14px;
+
+    border-radius: 18px;
+
+    display: flex;
+    flex-direction: column;
+
+    justify-content: center;
+
+    min-height: 62px;
+
+    transition: all 0.25s ease;
+}
+
+.badge:hover {
+    transform: translateY(-1px);
+    background: rgba(56,189,248,0.08);
+}
         .badge-label { font-size: 9px; color: var(--muted); text-transform: uppercase; font-weight: 800; }
-        .badge-val { font-size: 16px; font-weight: 800; }
+        .badge-val {
+    font-size: 20px;
+    font-weight: 900;
+    letter-spacing: -0.5px;
+}
 
         .compass-ui { position: absolute !important; top: 28px !important; right: 28px !important; width: 50px; height: 50px; border: 2px solid var(--border); border-radius: 50%; display: flex; align-items: center; justify-content: center; z-index: 10; }
         #needle { width: 3px; height: 32px; background: linear-gradient(to bottom, #ef4444 50%, var(--muted) 50%); clip-path: polygon(50% 0%, 100% 100%, 50% 85%, 0% 100%); transition: transform 2s cubic-bezier(0.1, 0.9, 0.2, 1); }
@@ -900,7 +990,97 @@ body.is-night .glass-select option {
     margin-top: 4px;
 }
 
+/* ===== LIVE TELEMETRY UI ===== */
 
+.card::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+
+    background:
+        radial-gradient(
+            circle at top right,
+            rgba(56,189,248,0.12),
+            transparent 35%
+        );
+
+    pointer-events: none;
+}
+
+.label {
+    font-size: 11px;
+    letter-spacing: 2px;
+    margin-bottom: 10px;
+    opacity: 0.95;
+}
+
+.sub-pill {
+    margin: 8px 0 12px 0;
+
+    padding: 8px 12px;
+
+    border-radius: 14px;
+
+    background:
+        linear-gradient(
+            180deg,
+            rgba(255,255,255,0.08),
+            rgba(255,255,255,0.03)
+        );
+
+    border: 1px solid rgba(255,255,255,0.05);
+
+    width: fit-content;
+}
+
+.unit {
+    font-size: 18px;
+    margin-bottom: 6px;
+}
+
+/* ===== MOBILE DENSITY ===== */
+
+@media (max-width: 768px) {
+
+    body {
+        padding: 12px 12px 100px 12px;
+    }
+
+    .grid-system {
+        grid-template-columns: 1fr;
+        gap: 12px;
+    }
+
+    .card {
+        padding: 16px;
+        border-radius: 22px;
+    }
+
+    .main-val {
+        font-size: 48px;
+    }
+
+    .badge-val {
+        font-size: 18px;
+    }
+
+    .sub-box-4 {
+        gap: 8px;
+    }
+
+    .header h1 {
+        font-size: 22px;
+    }
+
+    .nav-tabs {
+        overflow-x: auto;
+        padding-bottom: 4px;
+    }
+
+    .tab-btn {
+        white-space: nowrap;
+    }
+}
 
     </style>
 </head>
