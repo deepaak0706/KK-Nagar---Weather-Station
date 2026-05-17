@@ -578,330 +578,186 @@ app.get("/", (req, res) => {
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>KK Nagar Weather Hub</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;700;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <style>
         :root { 
-            --bg: #e0f2fe !important; 
-            --card: rgba(255, 255, 255, 0.85); 
-            --border: rgba(2, 132, 199, 0.1);
-            --text: #0f172a !important; 
-            --muted: #64748b; 
-            --accent: #0284c7; 
-            --glow: 0 10px 40px -10px rgba(2, 132, 199, 0.15);
-            --badge: rgba(2, 132, 199, 0.05);
-        }
-
-        body.is-night {
-            --bg: #0f172a !important; 
-            --card: rgba(30, 41, 59, 0.7); 
-            --border: rgba(255, 255, 255, 0.08);
-            --text: #f1f5f9 !important; 
+            --bg: #0b111e; 
+            --bg-gradient: radial-gradient(circle at 50% 0%, #1e2942 0%, #0b111e 70%);
+            --card: rgba(22, 32, 54, 0.65); 
+            --card-hover: rgba(28, 41, 69, 0.8);
+            --border: rgba(56, 189, 248, 0.15);
+            --border-hover: rgba(56, 189, 248, 0.3);
+            --text: #f8fafc; 
             --muted: #94a3b8; 
             --accent: #38bdf8; 
-            --glow: 0 15px 50px -12px rgba(0,0,0,0.6);
-            --badge: rgba(255, 255, 255, 0.04);
+            --accent-glow: rgba(56, 189, 248, 0.4);
+            --glow: 0 20px 40px -15px rgba(0, 0, 0, 0.7), 0 0 50px -10px rgba(56, 189, 248, 0.05);
+            --badge: rgba(56, 189, 248, 0.06);
+            --neon-blue: #00d2ff;
+            --neon-green: #10b981;
+            --neon-red: #ff4757;
+        }
+
+        body.is-light {
+            --bg: #f0f4f9; 
+            --bg-gradient: radial-gradient(circle at 50% 0%, #e2e8f0 0%, #f0f4f9 100%);
+            --card: rgba(255, 255, 255, 0.8); 
+            --card-hover: rgba(255, 255, 255, 0.95);
+            --border: rgba(2, 132, 199, 0.15);
+            --border-hover: rgba(2, 132, 199, 0.3);
+            --text: #0f172a; 
+            --muted: #64748b; 
+            --accent: #0284c7; 
+            --accent-glow: rgba(2, 132, 199, 0.2);
+            --glow: 0 20px 40px -15px rgba(2, 132, 199, 0.1);
+            --badge: rgba(2, 132, 199, 0.05);
+            --neon-blue: #0284c7;
+            --neon-green: #059669;
+            --neon-red: #dc2626;
         }
 
         body { 
-            margin: 0; font-family: 'Outfit', sans-serif; background: var(--bg); color: var(--text); 
-            padding: 20px 16px 120px 16px; transition: background 0.5s ease, color 0.5s ease; 
+            margin: 0; font-family: 'Outfit', sans-serif; background: var(--bg); background-image: var(--bg-gradient); color: var(--text); 
+            padding: 24px 16px 120px 16px; transition: background 0.5s ease, color 0.5s ease; 
             min-height: 100vh; overflow-x: hidden; 
         }
 
-        .container { width: 100%; max-width: 1200px; margin: 0 auto; }
-        .header { margin-bottom: 32px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; }
-        .header h1 { font-size: 28px; font-weight: 900; margin: 0; letter-spacing: -1px; }
-        .header-actions { display: flex; align-items: center; gap: 12px; }
+        .container { width: 100%; max-width: 1280px; margin: 0 auto; }
         
-        .theme-toggle { background: var(--card); border: 1px solid var(--border); padding: 4px; border-radius: 12px; display: flex; gap: 4px; box-shadow: var(--glow); cursor: pointer; }
-        .theme-btn { padding: 6px 10px; border-radius: 8px; font-size: 11px; font-weight: 700; transition: 0.3s; color: var(--muted); }
-        .theme-btn.active { background: var(--accent); color: white; }
+        /* HEADER LEVEL DESIGN */
+        .header { margin-bottom: 32px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; padding: 0 4px; }
+        .header h1 { font-size: 32px; font-weight: 900; margin: 0; letter-spacing: -1.5px; background: linear-gradient(135deg, var(--text) 30%, var(--accent)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .header-actions { display: flex; align-items: center; gap: 14px; }
+        
+        .theme-toggle { background: var(--card); border: 1px solid var(--border); padding: 4px; border-radius: 14px; display: flex; gap: 4px; box-shadow: var(--glow); cursor: pointer; backdrop-filter: blur(10px); }
+        .theme-btn { padding: 8px 14px; border-radius: 10px; font-size: 11px; font-weight: 800; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); color: var(--muted); letter-spacing: 0.5px; }
+        .theme-btn.active { background: var(--accent); color: #ffffff !important; box-shadow: 0 0 15px var(--accent-glow); }
 
-        .status-bar { display: flex; align-items: center; gap: 8px; background: var(--card); padding: 6px 16px; border-radius: 100px; border: 1px solid var(--border); box-shadow: var(--glow); font-size: 13px; }
-        .live-dot { width: 6px; height: 6px; background: #10b981; border-radius: 50%; animation: blink 2s infinite; }
-        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+        .status-bar { display: flex; align-items: center; gap: 10px; background: var(--card); padding: 8px 18px; border-radius: 100px; border: 1px solid var(--border); box-shadow: var(--glow); font-size: 13px; font-weight: 600; backdrop-filter: blur(10px); }
+        .live-dot { width: 8px; height: 8px; background: var(--neon-green); border-radius: 50%; box-shadow: 0 0 10px var(--neon-green); animation: blink 2s infinite; }
+        @keyframes blink { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.4; transform: scale(0.9); } }
         
-        .grid-system { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
-        .card { background: var(--card); padding: 28px; border-radius: 32px; border: 1px solid var(--border); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); box-shadow: var(--glow); position: relative; overflow: hidden; transition: background 0.5s ease; }
-        #windCanvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; border-radius: 32px; }
+        /* NAVIGATION BAR */
+        .nav-tabs { display: flex; gap: 10px; margin-bottom: 32px; padding: 0 4px; }
+        .tab-btn { 
+            background: var(--card); border: 1px solid var(--border); padding: 14px 28px; 
+            border-radius: 20px; color: var(--muted); font-weight: 700; font-size: 14px; cursor: pointer; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); backdrop-filter: blur(10px);
+        }
+        .tab-btn:hover { border-color: var(--border-hover); color: var(--text); transform: translateY(-1px); }
+        .tab-btn.active { background: var(--accent); color: #ffffff; border-color: var(--accent); box-shadow: 0 10px 25px -5px var(--accent-glow); }
+
+        /* ULTRA PREMIUM GRID */
+        .grid-system { display: grid; grid-template-columns: repeat(auto-fit, minmax(330px, 1fr)); gap: 24px; }
+        .card { 
+            background: var(--card); padding: 32px; border-radius: 36px; border: 1px solid var(--border); 
+            backdrop-filter: blur(30px); -webkit-backdrop-filter: blur(30px); box-shadow: var(--glow); 
+            position: relative; overflow: hidden; transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1); 
+            display: flex; flex-direction: column; justify-content: space-between;
+        }
+        .card:hover { transform: translateY(-4px); border-color: var(--border-hover); background: var(--card-hover); box-shadow: 0 30px 60px -20px rgba(0,0,0,0.8), 0 0 50px -5px rgba(56, 189, 248, 0.08); }
+        
+        #windCanvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; border-radius: 36px; opacity: 0.4; }
         .card > *:not(canvas) { position: relative; z-index: 5; }
 
-        .label { color: var(--accent); font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 6px; }
-        .main-val { font-size: 56px; font-weight: 900; margin: 0; letter-spacing: -2px; display: flex; align-items: baseline; line-height: 1.1; }
+        .label { color: var(--accent); font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 16px; opacity: 0.9; }
         
-        /* MODERN TRANSIENT EFFECTS */
-        .main-val span:not(.unit), .badge-val { 
-            display: inline-block; 
-            transition: all 0.6s cubic-bezier(0.34, 1.56, 0.64, 1); 
-            font-variant-numeric: tabular-nums; 
+        /* HERO VISUAL VALUES */
+        .main-val { font-size: 64px; font-weight: 900; margin: 0; letter-spacing: -2.5px; display: flex; align-items: baseline; line-height: 1; color: var(--text); }
+        .main-val span:not(.unit) { font-variant-numeric: tabular-nums; }
+        .unit { font-size: 24px; font-weight: 700; color: var(--muted); margin-left: 6px; letter-spacing: -0.5px; }
+        
+        .sub-pill { font-size: 12px; font-weight: 700; padding: 6px 14px; border-radius: 12px; background: var(--badge); border: 1px solid var(--border); display: inline-flex; align-items: center; gap: 6px; margin: 14px 0 24px 0; width: fit-content; color: var(--text); }
+
+        /* BADGES AND INFO GRID */
+        .sub-box-4 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; padding-top: 24px; border-top: 1px solid var(--border); margin-top: auto; }
+        .badge { padding: 14px; border-radius: 22px; background: var(--badge); border: 1px solid transparent; display: flex; flex-direction: column; gap: 4px; transition: all 0.3s ease; }
+        .card:hover .badge { background: rgba(255,255,255,0.02); border-color: var(--border); }
+        body.is-light .card:hover .badge { background: rgba(0,0,0,0.02); }
+        
+        .badge-label { font-size: 10px; color: var(--muted); text-transform: uppercase; font-weight: 800; letter-spacing: 0.5px; }
+        .badge-val { font-size: 18px; font-weight: 800; color: var(--text); font-variant-numeric: tabular-nums; }
+
+        /* COMPASS & CUSTOM GRAPHICS */
+        .compass-ui { position: absolute !important; top: 32px !important; right: 32px !important; width: 56px; height: 56px; border: 2px dashed var(--border); border-radius: 50%; display: flex; align-items: center; justify-content: center; z-index: 10; background: rgba(0,0,0,0.1); }
+        #needle { width: 4px; height: 36px; background: linear-gradient(to bottom, var(--neon-red) 50%, var(--muted) 50%); clip-path: polygon(50% 0%, 100% 100%, 50% 85%, 0% 100%); transition: transform 2s cubic-bezier(0.1, 0.9, 0.2, 1); filter: drop-shadow(0 0 4px rgba(239, 68, 68, 0.5)); }
+
+        /* PREMIUM RAIN VISUAL CHANNELS */
+        .rain-container-main { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; gap: 20px; }
+        .rain-left { flex: 1; }
+        .rain-divider { width: 1px; height: 80px; background: linear-gradient(to bottom, transparent, var(--border), transparent); }
+        .rain-right-intensity { flex: 1; display: flex; flex-direction: column; gap: 14px; }
+        .intensity-block { display: flex; flex-direction: column; }
+        .intensity-label { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); margin-bottom: 4px; }
+        .intensity-primary { font-size: 24px; font-weight: 900; color: var(--accent); line-height: 1; text-shadow: 0 0 20px var(--accent-glow); }
+        .intensity-secondary { font-size: 16px; font-weight: 800; color: var(--text); }
+
+        /* RAIN LEDGER LEVEL GRAPHICS (BAR-CHART DESIGNED PANELS) */
+        .rain-ledger-modern { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; padding-top: 24px; border-top: 1px solid var(--border); }
+        .ledger-card { 
+            background: var(--badge); border: 1px solid var(--border); padding: 20px 10px 16px 10px; border-radius: 24px; 
+            text-align: center; transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1); display: flex; flex-direction: column; justify-content: space-between; align-items: center; position: relative; min-height: 105px;
         }
-
-        /* The "Magic" Animation */
-        @keyframes magicFade {
-            0% { opacity: 0; filter: blur(12px); transform: scale(0.8) translateY(10px); color: #10b981; }
-            30% { opacity: 0.8; filter: blur(4px); }
-            100% { opacity: 1; filter: blur(0); transform: scale(1) translateY(0); }
+        .ledger-card::before {
+            content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 4px; 
+            background: linear-gradient(90deg, transparent, var(--accent), transparent); opacity: 0; transition: opacity 0.3s; border-radius: 0 0 24px 24px;
         }
+        .ledger-card:hover { transform: translateY(-4px); background: rgba(56, 189, 248, 0.08); border-color: var(--accent); }
+        .ledger-card:hover::before { opacity: 1; }
+        
+        .ledger-val-large { font-size: 20px; font-weight: 900; display: block; margin-top: auto; color: var(--text); letter-spacing: -0.5px; font-variant-numeric: tabular-nums; }
 
-        .fade-update { 
-            animation: magicFade 1.5s cubic-bezier(0.16, 1, 0.3, 1); 
-            will-change: transform, opacity, filter;
-        }
-
-        .unit { font-size: 20px; font-weight: 600; color: var(--muted); margin-left: 4px; letter-spacing: 0; }
-        .sub-pill { font-size: 12px; font-weight: 800; padding: 6px 12px; border-radius: 10px; background: var(--badge); display: inline-flex; align-items: center; gap: 4px; margin: 12px 0 20px 0; }
-
-        .sub-box-4 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding-top: 20px; border-top: 1px solid var(--border); }
-        .badge { padding: 12px; border-radius: 18px; background: var(--badge); display: flex; flex-direction: column; gap: 2px; }
-        .badge-label { font-size: 9px; color: var(--muted); text-transform: uppercase; font-weight: 800; }
-        .badge-val { font-size: 16px; font-weight: 800; }
-
-        .compass-ui { position: absolute !important; top: 28px !important; right: 28px !important; width: 50px; height: 50px; border: 2px solid var(--border); border-radius: 50%; display: flex; align-items: center; justify-content: center; z-index: 10; }
-        #needle { width: 3px; height: 32px; background: linear-gradient(to bottom, #ef4444 50%, var(--muted) 50%); clip-path: polygon(50% 0%, 100% 100%, 50% 85%, 0% 100%); transition: transform 2s cubic-bezier(0.1, 0.9, 0.2, 1); }
-
-        .graphs-wrapper { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin-top: 20px; }
-        .graph-card { background: var(--card); padding: 24px; border-radius: 32px; border: 1px solid var(--border); height: 320px; box-shadow: var(--glow); display: flex; flex-direction: column; overflow: hidden; transition: background 0.5s ease; }
+        /* HISTORICAL SUMMARY/TABLE VIEWS */
+        .graphs-wrapper { display: grid; grid-template-columns: repeat(auto-fit, minmax(330px, 1fr)); gap: 24px; margin-top: 24px; }
+        .graph-card { background: var(--card); padding: 28px; border-radius: 36px; border: 1px solid var(--border); height: 340px; box-shadow: var(--glow); display: flex; flex-direction: column; overflow: hidden; backdrop-filter: blur(30px); transition: all 0.4s ease; }
         .graph-card canvas { flex-grow: 1; width: 100% !important; height: 100% !important; }
 
-        .trend-up { color: #f43f5e; } .trend-down { color: #0ea5e9; }
-        .time-mark { font-size: 9px; color: var(--muted); font-weight: 600; margin-left: 2px; background: rgba(0,0,0,0.04); padding: 1px 4px; border-radius: 4px; }
-        body.is-night .time-mark { background: rgba(255,255,255,0.1); }
+        .trend-up { color: var(--neon-red); font-weight: 700; } 
+        .trend-down { color: var(--accent); font-weight: 700; }
+        .time-mark { font-size: 10px; color: var(--muted); font-weight: 700; margin-left: 4px; background: rgba(255,255,255,0.05); padding: 2px 6px; border-radius: 6px; text-transform: uppercase; }
+        body.is-light .time-mark { background: rgba(0,0,0,0.05); }
 
-        /* SUMMARY SYSTEM */
-        .nav-tabs { display: flex; gap: 8px; margin-bottom: 25px; }
-        .tab-btn { 
-            background: var(--card); border: 1px solid var(--border); padding: 12px 24px; 
-            border-radius: 16px; color: var(--text); font-weight: 700; cursor: pointer; transition: 0.3s; 
+        /* FADE ANIMATION MECHANICS */
+        @keyframes magicFade {
+            0% { opacity: 0; filter: blur(8px); transform: scale(0.95) translateY(4px); }
+            100% { opacity: 1; filter: blur(0); transform: scale(1) translateY(0); }
         }
-        .tab-btn.active { background: var(--accent); color: white; border-color: var(--accent); box-shadow: var(--glow); }
+        .fade-update { animation: magicFade 1.2s cubic-bezier(0.16, 1, 0.3, 1); will-change: transform, opacity, filter; }
 
-        .month-section { margin-bottom: 35px; animation: fadeIn 0.5s ease; }
-        .month-header { font-size: 20px; font-weight: 800; margin: 25px 0 15px 0; color: var(--accent); display: flex; align-items: center; gap: 10px; }
-        .month-header::after { content: ""; height: 2px; flex-grow: 1; background: var(--border); }
+        /* ADVANCED DETAIL TABLE PANELS */
+        .pro-summary-table { background: var(--card); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); border: 1px solid var(--border); border-radius: 32px; box-shadow: var(--glow); overflow: hidden; display: flex; flex-direction: column; }
+        .pro-row { display: flex; justify-content: space-between; align-items: center; padding: 26px 32px; border-bottom: 1px solid var(--border); transition: background 0.3s ease; gap: 20px; }
+        .pro-row:last-child { border-bottom: none; }
+        .pro-row:hover { background: var(--badge); }
+        .pro-label { font-size: 16px; font-weight: 800; color: var(--text); letter-spacing: 0.3px; display: flex; align-items: center; flex: 0 0 180px; }
+        .pro-data-group { display: flex; align-items: center; gap: 48px; flex: 1; justify-content: flex-end; }
+        .pro-data-item { display: flex; flex-direction: column; align-items: flex-end; min-width: 110px; }
+        .pro-sub { font-size: 10px; text-transform: uppercase; letter-spacing: 1.5px; color: var(--muted); font-weight: 800; margin-bottom: 6px; }
+        .pro-val { font-size: 28px; font-weight: 900; line-height: 1; letter-spacing: -0.5px; }
+        .pro-divider { width: 1px; height: 36px; background: var(--border); opacity: 0.6; }
 
-        .summary-table-wrapper { overflow-x: auto; background: var(--card); border-radius: 24px; border: 1px solid var(--border); box-shadow: var(--glow); }
-        .summary-table { width: 100%; border-collapse: collapse; min-width: 600px; }
-        .summary-table th { padding: 16px; background: var(--badge); text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); }
-        .summary-table td { padding: 16px; border-top: 1px solid var(--border); font-size: 14px; }
-        .summary-table tr:hover { background: var(--badge); }
+        .glass-select {
+            background: var(--card) !important; border: 1px solid var(--border); border-radius: 14px; padding: 10px 16px; font-family: inherit; font-weight: 700; color: var(--text) !important; outline: none; cursor: pointer; transition: all 0.3s ease; appearance: none; -webkit-appearance: none;
+            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2338bdf8' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+            background-repeat: no-repeat; background-position: right 14px center; background-size: 1.1em; padding-right: 44px; backdrop-filter: blur(10px);
+        }
+        .glass-select:hover { border-color: var(--accent); transform: translateY(-1px); box-shadow: 0 6px 16px rgba(0,0,0,0.2); }
+        .glass-select option { background-color: #162036; color: #f8fafc; }
+        body.is-light .glass-select option { background-color: #ffffff; color: #0f172a; }
 
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-
-        /* REFINED ROW-BASED SUMMARY */
-.pro-summary-table {
-    background: var(--card);
-    backdrop-filter: blur(24px);
-    -webkit-backdrop-filter: blur(24px);
-    border: 1px solid var(--border);
-    border-radius: 24px;
-    box-shadow: var(--glow);
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-}
-
-.pro-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 24px 30px;
-    border-bottom: 1px solid var(--border);
-    transition: background 0.3s ease;
-    gap: 20px; /* Ensures a minimum gap between label and data */
-}
-
-.pro-row:last-child { border-bottom: none; }
-
-.pro-label {
-    font-size: 15px;
-    font-weight: 800;
-    color: var(--text);
-    letter-spacing: 0.5px;
-    display: flex;
-    align-items: center;
-    flex: 0 0 160px; /* Lock the label width so data doesn't overlap it */
-}
-
-.pro-data-group {
-    display: flex;
-    align-items: center;
-    gap: 40px; /* Increased spacing between the two values */
-    flex: 1;
-    justify-content: flex-end; /* Keeps data anchored to the right */
-}
-
-.pro-data-item {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-    min-width: 100px; /* Ensures consistent alignment across different rows */
-}
-
-.pro-sub {
-    font-size: 10px;
-    text-transform: uppercase;
-    letter-spacing: 1.5px;
-    color: var(--muted);
-    font-weight: 800;
-    margin-bottom: 6px;
-}
-
-.pro-val {
-    font-size: 26px;
-    font-weight: 900;
-    line-height: 1;
-    letter-spacing: -0.5px;
-}
-
-.pro-divider {
-    width: 1px;
-    height: 32px;
-    background: var(--border);
-    opacity: 0.5;
-}
-
-/* Responsive fix for smaller screens to prevent squeezing */
-@media (max-width: 650px) {
-    .pro-row {
-        padding: 20px;
-        gap: 10px;
-    }
-    .pro-label {
-        flex: 0 0 120px;
-        font-size: 13px;
-    }
-    .pro-data-group {
-        gap: 20px;
-    }
-    .pro-val {
-        font-size: 20px;
-    }
-}
-
-.glass-select {
-    background: var(--card) !important;
-    border: 1px solid var(--border);
-    border-radius: 12px; /* Smoother corners */
-    padding: 8px 12px;
-    font-family: inherit;
-    font-weight: 600;
-    color: var(--text) !important;
-    outline: none;
-    cursor: pointer;
-    transition: all 0.2s ease; /* Smooth hover transition */
-    appearance: none; /* Removes default browser styling */
-    -webkit-appearance: none;
-    background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
-    background-repeat: no-repeat;
-    background-position: right 10px center;
-    background-size: 1em;
-    padding-right: 40px;
-}
-
-.glass-select:hover {
-    border-color: var(--accent);
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-}
-
-/* Forces the dropdown list (popup) to be dark and prevents the white blink */
-.glass-select option {
-    background-color: #ffffff;
-    color: #000000;
-}
-
-body.is-night .glass-select {
-    color-scheme: dark; /* CRITICAL: Tells browser the interior of the select is dark */
-}
-
-body.is-night .glass-select option {
-    background-color: #1e293b;
-    color: #f1f5f9;
-}
-
-/* Pluviophile Modernized Rain Card */
-.rain-container-main {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 24px;
-}
-
-.rain-left {
-    flex: 1;
-}
-
-.rain-divider {
-    width: 1px;
-    height: 80px;
-    background: linear-gradient(to bottom, transparent, var(--border), transparent);
-    margin: 0 25px;
-}
-
-.rain-right-intensity {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-}
-
-.intensity-block {
-    display: flex;
-    flex-direction: column;
-}
-
-.intensity-label {
-    font-size: 10px;
-    font-weight: 800;
-    text-transform: uppercase;
-    letter-spacing: 1.2px;
-    color: var(--muted);
-    margin-bottom: 2px;
-}
-
-.intensity-primary {
-    font-size: 22px; /* Increased prominence */
-    font-weight: 900;
-    color: #3b82f6; /* Modern Blue */
-    line-height: 1;
-}
-
-.intensity-secondary {
-    font-size: 16px;
-    font-weight: 800;
-    color: var(--text);
-}
-
-.rain-ledger-modern {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 10px;
-    padding-top: 20px;
-    border-top: 1px solid var(--border);
-}
-
-.ledger-card {
-    background: var(--badge);
-    padding: 15px 10px;
-    border-radius: 20px;
-    text-align: center;
-    transition: transform 0.3s ease;
-}
-
-.ledger-card:hover {
-    transform: translateY(-3px);
-    background: rgba(59, 130, 246, 0.05);
-}
-
-.ledger-val-large {
-    font-size: 18px; /* Bigger for better viewing */
-    font-weight: 900;
-    display: block;
-    margin-top: 4px;
-}
-
-
-
+        /* RESPONSIVE CONTROL PATHS */
+        @media (max-width: 768px) {
+            body { padding: 16px 12px 100px 12px; }
+            .header h1 { font-size: 26px; }
+            .main-val { font-size: 54px; }
+            .card { padding: 24px; border-radius: 28px; }
+            .sub-box-4 { gap: 10px; padding-top: 18px; }
+            .badge { padding: 12px; border-radius: 18px; }
+            .badge-val { font-size: 16px; }
+            .pro-row { padding: 20px; gap: 10px; }
+            .pro-label { flex: 0 0 130px; font-size: 14px; }
+            .pro-data-group { gap: 24px; }
+            .pro-val { font-size: 22px; }
+        }
     </style>
 </head>
 <body>
@@ -909,7 +765,10 @@ body.is-night .glass-select option {
         <div class="header">
             <h1>KK Nagar Weather Hub</h1>
             <div class="header-actions">
-                <div class="status-bar"><div class="live-dot"></div><div class="timestamp"><span id="ts">--:--:--</span></div></div>
+                <div class="status-bar">
+                    <div class="live-dot"></div>
+                    <div class="timestamp"><span id="ts">--:--:--</span></div>
+                </div>
                 <div class="theme-toggle" id="themeToggle">
                     <div class="theme-btn" id="btn-light">LIGHT</div>
                     <div class="theme-btn" id="btn-dark">DARK</div>
@@ -918,25 +777,25 @@ body.is-night .glass-select option {
             </div>
         </div>
 
-       <div class="nav-tabs">
-        <button onclick="showPage('dashboard')" id="tab-dash" class="tab-btn active">Live Dashboard</button>
-        <button onclick="showPage('summary')" id="tab-sum" class="tab-btn">Monthly Summary</button>
-        <button onclick="showPage('historical')" id="tab-hist" class="tab-btn">Historical Data</button>
-       </div>
+        <div class="nav-tabs">
+            <button onclick="showPage('dashboard')" id="tab-dash" class="tab-btn active">Live Dashboard</button>
+            <button onclick="showPage('summary')" id="tab-sum" class="tab-btn">Monthly Summary</button>
+            <button onclick="showPage('historical')" id="tab-hist" class="tab-btn">Historical Data</button>
+        </div>
 
         <div id="page-dashboard">
-            
             <div class="grid-system">
+                
                 <div class="card">
                     <div class="label">Temperature</div>
                     <div class="main-val"><span id="t">0.0</span><span class="unit">°C</span></div>
                     <div id="tTrendBox" class="sub-pill">--</div>
                     <div class="sub-box-4">
-                        <div class="badge"><span class="badge-label">Today High</span><span id="mx" class="badge-val" style="color:#ef4444">--</span></div>
-                        <div class="badge"><span class="badge-label">Today Low</span><span id="mn" class="badge-val" style="color:#0ea5e9">--</span></div>
+                        <div class="badge"><span class="badge-label">Today High</span><span id="mx" class="badge-val" style="color:var(--neon-red)">--</span></div>
+                        <div class="badge"><span class="badge-label">Today Low</span><span id="mn" class="badge-val" style="color:var(--accent)">--</span></div>
                         <div class="badge"><span class="badge-label">Humidity</span><span id="h_val" class="badge-val">--</span></div>
                         <div class="badge"><span class="badge-label">Dew Point</span><span id="d_val" class="badge-val">--</span></div>
-                        <div class="badge" style="grid-column: span 2;"><span class="badge-label">Feels Like</span><span id="rf" class="badge-val">--</span></div>
+                        <div class="badge" style="grid-column: span 2;"><span class="badge-label">Feels Like</span><span id="rf" class="badge-val" style="color: #f59e0b;">--</span></div>
                     </div>
                 </div>
 
@@ -944,8 +803,8 @@ body.is-night .glass-select option {
                     <canvas id="windCanvas"></canvas>
                     <div class="label">Wind Dynamics</div>
                     <div class="compass-ui"><div id="needle"></div></div>
-                    <div class="main-val"><span id="w">0.0</span><span id="wd_bracket" style="font-size:18px; color:var(--muted); margin-left:8px; font-weight:700">(--)</span><span class="unit">km/h</span></div>
-                    <div class="sub-pill">● Live Gust: <span id="wg" style="margin-left:4px">--</span></div>
+                    <div class="main-val"><span id="w">0.0</span><span id="wd_bracket" style="font-size:20px; color:var(--muted); margin-left:10px; font-weight:800">(--)</span><span class="unit">km/h</span></div>
+                    <div class="sub-pill">● Live Gust: <span id="wg" style="margin-left:4px; color:var(--accent)">--</span></div>
                     <div class="sub-box-4">
                         <div class="badge"><span class="badge-label">Max Speed</span><span id="mw" class="badge-val">--</span></div>
                         <div class="badge"><span class="badge-label">Max Gust</span><span id="mg" class="badge-val">--</span></div>
@@ -953,56 +812,55 @@ body.is-night .glass-select option {
                 </div>
 
                 <div class="card">
-    <div class="label">Rain Realm</div>
-    
-    <div class="rain-container-main">
-        <div class="rain-left">
-            <div class="main-val">
-                <span id="r_tot">0.0</span><span class="unit">mm</span>
-            </div>
-        </div>
+                    <div class="label">Rain Realm</div>
+                    
+                    <div class="rain-container-main">
+                        <div class="rain-left">
+                            <div class="main-val">
+                                <span id="r_tot">0.0</span><span class="unit">mm</span>
+                            </div>
+                        </div>
+                        <div class="rain-divider"></div>
+                        <div class="rain-right-intensity">
+                            <div class="intensity-block">
+                                <span class="intensity-label">Current Intensity</span>
+                                <span class="intensity-primary"><span id="r_rate">0.0</span> <small style="font-size:12px; font-weight:700">mm/h</small></span>
+                            </div>
+                            <div class="intensity-block">
+                                <span class="intensity-label">Max Intensity</span>
+                                <span id="mr" class="intensity-secondary">--</span>
+                            </div>
+                        </div>
+                    </div>
 
-        <div class="rain-divider"></div>
+                    <div class="rain-ledger-modern">
+                        <div class="ledger-card">
+                            <span class="intensity-label">Weekly</span>
+                            <span id="r_week" class="ledger-val-large">--</span>
+                        </div>
+                        <div class="ledger-card">
+                            <span class="intensity-label">Monthly</span>
+                            <span id="r_month" class="ledger-val-large">--</span>
+                        </div>
+                        <div class="ledger-card">
+                            <span class="intensity-label">Yearly</span>
+                            <span id="r_year" class="ledger-val-large">--</span>
+                        </div>
+                    </div>
+                </div>
 
-        <div class="rain-right-intensity">
-            <div class="intensity-block">
-                <span class="intensity-label">Current Intensity</span>
-                <span class="intensity-primary"><span id="r_rate">0.0</span> <small style="font-size:12px">mm/h</small></span>
-            </div>
-            <div class="intensity-block">
-                <span class="intensity-label">Max Intensity</span>
-                <span id="mr" class="intensity-secondary">--</span>
-            </div>
-        </div>
-    </div>
-
-    <div class="rain-ledger-modern">
-        <div class="ledger-card">
-            <span class="intensity-label">Weekly</span>
-            <span id="r_week" class="ledger-val-large">--</span>
-        </div>
-        <div class="ledger-card">
-            <span class="intensity-label">Monthly</span>
-            <span id="r_month" class="ledger-val-large">--</span>
-        </div>
-        <div class="ledger-card">
-            <span class="intensity-label">Yearly</span>
-            <span id="r_year" class="ledger-val-large">--</span>
-        </div>
-    </div>
-</div>
-
-                
                 <div class="card">
                     <div class="label">Atmospheric <span id="pIcon"></span></div>
                     <div class="main-val"><span id="pr">--</span><span class="unit">hPa</span></div>
+                    <div class="sub-pill" style="opacity: 0; margin-bottom: 0;">Spacer</div>
                     <div class="sub-box-4">
                         <div class="badge"><span class="badge-label">Solar Rad</span><span id="sol" class="badge-val">--</span></div>
                         <div class="badge"><span class="badge-label">UV Index</span><span id="uv" class="badge-val">--</span></div>
                     </div>
                 </div>
+                
             </div>
-
+        </div>
             <div class="sub-tabs-section" style="margin-top: 35px;">
                 <div style="display: flex; gap: 10px; margin-bottom: 20px; justify-content: center;">
                     <button onclick="switchSubView('summary')" id="btn-sub-sum" class="tab-btn active">24H Summary</button>
