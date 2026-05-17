@@ -577,339 +577,1573 @@ app.get("/", (req, res) => {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>KK Nagar Weather Hub</title>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;700;900&display=swap" rel="stylesheet">
+
+    <script src="[cdn.jsdelivr.net](https://cdn.jsdelivr.net/npm/chart.js)"></script>
+
+    <link href="[fonts.googleapis.com](https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap)" rel="stylesheet">
+
     <style>
-        :root { 
-            --bg: #e0f2fe !important; 
-            --card: rgba(255, 255, 255, 0.85); 
-            --border: rgba(2, 132, 199, 0.1);
-            --text: #0f172a !important; 
-            --muted: #64748b; 
-            --accent: #0284c7; 
-            --glow: 0 10px 40px -10px rgba(2, 132, 199, 0.15);
-            --badge: rgba(2, 132, 199, 0.05);
+        :root {
+            --bg: #dff4ff !important;
+            --card: rgba(255, 255, 255, 0.72);
+            --card-strong: rgba(255, 255, 255, 0.9);
+            --border: rgba(2, 132, 199, 0.16);
+            --text: #0f172a !important;
+            --muted: #64748b;
+            --accent: #0284c7;
+            --accent-2: #22d3ee;
+            --cyan: #06b6d4;
+            --blue: #2563eb;
+            --danger: #ef4444;
+            --good: #10b981;
+            --badge: rgba(2, 132, 199, 0.07);
+            --glass-line: rgba(255, 255, 255, 0.55);
+            --glow: 0 18px 55px -24px rgba(2, 132, 199, 0.45);
+            --inner-glow: inset 0 1px 0 rgba(255,255,255,0.72);
+            --nav-h: 78px;
         }
 
         body.is-night {
-            --bg: #0f172a !important; 
-            --card: rgba(30, 41, 59, 0.7); 
-            --border: rgba(255, 255, 255, 0.08);
-            --text: #f1f5f9 !important; 
-            --muted: #94a3b8; 
-            --accent: #38bdf8; 
-            --glow: 0 15px 50px -12px rgba(0,0,0,0.6);
-            --badge: rgba(255, 255, 255, 0.04);
+            --bg: #020617 !important;
+            --card: rgba(15, 23, 42, 0.72);
+            --card-strong: rgba(30, 41, 59, 0.86);
+            --border: rgba(148, 163, 184, 0.16);
+            --text: #f8fafc !important;
+            --muted: #94a3b8;
+            --accent: #38bdf8;
+            --accent-2: #67e8f9;
+            --cyan: #22d3ee;
+            --blue: #60a5fa;
+            --badge: rgba(255, 255, 255, 0.055);
+            --glass-line: rgba(255,255,255,0.08);
+            --glow: 0 24px 70px -28px rgba(0, 0, 0, 0.95);
+            --inner-glow: inset 0 1px 0 rgba(255,255,255,0.08);
         }
 
-        body { 
-            margin: 0; font-family: 'Outfit', sans-serif; background: var(--bg); color: var(--text); 
-            padding: 20px 16px 120px 16px; transition: background 0.5s ease, color 0.5s ease; 
-            min-height: 100vh; overflow-x: hidden; 
+        * {
+            box-sizing: border-box;
         }
 
-        .container { width: 100%; max-width: 1200px; margin: 0 auto; }
-        .header { margin-bottom: 32px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; }
-        .header h1 { font-size: 28px; font-weight: 900; margin: 0; letter-spacing: -1px; }
-        .header-actions { display: flex; align-items: center; gap: 12px; }
-        
-        .theme-toggle { background: var(--card); border: 1px solid var(--border); padding: 4px; border-radius: 12px; display: flex; gap: 4px; box-shadow: var(--glow); cursor: pointer; }
-        .theme-btn { padding: 6px 10px; border-radius: 8px; font-size: 11px; font-weight: 700; transition: 0.3s; color: var(--muted); }
-        .theme-btn.active { background: var(--accent); color: white; }
-
-        .status-bar { display: flex; align-items: center; gap: 8px; background: var(--card); padding: 6px 16px; border-radius: 100px; border: 1px solid var(--border); box-shadow: var(--glow); font-size: 13px; }
-        .live-dot { width: 6px; height: 6px; background: #10b981; border-radius: 50%; animation: blink 2s infinite; }
-        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
-        
-        .grid-system { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
-        .card { background: var(--card); padding: 28px; border-radius: 32px; border: 1px solid var(--border); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); box-shadow: var(--glow); position: relative; overflow: hidden; transition: background 0.5s ease; }
-        #windCanvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; border-radius: 32px; }
-        .card > *:not(canvas) { position: relative; z-index: 5; }
-
-        .label { color: var(--accent); font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 6px; }
-        .main-val { font-size: 56px; font-weight: 900; margin: 0; letter-spacing: -2px; display: flex; align-items: baseline; line-height: 1.1; }
-        
-        /* MODERN TRANSIENT EFFECTS */
-        .main-val span:not(.unit), .badge-val { 
-            display: inline-block; 
-            transition: all 0.6s cubic-bezier(0.34, 1.56, 0.64, 1); 
-            font-variant-numeric: tabular-nums; 
+        html {
+            scroll-behavior: smooth;
         }
 
-        /* The "Magic" Animation */
+        body {
+            margin: 0;
+            min-height: 100vh;
+            overflow-x: hidden;
+            font-family: 'Outfit', sans-serif;
+            color: var(--text);
+            background:
+                radial-gradient(circle at 20% 0%, rgba(34, 211, 238, 0.22), transparent 34%),
+                radial-gradient(circle at 90% 18%, rgba(59, 130, 246, 0.16), transparent 38%),
+                linear-gradient(145deg, var(--bg), var(--bg));
+            padding: 20px 14px calc(var(--nav-h) + 34px);
+            transition: background 0.5s ease, color 0.5s ease;
+        }
+
+        body.is-night {
+            background:
+                radial-gradient(circle at 20% -5%, rgba(8, 145, 178, 0.28), transparent 34%),
+                radial-gradient(circle at 90% 18%, rgba(30, 64, 175, 0.22), transparent 42%),
+                linear-gradient(145deg, #020617, #07111f 48%, #020617);
+        }
+
+        .container {
+            width: 100%;
+            max-width: 1180px;
+            margin: 0 auto;
+        }
+
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 14px;
+            margin-bottom: 18px;
+            flex-wrap: wrap;
+        }
+
+        .header h1 {
+            width: 100%;
+            margin: 4px 0 0;
+            font-size: clamp(25px, 4vw, 42px);
+            font-weight: 900;
+            letter-spacing: -1.6px;
+            text-align: center;
+            text-shadow: 0 8px 28px rgba(56, 189, 248, 0.14);
+        }
+
+        .header-actions {
+            width: 100%;
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 10px;
+            align-items: center;
+            padding: 8px;
+            border-radius: 24px;
+            background: linear-gradient(135deg, rgba(255,255,255,0.42), rgba(255,255,255,0.16));
+            border: 1px solid var(--border);
+            box-shadow: var(--glow), var(--inner-glow);
+            backdrop-filter: blur(22px);
+            -webkit-backdrop-filter: blur(22px);
+        }
+
+        body.is-night .header-actions {
+            background: linear-gradient(135deg, rgba(30,41,59,0.72), rgba(15,23,42,0.5));
+        }
+
+        .status-bar {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            min-height: 42px;
+            padding: 8px 12px;
+            border-radius: 18px;
+            font-size: 22px;
+            font-weight: 800;
+            color: var(--text);
+        }
+
+        .status-bar::before {
+            content: "◷";
+            display: inline-grid;
+            place-items: center;
+            width: 28px;
+            height: 28px;
+            border-radius: 999px;
+            color: var(--accent-2);
+            font-size: 24px;
+            line-height: 1;
+        }
+
+        .live-dot {
+            width: 8px;
+            height: 8px;
+            background: var(--good);
+            border-radius: 50%;
+            animation: blink 1.8s infinite;
+            box-shadow: 0 0 18px rgba(16,185,129,0.85);
+            display: none;
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.45; transform: scale(0.78); }
+        }
+
+        .theme-toggle {
+            display: flex;
+            gap: 5px;
+            padding: 4px;
+            border-radius: 18px;
+            background: rgba(15, 23, 42, 0.08);
+            border: 1px solid var(--border);
+            cursor: pointer;
+        }
+
+        body.is-night .theme-toggle {
+            background: rgba(255,255,255,0.07);
+        }
+
+        .theme-btn {
+            min-width: 74px;
+            text-align: center;
+            padding: 10px 12px;
+            border-radius: 14px;
+            color: var(--muted);
+            font-size: 15px;
+            font-weight: 900;
+            letter-spacing: 0.4px;
+            transition: 0.25s ease;
+            user-select: none;
+        }
+
+        .theme-btn.active {
+            color: white;
+            background: linear-gradient(135deg, rgba(56,189,248,0.95), rgba(37,99,235,0.9));
+            box-shadow: 0 12px 28px -14px rgba(34,211,238,0.9);
+        }
+
+        body.is-night .theme-btn.active {
+            background: rgba(255,255,255,0.18);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.1);
+        }
+
+        .nav-tabs {
+            position: fixed;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            z-index: 80;
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 0;
+            height: var(--nav-h);
+            margin: 0;
+            padding: 8px max(10px, env(safe-area-inset-left)) calc(8px + env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-right));
+            background: rgba(15, 23, 42, 0.82);
+            border-top: 1px solid rgba(255,255,255,0.1);
+            backdrop-filter: blur(26px);
+            -webkit-backdrop-filter: blur(26px);
+            box-shadow: 0 -20px 40px -30px rgba(0,0,0,0.8);
+        }
+
+        body:not(.is-night) .nav-tabs {
+            background: rgba(240, 249, 255, 0.84);
+            border-top: 1px solid rgba(2,132,199,0.12);
+        }
+
+        .tab-btn {
+            border: 0;
+            background: transparent;
+            color: var(--muted);
+            border-radius: 18px;
+            font-family: inherit;
+            font-size: 13px;
+            font-weight: 800;
+            cursor: pointer;
+            transition: 0.25s ease;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            padding: 8px 6px;
+        }
+
+        .tab-btn::before {
+            font-size: 24px;
+            line-height: 1;
+            opacity: 0.86;
+        }
+
+        #tab-dash::before {
+            content: "◉";
+        }
+
+        #tab-sum::before {
+            content: "▦";
+        }
+
+        #tab-hist::before {
+            content: "◷";
+        }
+
+        .tab-btn.active {
+            color: var(--accent);
+            background: rgba(56,189,248,0.1);
+        }
+
+        body.is-night .tab-btn.active {
+            color: #60a5fa;
+            background: rgba(59,130,246,0.12);
+        }
+
+        .dashboard-shell {
+            display: grid;
+            grid-template-columns: repeat(12, 1fr);
+            gap: 12px;
+            align-items: stretch;
+        }
+
+        .card {
+            position: relative;
+            overflow: hidden;
+            min-height: 170px;
+            padding: 20px;
+            border-radius: 28px;
+            background:
+                linear-gradient(145deg, rgba(255,255,255,0.58), rgba(255,255,255,0.22)),
+                var(--card);
+            border: 1px solid var(--border);
+            box-shadow: var(--glow), var(--inner-glow);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            transition: background 0.5s ease, border-color 0.4s ease, transform 0.25s ease;
+        }
+
+        body.is-night .card {
+            background:
+                radial-gradient(circle at 8% 5%, rgba(34,211,238,0.14), transparent 42%),
+                linear-gradient(145deg, rgba(30,41,59,0.72), rgba(15,23,42,0.64));
+        }
+
+        .card::after {
+            content: "";
+            position: absolute;
+            inset: 1px;
+            border-radius: inherit;
+            pointer-events: none;
+            background:
+                linear-gradient(135deg, rgba(255,255,255,0.18), transparent 35%),
+                radial-gradient(circle at 25% 15%, rgba(34,211,238,0.12), transparent 32%);
+            opacity: 0.85;
+        }
+
+        .card > * {
+            position: relative;
+            z-index: 2;
+        }
+
+        .card > canvas {
+            z-index: 0;
+        }
+
+        .card-temp {
+            grid-column: span 8;
+            min-height: 300px;
+        }
+
+        .card-wind-mini {
+            grid-column: span 4;
+            min-height: 300px;
+        }
+
+        .card-wind-full {
+            grid-column: span 6;
+            min-height: 230px;
+        }
+
+        .card-atmo {
+            grid-column: span 6;
+            min-height: 230px;
+        }
+
+        .card-rain {
+            grid-column: span 12;
+            min-height: 300px;
+        }
+
+        .label {
+            margin-bottom: 12px;
+            color: var(--text);
+            font-size: clamp(24px, 3vw, 38px);
+            font-weight: 900;
+            letter-spacing: -0.9px;
+            text-transform: none;
+            line-height: 1;
+        }
+
+        .label-small {
+            font-size: 15px;
+            font-weight: 900;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 1.6px;
+        }
+
+        .main-val {
+            display: flex;
+            align-items: baseline;
+            margin: 0;
+            color: var(--accent-2);
+            font-size: clamp(58px, 10vw, 120px);
+            font-weight: 900;
+            letter-spacing: -4px;
+            line-height: 0.95;
+            text-shadow: 0 0 28px rgba(34, 211, 238, 0.34);
+            font-variant-numeric: tabular-nums;
+        }
+
+        body:not(.is-night) .main-val {
+            color: #0891b2;
+            text-shadow: 0 12px 28px rgba(8,145,178,0.12);
+        }
+
+        .main-val span:not(.unit),
+        .badge-val,
+        .pro-val {
+            display: inline-block;
+            transition: all 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+            font-variant-numeric: tabular-nums;
+        }
+
         @keyframes magicFade {
-            0% { opacity: 0; filter: blur(12px); transform: scale(0.8) translateY(10px); color: #10b981; }
-            30% { opacity: 0.8; filter: blur(4px); }
-            100% { opacity: 1; filter: blur(0); transform: scale(1) translateY(0); }
+            0% {
+                opacity: 0;
+                filter: blur(12px);
+                transform: scale(0.85) translateY(10px);
+                color: #10b981;
+            }
+            30% {
+                opacity: 0.82;
+                filter: blur(4px);
+            }
+            100% {
+                opacity: 1;
+                filter: blur(0);
+                transform: scale(1) translateY(0);
+            }
         }
 
-        .fade-update { 
-            animation: magicFade 1.5s cubic-bezier(0.16, 1, 0.3, 1); 
+        .fade-update {
+            animation: magicFade 1.5s cubic-bezier(0.16, 1, 0.3, 1);
             will-change: transform, opacity, filter;
         }
 
-        .unit { font-size: 20px; font-weight: 600; color: var(--muted); margin-left: 4px; letter-spacing: 0; }
-        .sub-pill { font-size: 12px; font-weight: 800; padding: 6px 12px; border-radius: 10px; background: var(--badge); display: inline-flex; align-items: center; gap: 4px; margin: 12px 0 20px 0; }
-
-        .sub-box-4 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding-top: 20px; border-top: 1px solid var(--border); }
-        .badge { padding: 12px; border-radius: 18px; background: var(--badge); display: flex; flex-direction: column; gap: 2px; }
-        .badge-label { font-size: 9px; color: var(--muted); text-transform: uppercase; font-weight: 800; }
-        .badge-val { font-size: 16px; font-weight: 800; }
-
-        .compass-ui { position: absolute !important; top: 28px !important; right: 28px !important; width: 50px; height: 50px; border: 2px solid var(--border); border-radius: 50%; display: flex; align-items: center; justify-content: center; z-index: 10; }
-        #needle { width: 3px; height: 32px; background: linear-gradient(to bottom, #ef4444 50%, var(--muted) 50%); clip-path: polygon(50% 0%, 100% 100%, 50% 85%, 0% 100%); transition: transform 2s cubic-bezier(0.1, 0.9, 0.2, 1); }
-
-        .graphs-wrapper { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin-top: 20px; }
-        .graph-card { background: var(--card); padding: 24px; border-radius: 32px; border: 1px solid var(--border); height: 320px; box-shadow: var(--glow); display: flex; flex-direction: column; overflow: hidden; transition: background 0.5s ease; }
-        .graph-card canvas { flex-grow: 1; width: 100% !important; height: 100% !important; }
-
-        .trend-up { color: #f43f5e; } .trend-down { color: #0ea5e9; }
-        .time-mark { font-size: 9px; color: var(--muted); font-weight: 600; margin-left: 2px; background: rgba(0,0,0,0.04); padding: 1px 4px; border-radius: 4px; }
-        body.is-night .time-mark { background: rgba(255,255,255,0.1); }
-
-        /* SUMMARY SYSTEM */
-        .nav-tabs { display: flex; gap: 8px; margin-bottom: 25px; }
-        .tab-btn { 
-            background: var(--card); border: 1px solid var(--border); padding: 12px 24px; 
-            border-radius: 16px; color: var(--text); font-weight: 700; cursor: pointer; transition: 0.3s; 
+        .unit {
+            margin-left: 6px;
+            color: var(--text);
+            font-size: clamp(26px, 4vw, 64px);
+            font-weight: 900;
+            letter-spacing: -1.8px;
+            opacity: 0.92;
         }
-        .tab-btn.active { background: var(--accent); color: white; border-color: var(--accent); box-shadow: var(--glow); }
 
-        .month-section { margin-bottom: 35px; animation: fadeIn 0.5s ease; }
-        .month-header { font-size: 20px; font-weight: 800; margin: 25px 0 15px 0; color: var(--accent); display: flex; align-items: center; gap: 10px; }
-        .month-header::after { content: ""; height: 2px; flex-grow: 1; background: var(--border); }
+        .card-temp .unit {
+            color: var(--accent-2);
+        }
 
-        .summary-table-wrapper { overflow-x: auto; background: var(--card); border-radius: 24px; border: 1px solid var(--border); box-shadow: var(--glow); }
-        .summary-table { width: 100%; border-collapse: collapse; min-width: 600px; }
-        .summary-table th { padding: 16px; background: var(--badge); text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); }
-        .summary-table td { padding: 16px; border-top: 1px solid var(--border); font-size: 14px; }
-        .summary-table tr:hover { background: var(--badge); }
+        body:not(.is-night) .card-temp .unit {
+            color: #0891b2;
+        }
 
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .sub-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            margin: 18px 0 18px;
+            padding: 14px 18px;
+            border-radius: 18px;
+            background: rgba(34, 211, 238, 0.13);
+            border: 1px solid rgba(34,211,238,0.14);
+            color: var(--text);
+            font-size: clamp(22px, 4vw, 46px);
+            font-weight: 800;
+            line-height: 1.05;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.12);
+        }
 
-        /* REFINED ROW-BASED SUMMARY */
-.pro-summary-table {
-    background: var(--card);
-    backdrop-filter: blur(24px);
-    -webkit-backdrop-filter: blur(24px);
-    border: 1px solid var(--border);
-    border-radius: 24px;
-    box-shadow: var(--glow);
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-}
+        #tTrendBox {
+            position: absolute;
+            top: 106px;
+            right: 26px;
+            width: 140px;
+            min-height: 88px;
+            justify-content: center;
+            margin: 0;
+            padding: 10px;
+            background: transparent;
+            border: 0;
+            color: var(--accent-2);
+            font-size: clamp(18px, 2.2vw, 28px);
+            text-align: center;
+            box-shadow: none;
+        }
 
-.pro-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 24px 30px;
-    border-bottom: 1px solid var(--border);
-    transition: background 0.3s ease;
-    gap: 20px; /* Ensures a minimum gap between label and data */
-}
+        .temp-details {
+            display: grid;
+            grid-template-columns: 1fr 1px 1fr;
+            gap: 18px;
+            align-items: center;
+            margin-top: 8px;
+            padding: 16px 18px;
+            border-radius: 24px;
+            background: rgba(255,255,255,0.12);
+            border: 1px solid var(--border);
+        }
 
-.pro-row:last-child { border-bottom: none; }
+        body:not(.is-night) .temp-details {
+            background: rgba(255,255,255,0.45);
+        }
 
-.pro-label {
-    font-size: 15px;
-    font-weight: 800;
-    color: var(--text);
-    letter-spacing: 0.5px;
-    display: flex;
-    align-items: center;
-    flex: 0 0 160px; /* Lock the label width so data doesn't overlap it */
-}
+        .temp-divider {
+            width: 1px;
+            height: 64px;
+            background: var(--border);
+        }
 
-.pro-data-group {
-    display: flex;
-    align-items: center;
-    gap: 40px; /* Increased spacing between the two values */
-    flex: 1;
-    justify-content: flex-end; /* Keeps data anchored to the right */
-}
+        .temp-stack {
+            display: grid;
+            gap: 8px;
+        }
 
-.pro-data-item {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-    min-width: 100px; /* Ensures consistent alignment across different rows */
-}
+        .temp-line {
+            display: flex;
+            gap: 8px;
+            align-items: baseline;
+            color: var(--muted);
+            font-size: clamp(20px, 2.5vw, 34px);
+            font-weight: 600;
+            line-height: 1;
+        }
 
-.pro-sub {
-    font-size: 10px;
-    text-transform: uppercase;
-    letter-spacing: 1.5px;
-    color: var(--muted);
-    font-weight: 800;
-    margin-bottom: 6px;
-}
+        .temp-line strong {
+            color: var(--text);
+            font-weight: 900;
+        }
 
-.pro-val {
-    font-size: 26px;
-    font-weight: 900;
-    line-height: 1;
-    letter-spacing: -0.5px;
-}
+        .sub-box-4 {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 10px;
+            padding-top: 16px;
+            border-top: 1px solid var(--border);
+        }
 
-.pro-divider {
-    width: 1px;
-    height: 32px;
-    background: var(--border);
-    opacity: 0.5;
-}
+        .badge {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            padding: 13px 14px;
+            border-radius: 18px;
+            background: var(--badge);
+            border: 1px solid rgba(255,255,255,0.04);
+        }
 
-/* Responsive fix for smaller screens to prevent squeezing */
-@media (max-width: 650px) {
-    .pro-row {
-        padding: 20px;
-        gap: 10px;
-    }
-    .pro-label {
-        flex: 0 0 120px;
-        font-size: 13px;
-    }
-    .pro-data-group {
-        gap: 20px;
-    }
-    .pro-val {
-        font-size: 20px;
-    }
-}
+        .badge-label {
+            color: var(--muted);
+            font-size: 12px;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: 1.2px;
+        }
 
-.glass-select {
-    background: var(--card) !important;
-    border: 1px solid var(--border);
-    border-radius: 12px; /* Smoother corners */
-    padding: 8px 12px;
-    font-family: inherit;
-    font-weight: 600;
-    color: var(--text) !important;
-    outline: none;
-    cursor: pointer;
-    transition: all 0.2s ease; /* Smooth hover transition */
-    appearance: none; /* Removes default browser styling */
-    -webkit-appearance: none;
-    background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
-    background-repeat: no-repeat;
-    background-position: right 10px center;
-    background-size: 1em;
-    padding-right: 40px;
-}
+        .badge-val {
+            color: var(--text);
+            font-size: 22px;
+            font-weight: 900;
+            line-height: 1.05;
+        }
 
-.glass-select:hover {
-    border-color: var(--accent);
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-}
+        #windCanvas {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+            pointer-events: none;
+            border-radius: inherit;
+            opacity: 0.55;
+        }
 
-/* Forces the dropdown list (popup) to be dark and prevents the white blink */
-.glass-select option {
-    background-color: #ffffff;
-    color: #000000;
-}
+        .compass-ui {
+            position: absolute !important;
+            top: 26px !important;
+            right: 24px !important;
+            width: 58px;
+            height: 58px;
+            z-index: 10;
+            display: grid;
+            place-items: center;
+            border-radius: 999px;
+            border: 2px solid var(--border);
+            background: rgba(255,255,255,0.06);
+        }
 
-body.is-night .glass-select {
-    color-scheme: dark; /* CRITICAL: Tells browser the interior of the select is dark */
-}
+        #needle {
+            width: 4px;
+            height: 38px;
+            background: linear-gradient(to bottom, #ef4444 50%, var(--muted) 50%);
+            clip-path: polygon(50% 0%, 100% 100%, 50% 85%, 0% 100%);
+            transition: transform 2s cubic-bezier(0.1, 0.9, 0.2, 1);
+        }
 
-body.is-night .glass-select option {
-    background-color: #1e293b;
-    color: #f1f5f9;
-}
+        .wind-gauge {
+            width: 174px;
+            height: 174px;
+            margin: 20px auto 18px;
+            border-radius: 50%;
+            display: grid;
+            place-items: center;
+            position: relative;
+            background:
+                conic-gradient(from 300deg, var(--accent-2) 0 78deg, rgba(148,163,184,0.18) 78deg 360deg);
+            filter: drop-shadow(0 0 22px rgba(34,211,238,0.16));
+        }
 
-/* Pluviophile Modernized Rain Card */
-.rain-container-main {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 24px;
-}
+        .wind-gauge::before {
+            content: "";
+            position: absolute;
+            inset: 13px;
+            border-radius: inherit;
+            background: linear-gradient(145deg, rgba(15,23,42,0.8), rgba(30,41,59,0.7));
+            border: 1px solid var(--border);
+        }
 
-.rain-left {
-    flex: 1;
-}
+        body:not(.is-night) .wind-gauge::before {
+            background: linear-gradient(145deg, rgba(255,255,255,0.88), rgba(224,242,254,0.82));
+        }
 
-.rain-divider {
-    width: 1px;
-    height: 80px;
-    background: linear-gradient(to bottom, transparent, var(--border), transparent);
-    margin: 0 25px;
-}
+        .wind-cardinal {
+            position: absolute;
+            color: var(--muted);
+            font-size: 20px;
+            font-weight: 900;
+            z-index: 2;
+        }
 
-.rain-right-intensity {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-}
+        .wind-n { top: 21px; left: 50%; transform: translateX(-50%); }
+        .wind-e { right: 23px; top: 50%; transform: translateY(-50%); }
+        .wind-s { bottom: 19px; left: 50%; transform: translateX(-50%); }
+        .wind-w { left: 21px; top: 50%; transform: translateY(-50%); }
 
-.intensity-block {
-    display: flex;
-    flex-direction: column;
-}
+        .wind-gauge-center {
+            position: relative;
+            z-index: 3;
+            text-align: center;
+        }
 
-.intensity-label {
-    font-size: 10px;
-    font-weight: 800;
-    text-transform: uppercase;
-    letter-spacing: 1.2px;
-    color: var(--muted);
-    margin-bottom: 2px;
-}
+        .wind-gauge-value {
+            color: var(--text);
+            font-size: 46px;
+            font-weight: 800;
+            line-height: 1;
+        }
 
-.intensity-primary {
-    font-size: 22px; /* Increased prominence */
-    font-weight: 900;
-    color: #3b82f6; /* Modern Blue */
-    line-height: 1;
-}
+        .wind-gauge-unit {
+            color: var(--text);
+            font-size: 23px;
+            font-weight: 600;
+            opacity: 0.9;
+        }
 
-.intensity-secondary {
-    font-size: 16px;
-    font-weight: 800;
-    color: var(--text);
-}
+        .wind-lines {
+            display: grid;
+            gap: 12px;
+            margin-top: 4px;
+        }
 
-.rain-ledger-modern {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 10px;
-    padding-top: 20px;
-    border-top: 1px solid var(--border);
-}
+        .wind-line {
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            padding-top: 13px;
+            border-top: 1px solid var(--border);
+            color: var(--muted);
+            font-size: clamp(19px, 2.2vw, 27px);
+            font-weight: 700;
+            line-height: 1.15;
+        }
 
-.ledger-card {
-    background: var(--badge);
-    padding: 15px 10px;
-    border-radius: 20px;
-    text-align: center;
-    transition: transform 0.3s ease;
-}
+        .wind-line strong {
+            color: var(--text);
+            font-weight: 900;
+        }
 
-.ledger-card:hover {
-    transform: translateY(-3px);
-    background: rgba(59, 130, 246, 0.05);
-}
+        .wind-wide-layout {
+            display: grid;
+            grid-template-columns: 132px 1fr;
+            gap: 22px;
+            align-items: center;
+        }
 
-.ledger-val-large {
-    font-size: 18px; /* Bigger for better viewing */
-    font-weight: 900;
-    display: block;
-    margin-top: 4px;
-}
+        .wind-tower {
+            min-height: 150px;
+            border-radius: 20px;
+            background: rgba(255,255,255,0.12);
+            border: 1px solid var(--border);
+            display: grid;
+            place-items: center;
+            padding: 14px;
+        }
 
+        .wind-tower-icon {
+            width: 78px;
+            height: 78px;
+            display: grid;
+            place-items: center;
+            border-radius: 20px;
+            color: var(--accent-2);
+            background: rgba(34,211,238,0.08);
+            border: 1px solid rgba(34,211,238,0.12);
+            font-size: 48px;
+            font-weight: 900;
+            transform: rotate(-25deg);
+        }
 
+        .wind-wide-main {
+            display: flex;
+            align-items: baseline;
+            gap: 10px;
+            margin-bottom: 16px;
+        }
 
+        .wind-wide-main #w_wide {
+            display: none;
+        }
+
+        .wind-wide-value {
+            color: var(--text);
+            font-size: clamp(42px, 7vw, 70px);
+            font-weight: 900;
+            line-height: 0.95;
+        }
+
+        .wind-wide-dir {
+            color: var(--text);
+            font-size: clamp(22px, 3vw, 34px);
+            font-weight: 900;
+        }
+
+        .wind-wide-unit {
+            color: var(--text);
+            font-size: clamp(22px, 3vw, 34px);
+            font-weight: 700;
+        }
+
+        .atmo-head {
+            display: flex;
+            justify-content: space-between;
+            gap: 14px;
+            align-items: flex-start;
+            margin-bottom: 16px;
+        }
+
+        .pressure-label {
+            color: var(--muted);
+            font-size: clamp(21px, 2.6vw, 34px);
+            font-weight: 800;
+            line-height: 1;
+        }
+
+        .pressure-row {
+            display: flex;
+            align-items: baseline;
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+
+        .pressure-row #pr {
+            color: var(--text);
+            font-size: clamp(48px, 8vw, 82px);
+            font-weight: 900;
+            line-height: 0.95;
+            letter-spacing: -2px;
+        }
+
+        .pressure-row .unit {
+            color: var(--text);
+            font-size: clamp(25px, 3vw, 38px);
+        }
+
+        .pressure-icon {
+            min-width: 68px;
+            height: 68px;
+            display: grid;
+            place-items: center;
+            border-radius: 50%;
+            color: var(--accent-2);
+            border: 3px solid rgba(34,211,238,0.34);
+            font-size: 34px;
+            font-weight: 900;
+        }
+
+        .atmo-list {
+            display: grid;
+            gap: 0;
+            border-top: 1px solid var(--border);
+        }
+
+        .atmo-item {
+            display: flex;
+            justify-content: space-between;
+            gap: 14px;
+            padding: 16px 0;
+            border-bottom: 1px solid var(--border);
+            color: var(--muted);
+            font-size: clamp(20px, 2.4vw, 31px);
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 1.2px;
+        }
+
+        .atmo-item:last-child {
+            border-bottom: 0;
+            padding-bottom: 0;
+        }
+
+        .atmo-item strong {
+            color: var(--text);
+            font-weight: 900;
+            text-transform: none;
+            letter-spacing: 0;
+        }
+
+        .rain-top {
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 18px;
+            align-items: start;
+            margin-bottom: 18px;
+        }
+
+        .rain-title {
+            margin: 0;
+            color: var(--text);
+            font-size: clamp(25px, 3vw, 42px);
+            font-weight: 900;
+            letter-spacing: 0.2px;
+            text-transform: uppercase;
+        }
+
+        .rain-intensity {
+            text-align: right;
+            color: var(--muted);
+            font-size: clamp(18px, 2.3vw, 27px);
+            font-weight: 800;
+            line-height: 1.25;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .rain-intensity strong,
+        .rain-intensity span {
+            color: var(--text);
+            font-weight: 900;
+            text-transform: none;
+            letter-spacing: 0;
+        }
+
+        .rain-main-total {
+            display: flex;
+            align-items: baseline;
+            gap: 7px;
+            margin: 2px 0 14px;
+        }
+
+        .rain-main-total #r_tot {
+            color: var(--accent-2);
+            font-size: clamp(42px, 7vw, 76px);
+            font-weight: 900;
+            line-height: 0.95;
+            letter-spacing: -2px;
+            text-shadow: 0 0 24px rgba(34,211,238,0.24);
+        }
+
+        .rain-main-total .unit {
+            color: var(--accent-2);
+            font-size: clamp(20px, 3vw, 36px);
+        }
+
+        .rain-bars {
+            position: relative;
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 0;
+            height: 210px;
+            padding: 10px 14px 0;
+            border-radius: 22px;
+            background: rgba(2,6,23,0.12);
+            border: 1px solid var(--border);
+            overflow: hidden;
+        }
+
+        body:not(.is-night) .rain-bars {
+            background: rgba(255,255,255,0.36);
+        }
+
+        .rain-bars::after {
+            content: "";
+            position: absolute;
+            left: 18px;
+            right: 18px;
+            bottom: 46px;
+            height: 2px;
+            background: var(--border);
+        }
+
+        .rain-bar-card {
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: end;
+            min-width: 0;
+            padding: 0 10px 11px;
+            border-right: 1px solid var(--border);
+        }
+
+        .rain-bar-card:last-child {
+            border-right: 0;
+        }
+
+        .rain-bar-value {
+            color: var(--text);
+            font-size: clamp(22px, 3.6vw, 39px);
+            font-weight: 900;
+            line-height: 1;
+            margin-bottom: 8px;
+            text-align: center;
+            word-break: break-word;
+        }
+
+        .rain-bar {
+            width: min(78%, 150px);
+            min-height: 12px;
+            border-radius: 16px 16px 4px 4px;
+            background: linear-gradient(180deg, #67e8f9, #0ea5e9);
+            box-shadow:
+                0 0 24px rgba(34,211,238,0.5),
+                inset 0 1px 0 rgba(255,255,255,0.55);
+        }
+
+        .rain-week .rain-bar {
+            height: 8%;
+        }
+
+        .rain-month .rain-bar {
+            height: 32%;
+        }
+
+        .rain-year .rain-bar {
+            height: 72%;
+        }
+
+        .rain-bar-label {
+            margin-top: 14px;
+            color: var(--muted);
+            font-size: clamp(15px, 2vw, 25px);
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: 1.2px;
+            text-align: center;
+        }
+
+        .graphs-wrapper {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 16px;
+            margin-top: 16px;
+        }
+
+        .graph-card {
+            display: flex;
+            flex-direction: column;
+            height: 320px;
+            overflow: hidden;
+            padding: 22px;
+            border-radius: 28px;
+            background: var(--card);
+            border: 1px solid var(--border);
+            box-shadow: var(--glow), var(--inner-glow);
+            backdrop-filter: blur(22px);
+            -webkit-backdrop-filter: blur(22px);
+            transition: background 0.5s ease;
+        }
+
+        .graph-card canvas {
+            flex-grow: 1;
+            width: 100% !important;
+            height: 100% !important;
+        }
+
+        .trend-up {
+            color: #f43f5e;
+        }
+
+        .trend-down {
+            color: #0ea5e9;
+        }
+
+        .time-mark {
+            margin-left: 2px;
+            padding: 1px 4px;
+            border-radius: 4px;
+            color: var(--muted);
+            background: rgba(0,0,0,0.04);
+            font-size: 9px;
+            font-weight: 600;
+        }
+
+        body.is-night .time-mark {
+            background: rgba(255,255,255,0.1);
+        }
+
+        .month-section {
+            margin-bottom: 35px;
+            animation: fadeIn 0.5s ease;
+        }
+
+        .month-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 25px 0 15px;
+            color: var(--accent);
+            font-size: 20px;
+            font-weight: 800;
+        }
+
+        .month-header::after {
+            content: "";
+            height: 2px;
+            flex-grow: 1;
+            background: var(--border);
+        }
+
+        .summary-table-wrapper {
+            overflow-x: auto;
+            background: var(--card);
+            border-radius: 24px;
+            border: 1px solid var(--border);
+            box-shadow: var(--glow);
+        }
+
+        .summary-table {
+            width: 100%;
+            min-width: 600px;
+            border-collapse: collapse;
+        }
+
+        .summary-table th {
+            padding: 16px;
+            background: var(--badge);
+            text-align: left;
+            color: var(--muted);
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .summary-table td {
+            padding: 16px;
+            border-top: 1px solid var(--border);
+            font-size: 14px;
+        }
+
+        .summary-table tr:hover {
+            background: var(--badge);
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .pro-summary-table {
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            background: var(--card);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            border: 1px solid var(--border);
+            border-radius: 24px;
+            box-shadow: var(--glow);
+        }
+
+        .pro-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 20px;
+            padding: 24px 30px;
+            border-bottom: 1px solid var(--border);
+            transition: background 0.3s ease;
+        }
+
+        .pro-row:last-child {
+            border-bottom: none;
+        }
+
+        .pro-label {
+            flex: 0 0 160px;
+            display: flex;
+            align-items: center;
+            color: var(--text);
+            font-size: 15px;
+            font-weight: 800;
+            letter-spacing: 0.5px;
+        }
+
+        .pro-data-group {
+            flex: 1;
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            gap: 40px;
+        }
+
+        .pro-data-item {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            min-width: 100px;
+        }
+
+        .pro-sub {
+            margin-bottom: 6px;
+            color: var(--muted);
+            font-size: 10px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+        }
+
+        .pro-val {
+            font-size: 26px;
+            font-weight: 900;
+            line-height: 1;
+            letter-spacing: -0.5px;
+        }
+
+        .pro-divider {
+            width: 1px;
+            height: 32px;
+            background: var(--border);
+            opacity: 0.5;
+        }
+
+        .glass-select {
+            appearance: none;
+            -webkit-appearance: none;
+            outline: none;
+            cursor: pointer;
+            padding: 8px 40px 8px 12px;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            color: var(--text) !important;
+            background: var(--card) !important;
+            font-family: inherit;
+            font-weight: 600;
+            transition: all 0.2s ease;
+            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='[w3.org](http://www.w3.org/2000/svg)' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e") !important;
+            background-repeat: no-repeat !important;
+            background-position: right 10px center !important;
+            background-size: 1em !important;
+        }
+
+        .glass-select:hover {
+            border-color: var(--accent);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+
+        .glass-select option {
+            color: #000000;
+            background-color: #ffffff;
+        }
+
+        body.is-night .glass-select {
+            color-scheme: dark;
+        }
+
+        body.is-night .glass-select option {
+            color: #f1f5f9;
+            background-color: #1e293b;
+        }
+
+        @media (max-width: 860px) {
+            body {
+                padding: 12px 10px calc(var(--nav-h) + 22px);
+            }
+
+            .container {
+                max-width: 100%;
+            }
+
+            .header {
+                margin-bottom: 14px;
+            }
+
+            .header-actions {
+                grid-template-columns: 1fr auto;
+                border-radius: 18px;
+                padding: 5px;
+            }
+
+            .status-bar {
+                font-size: 21px;
+                min-height: 40px;
+                padding: 7px 9px;
+            }
+
+            .theme-btn {
+                min-width: 64px;
+                padding: 9px 10px;
+                font-size: 14px;
+            }
+
+            .dashboard-shell {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                gap: 10px;
+            }
+
+            .card {
+                border-radius: 22px;
+                padding: 16px;
+                min-height: auto;
+            }
+
+            .card-temp {
+                grid-column: span 2;
+                min-height: 292px;
+            }
+
+            .card-wind-mini {
+                grid-column: span 1;
+                min-height: 292px;
+            }
+
+            .card-wind-full {
+                grid-column: span 1;
+                min-height: 292px;
+            }
+
+            .card-atmo {
+                grid-column: span 1;
+                min-height: 292px;
+            }
+
+            .card-rain {
+                grid-column: span 2;
+                min-height: 302px;
+            }
+
+            .label {
+                font-size: 28px;
+                margin-bottom: 12px;
+            }
+
+            .card-temp .main-val {
+                font-size: clamp(68px, 17vw, 112px);
+            }
+
+            .card-temp .unit {
+                font-size: clamp(38px, 9vw, 62px);
+            }
+
+            #tTrendBox {
+                top: 96px;
+                right: 18px;
+                width: 110px;
+                min-height: 76px;
+                font-size: 22px;
+            }
+
+            .sub-pill {
+                font-size: clamp(28px, 8vw, 48px);
+                padding: 12px 15px;
+                margin: 16px 0 14px;
+            }
+
+            .temp-details {
+                gap: 13px;
+                padding: 15px 14px;
+            }
+
+            .temp-line {
+                font-size: clamp(22px, 5vw, 34px);
+            }
+
+            .wind-gauge {
+                width: 150px;
+                height: 150px;
+                margin: 18px auto 16px;
+            }
+
+            .wind-gauge-value {
+                font-size: 42px;
+            }
+
+            .wind-gauge-unit {
+                font-size: 22px;
+            }
+
+            .wind-line {
+                font-size: clamp(19px, 4vw, 27px);
+            }
+
+            .wind-wide-layout {
+                grid-template-columns: 1fr;
+                gap: 14px;
+            }
+
+            .wind-tower {
+                min-height: 94px;
+            }
+
+            .wind-tower-icon {
+                width: 58px;
+                height: 58px;
+                font-size: 36px;
+            }
+
+            .atmo-item {
+                font-size: clamp(18px, 4vw, 27px);
+            }
+
+            .rain-bars {
+                height: 214px;
+            }
+        }
+
+        @media (max-width: 560px) {
+            body {
+                padding-left: 9px;
+                padding-right: 9px;
+            }
+
+            .header h1 {
+                font-size: 27px;
+                letter-spacing: -0.8px;
+            }
+
+            .header-actions {
+                grid-template-columns: 1fr auto;
+            }
+
+            .status-bar {
+                font-size: 20px;
+            }
+
+            .theme-toggle {
+                gap: 3px;
+            }
+
+            .theme-btn {
+                min-width: 56px;
+                padding: 9px 8px;
+                font-size: 13px;
+            }
+
+            #btn-auto {
+                display: none;
+            }
+
+            .dashboard-shell {
+                gap: 9px;
+            }
+
+            .card {
+                border-radius: 22px;
+                padding: 14px;
+            }
+
+            .label {
+                font-size: 23px;
+                letter-spacing: -0.4px;
+            }
+
+            .card-temp {
+                min-height: 274px;
+            }
+
+            .card-wind-mini,
+            .card-wind-full,
+            .card-atmo {
+                min-height: 250px;
+            }
+
+            .card-temp .main-val {
+                font-size: clamp(60px, 18vw, 86px);
+                letter-spacing: -3px;
+            }
+
+            .card-temp .unit {
+                font-size: clamp(34px, 9vw, 48px);
+                letter-spacing: -1.2px;
+            }
+
+            #tTrendBox {
+                top: 84px;
+                right: 12px;
+                width: 80px;
+                font-size: 18px;
+            }
+
+            .sub-pill {
+                max-width: calc(100% - 4px);
+                font-size: clamp(25px, 8vw, 39px);
+                border-radius: 16px;
+            }
+
+            .temp-details {
+                grid-template-columns: 1fr 1px 1fr;
+                gap: 10px;
+                margin-top: 6px;
+                padding: 12px 10px;
+                border-radius: 20px;
+            }
+
+            .temp-line {
+                font-size: clamp(18px, 5.2vw, 27px);
+            }
+
+            .badge-label {
+                font-size: 10px;
+            }
+
+            .badge-val {
+                font-size: 18px;
+            }
+
+            .wind-gauge {
+                width: 128px;
+                height: 128px;
+                margin: 15px auto 14px;
+            }
+
+            .wind-cardinal {
+                font-size: 16px;
+            }
+
+            .wind-n { top: 17px; }
+            .wind-e { right: 18px; }
+            .wind-s { bottom: 15px; }
+            .wind-w { left: 17px; }
+
+            .wind-gauge-value {
+                font-size: 34px;
+            }
+
+            .wind-gauge-unit {
+                font-size: 18px;
+            }
+
+            .wind-line {
+                font-size: clamp(16px, 4.5vw, 21px);
+                padding-top: 11px;
+            }
+
+            .wind-wide-value {
+                font-size: clamp(36px, 10vw, 48px);
+            }
+
+            .wind-wide-dir,
+            .wind-wide-unit {
+                font-size: clamp(18px, 5vw, 24px);
+            }
+
+            .atmo-head {
+                margin-bottom: 10px;
+            }
+
+            .pressure-label {
+                font-size: 20px;
+            }
+
+            .pressure-row #pr {
+                font-size: clamp(38px, 11vw, 52px);
+            }
+
+            .pressure-row .unit {
+                font-size: 23px;
+            }
+
+            .pressure-icon {
+                min-width: 52px;
+                height: 52px;
+                font-size: 26px;
+            }
+
+            .atmo-item {
+                font-size: clamp(16px, 4.4vw, 21px);
+                padding: 14px 0;
+                flex-direction: column;
+                gap: 4px;
+            }
+
+            .rain-top {
+                grid-template-columns: 1fr;
+                gap: 8px;
+            }
+
+            .rain-intensity {
+                text-align: right;
+                font-size: clamp(17px, 4.3vw, 23px);
+            }
+
+            .rain-bars {
+                height: 200px;
+                padding-left: 8px;
+                padding-right: 8px;
+            }
+
+            .rain-bar-card {
+                padding-left: 5px;
+                padding-right: 5px;
+            }
+
+            .rain-bar-value {
+                font-size: clamp(18px, 5vw, 29px);
+            }
+
+            .rain-bar-label {
+                font-size: clamp(13px, 3.8vw, 19px);
+            }
+
+            .tab-btn {
+                font-size: 12px;
+            }
+        }
+
+        @media (max-width: 390px) {
+            .theme-btn {
+                min-width: 50px;
+                font-size: 12px;
+            }
+
+            .status-bar {
+                font-size: 18px;
+            }
+
+            .card {
+                padding: 12px;
+            }
+
+            .card-wind-mini,
+            .card-wind-full,
+            .card-atmo {
+                min-height: 238px;
+            }
+
+            .wind-gauge {
+                width: 116px;
+                height: 116px;
+            }
+
+            .wind-gauge-value {
+                font-size: 30px;
+            }
+
+            .wind-gauge-unit {
+                font-size: 16px;
+            }
+        }
+
+        @media (max-width: 650px) {
+            .pro-row {
+                gap: 10px;
+                padding: 20px;
+            }
+
+            .pro-label {
+                flex: 0 0 120px;
+                font-size: 13px;
+            }
+
+            .pro-data-group {
+                gap: 20px;
+            }
+
+            .pro-val {
+                font-size: 20px;
+            }
+        }
     </style>
 </head>
+
 <body>
     <div class="container">
         <div class="header">
             <h1>KK Nagar Weather Hub</h1>
+
             <div class="header-actions">
-                <div class="status-bar"><div class="live-dot"></div><div class="timestamp"><span id="ts">--:--:--</span></div></div>
+                <div class="status-bar">
+                    <div class="live-dot"></div>
+                    <div class="timestamp"><span id="ts">--:--:--</span></div>
+                </div>
+
                 <div class="theme-toggle" id="themeToggle">
                     <div class="theme-btn" id="btn-light">LIGHT</div>
                     <div class="theme-btn" id="btn-dark">DARK</div>
@@ -918,90 +2152,183 @@ body.is-night .glass-select option {
             </div>
         </div>
 
-       <div class="nav-tabs">
-        <button onclick="showPage('dashboard')" id="tab-dash" class="tab-btn active">Live Dashboard</button>
-        <button onclick="showPage('summary')" id="tab-sum" class="tab-btn">Monthly Summary</button>
-        <button onclick="showPage('historical')" id="tab-hist" class="tab-btn">Historical Data</button>
-       </div>
+        <div class="nav-tabs">
+            <button onclick="showPage('dashboard')" id="tab-dash" class="tab-btn active">Live</button>
+            <button onclick="showPage('summary')" id="tab-sum" class="tab-btn">Monthly</button>
+            <button onclick="showPage('historical')" id="tab-hist" class="tab-btn">Historical</button>
+        </div>
 
         <div id="page-dashboard">
-            
-            <div class="grid-system">
-                <div class="card">
+
+            <div class="dashboard-shell">
+
+                <!-- Temperature -->
+                <div class="card card-temp">
                     <div class="label">Temperature</div>
-                    <div class="main-val"><span id="t">0.0</span><span class="unit">°C</span></div>
+
+                    <div class="main-val">
+                        <span id="t">0.0</span><span class="unit">°C</span>
+                    </div>
+
                     <div id="tTrendBox" class="sub-pill">--</div>
-                    <div class="sub-box-4">
-                        <div class="badge"><span class="badge-label">Today High</span><span id="mx" class="badge-val" style="color:#ef4444">--</span></div>
-                        <div class="badge"><span class="badge-label">Today Low</span><span id="mn" class="badge-val" style="color:#0ea5e9">--</span></div>
-                        <div class="badge"><span class="badge-label">Humidity</span><span id="h_val" class="badge-val">--</span></div>
-                        <div class="badge"><span class="badge-label">Dew Point</span><span id="d_val" class="badge-val">--</span></div>
-                        <div class="badge" style="grid-column: span 2;"><span class="badge-label">Feels Like</span><span id="rf" class="badge-val">--</span></div>
+
+                    <div class="sub-pill">
+                        Feels Like <span id="rf">--</span>
+                    </div>
+
+                    <div class="temp-details">
+                        <div class="temp-stack">
+                            <div class="temp-line">High: <strong id="mx">--</strong></div>
+                            <div class="temp-line">Low: <strong id="mn">--</strong></div>
+                        </div>
+
+                        <div class="temp-divider"></div>
+
+                        <div class="temp-stack">
+                            <div class="temp-line">Humid: <strong id="h_val">--</strong></div>
+                            <div class="temp-line">Dew: <strong id="d_val">--</strong></div>
+                        </div>
                     </div>
                 </div>
 
-                <div class="card">
+                <!-- Wind Gauge Compact -->
+                <div class="card card-wind-mini">
                     <canvas id="windCanvas"></canvas>
+
                     <div class="label">Wind Dynamics</div>
-                    <div class="compass-ui"><div id="needle"></div></div>
-                    <div class="main-val"><span id="w">0.0</span><span id="wd_bracket" style="font-size:18px; color:var(--muted); margin-left:8px; font-weight:700">(--)</span><span class="unit">km/h</span></div>
-                    <div class="sub-pill">● Live Gust: <span id="wg" style="margin-left:4px">--</span></div>
-                    <div class="sub-box-4">
-                        <div class="badge"><span class="badge-label">Max Speed</span><span id="mw" class="badge-val">--</span></div>
-                        <div class="badge"><span class="badge-label">Max Gust</span><span id="mg" class="badge-val">--</span></div>
+
+                    <div class="wind-gauge">
+                        <div class="wind-cardinal wind-n">N</div>
+                        <div class="wind-cardinal wind-e">E</div>
+                        <div class="wind-cardinal wind-s">S</div>
+                        <div class="wind-cardinal wind-w">W</div>
+
+                        <div class="wind-gauge-center">
+                            <div class="wind-gauge-value"><span id="w">0.0</span></div>
+                            <div class="wind-gauge-unit">km/h</div>
+                        </div>
+                    </div>
+
+                    <div class="wind-lines">
+                        <div class="wind-line">
+                            <span>Live Gust:</span>
+                            <strong><span id="wg">--</span></strong>
+                        </div>
+
+                        <div class="wind-line">
+                            <span>Max Gust:</span>
+                            <strong><span id="mg">--</span></strong>
+                        </div>
+                    </div>
+
+                    <span id="wd_bracket" style="display:none;">(--)</span>
+                    <span id="mw" style="display:none;">--</span>
+                </div>
+
+                <!-- Wind Wide Card -->
+                <div class="card card-wind-full">
+                    <div class="label">Wind Dynamics</div>
+
+                    <div class="wind-wide-layout">
+                        <div class="wind-tower">
+                            <div class="wind-tower-icon">
+                                <div id="needle">⌁</div>
+                            </div>
+                        </div>
+
+                        <div>
+                            <div class="wind-wide-main">
+                                <span class="wind-wide-value" id="w_clone">0.0</span>
+                                <span class="wind-wide-dir" id="wd_clone">(SSW)</span>
+                                <span class="wind-wide-unit">km/h</span>
+                            </div>
+
+                            <div class="wind-lines">
+                                <div class="wind-line">
+                                    <span>Live Gust:</span>
+                                    <strong><span id="wg_clone">--</span></strong>
+                                </div>
+
+                                <div class="wind-line">
+                                    <span>Max Gust:</span>
+                                    <strong><span id="mg_clone">--</span></strong>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
-                <div class="card">
-    <div class="label">Rain Realm</div>
-    
-    <div class="rain-container-main">
-        <div class="rain-left">
-            <div class="main-val">
-                <span id="r_tot">0.0</span><span class="unit">mm</span>
-            </div>
-        </div>
+                <!-- Atmospheric -->
+                <div class="card card-atmo">
+                    <div class="atmo-head">
+                        <div>
+                            <div class="label">Atmospheric</div>
+                            <div class="pressure-label">Pressure:</div>
+                        </div>
 
-        <div class="rain-divider"></div>
+                        <div class="pressure-icon"><span id="pIcon">↗</span></div>
+                    </div>
 
-        <div class="rain-right-intensity">
-            <div class="intensity-block">
-                <span class="intensity-label">Current Intensity</span>
-                <span class="intensity-primary"><span id="r_rate">0.0</span> <small style="font-size:12px">mm/h</small></span>
-            </div>
-            <div class="intensity-block">
-                <span class="intensity-label">Max Intensity</span>
-                <span id="mr" class="intensity-secondary">--</span>
-            </div>
-        </div>
-    </div>
+                    <div class="pressure-row">
+                        <span id="pr">--</span><span class="unit">hPa</span>
+                    </div>
 
-    <div class="rain-ledger-modern">
-        <div class="ledger-card">
-            <span class="intensity-label">Weekly</span>
-            <span id="r_week" class="ledger-val-large">--</span>
-        </div>
-        <div class="ledger-card">
-            <span class="intensity-label">Monthly</span>
-            <span id="r_month" class="ledger-val-large">--</span>
-        </div>
-        <div class="ledger-card">
-            <span class="intensity-label">Yearly</span>
-            <span id="r_year" class="ledger-val-large">--</span>
-        </div>
-    </div>
-</div>
+                    <div class="atmo-list">
+                        <div class="atmo-item">
+                            <span>Solar Rad:</span>
+                            <strong><span id="sol">--</span></strong>
+                        </div>
 
-                
-                <div class="card">
-                    <div class="label">Atmospheric <span id="pIcon"></span></div>
-                    <div class="main-val"><span id="pr">--</span><span class="unit">hPa</span></div>
-                    <div class="sub-box-4">
-                        <div class="badge"><span class="badge-label">Solar Rad</span><span id="sol" class="badge-val">--</span></div>
-                        <div class="badge"><span class="badge-label">UV Index</span><span id="uv" class="badge-val">--</span></div>
+                        <div class="atmo-item">
+                            <span>UV Index:</span>
+                            <strong><span id="uv">--</span></strong>
+                        </div>
                     </div>
                 </div>
+
+                <!-- Rain -->
+                <div class="card card-rain">
+                    <div class="rain-top">
+                        <div>
+                            <h2 class="rain-title">Rain Realm</h2>
+
+                            <div class="rain-main-total">
+                                <span id="r_tot">0.0</span><span class="unit">mm</span>
+                            </div>
+                        </div>
+
+                        <div class="rain-intensity">
+                            Current Intensity:
+                            <strong><span id="r_rate">0.0</span> mm/h</strong>
+                            <br>
+                            Max Intensity:
+                            <strong><span id="mr">--</span></strong>
+                        </div>
+                    </div>
+
+                    <div class="rain-bars">
+                        <div class="rain-bar-card rain-week">
+                            <div class="rain-bar-value"><span id="r_week">--</span></div>
+                            <div class="rain-bar"></div>
+                            <div class="rain-bar-label">Weekly</div>
+                        </div>
+
+                        <div class="rain-bar-card rain-month">
+                            <div class="rain-bar-value"><span id="r_month">--</span></div>
+                            <div class="rain-bar"></div>
+                            <div class="rain-bar-label">Monthly</div>
+                        </div>
+
+                        <div class="rain-bar-card rain-year">
+                            <div class="rain-bar-value"><span id="r_year">--</span></div>
+                            <div class="rain-bar"></div>
+                            <div class="rain-bar-label">Yearly</div>
+                        </div>
+                    </div>
+                </div>
+
             </div>
+
 
             <div class="sub-tabs-section" style="margin-top: 35px;">
                 <div style="display: flex; gap: 10px; margin-bottom: 20px; justify-content: center;">
@@ -1631,6 +2958,28 @@ window.fetchHistoricalData = async function() {
         resultsTable.innerHTML = '<div style="text-align:center; padding:40px; color: #ef4444;">Connection failed.</div>';
     }
 };
+
+
+    function syncVisualWindCards() {
+        const sourceMap = [
+            ['w', 'w_clone'],
+            ['wg', 'wg_clone'],
+            ['mg', 'mg_clone'],
+            ['wd_bracket', 'wd_clone']
+        ];
+
+        sourceMap.forEach(([from, to]) => {
+            const source = document.getElementById(from);
+            const target = document.getElementById(to);
+
+            if (source && target) {
+                target.textContent = source.textContent;
+            }
+        });
+    }
+
+    setInterval(syncVisualWindCards, 500);
+    window.addEventListener('load', syncVisualWindCards);
 
 
 
