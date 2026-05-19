@@ -578,6 +578,7 @@ app.get("/", (req, res) => {
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>KK Nagar Weather Hub</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;700;900&display=swap" rel="stylesheet">
     <style>
         :root { 
@@ -927,18 +928,63 @@ body.is-night .glass-select option {
         <div id="page-dashboard">
             
             <div class="grid-system">
-                <div class="card">
-                    <div class="label">Temperature</div>
-                    <div class="main-val"><span id="t">0.0</span><span class="unit">°C</span></div>
-                    <div id="tTrendBox" class="sub-pill">--</div>
-                    <div class="sub-box-4">
-                        <div class="badge"><span class="badge-label">Today High</span><span id="mx" class="badge-val" style="color:#ef4444">--</span></div>
-                        <div class="badge"><span class="badge-label">Today Low</span><span id="mn" class="badge-val" style="color:#0ea5e9">--</span></div>
-                        <div class="badge"><span class="badge-label">Humidity</span><span id="h_val" class="badge-val">--</span></div>
-                        <div class="badge"><span class="badge-label">Dew Point</span><span id="d_val" class="badge-val">--</span></div>
-                        <div class="badge" style="grid-column: span 2;"><span class="badge-label">Feels Like</span><span id="rf" class="badge-val">--</span></div>
-                    </div>
-                </div>
+                <div class="card p-0 overflow-hidden border-none shadow-2xl bg-white/90 backdrop-blur-2xl rounded-3xl">
+    <!-- Main Temp Section -->
+    <div class="p-8 pb-6">
+        <div class="flex justify-between items-start mb-2">
+            <span class="text-[11px] font-extrabold uppercase tracking-widest text-blue-600/80">Current Temperature</span>
+            <div id="tTrendBox" class="flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 text-blue-700 text-[11px] font-bold">
+                --
+            </div>
+        </div>
+        <div class="flex items-baseline">
+            <h2 id="t" class="text-7xl font-black tracking-tighter text-slate-900">0.0</h2>
+            <span class="text-2xl font-bold text-slate-400 ml-1">°C</span>
+        </div>
+    </div>
+
+    <!-- Day Range Section -->
+    <div class="px-8 py-4 bg-slate-50/50 flex items-center justify-between border-y border-slate-100">
+        <div class="flex items-center gap-2">
+            <div class="w-8 h-8 rounded-full bg-red-50 flex items-center justify-center text-red-500">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m18 15-6-6-6 6"/></svg>
+            </div>
+            <div>
+                <p class="text-[9px] uppercase font-black text-slate-400 leading-none mb-0.5">High</p>
+                <p id="mx" class="text-base font-black text-slate-800">--</p>
+            </div>
+        </div>
+        <div class="h-8 w-px bg-slate-200"></div>
+        <div class="flex items-center gap-2 text-right">
+            <div>
+                <p class="text-[9px] uppercase font-black text-slate-400 leading-none mb-0.5">Low</p>
+                <p id="mn" class="text-base font-black text-slate-800">--</p>
+            </div>
+            <div class="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center text-blue-500">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+            </div>
+        </div>
+    </div>
+
+    <!-- Metric Grid -->
+    <div class="p-4 grid grid-cols-3 gap-3">
+        <div class="p-4 rounded-2xl bg-sky-50/50 border border-sky-100/50 flex flex-col items-center text-center">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0ea5e9" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="mb-2"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/></svg>
+            <span class="text-[9px] font-black uppercase text-sky-600/60 mb-1">Humidity</span>
+            <span id="h_val" class="text-sm font-black text-sky-950">--</span>
+        </div>
+        <div class="p-4 rounded-2xl bg-indigo-50/50 border border-indigo-100/50 flex flex-col items-center text-center">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#6366f1" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="mb-2"><path d="M12 2v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="M20 12h2"/><path d="m19.07 4.93-1.41 1.41"/><path d="M15.947 12.65a4 4 0 0 0-5.925-4.128"/><path d="M13 22H7a5 5 0 1 1 4.9-6H13a3 3 0 0 1 0 6Z"/></svg>
+            <span class="text-[9px] font-black uppercase text-indigo-600/60 mb-1">Dew Pt</span>
+            <span id="d_val" class="text-sm font-black text-indigo-950">--</span>
+        </div>
+        <div class="p-4 rounded-2xl bg-orange-50/50 border border-orange-100/50 flex flex-col items-center text-center">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#f97316" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="mb-2"><path d="M14 4v10.54a4 4 0 1 1-4 0V4a2 2 0 0 1 4 0Z"/></svg>
+            <span class="text-[9px] font-black uppercase text-orange-600/60 mb-1">Feels Like</span>
+            <span id="rf" class="text-sm font-black text-orange-950">--</span>
+        </div>
+    </div>
+</div>
 
                 <div class="card">
                     <canvas id="windCanvas"></canvas>
