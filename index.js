@@ -934,17 +934,17 @@ body.is-night .glass-select option {
         <span class="text-[10px] font-black uppercase tracking-[0.3em] text-blue-600 dark:text-blue-400 mb-6">Current Temperature</span>
         
         <div class="flex items-baseline mb-6">
-            <h2 id="t" class="text-7xl font-[1000] tracking-tighter text-slate-900 dark:text-white leading-[0.8]">34.3</h2>
+            <h2 id="t" class="text-7xl font-[1000] tracking-tighter text-slate-900 dark:text-white leading-[0.8]">--</h2>
             <span class="text-2xl font-black text-slate-300 dark:text-slate-600 ml-2">°C</span>
         </div>
 
-        <div id="tTrendBox" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-blue-50/50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 text-[13px] font-black border border-blue-100/50 dark:border-blue-800/30">
+        <div id="tTrendBox" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-blue-50/50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-100/50 dark:border-blue-800/30">
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m7 13 5-5 5 5"/></svg>
-            -1.2°C /hr
+            <span id="tTrend" class="text-[13px] font-black">--°C /hr</span>
         </div>
     </div>
 
-    <!-- Refined High/Low Split -->
+    <!-- Refined High/Low Split (Fully Dynamic) -->
     <div class="px-10 py-6 border-t border-slate-50 dark:border-slate-800/50">
         <div class="flex items-center justify-between">
             <!-- High -->
@@ -953,8 +953,8 @@ body.is-night .glass-select option {
                 <div>
                     <p class="text-[10px] uppercase font-black text-slate-400 dark:text-slate-500 tracking-widest">High</p>
                     <div class="flex items-center gap-2">
-                        <span id="mx" class="text-lg font-black text-slate-900 dark:text-white">39.5°C</span>
-                        <span class="text-[10px] font-bold text-slate-400 dark:text-slate-500">14:20</span>
+                        <span id="mx" class="text-lg font-black text-slate-900 dark:text-white">--°C</span>
+                        <span id="mx_t" class="text-[10px] font-bold text-slate-400 dark:text-slate-500">--:--</span>
                     </div>
                 </div>
             </div>
@@ -968,8 +968,8 @@ body.is-night .glass-select option {
                 <div>
                     <p class="text-[10px] uppercase font-black text-slate-400 dark:text-slate-500 tracking-widest">Low</p>
                     <div class="flex items-center gap-2 flex-row-reverse">
-                        <span id="mn" class="text-lg font-black text-slate-900 dark:text-white">29.2°C</span>
-                        <span class="text-[10px] font-bold text-slate-400 dark:text-slate-500">05:45</span>
+                        <span id="mn" class="text-lg font-black text-slate-900 dark:text-white">--°C</span>
+                        <span id="mn_t" class="text-[10px] font-bold text-slate-400 dark:text-slate-500">--:--</span>
                     </div>
                 </div>
             </div>
@@ -979,30 +979,30 @@ body.is-night .glass-select option {
     <!-- Priority Metric Grid -->
     <div class="p-6 grid grid-cols-3 gap-3">
         <!-- Feels Like -->
-        <div class="p-5 rounded-[1.75rem] bg-amber-50/40 dark:bg-amber-900/10 border border-amber-100/30 dark:border-amber-800/20 flex flex-col items-center">
+        <div class="p-5 rounded-[1.75rem] bg-amber-50/40 dark:bg-amber-900/10 border border-amber-100/30 dark:border-amber-800/20 flex flex-col items-center text-center">
             <div class="w-12 h-12 rounded-2xl bg-amber-600 shadow-lg shadow-amber-200 dark:shadow-none flex items-center justify-center text-white mb-4">
                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4v10.54a4 4 0 1 1-4 0V4a2 2 0 0 1 4 0Z"/></svg>
             </div>
             <span class="text-[8px] font-black uppercase text-amber-600 dark:text-amber-500 tracking-wider mb-2">Feels Like</span>
-            <span id="rf" class="text-lg font-black text-amber-900 dark:text-amber-100">48.9°C</span>
+            <span id="rf" class="text-lg font-black text-amber-900 dark:text-amber-100">--°C</span>
         </div>
         
         <!-- Dew Pt -->
-        <div class="p-5 rounded-[1.75rem] bg-teal-50/40 dark:bg-teal-900/10 border border-teal-100/30 dark:border-teal-800/20 flex flex-col items-center">
+        <div class="p-5 rounded-[1.75rem] bg-teal-50/40 dark:bg-teal-900/10 border border-teal-100/30 dark:border-teal-800/20 flex flex-col items-center text-center">
             <div class="w-12 h-12 rounded-2xl bg-teal-600 shadow-lg shadow-teal-200 dark:shadow-none flex items-center justify-center text-white mb-4">
                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="M20 12h2"/><path d="m19.07 4.93-1.41 1.41"/><path d="M15.947 12.65a4 4 0 0 0-5.925-4.128"/><path d="M13 22H7a5 5 0 1 1 4.9-6H13a3 3 0 0 1 0 6Z"/></svg>
             </div>
             <span class="text-[8px] font-black uppercase text-teal-600 dark:text-teal-500 tracking-wider mb-2">Dew Pt</span>
-            <span id="d_val" class="text-lg font-black text-slate-900 dark:text-slate-100">28.5°C</span>
+            <span id="d_val" class="text-lg font-black text-slate-900 dark:text-slate-100">--°C</span>
         </div>
 
         <!-- Humidity -->
-        <div class="p-5 rounded-[1.75rem] bg-sky-50/40 dark:bg-sky-900/10 border border-sky-100/30 dark:border-sky-800/20 flex flex-col items-center">
+        <div class="p-5 rounded-[1.75rem] bg-sky-50/40 dark:bg-sky-900/10 border border-sky-100/30 dark:border-sky-800/20 flex flex-col items-center text-center">
             <div class="w-12 h-12 rounded-2xl bg-sky-500 shadow-lg shadow-sky-200 dark:shadow-none flex items-center justify-center text-white mb-4">
                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/></svg>
             </div>
             <span class="text-[8px] font-black uppercase text-sky-600 dark:text-sky-400 tracking-wider mb-2">Humidity</span>
-            <span id="h_val" class="text-lg font-black text-slate-900 dark:text-slate-100">72%</span>
+            <span id="h_val" class="text-lg font-black text-slate-900 dark:text-slate-100">--%</span>
         </div>
     </div>
 </div>
