@@ -262,23 +262,21 @@ async function syncWithEcowitt(forceWrite = false) {
         }
     }
 
-        // --- PART 2: WRITER PATH ---
+            // --- PART 2: WRITER PATH ---
     try {
-        // ADDED &rainfall_unitid=12 HERE
+        let snap; // FIXED: Defined here so it is accessible throughout Part 2 without crashing
+        let dbWriteSuccess = false; // <-- 1. ADD THIS FLAG
         const url = `https://api.ecowitt.net/api/v3/device/real_time?application_key=${APPLICATION_KEY}&api_key=${API_KEY}&mac=${MAC}&rainfall_unitid=12`;
         const response = await fetch(url);
         const json = await response.json();
         const d = json.data;
 
         // --- HIGH PRECISION INTERCEPT ---
-        // Convert the API's mm (1.19) into high-precision inches for your DB
         d.rainfall.daily.value = parseFloat(d.rainfall.daily.value) / 25.4;
         d.rainfall.weekly.value = parseFloat(d.rainfall.weekly.value) / 25.4;
         d.rainfall.monthly.value = parseFloat(d.rainfall.monthly.value) / 25.4;
         d.rainfall.yearly.value = parseFloat(d.rainfall.yearly.value) / 25.4;
-        // --------------------------------
 
-        // ADD THIS LINE HERE:
         processRainLogic(d.rainfall.daily.value, new Date().toISOString());
 
         const liveTemp = parseFloat(((d.outdoor.temperature.value - 32) * 5 / 9).toFixed(1));
@@ -286,9 +284,9 @@ async function syncWithEcowitt(forceWrite = false) {
         const liveHum = d.outdoor.humidity.value || 0;
         const livePress = parseFloat((d.pressure.relative.value * 33.8639).toFixed(1));
 
-                if (forceWrite) {
-            // 1. SNAPSHOT: Capture buffers at this exact millisecond
-            const snap = {
+        if (forceWrite) {
+            // FIXED: Capture snapshot into our upper-scoped variable
+            snap = {
                 maxT: state.bufMaxT, minT: state.bufMinT,
                 w: state.bufW, g: state.bufG, rr: state.bufRR,
                 tMaxT: state.tMaxT, tMinT: state.tMinT,
@@ -304,13 +302,11 @@ async function syncWithEcowitt(forceWrite = false) {
                     timeSql = "(date_trunc('day', NOW() AT TIME ZONE 'Asia/Kolkata') AT TIME ZONE 'Asia/Kolkata') - INTERVAL '1 second'";
                 }
 
-                // 2. USE SNAPSHOTS: This ensures the data is consistent even if buffers change during 'await'
                 const dbMaxT = snap.maxT === -999 ? d.outdoor.temperature.value : snap.maxT;
                 const dbMinT = snap.minT === 999 ? d.outdoor.temperature.value : snap.minT;
                 const dbW = snap.tW === null ? d.wind.wind_speed.value : snap.w;
                 const dbG = snap.tG === null ? d.wind.wind_gust.value : snap.g;
-                const currentLiveRR_Inches = state.lastCalculatedRate || 0;
-                const dbRR = snap.rr || 0; // Use only the peak captured in the 10-min window
+                const dbRR = snap.rr || 0;
 
                 await client.query(`
                     INSERT INTO weather_history 
@@ -328,7 +324,7 @@ async function syncWithEcowitt(forceWrite = false) {
                     d.pressure.relative.value || 0
                 ]);
 
-                // Midnight Roll-up (Intact)
+                // Midnight Roll-up (Untact)
                 if (hour === 0 && minute < 30 && state.lastArchivedDate !== todayISTStr) {
                     await client.query(`
                         INSERT INTO daily_max_records (record_date, max_temp_c, min_temp_c, max_wind_kmh, max_gust_kmh, total_rain_mm)
@@ -354,6 +350,7 @@ async function syncWithEcowitt(forceWrite = false) {
 
                 await client.query('COMMIT');
                 state.dataChangedSinceLastRead = true;
+                dbWriteSuccess = true; // <-- 2. ADD THIS LINE
 
             } catch (err) { 
                 await client.query('ROLLBACK'); 
@@ -361,14 +358,12 @@ async function syncWithEcowitt(forceWrite = false) {
             } finally { client.release(); }
         }
 
-
         let tempRate = state.cachedData?.temp?.rate || 0, humRate = state.cachedData?.atmo?.hTrend || 0, pressRate = state.cachedData?.atmo?.pTrend || 0;
         let mx_t = state.cachedData?.temp?.max || liveTemp, mn_t = state.cachedData?.temp?.min || liveTemp;
         let mx_w = state.cachedData?.wind?.maxS || 0, mx_g = state.cachedData?.wind?.maxG || 0, mx_r = state.cachedData?.rain?.maxR || 0;
 
         const fmtL = () => new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' });
 
-        // Give each variable its own dedicated cached time
         let mx_t_time = state.cachedData?.temp?.maxTime || fmtL();
         let mn_t_time = state.cachedData?.temp?.minTime || fmtL();
         let mx_w_t = state.cachedData?.wind?.maxSTime || fmtL();
@@ -377,7 +372,6 @@ async function syncWithEcowitt(forceWrite = false) {
 
         if (state.dataChangedSinceLastRead || !state.cachedData) {
             try {
-                // We keep this query to get the exact MAX/MIN and their times efficiently without sending full history payload to client
                 const historyRes = await pool.query(`
                     SELECT * FROM weather_history 
                     WHERE (time AT TIME ZONE 'Asia/Kolkata')::date = $1::date 
@@ -421,73 +415,68 @@ async function syncWithEcowitt(forceWrite = false) {
             } catch (dbError) { console.error("DB Prep Error:", dbError); }
         }
 
-                const liveWind = parseFloat((d.wind.wind_speed.value * 1.60934).toFixed(1));
-                const liveGust = parseFloat((d.wind.wind_gust.value * 1.60934).toFixed(1));
-                const liveRR = parseFloat((state.lastCalculatedRate * 25.4).toFixed(1));
+        const liveWind = parseFloat((d.wind.wind_speed.value * 1.60934).toFixed(1));
+        const liveGust = parseFloat((d.wind.wind_gust.value * 1.60934).toFixed(1));
+        const liveRR = parseFloat((state.lastCalculatedRate * 25.4).toFixed(1));
 
-        // --- FIX: Include Memory Buffers in Dashboard Max/Min Calculations ---
         const fmtIso = (isoStr) => {
             if (!isoStr) return fmtL();
             return new Date(isoStr).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' });
         };
 
-        // 1. Check live instantaneous values
         if (liveTemp > mx_t) { mx_t = liveTemp; mx_t_time = fmtL(); }
         if (liveTemp < mn_t) { mn_t = liveTemp; mn_t_time = fmtL(); }
         if (liveWind > mx_w) { mx_w = liveWind; mx_w_t = fmtL(); }
         if (liveGust > mx_g) { mx_g = liveGust; mx_g_t = fmtL(); }
         if (liveRR > mx_r)   { mx_r = liveRR; mx_r_t = fmtL(); }
 
-        // 2. Check the high-frequency 1-min Memory Buffers
-// Use 'snap' (the frozen peak) if we just wrote to DB, otherwise use live 'state'
-const source = (forceWrite && typeof snap !== 'undefined') ? snap : state;
+        // FIXED: Safe source check now works smoothly because snap is scoped properly
+        const source = (forceWrite && typeof snap !== 'undefined') ? snap : state;
 
-if (source.maxT !== -999 && source.maxT !== undefined) {
-    const bufMaxC = parseFloat(((source.maxT - 32) * 5 / 9).toFixed(1));
-    if (bufMaxC > mx_t) { mx_t = bufMaxC; mx_t_time = fmtIso(source.tMaxT); }
-}
-if (source.minT !== 999 && source.minT !== undefined) {
-    const bufMinC = parseFloat(((source.minT - 32) * 5 / 9).toFixed(1));
-    if (bufMinC < mn_t) { mn_t = bufMinC; mn_t_time = fmtIso(source.tMinT); }
-}
-if (source.w > 0) {
-    const bufWC = parseFloat((source.w * 1.60934).toFixed(1));
-    if (bufWC > mx_w) { mx_w = bufWC; mx_w_t = fmtIso(source.tW); }
-}
-if (source.g > 0) {
-    const bufGC = parseFloat((source.g * 1.60934).toFixed(1));
-    if (bufGC > mx_g) { mx_g = bufGC; mx_g_t = fmtIso(source.tG); }
-}
-if (source.rr > 0) {
-    const bufRRC = parseFloat((source.rr * 25.4).toFixed(1));
-    if (bufRRC > mx_r) { mx_r = bufRRC; mx_r_t = fmtIso(source.tRR); }
-}
-
-
+        if (source.maxT !== -999 && source.maxT !== undefined) {
+            const bufMaxC = parseFloat(((source.maxT - 32) * 5 / 9).toFixed(1));
+            if (bufMaxC > mx_t) { mx_t = bufMaxC; mx_t_time = fmtIso(source.tMaxT); }
+        }
+        if (source.minT !== 999 && source.minT !== undefined) {
+            const bufMinC = parseFloat(((source.minT - 32) * 5 / 9).toFixed(1));
+            if (bufMinC < mn_t) { mn_t = bufMinC; mn_t_time = fmtIso(source.tMinT); }
+        }
+        if (source.w > 0) {
+            const bufWC = parseFloat((source.w * 1.60934).toFixed(1));
+            if (bufWC > mx_w) { mx_w = bufWC; mx_w_t = fmtIso(source.tW); }
+        }
+        if (source.g > 0) {
+            const bufGC = parseFloat((source.g * 1.60934).toFixed(1));
+            if (bufGC > mx_g) { mx_g = bufGC; mx_g_t = fmtIso(source.tG); }
+        }
+        if (source.rr > 0) {
+            const bufRRC = parseFloat((source.rr * 25.4).toFixed(1));
+            if (bufRRC > mx_r) { mx_r = bufRRC; mx_r_t = fmtIso(source.tRR); }
+        }
 
         state.cachedData = {
             temp: { current: liveTemp, max: mx_t, maxTime: mx_t_time, min: mn_t, minTime: mn_t_time, realFeel: calculateRealFeel(liveTemp, liveHum), rate: tempRate, dew: liveDewC },
             atmo: { hum: liveHum, hTrend: humRate, press: livePress, pTrend: pressRate, sol: d.solar_and_uvi?.solar?.value || 0, uv: d.solar_and_uvi?.uvi?.value || 0 },
             wind: { speed: liveWind, gust: liveGust, maxS: mx_w, maxSTime: mx_w_t, maxG: mx_g, maxGTime: mx_g_t, deg: d.wind.wind_direction.value, card: getCard(d.wind.wind_direction.value) },
             rain: { 
-    total: Math.round(d.rainfall.daily.value * 2540) / 100, 
-    rate: liveRR, 
-    maxR: mx_r, 
-    maxRTime: mx_r_t,
-    weekly: Math.round(d.rainfall.weekly.value * 2540) / 100, 
-    monthly: Math.round(d.rainfall.monthly.value * 2540) / 100, 
-    yearly: Math.round(d.rainfall.yearly.value * 2540) / 100 
-},
+                total: Math.round(d.rainfall.daily.value * 2540) / 100, 
+                rate: liveRR, 
+                maxR: mx_r, 
+                maxRTime: mx_r_t,
+                weekly: Math.round(d.rainfall.weekly.value * 2540) / 100, 
+                monthly: Math.round(d.rainfall.monthly.value * 2540) / 100, 
+                yearly: Math.round(d.rainfall.yearly.value * 2540) / 100 
+            },
             lastSync: new Date().toISOString()
         };
 
-       // --- THE FIX: Wrap this in a safety check ---
-        if (forceWrite && typeof snap !== 'undefined') {
-            if (state.bufMaxT === snap.maxT) { state.bufMaxT = -999; state.tMaxT = null; }
-            if (state.bufMinT === snap.minT) { state.bufMinT = 999; state.tMinT = null; }
-            if (state.bufW === snap.w) { state.bufW = 0; state.tW = null; }
-            if (state.bufG === snap.g) { state.bufG = 0; state.tG = null; }
-            if (state.bufRR === snap.rr) { state.bufRR = 0; state.tRR = null; }
+        // FIXED: Safely reset the tracking buffers here at the absolute end, avoiding midnight conflicts
+        if (forceWrite && dbWriteSuccess) {
+            state.bufMaxT = -999; state.tMaxT = null;
+            state.bufMinT = 999;  state.tMinT = null;
+            state.bufW = 0;       state.tW = null;
+            state.bufG = 0;       state.tG = null;
+            state.bufRR = 0;      state.tRR = null;
         }
 
         state.lastFetchTime = now;
