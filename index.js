@@ -263,9 +263,22 @@ async function syncWithEcowitt(forceWrite = false) {
     }
 
             // --- PART 2: WRITER PATH ---
+        // --- PART 2: WRITER PATH ---
     try {
-        let snap; // FIXED: Defined here so it is accessible throughout Part 2 without crashing
-        let dbWriteSuccess = false; // <-- 1. ADD THIS FLAG
+        let snap; 
+        let dbWriteSuccess = false; 
+
+        // --- NEW SERVERLESS DATE-CHANGE GUARD ---
+        // If an instance wakes up on a brand new day, wipe its old in-memory cache completely
+        // so it doesn't leak yesterday's data onto the dashboard.
+        if (state.lastDateSeen !== todayISTStr) {
+            console.log(`📆 New day detected (${todayISTStr}). Invalidating stale in-memory cache.`);
+            state.cachedData = null;
+            state.dataChangedSinceLastRead = true;
+            state.lastDateSeen = todayISTStr; // Mark this instance as caught up to today
+        }
+        // ----------------------------------------
+
         const url = `https://api.ecowitt.net/api/v3/device/real_time?application_key=${APPLICATION_KEY}&api_key=${API_KEY}&mac=${MAC}&rainfall_unitid=12`;
         const response = await fetch(url);
         const json = await response.json();
@@ -285,7 +298,6 @@ async function syncWithEcowitt(forceWrite = false) {
         const livePress = parseFloat((d.pressure.relative.value * 33.8639).toFixed(1));
 
         if (forceWrite) {
-            // FIXED: Capture snapshot into our upper-scoped variable
             snap = {
                 maxT: state.bufMaxT, minT: state.bufMinT,
                 w: state.bufW, g: state.bufG, rr: state.bufRR,
@@ -296,6 +308,33 @@ async function syncWithEcowitt(forceWrite = false) {
             const client = await pool.connect();
             try {
                 await client.query('BEGIN');
+
+                // --- MULTI-INSTANCE DUPLICATE PREVENTION CHECK ---
+                const checkStart = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+                const checkEnd = new Date(Date.now() + 5 * 60 * 1000).toISOString();
+
+                const duplicateCheck = await client.query(`
+                    SELECT 1 FROM weather_history 
+                    WHERE time BETWEEN $1 AND $2 
+                    LIMIT 1
+                `, [checkStart, checkEnd]);
+
+                if (duplicateCheck.rows.length > 0) {
+                    console.log("⚠️ Duplicate Prevention: This 10-min slot is already written. Clearing ghost buffer.");
+                    await client.query('ROLLBACK');
+                    
+                    dbWriteSuccess = true; 
+                    client.release();
+                    
+                    state.bufMaxT = -999; state.tMaxT = null;
+                    state.bufMinT = 999;  state.tMinT = null;
+                    state.bufW = 0;       state.tW = null;
+                    state.bufG = 0;       state.tG = null;
+                    state.bufRR = 0;      state.tRR = null;
+
+                    return state.cachedData; 
+                }
+                // --- END OF DUPLICATE CHECK ---
 
                 let timeSql = 'NOW()';
                 if (hour === 0 && minute < 5) {
@@ -350,7 +389,7 @@ async function syncWithEcowitt(forceWrite = false) {
 
                 await client.query('COMMIT');
                 state.dataChangedSinceLastRead = true;
-                dbWriteSuccess = true; // <-- 2. ADD THIS LINE
+                dbWriteSuccess = true; 
 
             } catch (err) { 
                 await client.query('ROLLBACK'); 
@@ -380,6 +419,10 @@ async function syncWithEcowitt(forceWrite = false) {
                 
                 let pastRecord = null;
                 const oneHourAgo = Date.now() - 3600000;
+
+                // Reset calculations entirely since we are fetching cleanly from the fresh empty table
+                mx_t = liveTemp; mn_t = liveTemp;
+                mx_w = 0; mx_g = 0; mx_r = 0;
 
                 historyRes.rows.forEach(r => {
                     const fmt = (iso) => new Date(iso || r.time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' });
@@ -430,7 +473,6 @@ async function syncWithEcowitt(forceWrite = false) {
         if (liveGust > mx_g) { mx_g = liveGust; mx_g_t = fmtL(); }
         if (liveRR > mx_r)   { mx_r = liveRR; mx_r_t = fmtL(); }
 
-        // FIXED: Safe source check now works smoothly because snap is scoped properly
         const source = (forceWrite && typeof snap !== 'undefined') ? snap : state;
 
         if (source.maxT !== -999 && source.maxT !== undefined) {
@@ -470,7 +512,6 @@ async function syncWithEcowitt(forceWrite = false) {
             lastSync: new Date().toISOString()
         };
 
-        // FIXED: Safely reset the tracking buffers here at the absolute end, avoiding midnight conflicts
         if (forceWrite && dbWriteSuccess) {
             state.bufMaxT = -999; state.tMaxT = null;
             state.bufMinT = 999;  state.tMinT = null;
