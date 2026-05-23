@@ -610,336 +610,908 @@ app.get("/", (req, res) => {
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;700;900&display=swap" rel="stylesheet">
     <style>
-        :root { 
-            --bg: #e0f2fe !important; 
-            --card: rgba(255, 255, 255, 0.85); 
-            --border: rgba(2, 132, 199, 0.1);
-            --text: #0f172a !important; 
-            --muted: #64748b; 
-            --accent: #0284c7; 
-            --glow: 0 10px 40px -10px rgba(2, 132, 199, 0.15);
-            --badge: rgba(2, 132, 199, 0.05);
+        /* ═══════════════════════════════════════════════════════
+           DESIGN TOKENS
+        ═══════════════════════════════════════════════════════ */
+        :root {
+            --bg: #e8f4fd;
+            --card: rgba(255,255,255,0.82);
+            --card-inner: rgba(255,255,255,0.6);
+            --border: rgba(2,132,199,0.12);
+            --border-soft: rgba(2,132,199,0.06);
+            --text: #0c1929;
+            --muted: #5a7a99;
+            --accent: #0284c7;
+            --accent2: #0ea5e9;
+            --glow: 0 8px 32px -8px rgba(2,132,199,0.18);
+            --badge: rgba(2,132,199,0.06);
+            --red: #ef4444;
+            --blue: #3b82f6;
+            --orange: #f97316;
+            --green: #10b981;
         }
-
+ 
         body.is-night {
-            --bg: #0f172a !important; 
-            --card: rgba(30, 41, 59, 0.7); 
-            --border: rgba(255, 255, 255, 0.08);
-            --text: #f1f5f9 !important; 
-            --muted: #94a3b8; 
-            --accent: #38bdf8; 
-            --glow: 0 15px 50px -12px rgba(0,0,0,0.6);
-            --badge: rgba(255, 255, 255, 0.04);
+            --bg: #060d1a;
+            --card: rgba(12,22,40,0.92);
+            --card-inner: rgba(20,35,60,0.7);
+            --border: rgba(56,189,248,0.1);
+            --border-soft: rgba(56,189,248,0.05);
+            --text: #e2eeff;
+            --muted: #4a6a8a;
+            --accent: #38bdf8;
+            --accent2: #7dd3fc;
+            --glow: 0 8px 40px -8px rgba(0,0,0,0.7);
+            --badge: rgba(56,189,248,0.06);
         }
-
-        body { 
-            margin: 0; font-family: 'Outfit', sans-serif; background: var(--bg); color: var(--text); 
-            padding: 20px 16px 120px 16px; transition: background 0.5s ease, color 0.5s ease; 
-            min-height: 100vh; overflow-x: hidden; 
+ 
+        /* ═══════════════════════════════════════════════════════
+           BASE
+        ═══════════════════════════════════════════════════════ */
+        * { box-sizing: border-box; }
+ 
+        body {
+            margin: 0;
+            font-family: 'Outfit', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            padding: 20px 16px 120px;
+            transition: background 0.6s ease, color 0.6s ease;
+            min-height: 100vh;
+            overflow-x: hidden;
         }
-
-        .container { width: 100%; max-width: 1200px; margin: 0 auto; }
-        .header { margin-bottom: 32px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; }
-        .header h1 { font-size: 28px; font-weight: 900; margin: 0; letter-spacing: -1px; }
-        .header-actions { display: flex; align-items: center; gap: 12px; }
-        
-        .theme-toggle { background: var(--card); border: 1px solid var(--border); padding: 4px; border-radius: 12px; display: flex; gap: 4px; box-shadow: var(--glow); cursor: pointer; }
-        .theme-btn { padding: 6px 10px; border-radius: 8px; font-size: 11px; font-weight: 700; transition: 0.3s; color: var(--muted); }
-        .theme-btn.active { background: var(--accent); color: white; }
-
-        .status-bar { display: flex; align-items: center; gap: 8px; background: var(--card); padding: 6px 16px; border-radius: 100px; border: 1px solid var(--border); box-shadow: var(--glow); font-size: 13px; }
-        .live-dot { width: 6px; height: 6px; background: #10b981; border-radius: 50%; animation: blink 2s infinite; }
-        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
-        
-        .grid-system { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
-        .card { background: var(--card); padding: 28px; border-radius: 32px; border: 1px solid var(--border); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); box-shadow: var(--glow); position: relative; overflow: hidden; transition: background 0.5s ease; }
-        #windCanvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; border-radius: 32px; }
+ 
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background: radial-gradient(ellipse 80% 50% at 20% 10%, rgba(2,132,199,0.06) 0%, transparent 60%),
+                        radial-gradient(ellipse 60% 40% at 80% 80%, rgba(14,165,233,0.04) 0%, transparent 60%);
+            pointer-events: none;
+            z-index: 0;
+        }
+ 
+        body.is-night::before {
+            background: radial-gradient(ellipse 80% 50% at 15% 10%, rgba(56,189,248,0.05) 0%, transparent 60%),
+                        radial-gradient(ellipse 60% 40% at 85% 85%, rgba(14,165,233,0.04) 0%, transparent 60%);
+        }
+ 
+        .container {
+            width: 100%;
+            max-width: 1280px;
+            margin: 0 auto;
+            position: relative;
+            z-index: 1;
+        }
+ 
+        /* ═══════════════════════════════════════════════════════
+           HEADER
+        ═══════════════════════════════════════════════════════ */
+        .header {
+            margin-bottom: 28px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+ 
+        .header h1 {
+            font-size: 24px;
+            font-weight: 900;
+            margin: 0;
+            letter-spacing: -0.5px;
+            color: var(--text);
+        }
+ 
+        .header-actions { display: flex; align-items: center; gap: 10px; }
+ 
+        .status-bar {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            background: var(--card);
+            padding: 6px 14px;
+            border-radius: 100px;
+            border: 1px solid var(--border);
+            box-shadow: var(--glow);
+            font-size: 12px;
+            font-weight: 700;
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+        }
+ 
+        .live-dot {
+            width: 6px; height: 6px;
+            background: var(--green);
+            border-radius: 50%;
+            animation: blink 2s infinite;
+            box-shadow: 0 0 6px var(--green);
+        }
+ 
+        @keyframes blink { 0%,100%{opacity:1; box-shadow:0 0 6px var(--green);}  50%{opacity:.4; box-shadow:none;} }
+ 
+        .theme-toggle {
+            background: var(--card);
+            border: 1px solid var(--border);
+            padding: 3px;
+            border-radius: 10px;
+            display: flex;
+            gap: 2px;
+            box-shadow: var(--glow);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+        }
+ 
+        .theme-btn {
+            padding: 5px 10px;
+            border-radius: 7px;
+            font-size: 10px;
+            font-weight: 800;
+            letter-spacing: 0.5px;
+            transition: all .25s;
+            color: var(--muted);
+            cursor: pointer;
+            border: none;
+            background: transparent;
+        }
+ 
+        .theme-btn.active {
+            background: var(--accent);
+            color: white;
+            box-shadow: 0 2px 8px -2px rgba(2,132,199,0.5);
+        }
+ 
+        /* ═══════════════════════════════════════════════════════
+           NAV TABS
+        ═══════════════════════════════════════════════════════ */
+        .nav-tabs {
+            display: flex;
+            gap: 6px;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+        }
+ 
+        .tab-btn {
+            background: var(--card);
+            border: 1px solid var(--border);
+            padding: 9px 20px;
+            border-radius: 12px;
+            color: var(--muted);
+            font-weight: 700;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all .25s;
+            letter-spacing: 0.2px;
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+        }
+ 
+        .tab-btn.active {
+            background: var(--accent);
+            color: white;
+            border-color: var(--accent);
+            box-shadow: 0 4px 16px -4px rgba(2,132,199,0.45);
+        }
+ 
+        /* ═══════════════════════════════════════════════════════
+           DASHBOARD GRID
+        ═══════════════════════════════════════════════════════ */
+        .grid-system {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 14px;
+        }
+ 
+        /* ═══════════════════════════════════════════════════════
+           BASE CARD
+        ═══════════════════════════════════════════════════════ */
+        .card {
+            background: var(--card);
+            border-radius: 24px;
+            border: 1px solid var(--border);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            box-shadow: var(--glow);
+            position: relative;
+            overflow: hidden;
+            transition: background 0.5s ease, border-color 0.5s ease;
+        }
+ 
+        /* Subtle top shimmer line */
+        .card::after {
+            content: '';
+            position: absolute;
+            top: 0; left: 20px; right: 20px;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+            pointer-events: none;
+        }
+ 
+        body.is-night .card::after {
+            background: linear-gradient(90deg, transparent, rgba(56,189,248,0.15), transparent);
+        }
+ 
+        #windCanvas {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            z-index: 0;
+            pointer-events: none;
+            border-radius: 24px;
+        }
+ 
         .card > *:not(canvas) { position: relative; z-index: 5; }
-
-        .label { color: var(--accent); font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 6px; }
-        .main-val { font-size: 56px; font-weight: 900; margin: 0; letter-spacing: -2px; display: flex; align-items: baseline; line-height: 1.1; }
-        
-        /* MODERN TRANSIENT EFFECTS */
-        .main-val span:not(.unit), .badge-val { 
-            display: inline-block; 
-            transition: all 0.6s cubic-bezier(0.34, 1.56, 0.64, 1); 
-            font-variant-numeric: tabular-nums; 
+ 
+        /* ═══════════════════════════════════════════════════════
+           TEMPERATURE CARD — HERO LAYOUT
+        ═══════════════════════════════════════════════════════ */
+        .temp-card {
+            padding: 0;
+            display: flex;
+            flex-direction: column;
         }
-
-        /* The "Magic" Animation */
+ 
+        /* TOP SECTION: Big temp + High/Low */
+        .temp-hero {
+            padding: 22px 22px 18px;
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 12px;
+        }
+ 
+        .temp-left { flex: 1; }
+ 
+        .card-label {
+            font-size: 9px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 2.5px;
+            color: var(--accent);
+            margin-bottom: 4px;
+            opacity: 0.9;
+        }
+ 
+        /* Giant temperature number */
+        .temp-display {
+            font-size: 68px;
+            font-weight: 900;
+            letter-spacing: -4px;
+            line-height: 0.9;
+            color: var(--text);
+            display: flex;
+            align-items: flex-start;
+        }
+ 
+        .temp-display .unit {
+            font-size: 22px;
+            font-weight: 600;
+            color: var(--muted);
+            letter-spacing: 0;
+            margin-top: 10px;
+            margin-left: 2px;
+        }
+ 
+        /* Rate of change — premium style */
+        .rate-wrap {
+            margin-top: 10px;
+            display: flex;
+            align-items: center;
+            gap: 0;
+        }
+ 
+        .rate-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 5px 12px 5px 8px;
+            border-radius: 100px;
+            font-size: 12px;
+            font-weight: 800;
+            border: 1px solid transparent;
+            position: relative;
+            overflow: hidden;
+        }
+ 
+        .rate-pill.up {
+            background: rgba(239,68,68,0.08);
+            border-color: rgba(239,68,68,0.2);
+            color: #ef4444;
+        }
+ 
+        .rate-pill.down {
+            background: rgba(59,130,246,0.08);
+            border-color: rgba(59,130,246,0.2);
+            color: #3b82f6;
+        }
+ 
+        .rate-pill.steady {
+            background: var(--badge);
+            border-color: var(--border);
+            color: var(--muted);
+        }
+ 
+        .rate-arrow {
+            font-size: 10px;
+            line-height: 1;
+        }
+ 
+        .rate-label {
+            font-size: 10px;
+            font-weight: 600;
+            color: var(--muted);
+            margin-left: 8px;
+            letter-spacing: 0.3px;
+        }
+ 
+        /* High / Low stacked on the right */
+        .hl-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 1px;
+            min-width: 120px;
+            padding-top: 24px;
+        }
+ 
+        .hl-row {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            padding: 8px 10px;
+            border-radius: 12px;
+            background: var(--card-inner);
+            border: 1px solid var(--border-soft);
+        }
+ 
+        .hl-row + .hl-row { margin-top: 6px; }
+ 
+        .hl-tag {
+            font-size: 8px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            margin-bottom: 2px;
+        }
+ 
+        .hl-tag.high { color: rgba(239,68,68,0.7); }
+        .hl-tag.low  { color: rgba(59,130,246,0.7); }
+ 
+        .hl-val {
+            font-size: 20px;
+            font-weight: 900;
+            letter-spacing: -1px;
+            line-height: 1;
+        }
+ 
+        .hl-val.high { color: #ef4444; }
+        .hl-val.low  { color: #3b82f6; }
+ 
+        .hl-time {
+            font-size: 9px;
+            color: var(--muted);
+            font-weight: 600;
+            margin-top: 1px;
+            opacity: 0.8;
+        }
+ 
+        /* DIVIDER */
+        .temp-divider {
+            height: 1px;
+            margin: 0 22px;
+            background: linear-gradient(90deg, transparent, var(--border), transparent);
+        }
+ 
+        /* BOTTOM ROW: Feels Like, Humidity, Dew */
+        .temp-secondary {
+            padding: 14px 22px 20px;
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 8px;
+        }
+ 
+        .sec-item {
+            background: var(--card-inner);
+            border: 1px solid var(--border-soft);
+            border-radius: 14px;
+            padding: 10px 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+        }
+ 
+        .sec-item.feels {
+            background: rgba(249,115,22,0.07);
+            border-color: rgba(249,115,22,0.18);
+        }
+ 
+        .sec-label {
+            font-size: 8px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--muted);
+        }
+ 
+        .sec-val {
+            font-size: 18px;
+            font-weight: 900;
+            letter-spacing: -0.5px;
+            line-height: 1;
+            color: var(--text);
+        }
+ 
+        .sec-val.feels-val { color: #f97316; }
+ 
+        /* ═══════════════════════════════════════════════════════
+           WIND CARD
+        ═══════════════════════════════════════════════════════ */
+        .wind-card {
+            padding: 22px;
+        }
+ 
+        /* Speed row: number + compass */
+        .wind-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 14px;
+        }
+ 
+        .wind-left {}
+ 
+        .wind-speed-row {
+            display: flex;
+            align-items: baseline;
+            gap: 4px;
+        }
+ 
+        .wind-big {
+            font-size: 56px;
+            font-weight: 900;
+            letter-spacing: -3px;
+            line-height: 1;
+        }
+ 
+        .wind-dir-inline {
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--muted);
+        }
+ 
+        .wind-unit-lbl {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--muted);
+            margin-left: 2px;
+        }
+ 
+        .gust-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            margin-top: 8px;
+            padding: 4px 10px;
+            border-radius: 100px;
+            font-size: 11px;
+            font-weight: 800;
+            background: var(--badge);
+            border: 1px solid var(--border);
+            color: var(--muted);
+        }
+ 
+        .gust-pill strong { color: var(--text); }
+ 
+        /* COMPASS — ultra modern */
+        .compass-ui {
+            position: relative !important;
+            top: auto !important;
+            right: auto !important;
+            width: 72px;
+            height: 72px;
+            flex-shrink: 0;
+        }
+ 
+        #needle {
+            width: 3px;
+            height: 32px;
+            background: linear-gradient(to bottom, #ef4444 50%, var(--muted) 50%);
+            clip-path: polygon(50% 0%, 100% 100%, 50% 85%, 0% 100%);
+            transition: transform 2s cubic-bezier(0.1, 0.9, 0.2, 1);
+        }
+ 
+        /* Wind max row */
+        .wind-maxes {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            padding-top: 14px;
+            border-top: 1px solid var(--border-soft);
+        }
+ 
+        .wmax-item {
+            background: var(--card-inner);
+            border: 1px solid var(--border-soft);
+            border-radius: 14px;
+            padding: 10px 12px;
+        }
+ 
+        .wmax-lbl {
+            font-size: 8px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--muted);
+            margin-bottom: 4px;
+        }
+ 
+        .wmax-val {
+            font-size: 17px;
+            font-weight: 900;
+            letter-spacing: -0.5px;
+            color: var(--text);
+            line-height: 1;
+        }
+ 
+        .wmax-time {
+            font-size: 9px;
+            color: var(--muted);
+            font-weight: 600;
+            margin-top: 2px;
+            opacity: 0.8;
+        }
+ 
+        /* ═══════════════════════════════════════════════════════
+           RAIN CARD
+        ═══════════════════════════════════════════════════════ */
+        .rain-card {
+            padding: 22px;
+        }
+ 
+        .rain-top-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 16px;
+        }
+ 
+        .rain-main-val {
+            font-size: 56px;
+            font-weight: 900;
+            letter-spacing: -3px;
+            line-height: 1;
+        }
+ 
+        .rain-main-val .unit {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--muted);
+            letter-spacing: 0;
+        }
+ 
+        .rain-rates {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 8px;
+        }
+ 
+        .rate-block {
+            text-align: right;
+        }
+ 
+        .rate-block-lbl {
+            font-size: 8px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--muted);
+            margin-bottom: 2px;
+        }
+ 
+        .rate-block-val {
+            font-size: 18px;
+            font-weight: 900;
+            color: #3b82f6;
+            line-height: 1;
+            letter-spacing: -0.5px;
+        }
+ 
+        .rate-block-val.secondary {
+            font-size: 16px;
+            color: var(--text);
+        }
+ 
+        .rain-ledger {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            padding-top: 14px;
+            border-top: 1px solid var(--border-soft);
+        }
+ 
+        .ledger-item {
+            background: var(--card-inner);
+            border: 1px solid var(--border-soft);
+            border-radius: 14px;
+            padding: 10px;
+            text-align: center;
+        }
+ 
+        .ledger-lbl {
+            font-size: 8px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--muted);
+            margin-bottom: 4px;
+        }
+ 
+        .ledger-val {
+            font-size: 16px;
+            font-weight: 900;
+            letter-spacing: -0.5px;
+            color: var(--text);
+        }
+ 
+        /* ═══════════════════════════════════════════════════════
+           ATMO CARD
+        ═══════════════════════════════════════════════════════ */
+        .atmo-card { padding: 22px; }
+ 
+        .atmo-pressure-val {
+            font-size: 52px;
+            font-weight: 900;
+            letter-spacing: -2.5px;
+            line-height: 1;
+            margin-bottom: 14px;
+        }
+ 
+        .atmo-pressure-val .unit {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--muted);
+            letter-spacing: 0;
+        }
+ 
+        .atmo-tiles {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            padding-top: 14px;
+            border-top: 1px solid var(--border-soft);
+        }
+ 
+        .atmo-tile {
+            background: var(--card-inner);
+            border: 1px solid var(--border-soft);
+            border-radius: 14px;
+            padding: 10px 12px;
+        }
+ 
+        .atmo-tile-lbl {
+            font-size: 8px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--muted);
+            margin-bottom: 4px;
+        }
+ 
+        .atmo-tile-val {
+            font-size: 16px;
+            font-weight: 900;
+            color: var(--text);
+            letter-spacing: -0.3px;
+        }
+ 
+        /* ═══════════════════════════════════════════════════════
+           SHARED
+        ═══════════════════════════════════════════════════════ */
+        .time-mark {
+            font-size: 9px;
+            color: var(--muted);
+            font-weight: 600;
+            opacity: 0.85;
+        }
+ 
+        .trend-up { color: #f43f5e; }
+        .trend-down { color: #0ea5e9; }
+ 
+        /* Magic fade animation */
         @keyframes magicFade {
-            0% { opacity: 0; filter: blur(12px); transform: scale(0.8) translateY(10px); color: #10b981; }
-            30% { opacity: 0.8; filter: blur(4px); }
-            100% { opacity: 1; filter: blur(0); transform: scale(1) translateY(0); }
+            0% { opacity:0; filter:blur(8px); transform:scale(0.88) translateY(6px); }
+            100% { opacity:1; filter:blur(0); transform:scale(1) translateY(0); }
         }
-
-        .fade-update { 
-            animation: magicFade 1.5s cubic-bezier(0.16, 1, 0.3, 1); 
+ 
+        .fade-update {
+            animation: magicFade 1.2s cubic-bezier(0.16, 1, 0.3, 1);
             will-change: transform, opacity, filter;
         }
-
-        .unit { font-size: 20px; font-weight: 600; color: var(--muted); margin-left: 4px; letter-spacing: 0; }
-        .sub-pill { font-size: 12px; font-weight: 800; padding: 6px 12px; border-radius: 10px; background: var(--badge); display: inline-flex; align-items: center; gap: 4px; margin: 12px 0 20px 0; }
-
-        .sub-box-4 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding-top: 20px; border-top: 1px solid var(--border); }
-        .badge { padding: 12px; border-radius: 18px; background: var(--badge); display: flex; flex-direction: column; gap: 2px; }
-        .badge-label { font-size: 9px; color: var(--muted); text-transform: uppercase; font-weight: 800; }
-        .badge-val { font-size: 16px; font-weight: 800; }
-
-        .compass-ui { position: absolute !important; top: 28px !important; right: 28px !important; width: 50px; height: 50px; border: 2px solid var(--border); border-radius: 50%; display: flex; align-items: center; justify-content: center; z-index: 10; }
-        #needle { width: 3px; height: 32px; background: linear-gradient(to bottom, #ef4444 50%, var(--muted) 50%); clip-path: polygon(50% 0%, 100% 100%, 50% 85%, 0% 100%); transition: transform 2s cubic-bezier(0.1, 0.9, 0.2, 1); }
-
-        .graphs-wrapper { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin-top: 20px; }
-        .graph-card { background: var(--card); padding: 24px; border-radius: 32px; border: 1px solid var(--border); height: 320px; box-shadow: var(--glow); display: flex; flex-direction: column; overflow: hidden; transition: background 0.5s ease; }
-        .graph-card canvas { flex-grow: 1; width: 100% !important; height: 100% !important; }
-
-        .trend-up { color: #f43f5e; } .trend-down { color: #0ea5e9; }
-        .time-mark { font-size: 9px; color: var(--muted); font-weight: 600; margin-left: 2px; background: rgba(0,0,0,0.04); padding: 1px 4px; border-radius: 4px; }
-        body.is-night .time-mark { background: rgba(255,255,255,0.1); }
-
-        /* SUMMARY SYSTEM */
-        .nav-tabs { display: flex; gap: 8px; margin-bottom: 25px; }
-        .tab-btn { 
-            background: var(--card); border: 1px solid var(--border); padding: 12px 24px; 
-            border-radius: 16px; color: var(--text); font-weight: 700; cursor: pointer; transition: 0.3s; 
+ 
+        /* Font-numeric tabular */
+        .temp-display span:not(.unit),
+        .wind-big,
+        .rain-main-val span:not(.unit),
+        .atmo-pressure-val span:not(.unit),
+        .hl-val, .sec-val, .wmax-val, .ledger-val, .atmo-tile-val, .rate-block-val {
+            font-variant-numeric: tabular-nums;
+            display: inline-block;
         }
-        .tab-btn.active { background: var(--accent); color: white; border-color: var(--accent); box-shadow: var(--glow); }
-
-        .month-section { margin-bottom: 35px; animation: fadeIn 0.5s ease; }
-        .month-header { font-size: 20px; font-weight: 800; margin: 25px 0 15px 0; color: var(--accent); display: flex; align-items: center; gap: 10px; }
-        .month-header::after { content: ""; height: 2px; flex-grow: 1; background: var(--border); }
-
-        .summary-table-wrapper { overflow-x: auto; background: var(--card); border-radius: 24px; border: 1px solid var(--border); box-shadow: var(--glow); }
-        .summary-table { width: 100%; border-collapse: collapse; min-width: 600px; }
-        .summary-table th { padding: 16px; background: var(--badge); text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); }
-        .summary-table td { padding: 16px; border-top: 1px solid var(--border); font-size: 14px; }
-        .summary-table tr:hover { background: var(--badge); }
-
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-
-        /* REFINED ROW-BASED SUMMARY */
-.pro-summary-table {
-    background: var(--card);
-    backdrop-filter: blur(24px);
-    -webkit-backdrop-filter: blur(24px);
-    border: 1px solid var(--border);
-    border-radius: 24px;
-    box-shadow: var(--glow);
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-}
-
-.pro-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 24px 30px;
-    border-bottom: 1px solid var(--border);
-    transition: background 0.3s ease;
-    gap: 20px; /* Ensures a minimum gap between label and data */
-}
-
-.pro-row:last-child { border-bottom: none; }
-
-.pro-label {
-    font-size: 15px;
-    font-weight: 800;
-    color: var(--text);
-    letter-spacing: 0.5px;
-    display: flex;
-    align-items: center;
-    flex: 0 0 160px; /* Lock the label width so data doesn't overlap it */
-}
-
-.pro-data-group {
-    display: flex;
-    align-items: center;
-    gap: 40px; /* Increased spacing between the two values */
-    flex: 1;
-    justify-content: flex-end; /* Keeps data anchored to the right */
-}
-
-.pro-data-item {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-    min-width: 100px; /* Ensures consistent alignment across different rows */
-}
-
-.pro-sub {
-    font-size: 10px;
-    text-transform: uppercase;
-    letter-spacing: 1.5px;
-    color: var(--muted);
-    font-weight: 800;
-    margin-bottom: 6px;
-}
-
-.pro-val {
-    font-size: 26px;
-    font-weight: 900;
-    line-height: 1;
-    letter-spacing: -0.5px;
-}
-
-.pro-divider {
-    width: 1px;
-    height: 32px;
-    background: var(--border);
-    opacity: 0.5;
-}
-
-/* Responsive fix for smaller screens to prevent squeezing */
-@media (max-width: 650px) {
-    .pro-row {
-        padding: 20px;
-        gap: 10px;
-    }
-    .pro-label {
-        flex: 0 0 120px;
-        font-size: 13px;
-    }
-    .pro-data-group {
-        gap: 20px;
-    }
-    .pro-val {
-        font-size: 20px;
-    }
-}
-
-.glass-select {
-    background: var(--card) !important;
-    border: 1px solid var(--border);
-    border-radius: 12px; /* Smoother corners */
-    padding: 8px 12px;
-    font-family: inherit;
-    font-weight: 600;
-    color: var(--text) !important;
-    outline: none;
-    cursor: pointer;
-    transition: all 0.2s ease; /* Smooth hover transition */
-    appearance: none; /* Removes default browser styling */
-    -webkit-appearance: none;
-    background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
-    background-repeat: no-repeat;
-    background-position: right 10px center;
-    background-size: 1em;
-    padding-right: 40px;
-}
-
-.glass-select:hover {
-    border-color: var(--accent);
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-}
-
-/* Forces the dropdown list (popup) to be dark and prevents the white blink */
-.glass-select option {
-    background-color: #ffffff;
-    color: #000000;
-}
-
-body.is-night .glass-select {
-    color-scheme: dark; /* CRITICAL: Tells browser the interior of the select is dark */
-}
-
-body.is-night .glass-select option {
-    background-color: #1e293b;
-    color: #f1f5f9;
-}
-
-/* Pluviophile Modernized Rain Card */
-.rain-container-main {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 24px;
-}
-
-.rain-left {
-    flex: 1;
-}
-
-.rain-divider {
-    width: 1px;
-    height: 80px;
-    background: linear-gradient(to bottom, transparent, var(--border), transparent);
-    margin: 0 25px;
-}
-
-.rain-right-intensity {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-}
-
-.intensity-block {
-    display: flex;
-    flex-direction: column;
-}
-
-.intensity-label {
-    font-size: 10px;
-    font-weight: 800;
-    text-transform: uppercase;
-    letter-spacing: 1.2px;
-    color: var(--muted);
-    margin-bottom: 2px;
-}
-
-.intensity-primary {
-    font-size: 22px; /* Increased prominence */
-    font-weight: 900;
-    color: #3b82f6; /* Modern Blue */
-    line-height: 1;
-}
-
-.intensity-secondary {
-    font-size: 16px;
-    font-weight: 800;
-    color: var(--text);
-}
-
-.rain-ledger-modern {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 10px;
-    padding-top: 20px;
-    border-top: 1px solid var(--border);
-}
-
-.ledger-card {
-    background: var(--badge);
-    padding: 15px 10px;
-    border-radius: 20px;
-    text-align: center;
-    transition: transform 0.3s ease;
-}
-
-.ledger-card:hover {
-    transform: translateY(-3px);
-    background: rgba(59, 130, 246, 0.05);
-}
-
-.ledger-val-large {
-    font-size: 18px; /* Bigger for better viewing */
-    font-weight: 900;
-    display: block;
-    margin-top: 4px;
-}
-
-
-
+ 
+        /* ═══════════════════════════════════════════════════════
+           GRAPHS
+        ═══════════════════════════════════════════════════════ */
+        .graphs-wrapper {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 14px;
+            margin-top: 14px;
+        }
+ 
+        .graph-card {
+            background: var(--card);
+            padding: 20px;
+            border-radius: 24px;
+            border: 1px solid var(--border);
+            height: 300px;
+            box-shadow: var(--glow);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            transition: background 0.5s ease;
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+        }
+ 
+        .graph-card canvas { flex-grow:1; width:100%!important; height:100%!important; }
+ 
+        /* ═══════════════════════════════════════════════════════
+           SUMMARY / ARCHIVE SYSTEM
+        ═══════════════════════════════════════════════════════ */
+        .pro-summary-table {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            box-shadow: var(--glow);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            backdrop-filter: blur(24px);
+        }
+ 
+        .pro-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 24px;
+            border-bottom: 1px solid var(--border-soft);
+            gap: 16px;
+        }
+ 
+        .pro-row:last-child { border-bottom: none; }
+ 
+        .pro-label {
+            font-size: 14px;
+            font-weight: 800;
+            color: var(--text);
+            display: flex;
+            align-items: center;
+            flex: 0 0 150px;
+        }
+ 
+        .pro-data-group {
+            display: flex;
+            align-items: center;
+            gap: 32px;
+            flex: 1;
+            justify-content: flex-end;
+        }
+ 
+        .pro-data-item {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            min-width: 90px;
+        }
+ 
+        .pro-sub {
+            font-size: 9px;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--muted);
+            font-weight: 800;
+            margin-bottom: 4px;
+        }
+ 
+        .pro-val {
+            font-size: 24px;
+            font-weight: 900;
+            line-height: 1;
+            letter-spacing: -0.5px;
+        }
+ 
+        .pro-divider {
+            width: 1px;
+            height: 28px;
+            background: var(--border);
+            opacity: 0.5;
+        }
+ 
+        @media (max-width: 600px) {
+            .pro-row { padding: 16px 18px; }
+            .pro-label { flex: 0 0 100px; font-size: 12px; }
+            .pro-data-group { gap: 16px; }
+            .pro-val { font-size: 20px; }
+        }
+ 
+        /* ═══════════════════════════════════════════════════════
+           GLASS SELECT
+        ═══════════════════════════════════════════════════════ */
+        .glass-select {
+            background: var(--card) !important;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 7px 36px 7px 12px;
+            font-family: inherit;
+            font-weight: 600;
+            font-size: 13px;
+            color: var(--text) !important;
+            outline: none;
+            cursor: pointer;
+            transition: all 0.2s;
+            appearance: none;
+            -webkit-appearance: none;
+            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e") !important;
+            background-repeat: no-repeat !important;
+            background-position: right 10px center !important;
+            background-size: 1em !important;
+        }
+ 
+        .glass-select:hover { border-color: var(--accent); }
+        .glass-select option { background-color: #fff; color: #000; }
+        body.is-night .glass-select { color-scheme: dark; }
+        body.is-night .glass-select option { background-color: #1e293b; color: #f1f5f9; }
+ 
+        /* ═══════════════════════════════════════════════════════
+           SUB-TABS & SUMMARY PANELS
+        ═══════════════════════════════════════════════════════ */
+        .sub-tabs-section { margin-top: 28px; }
+ 
+        .rain-container-main { display:flex; justify-content:space-between; align-items:center; margin-bottom:18px; }
+        .rain-left { flex:1; }
+        .rain-divider { width:1px; height:70px; background:linear-gradient(to bottom,transparent,var(--border),transparent); margin:0 20px; }
+        .rain-right-intensity { flex:1; display:flex; flex-direction:column; gap:10px; }
+        .intensity-block { display:flex; flex-direction:column; }
+        .intensity-label { font-size:9px; font-weight:800; text-transform:uppercase; letter-spacing:1.2px; color:var(--muted); margin-bottom:2px; }
+        .intensity-primary { font-size:20px; font-weight:900; color:#3b82f6; line-height:1; }
+        .intensity-secondary { font-size:15px; font-weight:800; color:var(--text); }
+        .rain-ledger-modern { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; padding-top:16px; border-top:1px solid var(--border-soft); }
+        .ledger-card { background:var(--card-inner); border:1px solid var(--border-soft); padding:12px 8px; border-radius:16px; text-align:center; }
+        .ledger-val-large { font-size:16px; font-weight:900; display:block; margin-top:4px; }
+ 
+        @keyframes fadeIn { from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)} }
+        .month-header { font-size:18px; font-weight:800; margin:20px 0 12px; color:var(--accent); display:flex; align-items:center; gap:10px; }
+        .month-header::after { content:""; height:2px; flex-grow:1; background:var(--border); }
+        .summary-table-wrapper { overflow-x:auto; background:var(--card); border-radius:18px; border:1px solid var(--border); box-shadow:var(--glow); }
+        .summary-table { width:100%; border-collapse:collapse; min-width:520px; }
+        .summary-table th { padding:14px; background:var(--badge); text-align:left; font-size:10px; text-transform:uppercase; letter-spacing:1px; color:var(--muted); }
+        .summary-table td { padding:14px; border-top:1px solid var(--border-soft); font-size:13px; }
+        .summary-table tr:hover { background:var(--badge); }
+ 
     </style>
 </head>
 <body>
     <div class="container">
+ 
+        <!-- HEADER -->
         <div class="header">
             <h1>KK Nagar Weather Hub</h1>
             <div class="header-actions">
-                <div class="status-bar"><div class="live-dot"></div><div class="timestamp"><span id="ts">--:--:--</span></div></div>
+                <div class="status-bar">
+                    <div class="live-dot"></div>
+                    <div class="timestamp"><span id="ts">--:--:--</span></div>
+                </div>
                 <div class="theme-toggle" id="themeToggle">
                     <div class="theme-btn" id="btn-light">LIGHT</div>
                     <div class="theme-btn" id="btn-dark">DARK</div>
@@ -947,92 +1519,223 @@ body.is-night .glass-select option {
                 </div>
             </div>
         </div>
-
-       <div class="nav-tabs">
-        <button onclick="showPage('dashboard')" id="tab-dash" class="tab-btn active">Live Dashboard</button>
-        <button onclick="showPage('summary')" id="tab-sum" class="tab-btn">Monthly Summary</button>
-        <button onclick="showPage('historical')" id="tab-hist" class="tab-btn">Historical Data</button>
-       </div>
-
+ 
+        <!-- NAV TABS -->
+        <div class="nav-tabs">
+            <button onclick="showPage('dashboard')" id="tab-dash" class="tab-btn active">Live Dashboard</button>
+            <button onclick="showPage('summary')" id="tab-sum" class="tab-btn">Monthly Summary</button>
+            <button onclick="showPage('historical')" id="tab-hist" class="tab-btn">Historical Data</button>
+        </div>
+ 
+        <!-- DASHBOARD PAGE -->
         <div id="page-dashboard">
-            
+ 
             <div class="grid-system">
-                <div class="card">
-                    <div class="label">Temperature</div>
-                    <div class="main-val"><span id="t">0.0</span><span class="unit">°C</span></div>
-                    <div id="tTrendBox" class="sub-pill">--</div>
-                    <div class="sub-box-4">
-                        <div class="badge"><span class="badge-label">Today High</span><span id="mx" class="badge-val" style="color:#ef4444">--</span></div>
-                        <div class="badge"><span class="badge-label">Today Low</span><span id="mn" class="badge-val" style="color:#0ea5e9">--</span></div>
-                        <div class="badge"><span class="badge-label">Humidity</span><span id="h_val" class="badge-val">--</span></div>
-                        <div class="badge"><span class="badge-label">Dew Point</span><span id="d_val" class="badge-val">--</span></div>
-                        <div class="badge" style="grid-column: span 2;"><span class="badge-label">Feels Like</span><span id="rf" class="badge-val">--</span></div>
+ 
+                <!-- ① TEMPERATURE CARD -->
+                <div class="card temp-card">
+ 
+                    <!-- HERO: Current Temp + High/Low -->
+                    <div class="temp-hero">
+                        <div class="temp-left">
+                            <div class="card-label">Temperature</div>
+ 
+                            <!-- Primary value — ID preserved -->
+                            <div class="temp-display">
+                                <span id="t">0.0</span><span class="unit">°C</span>
+                            </div>
+ 
+                            <!-- Rate of change — ID preserved -->
+                            <div class="rate-wrap">
+                                <div id="tTrendBox" class="rate-pill steady">● Steady</div>
+                            </div>
+                        </div>
+ 
+                        <!-- High / Low panel — IDs preserved -->
+                        <div class="hl-panel">
+                            <div class="hl-row">
+                                <span class="hl-tag high">High</span>
+                                <span id="mx" class="hl-val high">--</span>
+                            </div>
+                            <div class="hl-row">
+                                <span class="hl-tag low">Low</span>
+                                <span id="mn" class="hl-val low">--</span>
+                            </div>
+                        </div>
                     </div>
+ 
+                    <div class="temp-divider"></div>
+ 
+                    <!-- SECONDARY: Feels Like, Humidity, Dew Point — IDs preserved -->
+                    <div class="temp-secondary">
+                        <div class="sec-item feels">
+                            <span class="sec-label">Feels Like</span>
+                            <span id="rf" class="sec-val feels-val">--</span>
+                        </div>
+                        <div class="sec-item">
+                            <span class="sec-label">Humidity</span>
+                            <span id="h_val" class="sec-val">--</span>
+                        </div>
+                        <div class="sec-item">
+                            <span class="sec-label">Dew Point</span>
+                            <span id="d_val" class="sec-val">--</span>
+                        </div>
+                    </div>
+ 
                 </div>
-
-                <div class="card">
+ 
+                <!-- ② WIND CARD -->
+                <div class="card wind-card">
                     <canvas id="windCanvas"></canvas>
-                    <div class="label">Wind Dynamics</div>
-                    <div class="compass-ui"><div id="needle"></div></div>
-                    <div class="main-val"><span id="w">0.0</span><span id="wd_bracket" style="font-size:18px; color:var(--muted); margin-left:8px; font-weight:700">(--)</span><span class="unit">km/h</span></div>
-                    <div class="sub-pill">● Live Gust: <span id="wg" style="margin-left:4px">--</span></div>
-                    <div class="sub-box-4">
-                        <div class="badge"><span class="badge-label">Max Speed</span><span id="mw" class="badge-val">--</span></div>
-                        <div class="badge"><span class="badge-label">Max Gust</span><span id="mg" class="badge-val">--</span></div>
+ 
+                    <div class="card-label">Wind Dynamics</div>
+ 
+                    <div class="wind-top">
+                        <div class="wind-left">
+                            <div class="wind-speed-row">
+                                <span class="wind-big" id="w">0.0</span>
+                                <span class="wind-dir-inline" id="wd_bracket">(--)</span>
+                                <span class="wind-unit-lbl">km/h</span>
+                            </div>
+                            <div class="gust-pill">
+                                ● Gust: <strong id="wg">--</strong>
+                            </div>
+                        </div>
+ 
+                        <!-- Compass — needle ID preserved -->
+                        <div class="compass-ui" style="width:72px;height:72px;border:1.5px solid var(--border);border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;background:var(--card-inner);">
+                            <div id="needle"></div>
+                        </div>
+                    </div>
+ 
+                    <!-- Max speed / gust — IDs preserved -->
+                    <div class="wind-maxes">
+                        <div class="wmax-item">
+                            <div class="wmax-lbl">Max Speed</div>
+                            <div class="wmax-val" id="mw">--</div>
+                        </div>
+                        <div class="wmax-item">
+                            <div class="wmax-lbl">Max Gust</div>
+                            <div class="wmax-val" id="mg">--</div>
+                        </div>
                     </div>
                 </div>
-
-                <div class="card">
-    <div class="label">Rain Realm</div>
-    
-    <div class="rain-container-main">
-        <div class="rain-left">
-            <div class="main-val">
-                <span id="r_tot">0.0</span><span class="unit">mm</span>
-            </div>
-        </div>
-
-        <div class="rain-divider"></div>
-
-        <div class="rain-right-intensity">
-            <div class="intensity-block">
-                <span class="intensity-label">Current Intensity</span>
-                <span class="intensity-primary"><span id="r_rate">0.0</span> <small style="font-size:12px">mm/h</small></span>
-            </div>
-            <div class="intensity-block">
-                <span class="intensity-label">Max Intensity</span>
-                <span id="mr" class="intensity-secondary">--</span>
-            </div>
-        </div>
-    </div>
-
-    <div class="rain-ledger-modern">
-        <div class="ledger-card">
-            <span class="intensity-label">Weekly</span>
-            <span id="r_week" class="ledger-val-large">--</span>
-        </div>
-        <div class="ledger-card">
-            <span class="intensity-label">Monthly</span>
-            <span id="r_month" class="ledger-val-large">--</span>
-        </div>
-        <div class="ledger-card">
-            <span class="intensity-label">Yearly</span>
-            <span id="r_year" class="ledger-val-large">--</span>
-        </div>
-    </div>
-</div>
-
-                
-                <div class="card">
-                    <div class="label">Atmospheric <span id="pIcon"></span></div>
-                    <div class="main-val"><span id="pr">--</span><span class="unit">hPa</span></div>
-                    <div class="sub-box-4">
-                        <div class="badge"><span class="badge-label">Solar Rad</span><span id="sol" class="badge-val">--</span></div>
-                        <div class="badge"><span class="badge-label">UV Index</span><span id="uv" class="badge-val">--</span></div>
+ 
+                <!-- ③ RAIN CARD -->
+                <div class="card rain-card">
+                    <div class="card-label">Rain Realm</div>
+ 
+                    <div class="rain-top-row">
+                        <div>
+                            <div class="rain-main-val">
+                                <span id="r_tot">0.0</span><span class="unit">mm</span>
+                            </div>
+                            <div style="font-size:9px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:1.5px;margin-top:3px;">Today Total</div>
+                        </div>
+                        <div class="rain-rates">
+                            <div class="rate-block">
+                                <div class="rate-block-lbl">Current</div>
+                                <div class="rate-block-val">
+                                    <span id="r_rate">0.0</span><span style="font-size:11px;font-weight:700;color:var(--muted);"> mm/h</span>
+                                </div>
+                            </div>
+                            <div class="rate-block">
+                                <div class="rate-block-lbl">Max Rate</div>
+                                <div class="rate-block-val secondary" id="mr">--</div>
+                            </div>
+                        </div>
+                    </div>
+ 
+                    <!-- Weekly / Monthly / Yearly — IDs preserved -->
+                    <div class="rain-ledger">
+                        <div class="ledger-item">
+                            <div class="ledger-lbl">Weekly</div>
+                            <div class="ledger-val" id="r_week">--</div>
+                        </div>
+                        <div class="ledger-item">
+                            <div class="ledger-lbl">Monthly</div>
+                            <div class="ledger-val" id="r_month">--</div>
+                        </div>
+                        <div class="ledger-item">
+                            <div class="ledger-lbl">Yearly</div>
+                            <div class="ledger-val" id="r_year">--</div>
+                        </div>
+                    </div>
+                </div>
+ 
+                <!-- ④ ATMOSPHERIC CARD -->
+                <div class="card atmo-card">
+                    <div class="card-label">Atmospheric <span id="pIcon"></span></div>
+ 
+                    <div class="atmo-pressure-val">
+                        <span id="pr">--</span><span class="unit">hPa</span>
+                    </div>
+ 
+                    <div class="atmo-tiles">
+                        <div class="atmo-tile">
+                            <div class="atmo-tile-lbl">Solar Rad</div>
+                            <div class="atmo-tile-val" id="sol">--</div>
+                        </div>
+                        <div class="atmo-tile">
+                            <div class="atmo-tile-lbl">UV Index</div>
+                            <div class="atmo-tile-val" id="uv">--</div>
+                        </div>
+                    </div>
+                </div>
+ 
+            </div><!-- /grid-system -->
+ 
+            <!-- SUB TABS (24H summary / graphs) — all IDs and structure preserved -->
+            <div class="sub-tabs-section">
+                <div style="display:flex;gap:8px;margin-bottom:18px;justify-content:center;">
+                    <button onclick="switchSubView('summary')" id="btn-sub-sum" class="tab-btn active">24H Summary</button>
+                    <button onclick="switchSubView('graphs')" id="btn-sub-graph" class="tab-btn">24H Graphs</button>
+                </div>
+ 
+                <div id="sub-view-summary" style="display:block;animation:fadeIn 0.4s ease;">
+                    <div class="pro-summary-table">
+                        <div class="pro-row">
+                            <div class="pro-label"><span style="color:#ef4444;margin-right:10px;font-size:16px;">●</span>Temperature</div>
+                            <div class="pro-data-group">
+                                <div class="pro-data-item"><span class="pro-sub">Maximum</span><span id="s-mx" class="pro-val" style="color:#ef4444">--</span></div>
+                                <div class="pro-divider"></div>
+                                <div class="pro-data-item"><span class="pro-sub">Minimum</span><span id="s-mn" class="pro-val" style="color:#0ea5e9">--</span></div>
+                            </div>
+                        </div>
+                        <div class="pro-row">
+                            <div class="pro-label"><span style="color:#f59e0b;margin-right:10px;font-size:16px;">●</span>Wind</div>
+                            <div class="pro-data-group">
+                                <div class="pro-data-item"><span class="pro-sub">Sustained</span><span id="s-mw" class="pro-val">--</span></div>
+                                <div class="pro-divider"></div>
+                                <div class="pro-data-item"><span class="pro-sub">Peak Gust</span><span id="s-mg" class="pro-val">--</span></div>
+                            </div>
+                        </div>
+                        <div class="pro-row">
+                            <div class="pro-label"><span style="color:#3b82f6;margin-right:10px;font-size:16px;">●</span>Rainfall</div>
+                            <div class="pro-data-group">
+                                <div class="pro-data-item"><span id="s-rt" class="pro-val" style="color:#3b82f6">--</span></div>
+                                <div class="pro-divider" style="visibility:hidden;"></div>
+                                <div class="pro-data-item" style="visibility:hidden;"><span class="pro-val">--</span></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+ 
+                <div id="sub-view-graphs" style="display:none;animation:fadeIn 0.4s ease;">
+                    <div id="graphs-loading" style="text-align:center;padding:40px;color:var(--muted);font-weight:700;font-size:13px;display:none;">
+                        <span style="display:inline-block;animation:blink 1.5s infinite;">Loading graph data...</span>
+                    </div>
+                    <div id="graphs-error" style="text-align:center;padding:40px;color:#ef4444;font-weight:700;font-size:13px;display:none;">Failed to load graph data.</div>
+                    <div class="graphs-wrapper" id="graphs-wrapper-inner" style="margin-top:0;display:none;">
+                        <div class="graph-card"><div class="card-label" style="margin-bottom:8px;">Temperature Trend</div><div style="flex-grow:1;position:relative;"><canvas id="cT"></canvas></div></div>
+                        <div class="graph-card"><div class="card-label" style="margin-bottom:8px;">Humidity Levels</div><div style="flex-grow:1;position:relative;"><canvas id="cH"></canvas></div></div>
+                        <div class="graph-card"><div class="card-label" style="margin-bottom:8px;">Wind Velocity</div><div style="flex-grow:1;position:relative;"><canvas id="cW"></canvas></div></div>
+                        <div class="graph-card"><div class="card-label" style="margin-bottom:8px;">Precipitation</div><div style="flex-grow:1;position:relative;"><canvas id="cR"></canvas></div></div>
                     </div>
                 </div>
             </div>
-
+ 
+        </div>
             <div class="sub-tabs-section" style="margin-top: 35px;">
                 <div style="display: flex; gap: 10px; margin-bottom: 20px; justify-content: center;">
                     <button onclick="switchSubView('summary')" id="btn-sub-sum" class="tab-btn active">24H Summary</button>
