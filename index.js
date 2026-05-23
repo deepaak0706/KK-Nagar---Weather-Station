@@ -543,6 +543,8 @@ async function syncWithEcowitt(forceWrite = false) {
         
     } catch (e) { console.error("Sync Error:", e); return state.cachedData; }
 
+}
+
 async function getWeatherSummary() {
     const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
     if (state.summaryCache && state.lastSummaryFetchDate === today) return state.summaryCache;
