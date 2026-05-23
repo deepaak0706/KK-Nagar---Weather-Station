@@ -263,7 +263,6 @@ async function syncWithEcowitt(forceWrite = false) {
     }
 
             // --- PART 2: WRITER PATH ---
-        // --- PART 2: WRITER PATH ---
     try {
         let snap; 
         let dbWriteSuccess = false; 
@@ -276,6 +275,13 @@ async function syncWithEcowitt(forceWrite = false) {
             state.cachedData = null;
             state.dataChangedSinceLastRead = true;
             state.lastDateSeen = todayISTStr; // Mark this instance as caught up to today
+            
+            // FIX: Completely wipe unwritten buffers so yesterday's late-night extremes don't leak into today's DB!
+            state.bufMaxT = -999; state.tMaxT = null;
+            state.bufMinT = 999;  state.tMinT = null;
+            state.bufW = 0;       state.tW = null;
+            state.bufG = 0;       state.tG = null;
+            state.bufRR = 0;      state.tRR = null;
         }
         // ----------------------------------------
 
@@ -420,9 +426,13 @@ async function syncWithEcowitt(forceWrite = false) {
                 let pastRecord = null;
                 const oneHourAgo = Date.now() - 3600000;
 
-                // Reset calculations entirely since we are fetching cleanly from the fresh empty table
-                mx_t = liveTemp; mn_t = liveTemp;
+                // FIX: Set to extreme opposites so the loop actually catches the FIRST true max/min from the DB.
+                mx_t = -999; mn_t = 999;
                 mx_w = 0; mx_g = 0; mx_r = 0;
+                
+                // Clear the times so we know if the DB was completely empty
+                mx_t_time = null; mn_t_time = null;
+                mx_w_t = null; mx_g_t = null; mx_r_t = null;
 
                 historyRes.rows.forEach(r => {
                     const fmt = (iso) => new Date(iso || r.time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' });
@@ -466,6 +476,14 @@ async function syncWithEcowitt(forceWrite = false) {
             if (!isoStr) return fmtL();
             return new Date(isoStr).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' });
         };
+
+        // FIX: If the DB was completely empty (e.g., right at 12:01 AM before any cron writes), 
+        // fall back to the live data as the baseline.
+        if (mx_t === -999) { mx_t = liveTemp; mx_t_time = fmtL(); }
+        if (mn_t === 999)  { mn_t = liveTemp; mn_t_time = fmtL(); }
+        if (mx_w === 0)    { mx_w = liveWind; mx_w_t = fmtL(); }
+        if (mx_g === 0)    { mx_g = liveGust; mx_g_t = fmtL(); }
+        if (mx_r === 0)    { mx_r = liveRR;   mx_r_t = fmtL(); }
 
         if (liveTemp > mx_t) { mx_t = liveTemp; mx_t_time = fmtL(); }
         if (liveTemp < mn_t) { mn_t = liveTemp; mn_t_time = fmtL(); }
@@ -524,7 +542,6 @@ async function syncWithEcowitt(forceWrite = false) {
         return state.cachedData;
         
     } catch (e) { console.error("Sync Error:", e); return state.cachedData; }
-}
 
 async function getWeatherSummary() {
     const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
