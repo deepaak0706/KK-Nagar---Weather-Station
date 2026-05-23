@@ -930,7 +930,53 @@ body.is-night .glass-select option {
     margin-top: 4px;
 }
 
+.temp-row { 
+    display: flex; 
+    align-items: center; 
+    gap: 24px; 
+    position: relative; 
+    margin-bottom: 12px; 
+}
+.temp-main { flex-shrink: 0; }
+.main-val { 
+    font-size: 64px; 
+    font-weight: 900; 
+    margin: 0; 
+    letter-spacing: -2px; 
+    display: flex; 
+    align-items: baseline; 
+    line-height: 1; 
+}
+.unit { font-size: 24px; font-weight: 600; color: var(--muted); margin-left: 4px; }
 
+/* The Modern Vertical Separator */
+.separator { 
+    width: 1px; 
+    height: 60px; 
+    background: var(--border); 
+    flex-shrink: 0; 
+}
+
+.temp-stats { display: flex; flex-direction: column; gap: 12px; justify-content: center; }
+.stat-item { display: flex; align-items: baseline; gap: 8px; }
+.stat-label { 
+    font-size: 10px; 
+    font-weight: 800; 
+    text-transform: uppercase; 
+    color: var(--muted); 
+    letter-spacing: 1px; 
+}
+.stat-val { font-size: 20px; font-weight: 900; }
+.stat-time { font-size: 10px; font-family: monospace; color: var(--muted); opacity: 0.7; }
+
+/* Update the Grid for Humidity/DewPt/Feels to 3 columns */
+.sub-box-grid { 
+    display: grid; 
+    grid-template-columns: repeat(3, 1fr); 
+    gap: 12px; 
+    padding-top: 24px; 
+    border-top: 1px solid var(--border); 
+}
 
     </style>
 </head>
@@ -958,16 +1004,59 @@ body.is-night .glass-select option {
             
             <div class="grid-system">
                 <div class="card">
-                    <div class="label">Temperature</div>
-                    <div class="main-val"><span id="t">0.0</span><span class="unit">°C</span></div>
-                    <div id="tTrendBox" class="sub-pill">--</div>
-                    <div class="sub-box-4">
-                        <div class="badge"><span class="badge-label">Today High</span><span id="mx" class="badge-val" style="color:#ef4444">--</span></div>
-                        <div class="badge"><span class="badge-label">Today Low</span><span id="mn" class="badge-val" style="color:#0ea5e9">--</span></div>
-                        <div class="badge"><span class="badge-label">Humidity</span><span id="h_val" class="badge-val">--</span></div>
-                        <div class="badge"><span class="badge-label">Dew Point</span><span id="d_val" class="badge-val">--</span></div>
-                        <div class="badge" style="grid-column: span 2;"><span class="badge-label">Feels Like</span><span id="rf" class="badge-val">--</span></div>
+    <div class="label">Temperature</div>
+    
+    <div class="temp-row">
+        <div class="temp-main">
+            <div class="main-val"><span id="t">0.0</span><span class="unit">°C</span></div>
+        </div>
+        
+        <div class="separator"></div>
+        
+        <div class="temp-stats">
+            <div class="stat-item">
+                <span style="color:#ef4444; font-weight:900;">↑</span>
+                <div style="display: flex; flex-direction: column;">
+                    <span class="stat-label">High</span>
+                    <div style="display: flex; align-items: baseline; gap: 6px;">
+                        <span id="mx" class="stat-val" style="color:#ef4444">--°C</span>
+                        <span id="mx_ts" class="stat-time">--:--</span>
                     </div>
+                </div>
+            </div>
+            <div class="stat-item">
+                <span style="color:#0ea5e9; font-weight:900;">↓</span>
+                <div style="display: flex; flex-direction: column;">
+                    <span class="stat-label">Low</span>
+                    <div style="display: flex; align-items: baseline; gap: 6px;">
+                        <span id="mn" class="stat-val" style="color:#0ea5e9">--°C</span>
+                        <span id="mn_ts" class="stat-time">--:--</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="tTrendBox" class="sub-pill">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 18 13.5 8.5 8.5 13.5 1 6"></polyline><polyline points="17 18 23 18 23 12"></polyline></svg>
+        <span id="trend_val" style="color:#10b981">--°C / hr</span>
+    </div>
+
+    <div class="sub-box-grid">
+        <div class="badge">
+            <span class="badge-label">Humidity</span>
+            <span id="h_val" class="badge-val">--%</span>
+        </div>
+        <div class="badge">
+            <span class="badge-label">Dew Pt</span>
+            <span id="d_val" class="badge-val">--°C</span>
+        </div>
+        <div class="badge">
+            <span class="badge-label">Feels</span>
+            <span id="rf" class="badge-val">--°C</span>
+        </div>
+    </div>
+</div>
                 </div>
 
                 <div class="card">
