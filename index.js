@@ -628,7 +628,6 @@ app.get("/", (req, res) => {
     <title>KK Nagar Weather Station</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;700;900&display=swap" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         :root { 
             --bg: #e0f2fe !important; 
@@ -950,171 +949,6 @@ body.is-night .glass-select option {
     margin-top: 4px;
 }
 
-/* ====== ULTRA MODERN WEATHER DASHBOARD ====== */
-:root {
-    --bg: #0a0a0f;
-    --glass: rgba(20, 22, 35, 0.65);
-    --accent: #00d4ff;
-    --text: #e0e7ff;
-    --muted: #94a3b8;
-}
-
-* {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-}
-
-body {
-    background: var(--bg);
-    font-family: 'Inter', system-ui, -apple-system, sans-serif;
-    color: var(--text);
-    background-image: 
-        radial-gradient(circle at 50% 20%, rgba(0, 212, 255, 0.08) 0%, transparent 50%),
-        radial-gradient(circle at 80% 70%, rgba(120, 80, 255, 0.06) 0%, transparent 50%);
-}
-
-#page-dashboard {
-    padding: 2rem 1.5rem;
-    max-width: 1400px;
-    margin: 0 auto;
-}
-
-/* HERO TEMPERATURE */
-.hero-temperature {
-    background: linear-gradient(135deg, rgba(15, 23, 42, 0.9), rgba(30, 41, 59, 0.7));
-    backdrop-filter: blur(20px);
-    border: 1px solid rgba(148, 163, 184, 0.2);
-    border-radius: 28px;
-    padding: 3rem 2.5rem;
-    margin-bottom: 2rem;
-    text-align: center;
-    position: relative;
-    overflow: hidden;
-}
-
-.hero-temperature::before {
-    content: '';
-    position: absolute;
-    top: -50%;
-    left: -50%;
-    width: 200%;
-    height: 200%;
-    background: radial-gradient(circle, rgba(0, 212, 255, 0.15) 0%, transparent 70%);
-    opacity: 0.6;
-    pointer-events: none;
-}
-
-.temp-value {
-    font-size: clamp(4.5rem, 12vw, 7.5rem);
-    font-weight: 700;
-    line-height: 1;
-    margin-bottom: 0.5rem;
-    background: linear-gradient(90deg, #e0e7ff, #67e8f9);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-}
-
-.unit {
-    font-size: 1.8rem;
-    opacity: 0.7;
-    vertical-align: super;
-    margin-left: 4px;
-}
-
-.temp-trend {
-    font-size: 1.35rem;
-    font-weight: 500;
-    padding: 8px 24px;
-    border-radius: 50px;
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    background: rgba(255,255,255,0.08);
-    backdrop-filter: blur(10px);
-    margin-top: 1rem;
-}
-
-/* Glass Cards */
-.glass-card {
-    background: var(--glass);
-    backdrop-filter: blur(20px);
-    border: 1px solid rgba(148, 163, 184, 0.18);
-    border-radius: 24px;
-    padding: 1.8rem;
-    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-    height: 100%;
-}
-
-.glass-card:hover {
-    transform: translateY(-6px);
-    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.4);
-}
-
-.card-header {
-    margin-bottom: 1.5rem;
-}
-
-.card-title {
-    font-size: 1.1rem;
-    font-weight: 600;
-    letter-spacing: 0.5px;
-    color: var(--accent);
-    text-transform: uppercase;
-}
-
-/* Modern Metrics */
-.secondary-metrics {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-    gap: 1rem;
-}
-
-.metric-pill {
-    background: rgba(15, 23, 42, 0.6);
-    border-radius: 16px;
-    padding: 14px 18px;
-    border: 1px solid rgba(148, 163, 184, 0.15);
-}
-
-.metric-label {
-    font-size: 0.85rem;
-    color: var(--muted);
-    display: block;
-    margin-bottom: 4px;
-}
-
-.metric-value {
-    font-size: 1.45rem;
-    font-weight: 600;
-}
-
-/* Grid */
-.modern-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
-    gap: 1.5rem;
-}
-
-/* Responsive */
-@media (max-width: 768px) {
-    #page-dashboard {
-        padding: 1rem 1rem;
-    }
-    
-    .hero-temperature {
-        padding: 2.2rem 1.5rem;
-    }
-    
-    .modern-grid {
-        grid-template-columns: 1fr;
-    }
-    
-    .temp-value {
-        font-size: clamp(3.8rem, 10vw, 6rem);
-    }
-}
-
 
 
     </style>
@@ -1140,145 +974,83 @@ body {
        </div>
 
         <div id="page-dashboard">
-    <!-- Hero Temperature Section -->
-    <div class="hero-temperature">
-        <div class="temp-main">
-            <div class="temp-value">
-                <span id="t">0.0</span>
-                <span class="unit">°C</span>
-            </div>
             
-            <div id="tTrendBox" class="temp-trend">
-                <!-- Dynamic content from your JS -->
+            <div class="grid-system">
+                <div class="card">
+                    <div class="label">Temperature</div>
+                    <div class="main-val"><span id="t">0.0</span><span class="unit">°C</span></div>
+                    <div id="tTrendBox" class="sub-pill">--</div>
+                    <div class="sub-box-4">
+                        <div class="badge"><span class="badge-label">Today High</span><span id="mx" class="badge-val" style="color:#ef4444">--</span></div>
+                        <div class="badge"><span class="badge-label">Today Low</span><span id="mn" class="badge-val" style="color:#0ea5e9">--</span></div>
+                        <div class="badge"><span class="badge-label">Humidity</span><span id="h_val" class="badge-val">--</span></div>
+                        <div class="badge"><span class="badge-label">Dew Point</span><span id="d_val" class="badge-val">--</span></div>
+                        <div class="badge" style="grid-column: span 2;"><span class="badge-label">Feels Like</span><span id="rf" class="badge-val">--</span></div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <canvas id="windCanvas"></canvas>
+                    <div class="label">Wind Dynamics</div>
+                    <div class="compass-ui"><div id="needle"></div></div>
+                    <div class="main-val"><span id="w">0.0</span><span id="wd_bracket" style="font-size:18px; color:var(--muted); margin-left:8px; font-weight:700">(--)</span><span class="unit">km/h</span></div>
+                    <div class="sub-pill">● Live Gust: <span id="wg" style="margin-left:4px">--</span></div>
+                    <div class="sub-box-4">
+                        <div class="badge"><span class="badge-label">Max Speed</span><span id="mw" class="badge-val">--</span></div>
+                        <div class="badge"><span class="badge-label">Max Gust</span><span id="mg" class="badge-val">--</span></div>
+                    </div>
+                </div>
+
+                <div class="card">
+    <div class="label">Preciptaion</div>
+    
+    <div class="rain-container-main">
+        <div class="rain-left">
+            <div class="main-val">
+                <span id="r_tot">0.0</span><span class="unit">mm</span>
             </div>
         </div>
 
-        <div class="today-extremes">
-            <div class="extreme-item">
-                <span class="extreme-label">Today High</span>
-                <span id="mx" class="extreme-value high">--</span>
+        <div class="rain-divider"></div>
+
+        <div class="rain-right-intensity">
+            <div class="intensity-block">
+                <span class="intensity-label">Current Intensity</span>
+                <span class="intensity-primary"><span id="r_rate">0.0</span> <small style="font-size:12px">mm/h</small></span>
             </div>
-            <div class="extreme-item">
-                <span class="extreme-label">Today Low</span>
-                <span id="mn" class="extreme-value low">--</span>
+            <div class="intensity-block">
+                <span class="intensity-label">Max Intensity</span>
+                <span id="mr" class="intensity-secondary">--</span>
             </div>
         </div>
     </div>
 
-    <!-- Main Grid -->
-    <div class="grid-system modern-grid">
-        
-        <!-- Temperature Card (Secondary Info) -->
-        <div class="glass-card">
-            <div class="card-header">
-                <span class="card-title">Temperature</span>
-            </div>
-            <div class="secondary-metrics">
-                <div class="metric-pill">
-                    <span class="metric-label">Humidity</span>
-                    <span id="h_val" class="metric-value">--</span>
-                </div>
-                <div class="metric-pill">
-                    <span class="metric-label">Dew Point</span>
-                    <span id="d_val" class="metric-value">--</span>
-                </div>
-                <div class="metric-pill feels-like">
-                    <span class="metric-label">Feels Like</span>
-                    <span id="rf" class="metric-value">--</span>
-                </div>
-            </div>
+    <div class="rain-ledger-modern">
+        <div class="ledger-card">
+            <span class="intensity-label">Weekly</span>
+            <span id="r_week" class="ledger-val-large">--</span>
         </div>
-
-        <!-- Wind Card -->
-        <div class="glass-card">
-            <div class="card-header">
-                <span class="card-title">Wind Dynamics</span>
-            </div>
-            <div class="wind-visual">
-                <canvas id="windCanvas"></canvas>
-                <div class="compass-ui"><div id="needle"></div></div>
-            </div>
-            <div class="main-val wind-val">
-                <span id="w">0.0</span>
-                <span id="wd_bracket" class="direction">(--)</span>
-                <span class="unit">km/h</span>
-            </div>
-            <div class="sub-pill gust">
-                ● Live Gust: <span id="wg">--</span>
-            </div>
-            <div class="secondary-metrics">
-                <div class="metric-pill">
-                    <span class="metric-label">Max Speed</span>
-                    <span id="mw" class="metric-value">--</span>
-                </div>
-                <div class="metric-pill">
-                    <span class="metric-label">Max Gust</span>
-                    <span id="mg" class="metric-value">--</span>
-                </div>
-            </div>
+        <div class="ledger-card">
+            <span class="intensity-label">Monthly</span>
+            <span id="r_month" class="ledger-val-large">--</span>
         </div>
-
-        <!-- Precipitation Card -->
-        <div class="glass-card precip-card">
-            <div class="card-header">
-                <span class="card-title">Precipitation</span>
-            </div>
-            <div class="rain-container-main">
-                <div class="rain-left">
-                    <div class="main-val">
-                        <span id="r_tot">0.0</span><span class="unit">mm</span>
-                    </div>
-                </div>
-                <div class="rain-divider"></div>
-                <div class="rain-right-intensity">
-                    <div class="intensity-block">
-                        <span class="intensity-label">Current Intensity</span>
-                        <span class="intensity-primary"><span id="r_rate">0.0</span> <small>mm/h</small></span>
-                    </div>
-                    <div class="intensity-block">
-                        <span class="intensity-label">Max Intensity</span>
-                        <span id="mr" class="intensity-secondary">--</span>
-                    </div>
-                </div>
-            </div>
-
-            <div class="rain-ledger-modern">
-                <div class="ledger-card">
-                    <span class="intensity-label">Weekly</span>
-                    <span id="r_week" class="ledger-val-large">--</span>
-                </div>
-                <div class="ledger-card">
-                    <span class="intensity-label">Monthly</span>
-                    <span id="r_month" class="ledger-val-large">--</span>
-                </div>
-                <div class="ledger-card">
-                    <span class="intensity-label">Yearly</span>
-                    <span id="r_year" class="ledger-val-large">--</span>
-                </div>
-            </div>
-        </div>
-
-        <!-- Atmospheric Card -->
-        <div class="glass-card">
-            <div class="card-header">
-                <span class="card-title">Atmospheric <span id="pIcon"></span></span>
-            </div>
-            <div class="main-val">
-                <span id="pr">--</span><span class="unit">hPa</span>
-            </div>
-            <div class="secondary-metrics">
-                <div class="metric-pill">
-                    <span class="metric-label">Solar Rad</span>
-                    <span id="sol" class="metric-value">--</span>
-                </div>
-                <div class="metric-pill">
-                    <span class="metric-label">UV Index</span>
-                    <span id="uv" class="metric-value">--</span>
-                </div>
-            </div>
+        <div class="ledger-card">
+            <span class="intensity-label">Yearly</span>
+            <span id="r_year" class="ledger-val-large">--</span>
         </div>
     </div>
 </div>
+
+                
+                <div class="card">
+                    <div class="label">Atmospheric <span id="pIcon"></span></div>
+                    <div class="main-val"><span id="pr">--</span><span class="unit">hPa</span></div>
+                    <div class="sub-box-4">
+                        <div class="badge"><span class="badge-label">Solar Rad</span><span id="sol" class="badge-val">--</span></div>
+                        <div class="badge"><span class="badge-label">UV Index</span><span id="uv" class="badge-val">--</span></div>
+                    </div>
+                </div>
+            </div>
 
             <div class="sub-tabs-section" style="margin-top: 35px;">
                 <div style="display: flex; gap: 10px; margin-bottom: 20px; justify-content: center;">
