@@ -1133,34 +1133,18 @@ body.is-night .glass-select option {
                     <span class="minmax-icon">↑</span>
                     <span>Today High</span>
                 </div>
-                <span id="mx" class="minmax-value">--</span>
+                <span id="mx" class="minmax-value">--</span>   <!-- ❌ PROBLEM HERE -->
             </div>
             <div class="minmax-item low">
                 <div class="minmax-label">
                     <span class="minmax-icon">↓</span>
                     <span>Today Low</span>
                 </div>
-                <span id="mn" class="minmax-value">--</span>
+                <span id="mn" class="minmax-value">--</span>   <!-- ❌ PROBLEM HERE -->
             </div>
         </div>
     </div>
-    
-    <!-- Compact Horizontal Info -->
-    <div class="sub-box-4">
-        <div class="badge">
-            <span class="badge-label">Humidity</span>
-            <span id="h_val" class="badge-val">--</span>
-        </div>
-        <div class="badge">
-            <span class="badge-label">Dew Point</span>
-            <span id="d_val" class="badge-val">--</span>
-        </div>
-        <div class="badge">
-            <span class="badge-label">Feels Like</span>
-            <span id="rf" class="badge-val">--</span>
-        </div>
-    </div>
-</div>
+
 
 
                 <div class="card">
