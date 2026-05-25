@@ -670,86 +670,45 @@ app.get("/", (req, res) => {
         .live-dot { width: 6px; height: 6px; background: #10b981; border-radius: 50%; animation: blink 2s infinite; }
         @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
         
-        /* --- MODERNIZED LIVE CARDS --- */
+        /* --- NON-CARD LAYOUT --- */
 .grid-system {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-    gap: 24px;
-    padding: 10px 0;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 0; /* Remove gaps between items */
+    background: var(--card); /* Unified background */
+    border: 1px solid var(--border);
+    border-radius: 32px;
+    overflow: hidden;
+    box-shadow: var(--glow);
 }
 
 .card {
-    background: var(--card);
+    background: transparent; /* No card background */
     padding: 32px;
-    border-radius: 36px;
-    border: 1px solid var(--border);
-    backdrop-filter: blur(24px);
-    -webkit-backdrop-filter: blur(24px);
-    box-shadow: 0 20px 40px -10px rgba(0,0,0,0.1);
-    position: relative;
-    overflow: hidden;
-    transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    border-radius: 0;
+    border: none;
+    border-right: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    box-shadow: none;
+    backdrop-filter: none;
 }
 
-.card:hover {
-    transform: translateY(-8px);
-}
+/* Remove borders from the last elements to keep it clean */
+.card:nth-child(even) { border-right: none; }
+.card:nth-last-child(-n+2) { border-bottom: none; }
 
-.label {
-    color: var(--accent);
-    font-size: 10px;
-    font-weight: 900;
-    text-transform: uppercase;
-    letter-spacing: 2.5px;
-    margin-bottom: 12px;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.main-val {
-    font-size: 64px;
-    font-weight: 950;
-    margin: 0;
-    letter-spacing: -3px;
-    display: flex;
-    align-items: baseline;
-    color: var(--text);
-}
-
-/* Updated Badge Container */
 .sub-box-4 {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 16px;
-    margin-top: 24px;
-    padding-top: 24px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    padding-top: 20px;
     border-top: 1px solid var(--border);
 }
 
 .badge {
-    padding: 16px;
-    border-radius: 20px;
-    background: rgba(0,0,0,0.03);
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-}
-
-body.is-night .badge { background: rgba(255,255,255,0.03); }
-
-.badge-label {
-    font-size: 9px;
-    color: var(--muted);
-    text-transform: uppercase;
-    font-weight: 800;
-    letter-spacing: 1px;
-}
-
-.badge-val {
-    font-size: 16px;
-    font-weight: 800;
-    color: var(--text);
+    background: var(--badge);
+    padding: 8px 12px;
+    border-radius: 12px;
 }
         
         /* MODERN TRANSIENT EFFECTS */
