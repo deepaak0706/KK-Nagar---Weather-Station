@@ -670,13 +670,87 @@ app.get("/", (req, res) => {
         .live-dot { width: 6px; height: 6px; background: #10b981; border-radius: 50%; animation: blink 2s infinite; }
         @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
         
-        .grid-system { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
-        .card { background: var(--card); padding: 28px; border-radius: 32px; border: 1px solid var(--border); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); box-shadow: var(--glow); position: relative; overflow: hidden; transition: background 0.5s ease; }
-        #windCanvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; border-radius: 32px; }
-        .card > *:not(canvas) { position: relative; z-index: 5; }
+        /* --- MODERNIZED LIVE CARDS --- */
+.grid-system {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 24px;
+    padding: 10px 0;
+}
 
-        .label { color: var(--accent); font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 6px; }
-        .main-val { font-size: 56px; font-weight: 900; margin: 0; letter-spacing: -2px; display: flex; align-items: baseline; line-height: 1.1; }
+.card {
+    background: var(--card);
+    padding: 32px;
+    border-radius: 36px;
+    border: 1px solid var(--border);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    box-shadow: 0 20px 40px -10px rgba(0,0,0,0.1);
+    position: relative;
+    overflow: hidden;
+    transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.card:hover {
+    transform: translateY(-8px);
+}
+
+.label {
+    color: var(--accent);
+    font-size: 10px;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: 2.5px;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.main-val {
+    font-size: 64px;
+    font-weight: 950;
+    margin: 0;
+    letter-spacing: -3px;
+    display: flex;
+    align-items: baseline;
+    color: var(--text);
+}
+
+/* Updated Badge Container */
+.sub-box-4 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-top: 24px;
+    padding-top: 24px;
+    border-top: 1px solid var(--border);
+}
+
+.badge {
+    padding: 16px;
+    border-radius: 20px;
+    background: rgba(0,0,0,0.03);
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+body.is-night .badge { background: rgba(255,255,255,0.03); }
+
+.badge-label {
+    font-size: 9px;
+    color: var(--muted);
+    text-transform: uppercase;
+    font-weight: 800;
+    letter-spacing: 1px;
+}
+
+.badge-val {
+    font-size: 16px;
+    font-weight: 800;
+    color: var(--text);
+}
         
         /* MODERN TRANSIENT EFFECTS */
         .main-val span:not(.unit), .badge-val { 
