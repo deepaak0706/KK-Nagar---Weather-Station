@@ -949,6 +949,385 @@ body.is-night .glass-select option {
     margin-top: 4px;
 }
 
+/* ULTRA-MODERN COMPACT DASHBOARD REDESIGN */
+
+/* MODERN COMPACT CARD SYSTEM */
+.compact-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 20px;
+}
+
+.compact-header .label {
+    margin-bottom: 0;
+}
+
+.compact-main-display {
+    display: flex;
+    align-items: baseline;
+    gap: 16px;
+    margin-bottom: 16px;
+}
+
+.compact-primary {
+    font-size: 48px;
+    font-weight: 900;
+    letter-spacing: -2px;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+}
+
+.compact-unit {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--muted);
+}
+
+.compact-secondary {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--muted);
+}
+
+/* MODERN MINMAX INLINE */
+.minmax-inline {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 16px;
+}
+
+.minmax-compact {
+    flex: 1;
+    background: var(--badge);
+    padding: 12px 14px;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-left: 3px solid;
+    transition: all 0.3s ease;
+}
+
+.minmax-compact:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.minmax-compact.high {
+    border-left-color: #ef4444;
+}
+
+.minmax-compact.low {
+    border-left-color: #0ea5e9;
+}
+
+.minmax-compact-label {
+    font-size: 9px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--muted);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.minmax-compact-value {
+    font-size: 22px;
+    font-weight: 900;
+    font-variant-numeric: tabular-nums;
+}
+
+.minmax-compact.high .minmax-compact-value {
+    color: #ef4444;
+}
+
+.minmax-compact.low .minmax-compact-value {
+    color: #0ea5e9;
+}
+
+/* COMPACT INFO ROW */
+.info-row-compact {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.info-pill {
+    flex: 1;
+    min-width: 90px;
+    background: var(--badge);
+    padding: 10px 12px;
+    border-radius: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    transition: all 0.3s ease;
+}
+
+.info-pill:hover {
+    background: rgba(2, 132, 199, 0.08);
+    transform: translateY(-2px);
+}
+
+.info-pill-label {
+    font-size: 8px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--muted);
+}
+
+.info-pill-value {
+    font-size: 16px;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+}
+
+/* WIND CARD COMPACT */
+.wind-compact-layout {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 20px;
+    align-items: center;
+    margin-bottom: 16px;
+}
+
+.wind-compass-small {
+    width: 70px;
+    height: 70px;
+    border: 2px solid var(--border);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    background: radial-gradient(circle, var(--badge) 0%, transparent 70%);
+}
+
+.wind-compass-small #needle {
+    width: 3px;
+    height: 28px;
+    background: linear-gradient(to bottom, #ef4444 50%, var(--muted) 50%);
+    clip-path: polygon(50% 0%, 100% 100%, 50% 85%, 0% 100%);
+    transition: transform 2s cubic-bezier(0.1, 0.9, 0.2, 1);
+    position: absolute;
+}
+
+.wind-data-compact {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.wind-speed-main {
+    font-size: 36px;
+    font-weight: 900;
+    letter-spacing: -1px;
+    line-height: 1;
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+}
+
+.wind-direction-badge {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--muted);
+    background: var(--badge);
+    padding: 4px 10px;
+    border-radius: 8px;
+    display: inline-block;
+}
+
+.wind-gust-info {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--muted);
+}
+
+/* RAIN CARD ULTRA COMPACT */
+.rain-compact-grid {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 20px;
+    align-items: center;
+    margin-bottom: 16px;
+}
+
+.rain-total-display {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    background: var(--badge);
+    border-radius: 16px;
+    min-width: 100px;
+}
+
+.rain-total-value {
+    font-size: 42px;
+    font-weight: 900;
+    letter-spacing: -2px;
+    color: #3b82f6;
+    line-height: 1;
+}
+
+.rain-total-unit {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--muted);
+    margin-top: 4px;
+}
+
+.rain-stats-compact {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.rain-stat-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: var(--badge);
+    padding: 8px 12px;
+    border-radius: 10px;
+}
+
+.rain-stat-label {
+    font-size: 9px;
+    font-weight: 800;
+    text-transform: uppercase;
+    color: var(--muted);
+    letter-spacing: 0.5px;
+}
+
+.rain-stat-value {
+    font-size: 16px;
+    font-weight: 900;
+    font-variant-numeric: tabular-nums;
+}
+
+/* RAIN LEDGER SINGLE ROW COMPACT */
+.rain-ledger-compact {
+    display: flex;
+    gap: 8px;
+}
+
+.ledger-item-compact {
+    flex: 1;
+    background: var(--badge);
+    padding: 10px;
+    border-radius: 12px;
+    text-align: center;
+    transition: all 0.3s ease;
+}
+
+.ledger-item-compact:hover {
+    transform: translateY(-2px);
+    background: rgba(59, 130, 246, 0.08);
+}
+
+.ledger-item-label {
+    font-size: 8px;
+    font-weight: 800;
+    text-transform: uppercase;
+    color: var(--muted);
+    letter-spacing: 0.5px;
+    margin-bottom: 4px;
+    display: block;
+}
+
+.ledger-item-value {
+    font-size: 16px;
+    font-weight: 900;
+    display: block;
+    font-variant-numeric: tabular-nums;
+}
+
+/* ATMOSPHERIC COMPACT */
+.atmos-compact-layout {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 20px;
+    align-items: center;
+    margin-bottom: 16px;
+}
+
+.atmos-main-value {
+    font-size: 42px;
+    font-weight: 900;
+    letter-spacing: -2px;
+    color: #8b5cf6;
+    line-height: 1;
+}
+
+.atmos-stats-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+}
+
+/* RESPONSIVE MOBILE OPTIMIZATION */
+@media (max-width: 480px) {
+    .compact-primary {
+        font-size: 42px;
+    }
+    
+    .wind-compact-layout,
+    .rain-compact-grid,
+    .atmos-compact-layout {
+        grid-template-columns: 1fr;
+        gap: 16px;
+    }
+    
+    .wind-compass-small {
+        margin: 0 auto;
+    }
+    
+    .rain-total-display {
+        width: 100%;
+    }
+    
+    .minmax-inline {
+        flex-direction: column;
+        gap: 10px;
+    }
+    
+    .info-row-compact {
+        flex-direction: column;
+        gap: 8px;
+    }
+    
+    .info-pill {
+        min-width: auto;
+    }
+}
+
+/* KEEP WIND CANVAS STYLING */
+.wind-card-modern {
+    position: relative;
+}
+
+.wind-card-modern #windCanvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 0;
+    pointer-events: none;
+    border-radius: 32px;
+    opacity: 0.3;
+}
+
+.wind-card-modern > *:not(canvas) {
+    position: relative;
+    z-index: 5;
+}
 
 
     </style>
@@ -977,80 +1356,138 @@ body.is-night .glass-select option {
             
             <div class="grid-system">
                 <div class="card">
-                    <div class="label">Temperature</div>
-                    <div class="main-val"><span id="t">0.0</span><span class="unit">°C</span></div>
-                    <div id="tTrendBox" class="sub-pill">--</div>
-                    <div class="sub-box-4">
-                        <div class="badge"><span class="badge-label">Today High</span><span id="mx" class="badge-val" style="color:#ef4444">--</span></div>
-                        <div class="badge"><span class="badge-label">Today Low</span><span id="mn" class="badge-val" style="color:#0ea5e9">--</span></div>
-                        <div class="badge"><span class="badge-label">Humidity</span><span id="h_val" class="badge-val">--</span></div>
-                        <div class="badge"><span class="badge-label">Dew Point</span><span id="d_val" class="badge-val">--</span></div>
-                        <div class="badge" style="grid-column: span 2;"><span class="badge-label">Feels Like</span><span id="rf" class="badge-val">--</span></div>
-                    </div>
-                </div>
-
-                <div class="card">
-                    <canvas id="windCanvas"></canvas>
-                    <div class="label">Wind Dynamics</div>
-                    <div class="compass-ui"><div id="needle"></div></div>
-                    <div class="main-val"><span id="w">0.0</span><span id="wd_bracket" style="font-size:18px; color:var(--muted); margin-left:8px; font-weight:700">(--)</span><span class="unit">km/h</span></div>
-                    <div class="sub-pill">● Live Gust: <span id="wg" style="margin-left:4px">--</span></div>
-                    <div class="sub-box-4">
-                        <div class="badge"><span class="badge-label">Max Speed</span><span id="mw" class="badge-val">--</span></div>
-                        <div class="badge"><span class="badge-label">Max Gust</span><span id="mg" class="badge-val">--</span></div>
-                    </div>
-                </div>
-
-                <div class="card">
-    <div class="label">Preciptaion</div>
+    <div class="compact-header">
+        <div class="label">Temperature</div>
+    </div>
     
-    <div class="rain-container-main">
-        <div class="rain-left">
-            <div class="main-val">
-                <span id="r_tot">0.0</span><span class="unit">mm</span>
-            </div>
+    <div class="compact-main-display">
+        <span class="compact-primary"><span id="t" class="badge-val">0.0</span><span class="compact-unit">°C</span></span>
+        <div id="tTrendBox" class="sub-pill">--</div>
+    </div>
+    
+    <div class="minmax-inline">
+        <div class="minmax-compact high">
+            <span class="minmax-compact-label">↑ High</span>
+            <span id="mx" class="minmax-compact-value badge-val">--</span>
         </div>
-
-        <div class="rain-divider"></div>
-
-        <div class="rain-right-intensity">
-            <div class="intensity-block">
-                <span class="intensity-label">Current Intensity</span>
-                <span class="intensity-primary"><span id="r_rate">0.0</span> <small style="font-size:12px">mm/h</small></span>
-            </div>
-            <div class="intensity-block">
-                <span class="intensity-label">Max Intensity</span>
-                <span id="mr" class="intensity-secondary">--</span>
-            </div>
+        <div class="minmax-compact low">
+            <span class="minmax-compact-label">↓ Low</span>
+            <span id="mn" class="minmax-compact-value badge-val">--</span>
         </div>
     </div>
-
-    <div class="rain-ledger-modern">
-        <div class="ledger-card">
-            <span class="intensity-label">Weekly</span>
-            <span id="r_week" class="ledger-val-large">--</span>
+    
+    <div class="info-row-compact">
+        <div class="info-pill">
+            <span class="info-pill-label">Humidity</span>
+            <span id="h_val" class="info-pill-value badge-val">--</span>
         </div>
-        <div class="ledger-card">
-            <span class="intensity-label">Monthly</span>
-            <span id="r_month" class="ledger-val-large">--</span>
+        <div class="info-pill">
+            <span class="info-pill-label">Dew Point</span>
+            <span id="d_val" class="info-pill-value badge-val">--</span>
         </div>
-        <div class="ledger-card">
-            <span class="intensity-label">Yearly</span>
-            <span id="r_year" class="ledger-val-large">--</span>
+        <div class="info-pill">
+            <span class="info-pill-label">Feels Like</span>
+            <span id="rf" class="info-pill-value badge-val">--</span>
         </div>
     </div>
 </div>
 
-                
-                <div class="card">
-                    <div class="label">Atmospheric <span id="pIcon"></span></div>
-                    <div class="main-val"><span id="pr">--</span><span class="unit">hPa</span></div>
-                    <div class="sub-box-4">
-                        <div class="badge"><span class="badge-label">Solar Rad</span><span id="sol" class="badge-val">--</span></div>
-                        <div class="badge"><span class="badge-label">UV Index</span><span id="uv" class="badge-val">--</span></div>
-                    </div>
-                </div>
+<!-- CARD 2: WIND - ULTRA COMPACT -->
+<div class="card wind-card-modern">
+    <canvas id="windCanvas"></canvas>
+    <div class="label">Wind Dynamics</div>
+    
+    <div class="wind-compact-layout">
+        <div class="wind-compass-small">
+            <div id="needle"></div>
+        </div>
+        
+        <div class="wind-data-compact">
+            <div class="wind-speed-main">
+                <span id="w" class="badge-val">0.0</span>
+                <span class="compact-unit">km/h</span>
             </div>
+            <div>
+                <span id="wd_bracket" class="wind-direction-badge">(--)</span>
+            </div>
+            <div class="wind-gust-info">
+                ● Live Gust: <span id="wg" class="badge-val">--</span>
+            </div>
+        </div>
+    </div>
+    
+    <div class="info-row-compact">
+        <div class="info-pill">
+            <span class="info-pill-label">Max Speed</span>
+            <span id="mw" class="info-pill-value badge-val">--</span>
+        </div>
+        <div class="info-pill">
+            <span class="info-pill-label">Max Gust</span>
+            <span id="mg" class="info-pill-value badge-val">--</span>
+        </div>
+    </div>
+</div>
+
+<!-- CARD 3: RAIN - ULTRA COMPACT -->
+<div class="card">
+    <div class="label">Precipitation</div>
+    
+    <div class="rain-compact-grid">
+        <div class="rain-total-display">
+            <div class="rain-total-value"><span id="r_tot" class="badge-val">0.0</span></div>
+            <div class="rain-total-unit">mm</div>
+        </div>
+        
+        <div class="rain-stats-compact">
+            <div class="rain-stat-item">
+                <span class="rain-stat-label">Current</span>
+                <span class="rain-stat-value"><span id="r_rate" class="badge-val">0.0</span> mm/h</span>
+            </div>
+            <div class="rain-stat-item">
+                <span class="rain-stat-label">Max Intensity</span>
+                <span id="mr" class="rain-stat-value badge-val">--</span>
+            </div>
+        </div>
+    </div>
+    
+    <div class="rain-ledger-compact">
+        <div class="ledger-item-compact">
+            <span class="ledger-item-label">Weekly</span>
+            <span id="r_week" class="ledger-item-value badge-val">--</span>
+        </div>
+        <div class="ledger-item-compact">
+            <span class="ledger-item-label">Monthly</span>
+            <span id="r_month" class="ledger-item-value badge-val">--</span>
+        </div>
+        <div class="ledger-item-compact">
+            <span class="ledger-item-label">Yearly</span>
+            <span id="r_year" class="ledger-item-value badge-val">--</span>
+        </div>
+    </div>
+</div>
+
+<!-- CARD 4: ATMOSPHERIC - ULTRA COMPACT -->
+<div class="card">
+    <div class="label">Atmospheric <span id="pIcon"></span></div>
+    
+    <div class="atmos-compact-layout">
+        <div>
+            <div class="atmos-main-value"><span id="pr" class="badge-val">--</span></div>
+            <div class="compact-unit">hPa</div>
+        </div>
+        
+        <div class="atmos-stats-grid">
+            <div class="info-pill">
+                <span class="info-pill-label">Solar Rad</span>
+                <span id="sol" class="info-pill-value badge-val">--</span>
+            </div>
+            <div class="info-pill">
+                <span class="info-pill-label">UV Index</span>
+                <span id="uv" class="info-pill-value badge-val">--</span>
+            </div>
+        </div>
+    </div>
+</div>
 
             <div class="sub-tabs-section" style="margin-top: 35px;">
                 <div style="display: flex; gap: 10px; margin-bottom: 20px; justify-content: center;">
