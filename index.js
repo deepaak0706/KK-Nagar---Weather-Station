@@ -949,144 +949,6 @@ body.is-night .glass-select option {
     margin-top: 4px;
 }
 
-/* ULTRA-MODERN DASHBOARD ENHANCEMENTS */
-
-/* Temperature Hero Container - Side by Side Layout */
-.temp-hero-container {
-    display: grid;
-    grid-template-columns: 1fr auto;
-    gap: 32px;
-    align-items: center;
-    margin-bottom: 28px;
-}
-
-.temp-left-zone {
-    display: flex;
-    flex-direction: column;
-    gap: 14px;
-}
-
-/* Max/Min Side Panel - Compact Vertical Stack */
-.temp-minmax-panel {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    padding: 20px 24px;
-    background: var(--badge);
-    border: 1px solid var(--border);
-    border-radius: 20px;
-    min-width: 220px;
-}
-
-.minmax-item {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 16px;
-    padding: 14px 16px;
-    background: var(--card);
-    border-radius: 14px;
-    border-left: 3px solid;
-    transition: all 0.3s ease;
-}
-
-.minmax-item:hover {
-    transform: translateX(4px);
-    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-}
-
-.minmax-item.high {
-    border-left-color: #ef4444;
-}
-
-.minmax-item.low {
-    border-left-color: #0ea5e9;
-}
-
-.minmax-label {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 10px;
-    font-weight: 800;
-    letter-spacing: 1px;
-    text-transform: uppercase;
-    color: var(--muted);
-}
-
-.minmax-icon {
-    font-size: 18px;
-    opacity: 0.7;
-}
-
-.minmax-value {
-    font-size: 30px;
-    font-weight: 900;
-    font-variant-numeric: tabular-nums;
-    letter-spacing: -1px;
-}
-
-.minmax-item.high .minmax-value {
-    color: #ef4444;
-}
-
-.minmax-item.low .minmax-value {
-    color: #0ea5e9;
-}
-
-/* Horizontal Compact Badges */
-.temp-card .sub-box-4 {
-    display: flex;
-    gap: 12px;
-    flex-wrap: wrap;
-    padding-top: 20px;
-    border-top: 1px solid var(--border);
-}
-
-.temp-card .badge {
-    flex: 1;
-    min-width: 110px;
-    padding: 14px 16px;
-}
-
-/* Responsive adjustments */
-@media (max-width: 1024px) {
-    .temp-hero-container {
-        grid-template-columns: 1fr;
-        gap: 24px;
-    }
-
-    .temp-minmax-panel {
-        flex-direction: row;
-        min-width: auto;
-    }
-
-    .minmax-item {
-        flex: 1;
-    }
-}
-
-@media (max-width: 640px) {
-    .temp-hero-container {
-        grid-template-columns: 1fr;
-    }
-
-    .temp-minmax-panel {
-        flex-direction: column;
-        min-width: auto;
-    }
-
-    .temp-card .sub-box-4 {
-        flex-direction: column;
-        gap: 10px;
-    }
-
-    .temp-card .badge {
-        min-width: auto;
-    }
-}
-
-
 
 
     </style>
@@ -1114,38 +976,18 @@ body.is-night .glass-select option {
         <div id="page-dashboard">
             
             <div class="grid-system">
-                <div class="card temp-card">
-    <div class="label">Temperature</div>
-    
-    <div class="temp-hero-container">
-        <!-- Left: Main Temperature & Trend -->
-        <div class="temp-left-zone">
-            <div class="main-val">
-                <span id="t">0.0</span><span class="unit">°C</span>
-            </div>
-            <div id="tTrendBox" class="sub-pill">--</div>
-        </div>
-
-        <!-- Right: Max/Min Panel -->
-        <div class="temp-minmax-panel">
-            <div class="minmax-item high">
-                <div class="minmax-label">
-                    <span class="minmax-icon">↑</span>
-                    <span>Today High</span>
+                <div class="card">
+                    <div class="label">Temperature</div>
+                    <div class="main-val"><span id="t">0.0</span><span class="unit">°C</span></div>
+                    <div id="tTrendBox" class="sub-pill">--</div>
+                    <div class="sub-box-4">
+                        <div class="badge"><span class="badge-label">Today High</span><span id="mx" class="badge-val" style="color:#ef4444">--</span></div>
+                        <div class="badge"><span class="badge-label">Today Low</span><span id="mn" class="badge-val" style="color:#0ea5e9">--</span></div>
+                        <div class="badge"><span class="badge-label">Humidity</span><span id="h_val" class="badge-val">--</span></div>
+                        <div class="badge"><span class="badge-label">Dew Point</span><span id="d_val" class="badge-val">--</span></div>
+                        <div class="badge" style="grid-column: span 2;"><span class="badge-label">Feels Like</span><span id="rf" class="badge-val">--</span></div>
+                    </div>
                 </div>
-                <span id="mx" class="minmax-value">--</span>   <!-- ❌ PROBLEM HERE -->
-            </div>
-            <div class="minmax-item low">
-                <div class="minmax-label">
-                    <span class="minmax-icon">↓</span>
-                    <span>Today Low</span>
-                </div>
-                <span id="mn" class="minmax-value">--</span>   <!-- ❌ PROBLEM HERE -->
-            </div>
-        </div>
-    </div>
-
-
 
                 <div class="card">
                     <canvas id="windCanvas"></canvas>
