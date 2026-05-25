@@ -670,46 +670,13 @@ app.get("/", (req, res) => {
         .live-dot { width: 6px; height: 6px; background: #10b981; border-radius: 50%; animation: blink 2s infinite; }
         @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
         
-        /* --- NON-CARD LAYOUT --- */
-.grid-system {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-    gap: 0; /* Remove gaps between items */
-    background: var(--card); /* Unified background */
-    border: 1px solid var(--border);
-    border-radius: 32px;
-    overflow: hidden;
-    box-shadow: var(--glow);
-}
+        .grid-system { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
+        .card { background: var(--card); padding: 28px; border-radius: 32px; border: 1px solid var(--border); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); box-shadow: var(--glow); position: relative; overflow: hidden; transition: background 0.5s ease; }
+        #windCanvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; border-radius: 32px; }
+        .card > *:not(canvas) { position: relative; z-index: 5; }
 
-.card {
-    background: transparent; /* No card background */
-    padding: 32px;
-    border-radius: 0;
-    border: none;
-    border-right: 1px solid var(--border);
-    border-bottom: 1px solid var(--border);
-    box-shadow: none;
-    backdrop-filter: none;
-}
-
-/* Remove borders from the last elements to keep it clean */
-.card:nth-child(even) { border-right: none; }
-.card:nth-last-child(-n+2) { border-bottom: none; }
-
-.sub-box-4 {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 12px;
-    padding-top: 20px;
-    border-top: 1px solid var(--border);
-}
-
-.badge {
-    background: var(--badge);
-    padding: 8px 12px;
-    border-radius: 12px;
-}
+        .label { color: var(--accent); font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 6px; }
+        .main-val { font-size: 56px; font-weight: 900; margin: 0; letter-spacing: -2px; display: flex; align-items: baseline; line-height: 1.1; }
         
         /* MODERN TRANSIENT EFFECTS */
         .main-val span:not(.unit), .badge-val { 
