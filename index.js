@@ -949,112 +949,6 @@ body.is-night .glass-select option {
     margin-top: 4px;
 }
 
-:root {
-  --primary: #0ea5e9;
-  --surface: #0f1418;
-  --surface-bright: #353a3e;
-  --text-dim: rgba(255, 255, 255, 0.5);
-}
-
-.dashboard-container {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 1.5rem;
-  padding: 1.5rem;
-  background: var(--surface);
-  min-height: 100vh;
-  font-family: 'Inter', sans-serif;
-  color: white;
-}
-
-.card {
-  background: rgba(23, 28, 32, 0.6);
-  backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 1rem;
-  padding: 1.5rem;
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.label {
-  text-transform: uppercase;
-  font-size: 0.75rem;
-  font-weight: 700;
-  letter-spacing: 0.05em;
-  color: var(--primary);
-}
-
-.timestamp {
-  font-size: 0.75rem;
-  color: var(--text-dim);
-}
-
-.main-val {
-  font-size: 4rem;
-  font-weight: 800;
-  line-height: 1;
-}
-
-.unit {
-  font-size: 1.5rem;
-  color: var(--text-dim);
-  margin-left: 0.5rem;
-}
-
-.sub-box-4 {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 0.75rem;
-  margin-top: auto;
-}
-
-.badge {
-  background: rgba(255, 255, 255, 0.05);
-  padding: 0.75rem;
-  border-radius: 0.5rem;
-  display: flex;
-  flex-direction: column;
-}
-
-.badge-label {
-  font-size: 0.65rem;
-  color: var(--text-dim);
-  text-transform: uppercase;
-}
-
-.badge-val {
-  font-weight: 700;
-}
-
-/* Precipitation Ledger */
-.rain-ledger-modern {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 0.75rem;
-  margin-top: 1rem;
-}
-
-.ledger-card {
-  background: rgba(255, 255, 255, 0.03);
-  padding: 0.75rem;
-  border-radius: 0.5rem;
-  text-align: center;
-}
-
-.ledger-val-large {
-  display: block;
-  font-weight: 700;
-  font-size: 1.1rem;
-}
 
 
     </style>
@@ -1079,78 +973,84 @@ body.is-night .glass-select option {
         <button onclick="showPage('historical')" id="tab-hist" class="tab-btn">Historical Data</button>
        </div>
 
-        <div id="page-dashboard" class="dashboard-container">
-    <!-- Temperature Card -->
-    <div class="card">
-        <div class="card-header">
-            <div class="label">Temperature</div>
-            <div id="t_time" class="timestamp">--:--</div>
+        <div id="page-dashboard">
+            
+            <div class="grid-system">
+                <div class="card">
+                    <div class="label">Temperature</div>
+                    <div class="main-val"><span id="t">0.0</span><span class="unit">°C</span></div>
+                    <div id="tTrendBox" class="sub-pill">--</div>
+                    <div class="sub-box-4">
+                        <div class="badge"><span class="badge-label">Today High</span><span id="mx" class="badge-val" style="color:#ef4444">--</span></div>
+                        <div class="badge"><span class="badge-label">Today Low</span><span id="mn" class="badge-val" style="color:#0ea5e9">--</span></div>
+                        <div class="badge"><span class="badge-label">Humidity</span><span id="h_val" class="badge-val">--</span></div>
+                        <div class="badge"><span class="badge-label">Dew Point</span><span id="d_val" class="badge-val">--</span></div>
+                        <div class="badge" style="grid-column: span 2;"><span class="badge-label">Feels Like</span><span id="rf" class="badge-val">--</span></div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <canvas id="windCanvas"></canvas>
+                    <div class="label">Wind Dynamics</div>
+                    <div class="compass-ui"><div id="needle"></div></div>
+                    <div class="main-val"><span id="w">0.0</span><span id="wd_bracket" style="font-size:18px; color:var(--muted); margin-left:8px; font-weight:700">(--)</span><span class="unit">km/h</span></div>
+                    <div class="sub-pill">● Live Gust: <span id="wg" style="margin-left:4px">--</span></div>
+                    <div class="sub-box-4">
+                        <div class="badge"><span class="badge-label">Max Speed</span><span id="mw" class="badge-val">--</span></div>
+                        <div class="badge"><span class="badge-label">Max Gust</span><span id="mg" class="badge-val">--</span></div>
+                    </div>
+                </div>
+
+                <div class="card">
+    <div class="label">Preciptaion</div>
+    
+    <div class="rain-container-main">
+        <div class="rain-left">
+            <div class="main-val">
+                <span id="r_tot">0.0</span><span class="unit">mm</span>
+            </div>
         </div>
-        <div class="main-val">
-            <span id="t">0.0</span><span class="unit">°C</span>
-        </div>
-        <div id="tTrendBox" class="sub-pill" style="color: var(--text-dim)">--</div>
-        <div class="sub-box-4">
-            <div class="badge"><span class="badge-label">Today High</span><span id="mx" class="badge-val" style="color:#ef4444">--</span></div>
-            <div class="badge"><span class="badge-label">Today Low</span><span id="mn" class="badge-val" style="color:#0ea5e9">--</span></div>
-            <div class="badge"><span class="badge-label">Humidity</span><span id="h_val" class="badge-val">--</span></div>
-            <div class="badge"><span class="badge-label">Dew Point</span><span id="d_val" class="badge-val">--</span></div>
-            <div class="badge" style="grid-column: span 2;"><span class="badge-label">Feels Like</span><span id="rf" class="badge-val">--</span></div>
+
+        <div class="rain-divider"></div>
+
+        <div class="rain-right-intensity">
+            <div class="intensity-block">
+                <span class="intensity-label">Current Intensity</span>
+                <span class="intensity-primary"><span id="r_rate">0.0</span> <small style="font-size:12px">mm/h</small></span>
+            </div>
+            <div class="intensity-block">
+                <span class="intensity-label">Max Intensity</span>
+                <span id="mr" class="intensity-secondary">--</span>
+            </div>
         </div>
     </div>
 
-    <!-- Wind Card -->
-    <div class="card">
-        <div class="card-header">
-            <div class="label">Wind Dynamics</div>
-            <div id="w_time" class="timestamp">--:--</div>
+    <div class="rain-ledger-modern">
+        <div class="ledger-card">
+            <span class="intensity-label">Weekly</span>
+            <span id="r_week" class="ledger-val-large">--</span>
         </div>
-        <canvas id="windCanvas" style="display: none;"></canvas>
-        <div class="main-val">
-            <span id="w">0.0</span><span id="wd_bracket" style="font-size:1.25rem; color:var(--text-dim); margin-left:8px;">(--)</span><span class="unit">km/h</span>
+        <div class="ledger-card">
+            <span class="intensity-label">Monthly</span>
+            <span id="r_month" class="ledger-val-large">--</span>
         </div>
-        <div class="sub-pill">● Live Gust: <span id="wg">--</span></div>
-        <div class="sub-box-4">
-            <div class="badge"><span class="badge-label">Max Speed</span><span id="mw" class="badge-val">--</span></div>
-            <div class="badge"><span class="badge-label">Max Gust</span><span id="mg" class="badge-val">--</span></div>
-        </div>
-    </div>
-
-    <!-- Precipitation Card -->
-    <div class="card">
-        <div class="card-header">
-            <div class="label">Precipitation</div>
-            <div id="r_time" class="timestamp">--:--</div>
-        </div>
-        <div class="main-val">
-            <span id="r_tot">0.0</span><span class="unit">mm</span>
-        </div>
-        <div class="sub-box-4">
-            <div class="badge"><span class="badge-label">Current Intensity</span><span id="r_rate" class="badge-val">0.0 mm/h</span></div>
-            <div class="badge"><span class="badge-label">Max Intensity</span><span id="mr" class="badge-val">--</span></div>
-        </div>
-        <div class="rain-ledger-modern">
-            <div class="ledger-card"><span class="badge-label">Weekly</span><span id="r_week" class="ledger-val-large">--</span></div>
-            <div class="ledger-card"><span class="badge-label">Monthly</span><span id="r_month" class="ledger-val-large">--</span></div>
-            <div class="ledger-card"><span class="badge-label">Yearly</span><span id="r_year" class="ledger-val-large">--</span></div>
-        </div>
-    </div>
-
-    <!-- Atmospheric Card -->
-    <div class="card">
-        <div class="card-header">
-            <div class="label">Atmospheric <span id="pIcon"></span></div>
-            <div id="p_time" class="timestamp">--:--</div>
-        </div>
-        <div class="main-val">
-            <span id="pr">--</span><span class="unit">hPa</span>
-        </div>
-        <div class="sub-box-4">
-            <div class="badge"><span class="badge-label">Solar Rad</span><span id="sol" class="badge-val">--</span></div>
-            <div class="badge"><span class="badge-label">UV Index</span><span id="uv" class="badge-val">--</span></div>
+        <div class="ledger-card">
+            <span class="intensity-label">Yearly</span>
+            <span id="r_year" class="ledger-val-large">--</span>
         </div>
     </div>
 </div>
+
+                
+                <div class="card">
+                    <div class="label">Atmospheric <span id="pIcon"></span></div>
+                    <div class="main-val"><span id="pr">--</span><span class="unit">hPa</span></div>
+                    <div class="sub-box-4">
+                        <div class="badge"><span class="badge-label">Solar Rad</span><span id="sol" class="badge-val">--</span></div>
+                        <div class="badge"><span class="badge-label">UV Index</span><span id="uv" class="badge-val">--</span></div>
+                    </div>
+                </div>
+            </div>
 
             <div class="sub-tabs-section" style="margin-top: 35px;">
                 <div style="display: flex; gap: 10px; margin-bottom: 20px; justify-content: center;">
