@@ -949,6 +949,122 @@ body.is-night .glass-select option {
     margin-top: 4px;
 }
 
+/* Add after your existing styles */
+
+/* Temperature Hero Container - Side by Side Layout */
+.temp-hero-container {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 32px;
+    align-items: center;
+    margin-bottom: 32px;
+}
+
+.temp-left-zone {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+/* Max/Min Side Panel - Compact Vertical Stack */
+.temp-minmax-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 20px;
+    background: rgba(15, 23, 42, 0.5);
+    border: 1px solid rgba(59, 130, 246, 0.2);
+    border-radius: 16px;
+    min-width: 200px;
+}
+
+.minmax-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 12px;
+    background: rgba(15, 23, 42, 0.6);
+    border-radius: 10px;
+    border-left: 3px solid;
+    transition: all 0.3s ease;
+}
+
+.minmax-item:hover {
+    transform: translateX(4px);
+    background: rgba(15, 23, 42, 0.8);
+}
+
+.minmax-item.high {
+    border-left-color: #ef4444;
+}
+
+.minmax-item.low {
+    border-left-color: #0ea5e9;
+}
+
+.minmax-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    color: var(--text-muted);
+}
+
+.minmax-icon {
+    font-size: 16px;
+}
+
+.minmax-value {
+    font-size: 28px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+}
+
+.minmax-item.high .minmax-value {
+    color: #ef4444;
+    text-shadow: 0 0 20px rgba(239, 68, 68, 0.3);
+}
+
+.minmax-item.low .minmax-value {
+    color: #0ea5e9;
+    text-shadow: 0 0 20px rgba(14, 165, 233, 0.3);
+}
+
+/* Horizontal Compact Badges */
+.sub-box-4 {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.badge {
+    flex: 1;
+    min-width: 120px;
+    padding: 12px 16px;
+}
+
+/* Single-Row Rain Ledger */
+.rain-ledger-modern {
+    display: flex;
+    gap: 10px;
+    align-items: stretch;
+}
+
+.ledger-card {
+    flex: 1;
+    min-width: 90px;
+    padding: 12px 16px;
+}
+
+.ledger-val-large {
+    font-size: 18px;
+}
+
+
 
 
     </style>
@@ -977,29 +1093,53 @@ body.is-night .glass-select option {
             
             <div class="grid-system">
                 <div class="card">
-                    <div class="label">Temperature</div>
-                    <div class="main-val"><span id="t">0.0</span><span class="unit">°C</span></div>
-                    <div id="tTrendBox" class="sub-pill">--</div>
-                    <div class="sub-box-4">
-                        <div class="badge"><span class="badge-label">Today High</span><span id="mx" class="badge-val" style="color:#ef4444">--</span></div>
-                        <div class="badge"><span class="badge-label">Today Low</span><span id="mn" class="badge-val" style="color:#0ea5e9">--</span></div>
-                        <div class="badge"><span class="badge-label">Humidity</span><span id="h_val" class="badge-val">--</span></div>
-                        <div class="badge"><span class="badge-label">Dew Point</span><span id="d_val" class="badge-val">--</span></div>
-                        <div class="badge" style="grid-column: span 2;"><span class="badge-label">Feels Like</span><span id="rf" class="badge-val">--</span></div>
-                    </div>
-                </div>
+    <div class="label">Current Temperature</div>
+    
+    <div class="temp-hero-container">
+        <!-- Left: Main Temperature & Trend -->
+        <div class="temp-left-zone">
+            <div class="main-val">
+                <span id="t">0.0</span><span class="unit">°C</span>
+            </div>
+            <div id="tTrendBox" class="sub-pill">--</div>
+        </div>
 
-                <div class="card">
-                    <canvas id="windCanvas"></canvas>
-                    <div class="label">Wind Dynamics</div>
-                    <div class="compass-ui"><div id="needle"></div></div>
-                    <div class="main-val"><span id="w">0.0</span><span id="wd_bracket" style="font-size:18px; color:var(--muted); margin-left:8px; font-weight:700">(--)</span><span class="unit">km/h</span></div>
-                    <div class="sub-pill">● Live Gust: <span id="wg" style="margin-left:4px">--</span></div>
-                    <div class="sub-box-4">
-                        <div class="badge"><span class="badge-label">Max Speed</span><span id="mw" class="badge-val">--</span></div>
-                        <div class="badge"><span class="badge-label">Max Gust</span><span id="mg" class="badge-val">--</span></div>
-                    </div>
+        <!-- Right: Max/Min Panel -->
+        <div class="temp-minmax-panel">
+            <div class="minmax-item high">
+                <div class="minmax-label">
+                    <span class="minmax-icon">↑</span>
+                    <span>High</span>
                 </div>
+                <span id="mx" class="minmax-value">--</span>
+            </div>
+            <div class="minmax-item low">
+                <div class="minmax-label">
+                    <span class="minmax-icon">↓</span>
+                    <span>Low</span>
+                </div>
+                <span id="mn" class="minmax-value">--</span>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Compact Horizontal Info -->
+    <div class="sub-box-4">
+        <div class="badge">
+            <span class="badge-label">Humidity</span>
+            <span id="h_val" class="badge-val">--</span>
+        </div>
+        <div class="badge">
+            <span class="badge-label">Dew Point</span>
+            <span id="d_val" class="badge-val">--</span>
+        </div>
+        <div class="badge">
+            <span class="badge-label">Feels Like</span>
+            <span id="rf" class="badge-val">--</span>
+        </div>
+    </div>
+</div>
+
 
                 <div class="card">
     <div class="label">Preciptaion</div>
