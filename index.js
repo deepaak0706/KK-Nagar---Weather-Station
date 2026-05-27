@@ -641,17 +641,17 @@ app.get("/", (req, res) => {
             --line: rgba(2, 132, 199, 0.12);
         }
 
-        /* PREMIUM OBSIDIAN DARK MODE DEEP LUXURY CHARCOAL */
         body.is-night {
-            --bg: #090d16 !important; 
-            --card: rgba(20, 26, 38, 0.65); 
-            --border: rgba(255, 255, 255, 0.04);
-            --text: #f1f5f9 !important; 
-            --muted: #94a3b8; 
-            --accent: #38bdf8; 
-            --glow: 0 30px 60px -20px rgba(0, 0, 0, 0.7);
-            --line: rgba(255, 255, 255, 0.09);
-        }
+    --bg: #111010 !important;
+    --card: rgba(28, 26, 26, 0.85);
+    --border: rgba(255, 255, 255, 0.06);
+    --text: #f0ece8 !important;
+    --muted: #9c9490;
+    --accent: #f59e0b;
+    --glow: 0 30px 60px -20px rgba(0, 0, 0, 0.6);
+    --line: rgba(255, 255, 255, 0.07);
+}
+
 
         body { 
             margin: 0; font-family: 'Outfit', sans-serif; background: var(--bg); color: var(--text); 
