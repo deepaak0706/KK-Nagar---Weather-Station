@@ -676,8 +676,8 @@ app.get("/", (req, res) => {
         
         .grid-system { 
             display: grid; 
-            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); 
-            gap: 24px; 
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); 
+            gap: 16px; 
             margin-bottom: 32px; 
             width: 100%;
         }
@@ -691,7 +691,7 @@ app.get("/", (req, res) => {
 
         .card { 
             background: var(--card); 
-            padding: 28px; 
+            padding: 20px; 
             border-radius: 24px; 
             border: 1px solid var(--border); 
             backdrop-filter: blur(30px); 
@@ -819,11 +819,11 @@ app.get("/", (req, res) => {
                             <div class="right-panel">
                                 <div class="limit-row-pod" style="color:#ef4444">
                                     <span class="pod-lbl">MAX:</span>
-                                    <span id="mx" class="pod-val">--</span>
+                                    <span id="mx" class="pod-val" style="font-size:18px;">--</span>
                                 </div>
                                 <div class="limit-row-pod" style="color:#0ea5e9">
                                     <span class="pod-lbl">MIN:</span>
-                                    <span id="mn" class="pod-val">--</span>
+                                    <span id="mn" class="pod-val" style="font-size:18px;">--</span>
                                 </div>
                             </div>
                         </div>
@@ -900,11 +900,11 @@ app.get("/", (req, res) => {
                             <div class="right-panel">
                                 <div class="limit-row-pod" style="color:#2563eb">
                                     <span class="pod-lbl">RATE:</span>
-                                    <span id="r_rate" class="pod-val">0.0 mm/h</span>
+                                    <span id="r_rate" class="pod-val" style="font-size:18px;">--mm/h</span>
                                 </div>
                                 <div class="limit-row-pod" style="color:#1d4ed8">
                                     <span class="pod-lbl">MAX RATE:</span>
-                                    <span id="mr" class="pod-val">--</span>
+                                    <span id="mr" class="pod-val" style="font-size:18px;">--mm/h</span>
                                 </div>
                             </div>
                         </div>
