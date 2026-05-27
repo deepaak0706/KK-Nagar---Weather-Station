@@ -900,7 +900,7 @@ app.get("/", (req, res) => {
                             
                             <div class="right-panel">
                                 <div class="limit-row-pod" style="color:#2563eb">
-                                    <span class="pod-lbl">RATE:</span>
+                                    <span class="pod-lbl">Rain Rate:</span>
                                     <span id="r_rate" class="pod-val">0.0 mm/h</span>
                                 </div>
                                 <div class="limit-row-pod" style="color:#1d4ed8">
