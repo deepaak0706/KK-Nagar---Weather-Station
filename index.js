@@ -637,8 +637,7 @@ app.get("/", (req, res) => {
             --muted: #64748b; 
             --accent: #0284c7; 
             --glow: 0 20px 40px -15px rgba(2, 132, 199, 0.06);
-            --line: rgba(2, 132, 199, 0.08);
-            --pill-bg: rgba(2, 132, 199, 0.03);
+            --line: rgba(2, 132, 199, 0.09);
         }
 
         body.is-night {
@@ -649,8 +648,7 @@ app.get("/", (req, res) => {
             --muted: #64748b; 
             --accent: #38bdf8; 
             --glow: 0 30px 60px -20px rgba(0, 0, 0, 0.6);
-            --line: rgba(255, 255, 255, 0.05);
-            --pill-bg: rgba(255, 255, 255, 0.02);
+            --line: rgba(255, 255, 255, 0.07);
         }
 
         body { 
@@ -703,7 +701,7 @@ app.get("/", (req, res) => {
             display: flex;
             flex-direction: column;
             justify-content: space-between;
-            gap: 24px;
+            gap: 20px;
             width: 100%;
         }
         
@@ -713,31 +711,35 @@ app.get("/", (req, res) => {
         .label { color: var(--accent); font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 2px; }
         
         /* DATA REVELATION READING */
-        .main-val { font-size: 46px; font-weight: 800; margin: 0; letter-spacing: -1.5px; display: flex; align-items: baseline; line-height: 1; font-variant-numeric: tabular-nums; }
+        .main-val { font-size: 48px; font-weight: 800; margin: 0; letter-spacing: -1.5px; display: flex; align-items: baseline; line-height: 1; font-variant-numeric: tabular-nums; }
         .unit { font-size: 16px; font-weight: 600; color: var(--muted); margin-left: 2px; }
 
-        /* THE MODERN LEVEL STRUCTURING */
-        .row-block { display: flex; justify-content: space-between; align-items: center; gap: 12px; width: 100%; }
+        /* HERO LAYOUT ENGINE */
+        .row-block { display: flex; justify-content: space-between; align-items: center; width: 100%; }
         .compact-aside { display: flex; flex-direction: column; justify-content: center; align-items: flex-start; }
         
-        /* INWARD LIMITS CLUSTER Panel */
-        .center-limit-cluster { display: flex; align-items: center; gap: 16px; margin-left: auto; padding-right: 8px; }
-        .limit-pill { display: flex; flex-direction: column; align-items: flex-end; text-align: right; }
-        .limit-title { font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 1px; }
-        .limit-data { font-size: 15px; font-weight: 700; line-height: 1.1; }
+        /* SUBTLE CENTER ARCHITECT dividers */
+        .v-line { width: 1px; background: linear-gradient(to bottom, transparent, var(--line) 20%, var(--line) 80%, transparent); height: 55px; margin: 0 12px; flex-shrink: 0; }
 
-        /* HORIZONTAL MODULAR REVENUE PANELS */
-        .mod-divider { height: 1px; background: linear-gradient(to right, var(--line), transparent); width: 100%; }
+        /* ULTRA PROMINENT VERTICAL STACK ROW PANELS */
+        .vertical-limits-stack { display: flex; flex-direction: column; gap: 8px; flex-grow: 1; justify-content: center; }
+        .limit-row { display: flex; justify-content: space-between; align-items: baseline; width: 100%; gap: 8px; }
+        .limit-lbl { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; }
+        .limit-val-group { display: flex; align-items: baseline; gap: 6px; text-align: right; }
+        .limit-num { font-size: 17px; font-weight: 700; line-height: 1; }
 
+        /* MINIMAL HORIZONTAL STRIPS */
+        .mod-divider { height: 1px; background: linear-gradient(to right, transparent, var(--line) 10%, var(--line) 90%, transparent); width: 100%; margin: 2px 0; }
+
+        /* CLEAN BOXLESS HORIZONTAL INTERIOR MATRIX */
         .modular-inline-stack { 
             display: grid; 
             grid-template-columns: repeat(3, 1fr); 
             gap: 4px; 
             width: 100%; 
-            background: var(--pill-bg);
-            padding: 10px 6px;
-            border-radius: 14px;
-            border: 1px solid var(--border);
+            background: transparent !important;
+            border: none !important;
+            padding: 4px 0 0 0;
         }
         .stack-2-col { grid-template-columns: repeat(2, 1fr); }
 
@@ -750,20 +752,20 @@ app.get("/", (req, res) => {
         }
         .modular-cell:last-child { border-right: none; }
         
-        .cell-lbl { font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); font-weight: 700; margin-bottom: 3px; }
-        .cell-val { font-size: 13px; font-weight: 700; color: var(--text); }
+        .cell-lbl { font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); font-weight: 700; margin-bottom: 4px; }
+        .cell-val { font-size: 14px; font-weight: 700; color: var(--text); }
 
         /* SUB-INFO STRIPS */
         .sub-pill { font-size: 11px; font-weight: 600; color: var(--text); display: inline-flex; align-items: center; gap: 4px; margin-top: 6px; }
 
-        /* CENTERING COMPASS SYSTEM */
-        .compass-ui { width: 40px; height: 40px; border: 1.5px dashed var(--accent); opacity: 0.85; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-left: auto; margin-right: 8px; }
-        #needle { width: 2px; height: 24px; background: linear-gradient(to bottom, #ef4444 50%, var(--muted) 50%); clip-path: polygon(50% 0%, 100% 100%, 50% 85%, 0% 100%); transition: transform 2s cubic-bezier(0.1, 0.9, 0.2, 1); }
+        /* ENLARGED ATTRACTIVE COMPASS ACCENT */
+        .compass-ui { width: 54px; height: 54px; border: 1.5px dashed var(--accent); opacity: 0.9; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-left: auto; margin-right: 4px; transition: all 0.3s ease; }
+        #needle { width: 2.5px; height: 34px; background: linear-gradient(to bottom, #ef4444 50%, var(--muted) 50%); clip-path: polygon(50% 0%, 100% 100%, 50% 85%, 0% 100%); transition: transform 2s cubic-bezier(0.1, 0.9, 0.2, 1); }
 
-        /* NESTED MARKUP CORRECTIONS FOR TIME INSIDE DYNAMIC STRINGS */
-        .time-mark { font-size: 9px; color: var(--muted); font-weight: 500; display: block; margin-top: 1px; opacity: 0.8; }
+        /* TIMESTAMP DESIGN ATTACHED INSIDE DOM LOOPS */
+        .time-mark { font-size: 9px; color: var(--muted); font-weight: 500; display: inline-block; margin-left: 4px; opacity: 0.75; font-family: inherit; }
         
-        /* SYSTEM APPLICATION GRAPH ELEMENTS AND NAV */
+        /* UNTOUCHED CHANNELS FOR CHARTS AND MAIN APP INTERFACES */
         .nav-tabs { display: flex; gap: 8px; margin-bottom: 24px; }
         .tab-btn { background: var(--card); border: 1px solid var(--border); padding: 12px 24px; border-radius: 14px; color: var(--text); font-weight: 700; cursor: pointer; transition: 0.2s; backdrop-filter: blur(20px); font-size: 13px; }
         .tab-btn.active { background: var(--accent); color: white; border-color: var(--accent); box-shadow: var(--glow); }
@@ -774,7 +776,7 @@ app.get("/", (req, res) => {
 
         .trend-up { color: #ef4444; font-weight: bold; } .trend-down { color: #0ea5e9; font-weight: bold; }
 
-        /* UNTOUCHED PROTECTED GRAPH/SUMMARY SCALER (FIXED CELL CUTS) */
+        /* PROTECTED SUMMARY CONTAINER ENGINE */
         .pro-summary-table { background: var(--card); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border: 1px solid var(--border); border-radius: 24px; box-shadow: var(--glow); overflow: hidden; display: flex; flex-direction: column; width: 100%; }
         .pro-row { display: flex; justify-content: space-between; align-items: center; padding: 22px 24px; border-bottom: 1px solid var(--border); gap: 16px; width: 100%; box-sizing: border-box; }
         .pro-row:last-child { border-bottom: none; }
@@ -811,23 +813,29 @@ app.get("/", (req, res) => {
         <div id="page-dashboard">
             <div class="grid-system">
                 
-                <!-- CARD 1: TEMPERATURE CARD (MAX/MIN CENTERED + INTEGRATED TIMESTAMPS) -->
                 <div class="card">
                     <div>
                         <div class="label">Temperature</div>
-                        <div class="row-block">
+                        <div class="row-block" style="margin-top: 4px;">
                             <div class="compact-aside">
                                 <div class="main-val"><span id="t">0.0</span><span class="unit">°C</span></div>
                                 <div id="tTrendBox" class="sub-pill">--</div>
                             </div>
-                            <div class="center-limit-cluster">
-                                <div class="limit-pill">
-                                    <span class="limit-title" style="color:#ef4444">MAX</span>
-                                    <span id="mx" class="limit-data" style="color:#ef4444">--</span>
+                            
+                            <div class="v-line"></div>
+                            
+                            <div class="vertical-limits-stack">
+                                <div class="limit-row">
+                                    <span class="limit-lbl" style="color:#ef4444">Maximum</span>
+                                    <div class="limit-val-group">
+                                        <span id="mx" class="limit-num" style="color:#ef4444">--</span>
+                                    </div>
                                 </div>
-                                <div class="limit-pill">
-                                    <span class="limit-title" style="color:#0ea5e9">MIN</span>
-                                    <span id="mn" class="limit-data" style="color:#0ea5e9">--</span>
+                                <div class="limit-row">
+                                    <span class="limit-lbl" style="color:#0ea5e9">Minimum</span>
+                                    <div class="limit-val-group">
+                                        <span id="mn" class="limit-num" style="color:#0ea5e9">--</span>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -851,19 +859,21 @@ app.get("/", (req, res) => {
                     </div>
                 </div>
 
-                <!-- CARD 2: WIND DYNAMICS CARD (COMPASS RE-CENTERED) -->
                 <div class="card">
                     <canvas id="windCanvas"></canvas>
                     <div>
                         <div class="label">Wind Vector</div>
-                        <div class="row-block">
+                        <div class="row-block" style="margin-top: 4px;">
                             <div class="compact-aside">
                                 <div class="main-val">
                                     <span id="w">0.0</span><span class="unit" style="margin-right:2px;">km/h</span>
                                 </div>
-                                <div style="font-size:13px; color:var(--muted); font-weight:700; margin-top:2px;" id="wd_bracket">(--)</div>
+                                <div style="font-size:13px; color:var(--muted); font-weight:700; margin-top:3px;" id="wd_bracket">(--)</div>
                                 <div class="sub-pill"><span id="wg">--</span></div>
                             </div>
+                            
+                            <div class="v-line"></div>
+                            
                             <div class="compass-ui"><div id="needle"></div></div>
                         </div>
                     </div>
@@ -882,22 +892,28 @@ app.get("/", (req, res) => {
                     </div>
                 </div>
 
-                <!-- CARD 3: PRECISION RAINFALL (HIGH PROMINENCE RATE LIMITS) -->
                 <div class="card">
                     <div>
                         <div class="label">Rainfall</div>
-                        <div class="row-block">
+                        <div class="row-block" style="margin-top: 4px;">
                             <div class="compact-aside">
                                 <div class="main-val"><span id="r_tot">0.0</span><span class="unit">mm</span></div>
                             </div>
-                            <div class="center-limit-cluster">
-                                <div class="limit-pill">
-                                    <span class="limit-title" style="color:#2563eb">Rate</span>
-                                    <span id="r_rate" class="limit-data" style="color:#2563eb">0.0<span style="font-size:9px; font-weight:500; margin-left:1px;">mm/h</span></span>
+                            
+                            <div class="v-line"></div>
+                            
+                            <div class="vertical-limits-stack">
+                                <div class="limit-row">
+                                    <span class="limit-lbl" style="color:#2563eb">Rain Rate</span>
+                                    <div class="limit-val-group">
+                                        <span id="r_rate" class="limit-num" style="color:#2563eb">0.0 <span style="font-size:10px; font-weight:500;">mm/h</span></span>
+                                    </div>
                                 </div>
-                                <div class="limit-pill">
-                                    <span class="limit-title" style="color:#1d4ed8">Max Intensity</span>
-                                    <span id="mr" class="limit-data" style="color:#1d4ed8">--</span>
+                                <div class="limit-row">
+                                    <span class="limit-lbl" style="color:#1d4ed8">Max Rate</span>
+                                    <div class="limit-val-group">
+                                        <span id="mr" class="limit-num" style="color:#1d4ed8">--</span>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -921,11 +937,10 @@ app.get("/", (req, res) => {
                     </div>
                 </div>
 
-                <!-- CARD 4: ATMOSPHERIC SYSTEM -->
                 <div class="card">
                     <div>
                         <div class="label">Atmospheric</div>
-                        <div class="row-block">
+                        <div class="row-block" style="margin-top: 4px;">
                             <div class="compact-aside">
                                 <div class="main-val"><span id="pr">--</span><span class="unit">hPa</span></div>
                                 <div class="sub-pill">Trend Gauge: <span id="pIcon" style="margin-left:2px;">●</span></div>
@@ -950,6 +965,7 @@ app.get("/", (req, res) => {
             </div>
 
             <div class="sub-tabs-section" style="margin-top: 32px;">
+
 
 
 
