@@ -880,28 +880,32 @@ app.get("/", (req, res) => {
         </div>
     </div>
 
-    <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:16px; margin-top:8px;">
-        <div style="display:flex; flex-direction:column; gap:0; flex:1;">
-            <div style="padding-bottom:8px; border-bottom:1px solid var(--line);">
+        <div style="display:flex; flex-direction:column; gap:12px;">
+        <div class="compass-container" style="width:100%; height:70px; position:relative;">
+            <div style="position:absolute; right:0; top:0; width:70px; height:70px;">
+                <div class="compass-ui" style="width:100%; height:100%; position:relative; border-radius:50%; background: radial-gradient(circle, rgba(2,132,199,0.08) 0%, transparent 70%); box-shadow: inset 0 0 14px rgba(2,132,199,0.1); border: 1.5px solid var(--line); display:flex; align-items:center; justify-content:center;">
+                    <span class="cardinal-pt pt-n">N</span>
+                    <span class="cardinal-pt pt-s">S</span>
+                    <span class="cardinal-pt pt-e">E</span>
+                    <span class="cardinal-pt pt-w">W</span>
+                    <div id="needle"></div>
+                </div>
+            </div>
+        </div>
+        <div style="display:flex; align-items:center; gap:0; border:1px solid var(--line); border-radius:14px; overflow:hidden;">
+            <div style="flex:1; padding:10px 14px;">
                 <div class="cell-lbl">Sustained Max</div>
                 <span id="mw" style="font-size:15px; font-weight:700; color:var(--text);">--</span>
             </div>
-            <div style="padding-top:8px;">
+            <div style="width:1px; background:var(--line); align-self:stretch;"></div>
+            <div style="flex:1; padding:10px 14px;">
                 <div class="cell-lbl">Peak Gust</div>
                 <span id="mg" style="font-size:15px; font-weight:700; color:var(--text);">--</span>
             </div>
         </div>
-        <div class="compass-container" style="width:80px; height:80px; flex-shrink:0; margin-top:4px;">
-            <div class="compass-ui" style="background: radial-gradient(circle, rgba(2,132,199,0.08) 0%, transparent 70%); box-shadow: inset 0 0 14px rgba(2,132,199,0.1); border: 1.5px solid var(--line);">
-                <span class="cardinal-pt pt-n">N</span>
-                <span class="cardinal-pt pt-s">S</span>
-                <span class="cardinal-pt pt-e">E</span>
-                <span class="cardinal-pt pt-w">W</span>
-                <div id="needle"></div>
-            </div>
-        </div>
     </div>
 </div>
+
 
 
                 <div class="card">
