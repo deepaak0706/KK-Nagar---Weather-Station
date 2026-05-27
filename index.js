@@ -716,15 +716,22 @@ app.get("/", (req, res) => {
         /* EQUAL COMPACT GRID PANELS */
         .row-block { display: flex; align-items: center; justify-content: space-between; width: 100%; }
         .left-panel { flex: 1.1; display: flex; flex-direction: column; justify-content: center; align-items: flex-start; }
-        .right-panel { flex: 0.9; display: flex; flex-direction: column; gap: 12px; justify-content: center; padding-left: 16px; align-items: flex-start; }
+        .right-panel { flex: 0.9; display: flex; flex-direction: column; gap: 14px; justify-content: center; padding-left: 20px; align-items: flex-start; }
         
-        /* RE-CENTERED Subtly visible DIVIDER */
+        /* RE-CENTERED METRIC DIVIDER */
         .v-line { width: 1px; background: linear-gradient(to bottom, transparent, var(--line) 15%, var(--line) 85%, transparent); height: 75px; flex-shrink: 0; }
 
-        /* HIGH PROMINENCE COMPACT VALUE PODS (PROMINENCE BUMPED BY +0.5) */
-        .limit-row-pod { display: flex; align-items: center; justify-content: flex-start; gap: 6px; width: 100%; font-size: 15px; font-weight: 700; line-height: 1; }
-        .pod-lbl { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.8px; opacity: 0.9; }
-        .pod-val { font-variant-numeric: tabular-nums; }
+        /* VERTICAL STACK SYSTEM FOR METRIC PROMINENCE */
+        .limit-row-pod { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; width: 100%; }
+        .pod-lbl { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.8px; opacity: 0.75; }
+        .pod-val-container { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; }
+        
+        /* High Prominence Value Styling */
+        .pod-val { font-size: 21px; font-weight: 800; line-height: 1.1; font-variant-numeric: tabular-nums; letter-spacing: -0.3px; }
+        .pod-unit { font-size: 12px; font-weight: 600; opacity: 0.8; margin-left: 1px; }
+        
+        /* Colorless, Clean Secondary Timestamp Layout */
+        .pod-time { font-size: 11px; font-weight: 500; color: var(--muted) !important; font-variant-numeric: tabular-nums; }
 
         .mod-divider { height: 1px; background: linear-gradient(to right, transparent, var(--line) 10%, var(--line) 90%, transparent); width: 100%; margin: 2px 0; }
 
@@ -747,7 +754,7 @@ app.get("/", (req, res) => {
 
         .sub-pill { font-size: 11px; font-weight: 600; color: var(--text); display: inline-flex; align-items: center; gap: 4px; margin-top: 8px; }
 
-        /* ADVANCED HIGH-PROMINENCE COMPASS HUD WITH HUD CARDINAL TEXTS */
+        /* ADVANCED COMPASS HUD */
         .compass-container { position: relative; width: 72px; height: 72px; margin: 0 auto; display: flex; align-items: center; justify-content: center; }
         .compass-ui { width: 100%; height: 100%; border: 1.5px solid var(--line); border-radius: 50%; position: absolute; top:0; left:0; display: flex; align-items: center; justify-content: center; }
         
@@ -756,31 +763,199 @@ app.get("/", (req, res) => {
 
         #needle { width: 3px; height: 46px; background: linear-gradient(to bottom, #ef4444 50%, var(--muted) 50%); clip-path: polygon(50% 0%, 100% 100%, 50% 85%, 0% 100%); transition: transform 2s cubic-bezier(0.1, 0.9, 0.2, 1); z-index: 2; }
 
-        .time-mark { font-size: 9px; color: var(--muted); font-weight: 500; display: inline-block; margin-left: 4px; opacity: 0.75; }
-        
         .nav-tabs { display: flex; gap: 8px; margin-bottom: 24px; }
         .tab-btn { background: var(--card); border: 1px solid var(--border); padding: 12px 24px; border-radius: 14px; color: var(--text); font-weight: 700; cursor: pointer; transition: 0.2s; backdrop-filter: blur(20px); font-size: 13px; }
         .tab-btn.active { background: var(--accent); color: white; border-color: var(--accent); box-shadow: var(--glow); }
-
-        .graphs-wrapper { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin-top: 20px; }
-        .graph-card { background: var(--card); padding: 24px; border-radius: 24px; border: 1px solid var(--border); height: 320px; box-shadow: var(--glow); display: flex; flex-direction: column; overflow: hidden; }
-        .graph-card canvas { flex-grow: 1; width: 100% !important; height: 100% !important; }
-
-        .trend-up { color: #ef4444; font-weight: bold; } .trend-down { color: #0ea5e9; font-weight: bold; }
-
-        .pro-summary-table { background: var(--card); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border: 1px solid var(--border); border-radius: 24px; box-shadow: var(--glow); overflow: hidden; display: flex; flex-direction: column; width: 100%; }
-        .pro-row { display: flex; justify-content: space-between; align-items: center; padding: 22px 24px; border-bottom: 1px solid var(--border); gap: 16px; width: 100%; box-sizing: border-box; }
-        .pro-row:last-child { border-bottom: none; }
-        .pro-label { font-size: 14px; font-weight: 700; color: var(--text); flex: 0 0 120px; min-width: 120px; }
-        .pro-data-group { display: flex; align-items: center; gap: 24px; flex: 1; justify-content: flex-end; min-width: 0; }
-        .pro-data-item { display: flex; flex-direction: column; align-items: flex-end; min-width: 95px; }
-        .pro-sub { font-size: 9px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); font-weight: 700; margin-bottom: 4px; white-space: nowrap; }
-        .pro-val { font-size: 20px; font-weight: 800; line-height: 1; white-space: nowrap; }
-        .pro-divider { width: 1px; height: 24px; background: var(--border); opacity: 0.5; flex-shrink: 0; }
-        
-        .glass-select { background: var(--card) !important; border: 1px solid var(--border); border-radius: 12px; padding: 8px 12px; font-family: inherit; font-weight: 600; color: var(--text) !important; outline: none; cursor: pointer; appearance: none; -webkit-appearance: none; background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e"); background-repeat: no-repeat; background-position: right 10px center; background-size: 1em; padding-right: 40px; }
     </style>
 </head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>KK Nagar Weather Hub</h1>
+            <div class="header-actions">
+                <div class="status-bar"><div class="live-dot"></div><div class="timestamp"><span id="ts">--:--:--</span></div></div>
+                <div class="theme-toggle" id="themeToggle">
+                    <div class="theme-btn" id="btn-light">LIGHT</div>
+                    <div class="theme-btn" id="btn-dark">DARK</div>
+                    <div class="theme-btn active" id="btn-auto">AUTO</div>
+                </div>
+            </div>
+        </div>
+
+       <div class="nav-tabs">
+            <button onclick="showPage('dashboard')" id="tab-dash" class="tab-btn active">Live Dashboard</button>
+            <button onclick="showPage('summary')" id="tab-sum" class="tab-btn">Monthly Summary</button>
+            <button onclick="showPage('historical')" id="tab-hist" class="tab-btn">Historical Data</button>
+       </div>
+
+        <div id="page-dashboard">
+            <div class="grid-system">
+                
+                <div class="card">
+                    <div>
+                        <div class="label">Temperature</div>
+                        <div class="row-block">
+                            <div class="left-panel">
+                                <div class="main-val"><span id="t">0.0</span><span class="unit">°C</span></div>
+                                <div id="tTrendBox" class="sub-pill">--</div>
+                            </div>
+                            
+                            <div class="v-line"></div>
+                            
+                            <div class="right-panel">
+                                <div class="limit-row-pod">
+                                    <span class="pod-lbl" style="color:#ef4444">MAX</span>
+                                    <div class="pod-val-container">
+                                        <span class="pod-val" style="color:#ef4444" id="mx_val">--</span>
+                                        <span class="pod-time" id="mx_time">--:--</span>
+                                    </div>
+                                </div>
+                                <div class="limit-row-pod">
+                                    <span class="pod-lbl" style="color:#0ea5e9">MIN</span>
+                                    <div class="pod-val-container">
+                                        <span class="pod-val" style="color:#0ea5e9" id="mn_val">--</span>
+                                        <span class="pod-time" id="mn_time">--:--</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mod-divider"></div>
+                    
+                    <div class="modular-inline-stack">
+                        <div class="modular-cell">
+                            <span class="cell-lbl">Feels Like</span>
+                            <span id="rf" class="cell-val" style="color: #f97316;">--</span>
+                        </div>
+                        <div class="modular-cell">
+                            <span class="cell-lbl">Humidity</span>
+                            <span id="h_val" class="cell-val">--</span>
+                        </div>
+                        <div class="modular-cell">
+                            <span class="cell-lbl">Dew Point</span>
+                            <span id="d_val" class="cell-val">--</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <canvas id="windCanvas"></canvas>
+                    <div>
+                        <div class="label">Wind Vector</div>
+                        <div class="row-block">
+                            <div class="left-panel">
+                                <div class="main-val"><span id="w">0.0</span><span class="unit">km/h</span></div>
+                                <div style="font-size:12px; color:var(--muted); font-weight:700; margin-top:4px;" id="wd_bracket">(--)</div>
+                                <div style="font-size:12px; color:var(--muted); font-weight:600; margin-top:4px;" id="wg_line">Gusting to: --</div>
+                            </div>
+                            
+                            <div class="v-line"></div>
+                            
+                            <div class="right-panel" style="align-items: center; padding-left:0; flex: 0.9;">
+                                <div class="compass-container">
+                                    <div class="compass-ui">
+                                        <span class="cardinal-pt pt-n">N</span>
+                                        <span class="cardinal-pt pt-s">S</span>
+                                        <span class="cardinal-pt pt-e">E</span>
+                                        <span class="cardinal-pt pt-w">W</span>
+                                        <div id="needle"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mod-divider"></div>
+                    
+                    <div class="modular-inline-stack stack-2-col">
+                        <div class="modular-cell">
+                            <span class="cell-lbl">Sustained Max</span>
+                            <span id="mw" class="cell-val">--</span>
+                        </div>
+                        <div class="modular-cell">
+                            <span class="cell-lbl">Peak Gust</span>
+                            <span id="mg" class="cell-val">--</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div>
+                        <div class="label">Rainfall</div>
+                        <div class="row-block">
+                            <div class="left-panel">
+                                <div class="main-val"><span id="r_tot">0.0</span><span class="unit">mm</span></div>
+                            </div>
+                            
+                            <div class="v-line"></div>
+                            
+                            <div class="right-panel">
+                                <div class="limit-row-pod">
+                                    <span class="pod-lbl" style="color:#2563eb">RATE</span>
+                                    <div class="pod-val-container">
+                                        <span class="pod-val" style="color:#2563eb" id="r_rate_val">0.0</span>
+                                        <span class="pod-unit" style="color:#2563eb;">mm/h</span>
+                                    </div>
+                                </div>
+                                <div class="limit-row-pod">
+                                    <span class="pod-lbl" style="color:#1d4ed8">MAX RATE</span>
+                                    <div class="pod-val-container">
+                                        <span class="pod-val" style="color:#1d4ed8" id="mr_val">0.0</span>
+                                        <span class="pod-unit" style="color:#1d4ed8;">mm/h</span>
+                                        <span class="pod-time" id="mr_time">--:--</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mod-divider"></div>
+                    
+                    <div class="modular-inline-stack">
+                        <div class="modular-cell">
+                            <span class="cell-lbl">Weekly</span>
+                            <span id="r_week" class="cell-val">--</span>
+                        </div>
+                        <div class="modular-cell">
+                            <span class="cell-lbl">Monthly</span>
+                            <span id="r_month" class="cell-val">--</span>
+                        </div>
+                        <div class="modular-cell">
+                            <span class="cell-lbl">Yearly</span>
+                            <span id="r_year" class="cell-val">--</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div>
+                        <div class="label">Atmospheric</div>
+                        <div class="row-block">
+                            <div class="left-panel">
+                                <div class="main-val"><span id="pr">--</span><span class="unit">hPa</span></div>
+                                <div class="sub-pill">Trend Gauge: <span id="pIcon" style="margin-left:2px;">●</span></div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mod-divider"></div>
+                    
+                    <div class="modular-inline-stack stack-2-col">
+                        <div class="modular-cell">
+                            <span class="cell-lbl">Solar Radiation</span>
+                            <span id="sol" class="cell-val">--</span>
+                        </div>
+                        <div class="modular-cell">
+                            <span class="cell-lbl">UV Index</span>
+                            <span id="uv" class="cell-val">--</span>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <div class="sub-tabs-section" style="margin-top: 32px;">
 
      <body>
     <div class="container">
