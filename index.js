@@ -853,8 +853,7 @@ app.get("/", (req, res) => {
                         <div class="label">Wind Vector</div>
                         <div class="row-block">
                             <div class="left-panel">
-                                <div class="main-val"><span id="w">0.0</span><span class="unit">km/h</span></div>
-                                <div style="font-size:13px; color:var(--muted); font-weight:700; margin-top:4px;" id="wd_bracket">(--)</div>
+                                <div class="main-val"><span id="w">0.0</span><span class="unit">km/h</span></div><span id="wd_bracket" style="font-size:14px; font-weight:700; color:var(--muted); margin-left:8px;">(--)</span>
                                 <div class="sub-pill">Gusting to:<span id="wg">--</span></div>
                             </div>
                             
@@ -1227,7 +1226,7 @@ app.get("/", (req, res) => {
                 updateValueWithFade('t', d.temp.current, 1);
                 updateValueWithFade('w', d.wind.speed, 1);
                 updateValueWithFade('r_tot', d.rain.total, 1);
-                updateValueWithFade('r_rate', d.rain.rate, 1);
+                document.getElementById('r_rate').innerText = d.rain.rate.toFixed(1) + ' mm/h';
                 updateValueWithFade('wg', d.wind.gust, 1, ' km/h'); 
 
                 document.getElementById('tTrendBox').innerHTML = d.temp.rate > 0 ? '<span class="trend-up">▲</span> +' + d.temp.rate + '°C /hr' : d.temp.rate < 0 ? '<span class="trend-down">▼</span> ' + d.temp.rate + '°C /hr' : '● Steady';
