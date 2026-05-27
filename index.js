@@ -637,18 +637,19 @@ app.get("/", (req, res) => {
             --muted: #64748b; 
             --accent: #0284c7; 
             --glow: 0 20px 40px -15px rgba(2, 132, 199, 0.06);
-            --line: rgba(2, 132, 199, 0.09);
+            --line: rgba(2, 132, 199, 0.12);
         }
 
+        /* PREMIUM OBSIDIAN DARK MODE DEEP LUXURY CHARCOAL */
         body.is-night {
-            --bg: #070b12 !important; 
-            --card: rgba(15, 23, 42, 0.65); 
-            --border: rgba(255, 255, 255, 0.03);
-            --text: #f8fafc !important; 
-            --muted: #64748b; 
+            --bg: #090d16 !important; 
+            --card: rgba(20, 26, 38, 0.65); 
+            --border: rgba(255, 255, 255, 0.04);
+            --text: #f1f5f9 !important; 
+            --muted: #94a3b8; 
             --accent: #38bdf8; 
-            --glow: 0 30px 60px -20px rgba(0, 0, 0, 0.6);
-            --line: rgba(255, 255, 255, 0.07);
+            --glow: 0 30px 60px -20px rgba(0, 0, 0, 0.7);
+            --line: rgba(255, 255, 255, 0.09);
         }
 
         body { 
@@ -699,30 +700,30 @@ app.get("/", (req, res) => {
             display: flex;
             flex-direction: column;
             justify-content: space-between;
-            gap: 20px;
+            gap: 24px;
             width: 100%;
         }
         
         #windCanvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; border-radius: 24px; }
         .card > *:not(canvas) { position: relative; z-index: 5; }
 
-        .label { color: var(--accent); font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 12px; }
+        .label { color: var(--accent); font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 14px; }
         
-        .main-val { font-size: 48px; font-weight: 800; margin: 0; letter-spacing: -1.5px; display: flex; align-items: baseline; line-height: 1; font-variant-numeric: tabular-nums; }
-        .unit { font-size: 16px; font-weight: 600; color: var(--muted); margin-left: 2px; }
+        .main-val { font-size: 52px; font-weight: 800; margin: 0; letter-spacing: -1.5px; display: flex; align-items: baseline; line-height: 1; font-variant-numeric: tabular-nums; }
+        .unit { font-size: 18px; font-weight: 600; color: var(--muted); margin-left: 3px; }
 
-        /* EQUAL BALANCE FLEX LAYOUT */
+        /* EQUAL COMPACT GRID PANELS */
         .row-block { display: flex; align-items: center; justify-content: space-between; width: 100%; }
-        .left-panel { flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: flex-start; }
-        .right-panel { flex: 1; display: flex; flex-direction: column; gap: 10px; justify-content: center; padding-left: 12px; }
+        .left-panel { flex: 1.1; display: flex; flex-direction: column; justify-content: center; align-items: flex-start; }
+        .right-panel { flex: 0.9; display: flex; flex-direction: column; gap: 12px; justify-content: center; padding-left: 16px; align-items: flex-start; }
         
-        /* CENTERED SUBTLE DIVIDER */
-        .v-line { width: 1px; background: linear-gradient(to bottom, transparent, var(--line) 15%, var(--line) 85%, transparent); height: 60px; flex-shrink: 0; }
+        /* RE-CENTERED Subtly visible DIVIDER */
+        .v-line { width: 1px; background: linear-gradient(to bottom, transparent, var(--line) 15%, var(--line) 85%, transparent); height: 75px; flex-shrink: 0; }
 
-        /* BALANCED DATA POD STRUCTURE */
-        .limit-row-pod { display: flex; align-items: center; justify-content: space-between; width: 100%; }
-        .pod-lbl { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.6px; }
-        .pod-val-group { font-size: 17px; font-weight: 700; line-height: 1; text-align: right; }
+        /* HIGH PROMINENCE COMPACT VALUE PODS (PROMINENCE BUMPED BY +0.5) */
+        .limit-row-pod { display: flex; align-items: center; justify-content: flex-start; gap: 6px; width: 100%; font-size: 15px; font-weight: 700; line-height: 1; }
+        .pod-lbl { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.8px; opacity: 0.9; }
+        .pod-val { font-variant-numeric: tabular-nums; }
 
         .mod-divider { height: 1px; background: linear-gradient(to right, transparent, var(--line) 10%, var(--line) 90%, transparent); width: 100%; margin: 2px 0; }
 
@@ -745,9 +746,14 @@ app.get("/", (req, res) => {
 
         .sub-pill { font-size: 11px; font-weight: 600; color: var(--text); display: inline-flex; align-items: center; gap: 4px; margin-top: 8px; }
 
-        /* PREMIUM CENTER-ATTRACTION COMPASS */
-        .compass-ui { width: 56px; height: 56px; border: 1.5px dashed var(--accent); opacity: 0.95; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto; transition: all 0.3s ease; }
-        #needle { width: 2.5px; height: 36px; background: linear-gradient(to bottom, #ef4444 50%, var(--muted) 50%); clip-path: polygon(50% 0%, 100% 100%, 50% 85%, 0% 100%); transition: transform 2s cubic-bezier(0.1, 0.9, 0.2, 1); }
+        /* ADVANCED HIGH-PROMINENCE COMPASS HUD WITH HUD CARDINAL TEXTS */
+        .compass-container { position: relative; width: 72px; height: 72px; margin: 0 auto; display: flex; align-items: center; justify-content: center; }
+        .compass-ui { width: 100%; height: 100%; border: 1.5px solid var(--line); border-radius: 50%; position: absolute; top:0; left:0; display: flex; align-items: center; justify-content: center; }
+        
+        .cardinal-pt { position: absolute; font-size: 9px; font-weight: 900; color: var(--muted); line-height: 1; }
+        .pt-n { top: 2px; } .pt-s { bottom: 2px; } .pt-e { right: 4px; } .pt-w { left: 4px; }
+
+        #needle { width: 3px; height: 46px; background: linear-gradient(to bottom, #ef4444 50%, var(--muted) 50%); clip-path: polygon(50% 0%, 100% 100%, 50% 85%, 0% 100%); transition: transform 2s cubic-bezier(0.1, 0.9, 0.2, 1); z-index: 2; }
 
         .time-mark { font-size: 9px; color: var(--muted); font-weight: 500; display: inline-block; margin-left: 4px; opacity: 0.75; }
         
@@ -797,7 +803,6 @@ app.get("/", (req, res) => {
         <div id="page-dashboard">
             <div class="grid-system">
                 
-                <!-- CARD 1: TEMPERATURE CARD (PERFECT BALANCED ROWS) -->
                 <div class="card">
                     <div>
                         <div class="label">Temperature</div>
@@ -810,13 +815,13 @@ app.get("/", (req, res) => {
                             <div class="v-line"></div>
                             
                             <div class="right-panel">
-                                <div class="limit-row-pod">
-                                    <span class="pod-lbl" style="color:#ef4444">MAXIMUM</span>
-                                    <span id="mx" class="pod-val-group" style="color:#ef4444">--</span>
+                                <div class="limit-row-pod" style="color:#ef4444">
+                                    <span class="pod-lbl">MAX:</span>
+                                    <span id="mx" class="pod-val">--</span>
                                 </div>
-                                <div class="limit-row-pod">
-                                    <span class="pod-lbl" style="color:#0ea5e9">MINIMUM</span>
-                                    <span id="mn" class="pod-val-group" style="color:#0ea5e9">--</span>
+                                <div class="limit-row-pod" style="color:#0ea5e9">
+                                    <span class="pod-lbl">MIN:</span>
+                                    <span id="mn" class="pod-val">--</span>
                                 </div>
                             </div>
                         </div>
@@ -840,7 +845,6 @@ app.get("/", (req, res) => {
                     </div>
                 </div>
 
-                <!-- CARD 2: WIND DYNAMICS CARD (CENTERED COMPASS HUD) -->
                 <div class="card">
                     <canvas id="windCanvas"></canvas>
                     <div>
@@ -854,8 +858,16 @@ app.get("/", (req, res) => {
                             
                             <div class="v-line"></div>
                             
-                            <div class="right-panel" style="align-items: center; padding-left: 0;">
-                                <div class="compass-ui"><div id="needle"></div></div>
+                            <div class="right-panel" style="align-items: center; padding-left:0; flex: 0.9;">
+                                <div class="compass-container">
+                                    <div class="compass-ui">
+                                        <span class="cardinal-pt pt-n">N</span>
+                                        <span class="cardinal-pt pt-s">S</span>
+                                        <span class="cardinal-pt pt-e">E</span>
+                                        <span class="cardinal-pt pt-w">W</span>
+                                        <div id="needle"></div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -874,7 +886,6 @@ app.get("/", (req, res) => {
                     </div>
                 </div>
 
-                <!-- CARD 3: PRECISION RAINFALL (BALANCED PLACEMENT WITH UNITS FIXED) -->
                 <div class="card">
                     <div>
                         <div class="label">Rainfall</div>
@@ -886,13 +897,13 @@ app.get("/", (req, res) => {
                             <div class="v-line"></div>
                             
                             <div class="right-panel">
-                                <div class="limit-row-pod">
-                                    <span class="pod-lbl" style="color:#2563eb">RAIN RATE</span>
-                                    <span id="r_rate" class="pod-val-group" style="color:#2563eb">0.0 <span style="font-size:11px; font-weight:600;">mm/h</span></span>
+                                <div class="limit-row-pod" style="color:#2563eb">
+                                    <span class="pod-lbl">RATE:</span>
+                                    <span id="r_rate" class="pod-val">0.0 mm/h</span>
                                 </div>
-                                <div class="limit-row-pod">
-                                    <span class="pod-lbl" style="color:#1d4ed8">MAX RATE</span>
-                                    <span id="mr" class="pod-val-group" style="color:#1d4ed8">--</span>
+                                <div class="limit-row-pod" style="color:#1d4ed8">
+                                    <span class="pod-lbl">MAX RATE:</span>
+                                    <span id="mr" class="pod-val">--</span>
                                 </div>
                             </div>
                         </div>
@@ -916,7 +927,6 @@ app.get("/", (req, res) => {
                     </div>
                 </div>
 
-                <!-- CARD 4: ATMOSPHERIC SYSTEM -->
                 <div class="card">
                     <div>
                         <div class="label">Atmospheric</div>
@@ -945,10 +955,6 @@ app.get("/", (req, res) => {
             </div>
 
             <div class="sub-tabs-section" style="margin-top: 32px;">
-
-
-
-
 
                 <div style="display: flex; gap: 10px; margin-bottom: 20px; justify-content: center;">
                     <button onclick="switchSubView('summary')" id="btn-sub-sum" class="tab-btn active">24H Summary</button>
