@@ -661,7 +661,7 @@ app.get("/", (req, res) => {
 
         *, *:before, *:after { box-sizing: inherit; }
 
-        .container { width: 100%; max-width: 1440px; margin: 0 auto; }
+        .container { width: 100%; max-width: 1080px; margin: 0 auto; }
         .header { margin-bottom: 28px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; }
         .header h1 { font-size: 26px; font-weight: 800; margin: 0; letter-spacing: -0.5px; }
         .header-actions { display: flex; align-items: center; gap: 12px; }
@@ -685,9 +685,10 @@ app.get("/", (req, res) => {
         @media (min-width: 1200px) {
             .grid-system { grid-template-columns: repeat(2, 1fr); }
         }
-        @media (min-width: 1440px) {
-            .grid-system { grid-template-columns: repeat(4, 1fr); }
-        }
+        @media (min-width: 1000px) {
+    .grid-system { grid-template-columns: repeat(4, 1fr); }
+}
+
 
         .card { 
             background: var(--card); 
@@ -719,7 +720,8 @@ app.get("/", (req, res) => {
         .right-panel { flex: 0.9; display: flex; flex-direction: column; gap: 12px; justify-content: center; padding-left: 16px; align-items: flex-start; }
         
         /* RE-CENTERED Subtly visible DIVIDER */
-        .v-line { width: 1px; background: linear-gradient(to bottom, transparent, var(--line) 15%, var(--line) 85%, transparent); height: 75px; flex-shrink: 0; }
+        .v-line { width: 1px; background: linear-gradient(to bottom, transparent, var(--line) 20%, var(--line) 80%, transparent); height: 90px; flex-shrink: 0; align-self: center; }
+
 
         /* HIGH PROMINENCE COMPACT VALUE PODS (PROMINENCE BUMPED BY +0.5) */
         .limit-row-pod { display: flex; align-items: center; justify-content: flex-start; gap: 6px; width: 100%; font-size: 15px; font-weight: 700; line-height: 1; }
@@ -867,45 +869,40 @@ app.get("/", (req, res) => {
                 </div>
 
                 <div class="card">
-                    <canvas id="windCanvas"></canvas>
-                    <div>
-                        <div class="label">Wind Vector</div>
-                        <div class="row-block">
-                            <div class="left-panel">
-                                <div class="main-val"><span id="w">0.0</span><span class="unit">km/h</span><span id="wd_bracket" style="font-size:13px; font-weight:700; color:var(--muted); margin-left:8px; letter-spacing:0;">(--)</span></div>
+    <canvas id="windCanvas"></canvas>
+    <div>
+        <div class="label">Wind Vector</div>
+        <div class="row-block">
+            <div class="left-panel">
+                <div class="main-val"><span id="w">0.0</span><span class="unit">km/h</span><span id="wd_bracket" style="font-size:13px; font-weight:700; color:var(--muted); margin-left:8px; letter-spacing:0;">(--)</span></div>
+                <div class="sub-pill">Gusting to: <span id="wg">--</span></div>
+            </div>
+        </div>
+    </div>
 
-                                <div class="sub-pill">Gusting to:<span id="wg">--</span></div>
-                            </div>
-                            
-                            <div class="v-line"></div>
-                            
-                            <div class="right-panel" style="align-items: center; padding-left:0; flex: 0.9;">
-                                <div class="compass-container">
-                                    <div class="compass-ui">
-                                        <span class="cardinal-pt pt-n">N</span>
-                                        <span class="cardinal-pt pt-s">S</span>
-                                        <span class="cardinal-pt pt-e">E</span>
-                                        <span class="cardinal-pt pt-w">W</span>
-                                        <div id="needle"></div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="mod-divider"></div>
-                    
-                    <div class="modular-inline-stack stack-2-col">
-                        <div class="modular-cell">
-                            <span class="cell-lbl">Sustained Max</span>
-                            <span id="mw" class="cell-val">--</span>
-                        </div>
-                        <div class="modular-cell">
-                            <span class="cell-lbl">Peak Gust</span>
-                            <span id="mg" class="cell-val">--</span>
-                        </div>
-                    </div>
-                </div>
+    <div style="display:flex; align-items:center; justify-content:space-between; gap:16px;">
+        <div style="display:flex; flex-direction:column; gap:10px; flex:1;">
+            <div>
+                <div class="cell-lbl">Sustained Max</div>
+                <span id="mw" style="font-size:15px; font-weight:700; color:var(--text);">--</span>
+            </div>
+            <div>
+                <div class="cell-lbl">Peak Gust</div>
+                <span id="mg" style="font-size:15px; font-weight:700; color:var(--text);">--</span>
+            </div>
+        </div>
+        <div class="compass-container" style="width:90px; height:90px; flex-shrink:0;">
+            <div class="compass-ui" style="background: radial-gradient(circle, rgba(2,132,199,0.08) 0%, transparent 70%); box-shadow: inset 0 0 14px rgba(2,132,199,0.1); border: 1.5px solid var(--line);">
+                <span class="cardinal-pt pt-n">N</span>
+                <span class="cardinal-pt pt-s">S</span>
+                <span class="cardinal-pt pt-e">E</span>
+                <span class="cardinal-pt pt-w">W</span>
+                <div id="needle"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
 
                 <div class="card">
                     <div>
