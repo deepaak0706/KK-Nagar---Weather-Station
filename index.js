@@ -803,68 +803,64 @@ app.get("/", (req, res) => {
        </div>
 
         <div id="page-dashboard">
-    <div class="grid-wrapper">
-        <div class="grid-system">
-            
-            <div class="card">
-                <div>
-                    <div class="label">Temperature</div>
-                    <div class="row-block">
-                        <div class="left-panel">
-                            <div class="main-val"><span id="t">0.0</span><span class="unit">°C</span></div>
-                            <div id="tTrendBox" class="sub-pill">--</div>
+            <div class="grid-system">
+                
+                <div class="card">
+                    <div>
+                        <div class="label">Temperature</div>
+                        <div class="row-block">
+                            <div class="left-panel">
+                                <div class="main-val"><span id="t">0.0</span><span class="unit">°C</span></div>
+                                <div id="tTrendBox" class="sub-pill">--</div>
+                            </div>
+                            
+                            <div class="v-line"></div>
+                            
+                            <div class="right-panel">
+                                <div class="limit-row-pod" style="color:#ef4444">
+                                    <span class="pod-lbl">MAX:</span>
+                                    <span id="mx" class="pod-val">--</span>
+                                </div>
+                                <div class="limit-row-pod" style="color:#0ea5e9">
+                                    <span class="pod-lbl">MIN:</span>
+                                    <span id="mn" class="pod-val">--</span>
+                                </div>
+                            </div>
                         </div>
-                        
-                        <div class="v-line"></div>
-                        
-                        <div class="right-panel">
-                            <div class="limit-row-pod">
-                                <span class="pod-lbl" style="color:#ef4444">MAX</span>
-                                <span id="mx" class="pod-val" style="color:#ef4444">--</span>
-                            </div>
-                            <div class="limit-row-pod">
-                                <span class="pod-lbl" style="color:#0ea5e9">MIN</span>
-                                <span id="mn" class="pod-val" style="color:#0ea5e9">--</span>
-                            </div>
+                    </div>
+                    
+                    <div class="mod-divider"></div>
+                    
+                    <div class="modular-inline-stack">
+                        <div class="modular-cell">
+                            <span class="cell-lbl">Feels Like</span>
+                            <span id="rf" class="cell-val" style="color: #f97316;">--</span>
+                        </div>
+                        <div class="modular-cell">
+                            <span class="cell-lbl">Humidity</span>
+                            <span id="h_val" class="cell-val">--</span>
+                        </div>
+                        <div class="modular-cell">
+                            <span class="cell-lbl">Dew Point</span>
+                            <span id="d_val" class="cell-val">--</span>
                         </div>
                     </div>
                 </div>
-                
-                <div class="mod-divider"></div>
-                
-                <div class="modular-inline-stack">
-                    <div class="modular-cell">
-                        <span class="cell-lbl">Feels Like</span>
-                        <span id="rf" class="cell-val" style="color: #f97316;">--</span>
-                    </div>
-                    <div class="modular-cell">
-                        <span class="cell-lbl">Humidity</span>
-                        <span id="h_val" class="cell-val">--</span>
-                    </div>
-                    <div class="modular-cell">
-                        <span class="cell-lbl">Dew Point</span>
-                        <span id="d_val" class="cell-val">--</span>
-                    </div>
-                </div>
-            </div>
 
-            <div class="card">
-                <canvas id="windCanvas"></canvas>
-                <div>
-                    <div class="label">Wind Vector</div>
-                    <div class="row-block">
-                        <div class="left-panel">
-                            <div class="main-val"><span id="w">0.0</span><span class="unit">km/h</span></div>
-                            <div style="font-size:13px; color:var(--muted); font-weight:700; margin-top:4px;" id="wd_bracket">(--)</div>
-                            <div class="sub-pill" style="margin-top: 6px; font-weight: 700; color: var(--muted); white-space: nowrap;">
-                                Gusting to: <span id="wg" style="color: var(--text); margin-left: 2px;">--</span>
+                <div class="card">
+                    <canvas id="windCanvas"></canvas>
+                    <div>
+                        <div class="label">Wind Vector</div>
+                        <div class="row-block">
+                            <div class="left-panel">
+                                <div class="main-val"><span id="w">0.0</span><span class="unit">km/h</span></div>
+                                <div style="font-size:13px; color:var(--muted); font-weight:700; margin-top:4px;" id="wd_bracket">(--)</div>
+                                <div class="sub-pill"><span id="wg">--</span></div>
                             </div>
-                        </div>
-                        
-                        <div class="v-line"></div>
-                        
-                        <div class="right-panel">
-                            <div class="compass-panel-box">
+                            
+                            <div class="v-line"></div>
+                            
+                            <div class="right-panel" style="align-items: center; padding-left:0; flex: 0.9;">
                                 <div class="compass-container">
                                     <div class="compass-ui">
                                         <span class="cardinal-pt pt-n">N</span>
@@ -877,92 +873,88 @@ app.get("/", (req, res) => {
                             </div>
                         </div>
                     </div>
-                </div>
-                
-                <div class="mod-divider"></div>
-                
-                <div class="modular-inline-stack stack-2-col">
-                    <div class="modular-cell">
-                        <span class="cell-lbl">Sustained Max</span>
-                        <span id="mw" class="cell-val">--</span>
-                    </div>
-                    <div class="modular-cell">
-                        <span class="cell-lbl">Peak Gust</span>
-                        <span id="mg" class="cell-val">--</span>
-                    </div>
-                </div>
-            </div>
-
-            <div class="card">
-                <div>
-                    <div class="label">Rainfall</div>
-                    <div class="row-block">
-                        <div class="left-panel">
-                            <div class="main-val"><span id="r_tot">0.0</span><span class="unit">mm</span></div>
+                    
+                    <div class="mod-divider"></div>
+                    
+                    <div class="modular-inline-stack stack-2-col">
+                        <div class="modular-cell">
+                            <span class="cell-lbl">Sustained Max</span>
+                            <span id="mw" class="cell-val">--</span>
                         </div>
-                        
-                        <div class="v-line"></div>
-                        
-                        <div class="right-panel">
-                            <div class="limit-row-pod">
-                                <span class="pod-lbl" style="color:#2563eb">RATE</span>
-                                <span id="r_rate" class="pod-val" style="color:#2563eb">--</span>
+                        <div class="modular-cell">
+                            <span class="cell-lbl">Peak Gust</span>
+                            <span id="mg" class="cell-val">--</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div>
+                        <div class="label">Rainfall</div>
+                        <div class="row-block">
+                            <div class="left-panel">
+                                <div class="main-val"><span id="r_tot">0.0</span><span class="unit">mm</span></div>
                             </div>
-                            <div class="limit-row-pod">
-                                <span class="pod-lbl" style="color:#1d4ed8">MAX RATE</span>
-                                <span id="mr" class="pod-val" style="color:#1d4ed8">--</span>
+                            
+                            <div class="v-line"></div>
+                            
+                            <div class="right-panel">
+                                <div class="limit-row-pod" style="color:#2563eb">
+                                    <span class="pod-lbl">RATE:</span>
+                                    <span id="r_rate" class="pod-val">0.0 mm/h</span>
+                                </div>
+                                <div class="limit-row-pod" style="color:#1d4ed8">
+                                    <span class="pod-lbl">MAX RATE:</span>
+                                    <span id="mr" class="pod-val">--</span>
+                                </div>
                             </div>
                         </div>
                     </div>
-                </div>
-                
-                <div class="mod-divider"></div>
-                
-                <div class="modular-inline-stack">
-                    <div class="modular-cell">
-                        <span class="cell-lbl">Weekly</span>
-                        <span id="r_week" class="cell-val">--</span>
-                    </div>
-                    <div class="modular-cell">
-                        <span class="cell-lbl">Monthly</span>
-                        <span id="r_month" class="cell-val">--</span>
-                    </div>
-                    <div class="modular-cell">
-                        <span class="cell-lbl">Yearly</span>
-                        <span id="r_year" class="cell-val">--</span>
-                    </div>
-                </div>
-            </div>
-
-            <div class="card">
-                <div>
-                    <div class="label">Atmospheric</div>
-                    <div class="row-block">
-                        <div class="left-panel">
-                            <div class="main-val"><span id="pr">--</span><span class="unit">hPa</span></div>
-                            <div class="sub-pill">Trend Gauge: <span id="pIcon" style="margin-left:2px;">●</span></div>
+                    
+                    <div class="mod-divider"></div>
+                    
+                    <div class="modular-inline-stack">
+                        <div class="modular-cell">
+                            <span class="cell-lbl">Weekly</span>
+                            <span id="r_week" class="cell-val">--</span>
+                        </div>
+                        <div class="modular-cell">
+                            <span class="cell-lbl">Monthly</span>
+                            <span id="r_month" class="cell-val">--</span>
+                        </div>
+                        <div class="modular-cell">
+                            <span class="cell-lbl">Yearly</span>
+                            <span id="r_year" class="cell-val">--</span>
                         </div>
                     </div>
                 </div>
-                
-                <div class="mod-divider"></div>
-                
-                <div class="modular-inline-stack stack-2-col">
-                    <div class="modular-cell">
-                        <span class="cell-lbl">Solar Radiation</span>
-                        <span id="sol" class="cell-val">--</span>
+
+                <div class="card">
+                    <div>
+                        <div class="label">Atmospheric</div>
+                        <div class="row-block">
+                            <div class="left-panel">
+                                <div class="main-val"><span id="pr">--</span><span class="unit">hPa</span></div>
+                                <div class="sub-pill">Trend Gauge: <span id="pIcon" style="margin-left:2px;">●</span></div>
+                            </div>
+                        </div>
                     </div>
-                    <div class="modular-cell">
-                        <span class="cell-lbl">UV Index</span>
-                        <span id="uv" class="cell-val">--</span>
+                    
+                    <div class="mod-divider"></div>
+                    
+                    <div class="modular-inline-stack stack-2-col">
+                        <div class="modular-cell">
+                            <span class="cell-lbl">Solar Radiation</span>
+                            <span id="sol" class="cell-val">--</span>
+                        </div>
+                        <div class="modular-cell">
+                            <span class="cell-lbl">UV Index</span>
+                            <span id="uv" class="cell-val">--</span>
+                        </div>
                     </div>
                 </div>
+
             </div>
-
-        </div>
-    </div>
-</div>
-
 
             <div class="sub-tabs-section" style="margin-top: 32px;">
 
