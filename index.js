@@ -631,137 +631,153 @@ app.get("/", (req, res) => {
     <style>
         :root { 
             --bg: #f0f4f8 !important; 
-            --card: rgba(255, 255, 255, 0.75); 
-            --border: rgba(2, 132, 199, 0.08);
+            --card: rgba(255, 255, 255, 0.8); 
+            --border: rgba(2, 132, 199, 0.06);
             --text: #0f172a !important; 
             --muted: #64748b; 
             --accent: #0284c7; 
-            --glow: 0 20px 40px -15px rgba(2, 132, 199, 0.12);
-            --badge: rgba(2, 132, 199, 0.04);
-            --line: rgba(2, 132, 199, 0.1);
+            --glow: 0 15px 35px -10px rgba(2, 132, 199, 0.08);
+            --line: rgba(2, 132, 199, 0.08);
         }
 
         body.is-night {
             --bg: #090d16 !important; 
-            --card: rgba(17, 24, 39, 0.65); 
-            --border: rgba(255, 255, 255, 0.04);
+            --card: rgba(17, 24, 39, 0.7); 
+            --border: rgba(255, 255, 255, 0.03);
             --text: #f1f5f9 !important; 
             --muted: #64748b; 
             --accent: #38bdf8; 
-            --glow: 0 25px 60px -20px rgba(0, 0, 0, 0.7);
-            --badge: rgba(255, 255, 255, 0.02);
-            --line: rgba(255, 255, 255, 0.06);
+            --glow: 0 20px 50px -15px rgba(0, 0, 0, 0.5);
+            --line: rgba(255, 255, 255, 0.05);
         }
 
         body { 
             margin: 0; font-family: 'Outfit', sans-serif; background: var(--bg); color: var(--text); 
-            padding: 24px 24px 120px 24px; transition: background 0.5s cubic-bezier(0.4, 0, 0.2, 1), color 0.5s ease; 
-            min-height: 100vh; overflow-x: hidden;
-            box-sizing: border-box;
+            padding: 24px 24px 120px 24px; transition: background 0.4s ease, color 0.4s ease; 
+            min-height: 100vh; overflow-x: hidden; box-sizing: border-box;
         }
 
         *, *:before, *:after { box-sizing: inherit; }
 
         .container { width: 100%; max-width: 1400px; margin: 0 auto; }
-        .header { margin-bottom: 32px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; }
-        .header h1 { font-size: 26px; font-weight: 800; margin: 0; letter-spacing: -0.5px; }
+        .header { margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; }
+        .header h1 { font-size: 24px; font-weight: 800; margin: 0; letter-spacing: -0.5px; }
         .header-actions { display: flex; align-items: center; gap: 12px; }
         
-        .theme-toggle { background: var(--card); border: 1px solid var(--border); padding: 4px; border-radius: 14px; display: flex; gap: 4px; box-shadow: var(--glow); cursor: pointer; backdrop-filter: blur(20px); }
-        .theme-btn { padding: 6px 12px; border-radius: 10px; font-size: 11px; font-weight: 700; transition: 0.2s ease; color: var(--muted); }
+        .theme-toggle { background: var(--card); border: 1px solid var(--border); padding: 4px; border-radius: 12px; display: flex; gap: 4px; box-shadow: var(--glow); cursor: pointer; backdrop-filter: blur(20px); }
+        .theme-btn { padding: 4px 10px; border-radius: 8px; font-size: 11px; font-weight: 700; transition: 0.2s ease; color: var(--muted); }
         .theme-btn.active { background: var(--accent); color: white; }
 
-        .status-bar { display: flex; align-items: center; gap: 8px; background: var(--card); padding: 6px 16px; border-radius: 100px; border: 1px solid var(--border); box-shadow: var(--glow); font-size: 13px; backdrop-filter: blur(20px); }
-        .live-dot { width: 6px; height: 6px; background: #10b981; border-radius: 50%; animation: blink 2s infinite; box-shadow: 0 0 8px #10b981; }
+        .status-bar { display: flex; align-items: center; gap: 8px; background: var(--card); padding: 6px 14px; border-radius: 100px; border: 1px solid var(--border); box-shadow: var(--glow); font-size: 12px; backdrop-filter: blur(20px); }
+        .live-dot { width: 6px; height: 6px; background: #10b981; border-radius: 50%; animation: blink 2s infinite; }
         @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
         
-        /* 4 LIVE CARDS GRID SYSTEM */
-        .grid-system { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 24px; margin-bottom: 32px; }
+        /* DYNAMIC AUTO-ADJUSTING GRID BUILD */
+        .grid-system { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); 
+            gap: 20px; 
+            margin-bottom: 32px; 
+            width: 100%;
+        }
         
         @media (min-width: 1200px) {
+            .grid-system { grid-template-columns: repeat(2, 1fr); }
+        }
+        @media (min-width: 1400px) {
             .grid-system { grid-template-columns: repeat(4, 1fr); }
         }
 
+        /* CARD COMPONENT */
         .card { 
             background: var(--card); 
-            padding: 32px; 
-            border-radius: 28px; 
+            padding: 24px; 
+            border-radius: 24px; 
             border: 1px solid var(--border); 
-            backdrop-filter: blur(24px); 
-            -webkit-backdrop-filter: blur(24px); 
+            backdrop-filter: blur(20px); 
+            -webkit-backdrop-filter: blur(20px); 
             box-shadow: var(--glow); 
             position: relative; 
-            overflow: hidden; 
-            transition: background 0.5s ease, transform 0.3s ease;
             display: flex;
             flex-direction: column;
             justify-content: space-between;
-            min-height: 340px;
+            gap: 16px;
+            width: 100%;
         }
         
-        #windCanvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; border-radius: 28px; }
+        #windCanvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; border-radius: 24px; }
         .card > *:not(canvas) { position: relative; z-index: 5; }
 
-        .label { color: var(--accent); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 12px; }
+        .label { color: var(--accent); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.2px; margin-bottom: 4px; }
         
-        /* VALUE STYLING & ANIMATIONS */
-        .main-val { font-size: 52px; font-weight: 800; margin: 0; letter-spacing: -1.5px; display: flex; align-items: baseline; line-height: 1; }
-        .main-val span:not(.unit), .badge-val { display: inline-block; transition: all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1); font-variant-numeric: tabular-nums; }
+        /* TEXT METRICS */
+        .main-val { font-size: 42px; font-weight: 800; margin: 0; letter-spacing: -1px; display: flex; align-items: baseline; line-height: 1.1; }
+        .unit { font-size: 16px; font-weight: 600; color: var(--muted); margin-left: 2px; }
+
+        /* MODULAR HORIZONTAL PLACEMENT ENGINE */
+        .row-block { display: flex; justify-content: space-between; align-items: center; gap: 16px; width: 100%; }
+        .compact-aside { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
+        .right-aside { display: flex; flex-direction: column; align-items: flex-end; text-align: right; gap: 4px; }
         
-        @keyframes magicFade {
-            0% { opacity: 0; filter: blur(8px); transform: translateY(6px); }
-            100% { opacity: 1; filter: blur(0); transform: translateY(0); }
+        /* MODERN HORIZONTAL REVENUE LINE BREAKERS */
+        .mod-divider { height: 1px; background: var(--line); width: 100%; margin: 2px 0; }
+
+        /* THE COMPACT SINGLE-ROW INTERIOR GRID */
+        .modular-inline-stack { 
+            display: grid; 
+            grid-template-columns: repeat(3, 1fr); 
+            gap: 8px; 
+            width: 100%; 
+            padding-top: 4px;
         }
-        .fade-update { animation: magicFade 0.8s cubic-bezier(0.16, 1, 0.3, 1); will-change: transform, opacity, filter; }
+        .stack-4-col { grid-template-columns: repeat(4, 1fr); }
+        .stack-2-col { grid-template-columns: repeat(2, 1fr); }
 
-        .unit { font-size: 18px; font-weight: 600; color: var(--muted); margin-left: 4px; }
-
-        /* MODERNIZED SPLIT SPLIT LAYOUT */
-        .pro-layout-split { display: flex; gap: 24px; height: 100%; align-items: stretch; margin-top: auto; }
-        .pro-left-pane { flex: 1.1; display: flex; flex-direction: column; justify-content: center; }
-        .pro-divider-line { width: 1px; background: var(--line); margin: 4px 0; position: relative; }
-        .pro-right-pane { flex: 0.9; display: flex; flex-direction: column; justify-content: center; gap: 14px; }
-
-        /* ANALYTICAL SINGLE LINE ROWS */
-        .pro-metric-row { display: flex; justify-content: space-between; align-items: baseline; font-size: 14px; border-bottom: 1px dashed var(--line); padding-bottom: 6px; }
-        .pro-metric-row:last-child { border-bottom: none; padding-bottom: 0; }
-        .pro-metric-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); font-weight: 600; }
-        .pro-metric-value { font-weight: 700; text-align: right; }
-
-        /* TREND MINIMAL BADGE */
-        .sub-pill { font-size: 12px; font-weight: 600; color: var(--text); display: inline-flex; align-items: center; gap: 4px; margin: 8px 0 0 0; }
-
-        /* COMPASS & HUD ELEMENTS */
-        .compass-ui { position: absolute !important; top: 28px !important; right: 28px !important; width: 44px; height: 44px; border: 1.5px dashed var(--line); border-radius: 50%; display: flex; align-items: center; justify-content: center; z-index: 10; }
-        #needle { width: 2px; height: 26px; background: linear-gradient(to bottom, #ef4444 50%, var(--muted) 50%); clip-path: polygon(50% 0%, 100% 100%, 50% 85%, 0% 100%); transition: transform 2s cubic-bezier(0.1, 0.9, 0.2, 1); }
-
-        .time-mark { font-size: 9px; color: var(--muted); font-weight: 500; margin-left: 4px; opacity: 0.8; block-size: fit-content; }
+        .modular-cell { 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            text-align: center;
+            border-right: 1px solid var(--line);
+            padding: 2px 4px;
+        }
+        .modular-cell:last-child { border-right: none; }
         
-        /* TABULAR LAYOUTS (STAY UNTOUCHED EXTERNALLY) */
-        .nav-tabs { display: flex; gap: 8px; margin-bottom: 25px; }
-        .tab-btn { background: var(--card); border: 1px solid var(--border); padding: 12px 24px; border-radius: 16px; color: var(--text); font-weight: 700; cursor: pointer; transition: 0.3s; backdrop-filter: blur(20px); }
+        .cell-lbl { font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); font-weight: 600; margin-bottom: 2px; }
+        .cell-val { font-size: 13px; font-weight: 700; color: var(--text); }
+
+        /* PILLS & INDICATORS */
+        .sub-pill { font-size: 11px; font-weight: 600; color: var(--text); display: inline-flex; align-items: center; gap: 4px; }
+
+        /* COMPASS ALIGNMENT */
+        .compass-ui { width: 36px; height: 36px; border: 1.5px dashed var(--line); border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+        #needle { width: 2px; height: 22px; background: linear-gradient(to bottom, #ef4444 50%, var(--muted) 50%); clip-path: polygon(50% 0%, 100% 100%, 50% 85%, 0% 100%); transition: transform 2s cubic-bezier(0.1, 0.9, 0.2, 1); }
+
+        .time-mark { font-size: 9px; color: var(--muted); font-weight: 500; margin-left: 3px; display: inline-block; }
+        
+        /* NAVIGATION & TABS */
+        .nav-tabs { display: flex; gap: 8px; margin-bottom: 24px; }
+        .tab-btn { background: var(--card); border: 1px solid var(--border); padding: 10px 20px; border-radius: 12px; color: var(--text); font-weight: 700; cursor: pointer; transition: 0.2s; backdrop-filter: blur(20px); font-size: 13px; }
         .tab-btn.active { background: var(--accent); color: white; border-color: var(--accent); box-shadow: var(--glow); }
 
         .graphs-wrapper { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin-top: 20px; }
-        .graph-card { background: var(--card); padding: 24px; border-radius: 32px; border: 1px solid var(--border); height: 320px; box-shadow: var(--glow); display: flex; flex-direction: column; overflow: hidden; }
+        .graph-card { background: var(--card); padding: 24px; border-radius: 24px; border: 1px solid var(--border); height: 320px; box-shadow: var(--glow); display: flex; flex-direction: column; overflow: hidden; }
         .graph-card canvas { flex-grow: 1; width: 100% !important; height: 100% !important; }
 
         .trend-up { color: #ef4444; font-weight: bold; } .trend-down { color: #0ea5e9; font-weight: bold; }
 
-        /* THE SYSTEM PRESERVED STYLES FOR SUMMARY TABLES */
-        .pro-summary-table { background: var(--card); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); border: 1px solid var(--border); border-radius: 24px; box-shadow: var(--glow); overflow: hidden; display: flex; flex-direction: column; }
-        .pro-row { display: flex; justify-content: space-between; align-items: center; padding: 24px 30px; border-bottom: 1px solid var(--border); gap: 20px; }
+        /* PRESERVED & PROTECTED SUMMARY SYSTEMS (FIXED CELL CUT-OFFS) */
+        .pro-summary-table { background: var(--card); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border: 1px solid var(--border); border-radius: 24px; box-shadow: var(--glow); overflow: hidden; display: flex; flex-direction: column; width: 100%; }
+        .pro-row { display: flex; justify-content: space-between; align-items: center; padding: 20px 24px; border-bottom: 1px solid var(--border); gap: 16px; width: 100%; box-sizing: border-box; }
         .pro-row:last-child { border-bottom: none; }
-        .pro-label { font-size: 15px; font-weight: 800; color: var(--text); flex: 0 0 160px; }
-        .pro-data-group { display: flex; align-items: center; gap: 40px; flex: 1; justify-content: flex-end; }
-        .pro-data-item { display: flex; flex-direction: column; align-items: flex-end; min-width: 100px; }
-        .pro-sub { font-size: 10px; text-transform: uppercase; letter-spacing: 1.5px; color: var(--muted); font-weight: 800; margin-bottom: 6px; }
-        .pro-val { font-size: 26px; font-weight: 900; line-height: 1; }
-        .pro-divider { width: 1px; height: 32px; background: var(--border); opacity: 0.5; }
+        .pro-label { font-size: 14px; font-weight: 700; color: var(--text); flex: 0 0 110px; min-width: 110px; }
+        .pro-data-group { display: flex; align-items: center; gap: 24px; flex: 1; justify-content: flex-end; min-width: 0; }
+        .pro-data-item { display: flex; flex-direction: column; align-items: flex-end; min-width: 90px; }
+        .pro-sub { font-size: 9px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); font-weight: 700; margin-bottom: 4px; white-space: nowrap; }
+        .pro-val { font-size: 20px; font-weight: 800; line-height: 1; white-space: nowrap; }
+        .pro-divider { width: 1px; height: 24px; background: var(--border); opacity: 0.5; flex-shrink: 0; }
+        
         .glass-select { background: var(--card) !important; border: 1px solid var(--border); border-radius: 12px; padding: 8px 12px; font-family: inherit; font-weight: 600; color: var(--text) !important; outline: none; cursor: pointer; appearance: none; -webkit-appearance: none; background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e"); background-repeat: no-repeat; background-position: right 10px center; background-size: 1em; padding-right: 40px; }
-        .glass-select option { background-color: #ffffff; color: #000000; }
-        body.is-night .glass-select { color-scheme: dark; }
-        body.is-night .glass-select option { background-color: #1e293b; color: #f1f5f9; }
     </style>
 </head>
 <body>
@@ -788,120 +804,130 @@ app.get("/", (req, res) => {
             <div class="grid-system">
                 
                 <div class="card">
-                    <div class="label">Temperature Dashboard</div>
-                    <div class="pro-layout-split">
-                        <div class="pro-left-pane">
-                            <div class="main-val"><span id="t">0.0</span><span class="unit">°C</span></div>
-                            <div id="tTrendBox" class="sub-pill">--</div>
+                    <div>
+                        <div class="label">Temperature</div>
+                        <div class="row-block" style="align-items: flex-start;">
+                            <div class="compact-aside">
+                                <div class="main-val"><span id="t">0.0</span><span class="unit">°C</span></div>
+                                <div id="tTrendBox" class="sub-pill">--</div>
+                            </div>
+                            <div class="right-aside">
+                                <div style="font-size: 14px; font-weight: 700; color: #ef4444;">HI <span id="mx" style="font-size:16px; margin-left:2px;">--</span></div>
+                                <div style="font-size: 14px; font-weight: 700; color: #0ea5e9;">LO <span id="mn" style="font-size:16px; margin-left:2px;">--</span></div>
+                            </div>
                         </div>
-                        <div class="pro-divider-line"></div>
-                        <div class="pro-right-pane">
-                            <div class="pro-metric-row">
-                                <span class="pro-metric-label">High</span>
-                                <span id="mx" class="pro-metric-value" style="color:#ef4444">--</span>
-                            </div>
-                            <div class="pro-metric-row">
-                                <span class="pro-metric-label">Low</span>
-                                <span id="mn" class="pro-metric-value" style="color:#0ea5e9">--</span>
-                            </div>
-                            <div class="pro-metric-row">
-                                <span class="pro-metric-label">Feels</span>
-                                <span id="rf" class="pro-metric-value">--</span>
-                            </div>
-                            <div class="pro-metric-row">
-                                <span class="pro-metric-label">Humidity</span>
-                                <span id="h_val" class="pro-metric-value">--</span>
-                            </div>
-                            <div class="pro-metric-row">
-                                <span class="pro-metric-label">Dew Pt</span>
-                                <span id="d_val" class="pro-metric-value">--</span>
-                            </div>
+                    </div>
+                    
+                    <div class="mod-divider"></div>
+                    
+                    <div class="modular-inline-stack">
+                        <div class="modular-cell">
+                            <span class="cell-lbl">Feels Like</span>
+                            <span id="rf" class="cell-val" style="color: #f97316;">--</span>
+                        </div>
+                        <div class="modular-cell">
+                            <span class="cell-lbl">Humidity</span>
+                            <span id="h_val" class="cell-val">--</span>
+                        </div>
+                        <div class="modular-cell">
+                            <span class="cell-lbl">Dew Point</span>
+                            <span id="d_val" class="cell-val">--</span>
                         </div>
                     </div>
                 </div>
 
                 <div class="card">
                     <canvas id="windCanvas"></canvas>
-                    <div class="label">Wind Vector</div>
-                    <div class="compass-ui"><div id="needle"></div></div>
-                    <div class="pro-layout-split">
-                        <div class="pro-left-pane">
-                            <div class="main-val">
-                                <span id="w">0.0</span>
-                                <span id="wd_bracket" style="font-size:14px; color:var(--muted); margin-left:6px; font-weight:700">(--)</span>
-                                <span class="unit">km/h</span>
+                    <div>
+                        <div class="label">Wind Vector</div>
+                        <div class="row-block">
+                            <div class="compact-aside">
+                                <div class="main-val">
+                                    <span id="w">0.0</span><span class="unit" style="margin-right:4px;">km/h</span>
+                                    <span id="wd_bracket" style="font-size:13px; color:var(--muted); font-weight:700">(--)</span>
+                                </div>
+                                <div class="sub-pill" style="margin-top:4px;"><span id="wg">--</span></div>
                             </div>
-                            <div class="sub-pill"><span id="wg">--</span></div>
+                            <div class="compass-ui"><div id="needle"></div></div>
                         </div>
-                        <div class="pro-divider-line"></div>
-                        <div class="pro-right-pane">
-                            <div class="pro-metric-row">
-                                <span class="pro-metric-label">Sustained Max</span>
-                                <span id="mw" class="pro-metric-value">--</span>
-                            </div>
-                            <div class="pro-metric-row">
-                                <span class="pro-metric-label">Peak Gust</span>
-                                <span id="mg" class="pro-metric-value">--</span>
-                            </div>
+                    </div>
+                    
+                    <div class="mod-divider"></div>
+                    
+                    <div class="modular-inline-stack stack-2-col">
+                        <div class="modular-cell">
+                            <span class="cell-lbl">Sustained Max</span>
+                            <span id="mw" class="cell-val">--</span>
+                        </div>
+                        <div class="modular-cell">
+                            <span class="cell-lbl">Peak Gust</span>
+                            <span id="mg" class="cell-val">--</span>
                         </div>
                     </div>
                 </div>
 
                 <div class="card">
-                    <div class="label">Precipitation Ledger</div>
-                    <div class="pro-layout-split">
-                        <div class="pro-left-pane">
-                            <div class="main-val"><span id="r_tot">0.0</span><span class="unit">mm</span></div>
-                            <div class="sub-pill" style="color: #3b82f6; font-weight: 700;">
-                                <span id="r_rate">0.0</span><span style="font-size:10px; font-weight:500; margin-left:2px;">mm/h</span>
+                    <div>
+                        <div class="label">Rainfall</div>
+                        <div class="row-block" style="align-items: flex-start;">
+                            <div class="compact-aside">
+                                <div class="main-val"><span id="r_tot">0.0</span><span class="unit">mm</span></div>
+                            </div>
+                            <div class="right-aside" style="gap: 2px;">
+                                <div style="font-size: 11px; font-weight: 600; color: var(--muted);">RATE</div>
+                                <div style="font-size: 14px; font-weight: 700; color: #3b82f6;" id="r_rate">0.0mm/h</div>
+                                <div style="font-size: 9px; color: var(--muted);" id="mr">Max: --</div>
                             </div>
                         </div>
-                        <div class="pro-divider-line"></div>
-                        <div class="pro-right-pane">
-                            <div class="pro-metric-row">
-                                <span class="pro-metric-label">Max Rate</span>
-                                <span id="mr" class="pro-metric-value">--</span>
-                            </div>
-                            <div class="pro-metric-row">
-                                <span class="pro-metric-label">Weekly</span>
-                                <span id="r_week" class="pro-metric-value">--</span>
-                            </div>
-                            <div class="pro-metric-row">
-                                <span class="pro-metric-label">Monthly</span>
-                                <span id="r_month" class="pro-metric-value">--</span>
-                            </div>
-                            <div class="pro-metric-row">
-                                <span class="pro-metric-label">Yearly</span>
-                                <span id="r_year" class="pro-metric-value">--</span>
-                            </div>
+                    </div>
+                    
+                    <div class="mod-divider"></div>
+                    
+                    <div class="modular-inline-stack">
+                        <div class="modular-cell">
+                            <span class="cell-lbl">Weekly</span>
+                            <span id="r_week" class="cell-val">--</span>
+                        </div>
+                        <div class="modular-cell">
+                            <span class="cell-lbl">Monthly</span>
+                            <span id="r_month" class="cell-val">--</span>
+                        </div>
+                        <div class="modular-cell">
+                            <span class="cell-lbl">Yearly</span>
+                            <span id="r_year" class="cell-val">--</span>
                         </div>
                     </div>
                 </div>
 
                 <div class="card">
-                    <div class="label">Atmospheric Monitoring</div>
-                    <div class="pro-layout-split">
-                        <div class="pro-left-pane">
-                            <div class="main-val"><span id="pr">--</span><span class="unit">hPa</span></div>
-                            <div class="sub-pill">Trend Gauge: <span id="pIcon" style="margin-left:4px">●</span></div>
+                    <div>
+                        <div class="label">Atmospheric</div>
+                        <div class="row-block">
+                            <div class="compact-aside">
+                                <div class="main-val"><span id="pr">--</span><span class="unit">hPa</span></div>
+                                <div class="sub-pill" style="margin-top:4px;">Baro Trend: <span id="pIcon" style="margin-left:2px;">●</span></div>
+                            </div>
                         </div>
-                        <div class="pro-divider-line"></div>
-                        <div class="pro-right-pane">
-                            <div class="pro-metric-row">
-                                <span class="pro-metric-label">Solar Rad</span>
-                                <span id="sol" class="pro-metric-value">--</span>
-                            </div>
-                            <div class="pro-metric-row">
-                                <span class="pro-metric-label">UV Index</span>
-                                <span id="uv" class="pro-metric-value">--</span>
-                            </div>
+                    </div>
+                    
+                    <div class="mod-divider"></div>
+                    
+                    <div class="modular-inline-stack stack-2-col">
+                        <div class="modular-cell">
+                            <span class="cell-lbl">Solar Radiation</span>
+                            <span id="sol" class="cell-val">--</span>
+                        </div>
+                        <div class="modular-cell">
+                            <span class="cell-lbl">UV Index</span>
+                            <span id="uv" class="cell-val">--</span>
                         </div>
                     </div>
                 </div>
 
             </div>
 
-            <div class="sub-tabs-section" style="margin-top: 35px;">
+            <div class="sub-tabs-section" style="margin-top: 32px;">
+
 
                 <div style="display: flex; gap: 10px; margin-bottom: 20px; justify-content: center;">
                     <button onclick="switchSubView('summary')" id="btn-sub-sum" class="tab-btn active">24H Summary</button>
