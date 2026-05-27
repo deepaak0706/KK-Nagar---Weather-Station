@@ -922,21 +922,19 @@ app.get("/", (req, res) => {
                             <div class="v-line"></div>
 
                             <div class="right-panel" style="gap:0; width:100%;">
-    <div style="display:flex; flex-direction:column; gap:2px; padding-bottom:10px; border-bottom:1px solid var(--line); width:100%;">
-        <div style="display:flex; align-items:center; gap:5px;">
-            <div style="width:6px; height:6px; border-radius:50%; background:#2563eb; flex-shrink:0;"></div>
-            <span style="font-size:9px; font-weight:900; letter-spacing:1.5px; color:#2563eb;">RATE</span>
-        </div>
-        <span id="r_rate" style="font-size:22px; font-weight:800; color:#2563eb; line-height:1.1; font-variant-numeric:tabular-nums;">--</span>
+
+                            <div style="display:flex; flex-direction:column; gap:2px; padding-top:10px; width:100%;">
+    <div style="display:flex; align-items:center; gap:5px;">
+        <div style="width:6px; height:6px; border-radius:50%; background:#0891b2; flex-shrink:0;"></div>
+        <span style="font-size:9px; font-weight:900; letter-spacing:1.5px; color:#0891b2;">MAX RATE</span>
     </div>
-    <div style="display:flex; flex-direction:column; gap:2px; padding-top:10px; width:100%;">
-        <div style="display:flex; align-items:center; gap:5px;">
-            <div style="width:6px; height:6px; border-radius:50%; background:#1d4ed8; flex-shrink:0;"></div>
-            <span style="font-size:9px; font-weight:900; letter-spacing:1.5px; color:#1d4ed8;">MAX RATE</span>
-        </div>
-        <span id="mr" style="font-size:22px; font-weight:800; color:#1d4ed8; line-height:1.1; font-variant-numeric:tabular-nums;">--</span>
+    <div style="display:flex; align-items:baseline; gap:6px; flex-wrap:wrap;">
+        <span id="mr" style="font-size:22px; font-weight:800; color:#0891b2; line-height:1.1; font-variant-numeric:tabular-nums;">--</span>
+        <span id="mr-time" style="font-size:9px; color:var(--muted); font-weight:500; opacity:0.75;">--</span>
     </div>
 </div>
+
+    
 
 
                             
@@ -1281,7 +1279,9 @@ app.get("/", (req, res) => {
                 document.getElementById('r_week').innerText = d.rain.weekly + ' mm';
                 document.getElementById('r_month').innerText = d.rain.monthly + ' mm';
                 document.getElementById('r_year').innerText = d.rain.yearly + ' mm';
-                document.getElementById('mr').innerHTML = d.rain.maxR > 0 ? d.rain.maxR + ' mm/h <span class="time-mark">' + d.rain.maxRTime + '</span>' : '0 mm/h';
+                document.getElementById('mr').innerText = d.rain.maxR > 0 ? d.rain.maxR.toFixed(1) + ' mm/h' : '0 mm/h';
+                document.getElementById('mr-time').innerText = d.rain.maxR > 0 ? d.rain.maxRTime : '';
+
 
                 const pTrend = d.atmo.pTrend;
                 let pArrow = '●';
