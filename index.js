@@ -661,7 +661,7 @@ app.get("/", (req, res) => {
 
         *, *:before, *:after { box-sizing: inherit; }
 
-        .container { width: 100%; max-width: 1080px; margin: 0 auto; }
+        .container { width: 100%; max-width: 1340px; margin: 0 auto; }
         .header { margin-bottom: 28px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; }
         .header h1 { font-size: 26px; font-weight: 800; margin: 0; letter-spacing: -0.5px; }
         .header-actions { display: flex; align-items: center; gap: 12px; }
@@ -685,9 +685,11 @@ app.get("/", (req, res) => {
         @media (min-width: 1200px) {
             .grid-system { grid-template-columns: repeat(2, 1fr); }
         }
-        @media (min-width: 1000px) {
+
+        @media (min-width: 1100px) {
     .grid-system { grid-template-columns: repeat(4, 1fr); }
 }
+
 
 
         .card { 
