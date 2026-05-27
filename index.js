@@ -869,44 +869,45 @@ app.get("/", (req, res) => {
                 </div>
 
                 <div class="card">
-    <canvas id="windCanvas"></canvas>
-    <div>
-        <div class="label">Wind Vector</div>
-        <div class="row-block">
-            <div class="left-panel">
-                <div class="main-val"><span id="w">0.0</span><span class="unit">km/h</span><span id="wd_bracket" style="font-size:13px; font-weight:700; color:var(--muted); margin-left:8px; letter-spacing:0;">(--)</span></div>
-                <div class="sub-pill">Gusting to: <span id="wg">--</span></div>
-            </div>
-        </div>
-    </div>
+                    <canvas id="windCanvas"></canvas>
+                    <div>
+                        <div class="label">Wind Vector</div>
+                        <div class="row-block">
+                            <div class="left-panel">
+                                <div class="main-val"><span id="w">0.0</span><span class="unit">km/h</span><span id="wd_bracket" style="font-size:13px; font-weight:700; color:var(--muted); margin-left:8px; letter-spacing:0;">(--)</span></div>
 
-        <div style="display:flex; flex-direction:column; gap:12px;">
-        <div class="compass-container" style="width:100%; height:70px; position:relative;">
-            <div style="position:absolute; right:0; top:0; width:70px; height:70px;">
-                <div class="compass-ui" style="width:100%; height:100%; position:relative; border-radius:50%; background: radial-gradient(circle, rgba(2,132,199,0.08) 0%, transparent 70%); box-shadow: inset 0 0 14px rgba(2,132,199,0.1); border: 1.5px solid var(--line); display:flex; align-items:center; justify-content:center;">
-                    <span class="cardinal-pt pt-n">N</span>
-                    <span class="cardinal-pt pt-s">S</span>
-                    <span class="cardinal-pt pt-e">E</span>
-                    <span class="cardinal-pt pt-w">W</span>
-                    <div id="needle"></div>
+                            <div class="sub-pill">Gusting to:<span id="wg">--</span></div>
+                        </div>
+                        
+                        <div class="v-line"></div>
+                        
+                        <div class="right-panel" style="align-items: center; padding-left:0; flex: 0.9;">
+                            <div class="compass-container">
+                                <div class="compass-ui">
+                                    <span class="cardinal-pt pt-n">N</span>
+                                    <span class="cardinal-pt pt-s">S</span>
+                                    <span class="cardinal-pt pt-e">E</span>
+                                    <span class="cardinal-pt pt-w">W</span>
+                                    <div id="needle"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mod-divider"></div>
+                
+                <div class="modular-inline-stack stack-2-col">
+                    <div class="modular-cell">
+                        <span class="cell-lbl">Sustained Max</span>
+                        <span id="mw" class="cell-val">--</span>
+                    </div>
+                    <div class="modular-cell">
+                        <span class="cell-lbl">Peak Gust</span>
+                        <span id="mg" class="cell-val">--</span>
+                    </div>
                 </div>
             </div>
-        </div>
-        <div style="display:flex; align-items:center; gap:0; border:1px solid var(--line); border-radius:14px; overflow:hidden;">
-            <div style="flex:1; padding:10px 14px;">
-                <div class="cell-lbl">Sustained Max</div>
-                <span id="mw" style="font-size:15px; font-weight:700; color:var(--text);">--</span>
-            </div>
-            <div style="width:1px; background:var(--line); align-self:stretch;"></div>
-            <div style="flex:1; padding:10px 14px;">
-                <div class="cell-lbl">Peak Gust</div>
-                <span id="mg" style="font-size:15px; font-weight:700; color:var(--text);">--</span>
-            </div>
-        </div>
-    </div>
-</div>
-
-
 
                 <div class="card">
                     <div>
