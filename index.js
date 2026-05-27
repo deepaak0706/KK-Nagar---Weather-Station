@@ -712,19 +712,21 @@ app.get("/", (req, res) => {
         .main-val { font-size: 52px; font-weight: 800; margin: 0; letter-spacing: -1.5px; display: flex; align-items: baseline; line-height: 1; font-variant-numeric: tabular-nums; }
         .unit { font-size: 18px; font-weight: 600; color: var(--muted); margin-left: 3px; }
 
-        /* EQUAL COMPACT GRID PANELS */
         .row-block { display: flex; align-items: center; justify-content: space-between; width: 100%; }
         .left-panel { flex: 1.1; display: flex; flex-direction: column; justify-content: center; align-items: flex-start; }
         .right-panel { flex: 0.9; display: flex; flex-direction: column; gap: 14px; justify-content: center; padding-left: 20px; align-items: flex-start; }
         
-        /* RE-CENTERED METRIC DIVIDER */
         .v-line { width: 1px; background: linear-gradient(to bottom, transparent, var(--line) 15%, var(--line) 85%, transparent); height: 75px; flex-shrink: 0; }
 
-        /* HIGH-PROMINENCE VERTICAL STACKED VAL PODS */
-        .limit-row-pod { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; width: 100%; }
+        /* FIXED STACKED POD LAYOUT */
+        .limit-row-pod { display: flex; flex-direction: column; align-items: flex-start; gap: 1px; width: 100%; }
         .pod-lbl { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.8px; opacity: 0.75; }
+        .pod-val-container { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; }
         .pod-val { font-size: 20px; font-weight: 800; line-height: 1.1; font-variant-numeric: tabular-nums; letter-spacing: -0.3px; }
-        .pod-val .pod-unit { font-size: 12px; font-weight: 600; opacity: 0.8; margin-left: 1px; }
+        .pod-unit { font-size: 12px; font-weight: 600; opacity: 0.8; margin-left: 1px; }
+        
+        /* DE-EMPHASIZED TIMESTAMP STYLE RULES */
+        .pod-time { font-size: 11px; font-weight: 500; color: var(--muted) !important; font-variant-numeric: tabular-nums; }
 
         .mod-divider { height: 1px; background: linear-gradient(to right, transparent, var(--line) 10%, var(--line) 90%, transparent); width: 100%; margin: 2px 0; }
 
@@ -747,7 +749,6 @@ app.get("/", (req, res) => {
 
         .sub-pill { font-size: 11px; font-weight: 600; color: var(--text); display: inline-flex; align-items: center; gap: 4px; margin-top: 8px; }
 
-        /* ADVANCED HIGH-PROMINENCE COMPASS HUD */
         .compass-container { position: relative; width: 72px; height: 72px; margin: 0 auto; display: flex; align-items: center; justify-content: center; }
         .compass-ui { width: 100%; height: 100%; border: 1.5px solid var(--line); border-radius: 50%; position: absolute; top:0; left:0; display: flex; align-items: center; justify-content: center; }
         
@@ -761,29 +762,10 @@ app.get("/", (req, res) => {
         .tab-btn.active { background: var(--accent); color: white; border-color: var(--accent); box-shadow: var(--glow); }
     </style>
 </head>
-<body>
-    <div class="container">
-        <div class="header">
-            <h1>KK Nagar Weather Hub</h1>
-            <div class="header-actions">
-                <div class="status-bar"><div class="live-dot"></div><div class="timestamp"><span id="ts">--:--:--</span></div></div>
-                <div class="theme-toggle" id="themeToggle">
-                    <div class="theme-btn" id="btn-light">LIGHT</div>
-                    <div class="theme-btn" id="btn-dark">DARK</div>
-                    <div class="theme-btn active" id="btn-auto">AUTO</div>
-                </div>
-            </div>
-        </div>
-
-       <div class="nav-tabs">
-            <button onclick="showPage('dashboard')" id="tab-dash" class="tab-btn active">Live Dashboard</button>
-            <button onclick="showPage('summary')" id="tab-sum" class="tab-btn">Monthly Summary</button>
-            <button onclick="showPage('historical')" id="tab-hist" class="tab-btn">Historical Data</button>
-       </div>
-
         <div id="page-dashboard">
             <div class="grid-system">
                 
+                <!-- CARD 1: TEMPERATURE CARD -->
                 <div class="card">
                     <div>
                         <div class="label">Temperature</div>
@@ -798,11 +780,17 @@ app.get("/", (req, res) => {
                             <div class="right-panel">
                                 <div class="limit-row-pod">
                                     <span class="pod-lbl" style="color:#ef4444">MAX</span>
-                                    <span class="pod-val" style="color:#ef4444" id="mx">--</span>
+                                    <div class="pod-val-container">
+                                        <span class="pod-val" style="color:#ef4444" id="mx_val">--</span>
+                                        <span class="pod-time" id="mx_time">--:--</span>
+                                    </div>
                                 </div>
                                 <div class="limit-row-pod">
                                     <span class="pod-lbl" style="color:#0ea5e9">MIN</span>
-                                    <span class="pod-val" style="color:#0ea5e9" id="mn">--</span>
+                                    <div class="pod-val-container">
+                                        <span class="pod-val" style="color:#0ea5e9" id="mn_val">--</span>
+                                        <span class="pod-time" id="mn_time">--:--</span>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -826,6 +814,7 @@ app.get("/", (req, res) => {
                     </div>
                 </div>
 
+                <!-- CARD 2: WIND DYNAMICS CARD -->
                 <div class="card">
                     <canvas id="windCanvas"></canvas>
                     <div>
@@ -833,8 +822,8 @@ app.get("/", (req, res) => {
                         <div class="row-block">
                             <div class="left-panel">
                                 <div class="main-val"><span id="w">0.0</span><span class="unit">km/h</span></div>
-                                <div style="font-size:13px; color:var(--muted); font-weight:700; margin-top:4px;" id="wd_bracket">(--)</div>
-                                <div class="sub-pill"><span id="wg">--</span></div>
+                                <div style="font-size:12px; color:var(--muted); font-weight:700; margin-top:4px;" id="wd_bracket">(--)</div>
+                                <div style="font-size:12px; color:var(--muted); font-weight:600; margin-top:2px;" id="wg_line">--</div>
                             </div>
                             
                             <div class="v-line"></div>
@@ -867,6 +856,7 @@ app.get("/", (req, res) => {
                     </div>
                 </div>
 
+                <!-- CARD 3: PLUVIOPHILE PRECISION RAINFALL -->
                 <div class="card">
                     <div>
                         <div class="label">Rainfall</div>
@@ -880,11 +870,18 @@ app.get("/", (req, res) => {
                             <div class="right-panel">
                                 <div class="limit-row-pod">
                                     <span class="pod-lbl" style="color:#2563eb">RATE</span>
-                                    <span class="pod-val" style="color:#2563eb"><span id="r_rate">0.0</span><span class="pod-unit">mm/h</span></span>
+                                    <div class="pod-val-container">
+                                        <span class="pod-val" style="color:#2563eb" id="r_rate_val">0.0</span>
+                                        <span class="pod-unit" style="color:#2563eb; margin-left:-3px;">mm/h</span>
+                                    </div>
                                 </div>
                                 <div class="limit-row-pod">
                                     <span class="pod-lbl" style="color:#1d4ed8">MAX RATE</span>
-                                    <span class="pod-val" style="color:#1d4ed8"><span id="mr">0.0</span><span class="pod-unit">mm/h</span></span>
+                                    <div class="pod-val-container">
+                                        <span class="pod-val" style="color:#1d4ed8" id="mr_val">0.0</span>
+                                        <span class="pod-unit" style="color:#1d4ed8; margin-left:-3px;">mm/h</span>
+                                        <span class="pod-time" id="mr_time">--:--</span>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -908,6 +905,7 @@ app.get("/", (req, res) => {
                     </div>
                 </div>
 
+                <!-- CARD 4: ATMOSPHERIC SYSTEM -->
                 <div class="card">
                     <div>
                         <div class="label">Atmospheric</div>
@@ -936,6 +934,7 @@ app.get("/", (req, res) => {
             </div>
 
             <div class="sub-tabs-section" style="margin-top: 32px;">
+
 
 
                 <div style="display: flex; gap: 10px; margin-bottom: 20px; justify-content: center;">
