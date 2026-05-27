@@ -962,31 +962,31 @@ app.get("/", (req, res) => {
                 </div>
 
                 <div class="card">
-                    <div>
-                        <div class="label">Atmospheric</div>
-                        <div class="row-block">
-                            <div class="left-panel">
-                                <div class="main-val"><span id="pr">--</span><span class="unit">hPa</span></div>
-                                <div class="sub-pill">Trend Gauge: <span id="pIcon" style="margin-left:2px;">●</span></div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="mod-divider"></div>
-                    
-                    <div class="modular-inline-stack stack-2-col">
-                        <div class="modular-cell">
-                            <span class="cell-lbl">Solar Radiation</span>
-                            <span id="sol" class="cell-val">--</span>
-                        </div>
-                        <div class="modular-cell">
-                            <span class="cell-lbl">UV Index</span>
-                            <span id="uv" class="cell-val">--</span>
-                        </div>
-                    </div>
+    <div>
+        <div class="label">Atmospheric</div>
+        <div class="row-block">
+            <div class="left-panel">
+                <div class="main-val">
+                    <span id="pr">--</span>
+                    <span class="unit">hPa</span>
+                    <span id="pIcon" style="font-size:16px; margin-left:8px; font-weight:800; line-height:1; align-self:center;"></span>
                 </div>
-
             </div>
+        </div>
+    </div>
+    <div class="mod-divider"></div>
+    <div class="modular-inline-stack stack-2-col">
+        <div class="modular-cell">
+            <span class="cell-lbl">Solar Radiation</span>
+            <span id="sol" class="cell-val">--</span>
+        </div>
+        <div class="modular-cell">
+            <span class="cell-lbl">UV Index</span>
+            <span id="uv" class="cell-val">--</span>
+        </div>
+    </div>
+</div>
+
 
             <div class="sub-tabs-section" style="margin-top: 32px;">
 
@@ -1284,10 +1284,10 @@ app.get("/", (req, res) => {
                 document.getElementById('mr').innerHTML = d.rain.maxR > 0 ? d.rain.maxR + ' mm/h <span class="time-mark">' + d.rain.maxRTime + '</span>' : '0 mm/h';
 
                 const pTrend = d.atmo.pTrend;
-                let pArrow = '●';
-                if (pTrend >= 0.1) pArrow = '<span class="trend-up" style="color:#ef4444">▲</span>';
-                if (pTrend <= -0.1) pArrow = '<span class="trend-down" style="color:#0ea5e9">▼</span>';
-                document.getElementById('pIcon').innerHTML = pArrow;
+                if (pTrend >= 0.1) document.getElementById('pIcon').innerHTML = '<span style="color:#ef4444; font-size:14px;">▲</span>';
+                else if (pTrend <= -0.1) document.getElementById('pIcon').innerHTML = '<span style="color:#0ea5e9; font-size:14px;">▼</span>';
+                else document.getElementById('pIcon').innerHTML = '<span style="color:var(--muted); font-size:12px;">●</span>';
+
                 
                 document.getElementById('pr').innerText = d.atmo.press;
                 document.getElementById('sol').innerText = d.atmo.sol + ' W/m²'; 
