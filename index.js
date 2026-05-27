@@ -661,7 +661,7 @@ app.get("/", (req, res) => {
 
         *, *:before, *:after { box-sizing: inherit; }
 
-        .container { width: 100%; max-width: 1340px; margin: 0 auto; }
+        .container { width: 100%; max-width: 1400px; margin: 0 auto; }
         .header { margin-bottom: 28px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; }
         .header h1 { font-size: 26px; font-weight: 800; margin: 0; letter-spacing: -0.5px; }
         .header-actions { display: flex; align-items: center; gap: 12px; }
@@ -675,26 +675,26 @@ app.get("/", (req, res) => {
         @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
         
         .grid-system { 
-            display: grid; 
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); 
-            gap: 16px; 
-            margin-bottom: 32px; 
-            width: 100%;
-        }
-        
-        @media (min-width: 1200px) {
-            .grid-system { grid-template-columns: repeat(2, 1fr); }
-        }
+    display: grid; 
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); 
+    gap: 20px; 
+    margin-bottom: 32px; 
+    width: 100%;
+}
 
-        @media (min-width: 1100px) {
+@media (min-width: 900px) {
+    .grid-system { grid-template-columns: repeat(2, 1fr); }
+}
+@media (min-width: 1200px) {
     .grid-system { grid-template-columns: repeat(4, 1fr); }
 }
 
 
 
+
         .card { 
             background: var(--card); 
-            padding: 20px; 
+            padding: 24px; 
             border-radius: 24px; 
             border: 1px solid var(--border); 
             backdrop-filter: blur(30px); 
@@ -775,7 +775,17 @@ app.get("/", (req, res) => {
         .tab-btn { background: var(--card); border: 1px solid var(--border); padding: 12px 24px; border-radius: 14px; color: var(--text); font-weight: 700; cursor: pointer; transition: 0.2s; backdrop-filter: blur(20px); font-size: 13px; }
         .tab-btn.active { background: var(--accent); color: white; border-color: var(--accent); box-shadow: var(--glow); }
 
-        .graphs-wrapper { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin-top: 20px; }
+        .graphs-wrapper { 
+    display: grid; 
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); 
+    gap: 20px; 
+    margin-top: 20px; 
+    width: 100%;
+}
+@media (min-width: 1000px) {
+    .graphs-wrapper { grid-template-columns: repeat(4, 1fr); }
+}
+
         .graph-card { background: var(--card); padding: 24px; border-radius: 24px; border: 1px solid var(--border); height: 320px; box-shadow: var(--glow); display: flex; flex-direction: column; overflow: hidden; }
         .graph-card canvas { flex-grow: 1; width: 100% !important; height: 100% !important; }
 
@@ -989,7 +999,8 @@ app.get("/", (req, res) => {
     </div>
 </div>
 
-            <div class="sub-tabs-section" style="margin-top: 32px;">
+            <div class="sub-tabs-section" style="margin-top: 32px; width: 100%;">
+
 
                 <div style="display: flex; gap: 10px; margin-bottom: 20px; justify-content: center;">
                     <button onclick="switchSubView('summary')" id="btn-sub-sum" class="tab-btn active">24H Summary</button>
