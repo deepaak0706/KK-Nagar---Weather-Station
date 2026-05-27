@@ -630,25 +630,27 @@ app.get("/", (req, res) => {
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <style>
         :root { 
-            --bg: #f0f4f8 !important; 
-            --card: rgba(255, 255, 255, 0.8); 
-            --border: rgba(2, 132, 199, 0.06);
+            --bg: #f4f7fa !important; 
+            --card: rgba(255, 255, 255, 0.85); 
+            --border: rgba(2, 132, 199, 0.05);
             --text: #0f172a !important; 
             --muted: #64748b; 
             --accent: #0284c7; 
-            --glow: 0 15px 35px -10px rgba(2, 132, 199, 0.08);
+            --glow: 0 20px 40px -15px rgba(2, 132, 199, 0.06);
             --line: rgba(2, 132, 199, 0.08);
+            --pill-bg: rgba(2, 132, 199, 0.03);
         }
 
         body.is-night {
-            --bg: #090d16 !important; 
-            --card: rgba(17, 24, 39, 0.7); 
+            --bg: #070b12 !important; 
+            --card: rgba(15, 23, 42, 0.65); 
             --border: rgba(255, 255, 255, 0.03);
-            --text: #f1f5f9 !important; 
+            --text: #f8fafc !important; 
             --muted: #64748b; 
             --accent: #38bdf8; 
-            --glow: 0 20px 50px -15px rgba(0, 0, 0, 0.5);
+            --glow: 0 30px 60px -20px rgba(0, 0, 0, 0.6);
             --line: rgba(255, 255, 255, 0.05);
+            --pill-bg: rgba(255, 255, 255, 0.02);
         }
 
         body { 
@@ -659,24 +661,24 @@ app.get("/", (req, res) => {
 
         *, *:before, *:after { box-sizing: inherit; }
 
-        .container { width: 100%; max-width: 1400px; margin: 0 auto; }
-        .header { margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; }
-        .header h1 { font-size: 24px; font-weight: 800; margin: 0; letter-spacing: -0.5px; }
+        .container { width: 100%; max-width: 1440px; margin: 0 auto; }
+        .header { margin-bottom: 28px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; }
+        .header h1 { font-size: 26px; font-weight: 800; margin: 0; letter-spacing: -0.5px; }
         .header-actions { display: flex; align-items: center; gap: 12px; }
         
-        .theme-toggle { background: var(--card); border: 1px solid var(--border); padding: 4px; border-radius: 12px; display: flex; gap: 4px; box-shadow: var(--glow); cursor: pointer; backdrop-filter: blur(20px); }
-        .theme-btn { padding: 4px 10px; border-radius: 8px; font-size: 11px; font-weight: 700; transition: 0.2s ease; color: var(--muted); }
+        .theme-toggle { background: var(--card); border: 1px solid var(--border); padding: 4px; border-radius: 14px; display: flex; gap: 4px; box-shadow: var(--glow); cursor: pointer; backdrop-filter: blur(20px); }
+        .theme-btn { padding: 5px 12px; border-radius: 10px; font-size: 11px; font-weight: 700; transition: 0.2s ease; color: var(--muted); }
         .theme-btn.active { background: var(--accent); color: white; }
 
-        .status-bar { display: flex; align-items: center; gap: 8px; background: var(--card); padding: 6px 14px; border-radius: 100px; border: 1px solid var(--border); box-shadow: var(--glow); font-size: 12px; backdrop-filter: blur(20px); }
-        .live-dot { width: 6px; height: 6px; background: #10b981; border-radius: 50%; animation: blink 2s infinite; }
+        .status-bar { display: flex; align-items: center; gap: 8px; background: var(--card); padding: 6px 16px; border-radius: 100px; border: 1px solid var(--border); box-shadow: var(--glow); font-size: 12px; backdrop-filter: blur(20px); }
+        .live-dot { width: 6px; height: 6px; background: #10b981; border-radius: 50%; animation: blink 2s infinite; box-shadow: 0 0 8px #10b981; }
         @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
         
-        /* DYNAMIC AUTO-ADJUSTING GRID BUILD */
+        /* RESPONSIVE AUTO-GRID MATRIX */
         .grid-system { 
             display: grid; 
             grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); 
-            gap: 20px; 
+            gap: 24px; 
             margin-bottom: 32px; 
             width: 100%;
         }
@@ -684,53 +686,59 @@ app.get("/", (req, res) => {
         @media (min-width: 1200px) {
             .grid-system { grid-template-columns: repeat(2, 1fr); }
         }
-        @media (min-width: 1400px) {
+        @media (min-width: 1440px) {
             .grid-system { grid-template-columns: repeat(4, 1fr); }
         }
 
-        /* CARD COMPONENT */
+        /* METRIC CORE CARDS */
         .card { 
             background: var(--card); 
-            padding: 24px; 
+            padding: 28px; 
             border-radius: 24px; 
             border: 1px solid var(--border); 
-            backdrop-filter: blur(20px); 
-            -webkit-backdrop-filter: blur(20px); 
+            backdrop-filter: blur(30px); 
+            -webkit-backdrop-filter: blur(30px); 
             box-shadow: var(--glow); 
             position: relative; 
             display: flex;
             flex-direction: column;
             justify-content: space-between;
-            gap: 16px;
+            gap: 24px;
             width: 100%;
         }
         
         #windCanvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; border-radius: 24px; }
         .card > *:not(canvas) { position: relative; z-index: 5; }
 
-        .label { color: var(--accent); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.2px; margin-bottom: 4px; }
+        .label { color: var(--accent); font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 2px; }
         
-        /* TEXT METRICS */
-        .main-val { font-size: 42px; font-weight: 800; margin: 0; letter-spacing: -1px; display: flex; align-items: baseline; line-height: 1.1; }
+        /* DATA REVELATION READING */
+        .main-val { font-size: 46px; font-weight: 800; margin: 0; letter-spacing: -1.5px; display: flex; align-items: baseline; line-height: 1; font-variant-numeric: tabular-nums; }
         .unit { font-size: 16px; font-weight: 600; color: var(--muted); margin-left: 2px; }
 
-        /* MODULAR HORIZONTAL PLACEMENT ENGINE */
-        .row-block { display: flex; justify-content: space-between; align-items: center; gap: 16px; width: 100%; }
-        .compact-aside { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
-        .right-aside { display: flex; flex-direction: column; align-items: flex-end; text-align: right; gap: 4px; }
+        /* THE MODERN LEVEL STRUCTURING */
+        .row-block { display: flex; justify-content: space-between; align-items: center; gap: 12px; width: 100%; }
+        .compact-aside { display: flex; flex-direction: column; justify-content: center; align-items: flex-start; }
         
-        /* MODERN HORIZONTAL REVENUE LINE BREAKERS */
-        .mod-divider { height: 1px; background: var(--line); width: 100%; margin: 2px 0; }
+        /* INWARD LIMITS CLUSTER Panel */
+        .center-limit-cluster { display: flex; align-items: center; gap: 16px; margin-left: auto; padding-right: 8px; }
+        .limit-pill { display: flex; flex-direction: column; align-items: flex-end; text-align: right; }
+        .limit-title { font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 1px; }
+        .limit-data { font-size: 15px; font-weight: 700; line-height: 1.1; }
 
-        /* THE COMPACT SINGLE-ROW INTERIOR GRID */
+        /* HORIZONTAL MODULAR REVENUE PANELS */
+        .mod-divider { height: 1px; background: linear-gradient(to right, var(--line), transparent); width: 100%; }
+
         .modular-inline-stack { 
             display: grid; 
             grid-template-columns: repeat(3, 1fr); 
-            gap: 8px; 
+            gap: 4px; 
             width: 100%; 
-            padding-top: 4px;
+            background: var(--pill-bg);
+            padding: 10px 6px;
+            border-radius: 14px;
+            border: 1px solid var(--border);
         }
-        .stack-4-col { grid-template-columns: repeat(4, 1fr); }
         .stack-2-col { grid-template-columns: repeat(2, 1fr); }
 
         .modular-cell { 
@@ -739,25 +747,25 @@ app.get("/", (req, res) => {
             align-items: center; 
             text-align: center;
             border-right: 1px solid var(--line);
-            padding: 2px 4px;
         }
         .modular-cell:last-child { border-right: none; }
         
-        .cell-lbl { font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); font-weight: 600; margin-bottom: 2px; }
+        .cell-lbl { font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); font-weight: 700; margin-bottom: 3px; }
         .cell-val { font-size: 13px; font-weight: 700; color: var(--text); }
 
-        /* PILLS & INDICATORS */
-        .sub-pill { font-size: 11px; font-weight: 600; color: var(--text); display: inline-flex; align-items: center; gap: 4px; }
+        /* SUB-INFO STRIPS */
+        .sub-pill { font-size: 11px; font-weight: 600; color: var(--text); display: inline-flex; align-items: center; gap: 4px; margin-top: 6px; }
 
-        /* COMPASS ALIGNMENT */
-        .compass-ui { width: 36px; height: 36px; border: 1.5px dashed var(--line); border-radius: 50%; display: flex; align-items: center; justify-content: center; }
-        #needle { width: 2px; height: 22px; background: linear-gradient(to bottom, #ef4444 50%, var(--muted) 50%); clip-path: polygon(50% 0%, 100% 100%, 50% 85%, 0% 100%); transition: transform 2s cubic-bezier(0.1, 0.9, 0.2, 1); }
+        /* CENTERING COMPASS SYSTEM */
+        .compass-ui { width: 40px; height: 40px; border: 1.5px dashed var(--accent); opacity: 0.85; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-left: auto; margin-right: 8px; }
+        #needle { width: 2px; height: 24px; background: linear-gradient(to bottom, #ef4444 50%, var(--muted) 50%); clip-path: polygon(50% 0%, 100% 100%, 50% 85%, 0% 100%); transition: transform 2s cubic-bezier(0.1, 0.9, 0.2, 1); }
 
-        .time-mark { font-size: 9px; color: var(--muted); font-weight: 500; margin-left: 3px; display: inline-block; }
+        /* NESTED MARKUP CORRECTIONS FOR TIME INSIDE DYNAMIC STRINGS */
+        .time-mark { font-size: 9px; color: var(--muted); font-weight: 500; display: block; margin-top: 1px; opacity: 0.8; }
         
-        /* NAVIGATION & TABS */
+        /* SYSTEM APPLICATION GRAPH ELEMENTS AND NAV */
         .nav-tabs { display: flex; gap: 8px; margin-bottom: 24px; }
-        .tab-btn { background: var(--card); border: 1px solid var(--border); padding: 10px 20px; border-radius: 12px; color: var(--text); font-weight: 700; cursor: pointer; transition: 0.2s; backdrop-filter: blur(20px); font-size: 13px; }
+        .tab-btn { background: var(--card); border: 1px solid var(--border); padding: 12px 24px; border-radius: 14px; color: var(--text); font-weight: 700; cursor: pointer; transition: 0.2s; backdrop-filter: blur(20px); font-size: 13px; }
         .tab-btn.active { background: var(--accent); color: white; border-color: var(--accent); box-shadow: var(--glow); }
 
         .graphs-wrapper { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin-top: 20px; }
@@ -766,13 +774,13 @@ app.get("/", (req, res) => {
 
         .trend-up { color: #ef4444; font-weight: bold; } .trend-down { color: #0ea5e9; font-weight: bold; }
 
-        /* PRESERVED & PROTECTED SUMMARY SYSTEMS (FIXED CELL CUT-OFFS) */
+        /* UNTOUCHED PROTECTED GRAPH/SUMMARY SCALER (FIXED CELL CUTS) */
         .pro-summary-table { background: var(--card); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border: 1px solid var(--border); border-radius: 24px; box-shadow: var(--glow); overflow: hidden; display: flex; flex-direction: column; width: 100%; }
-        .pro-row { display: flex; justify-content: space-between; align-items: center; padding: 20px 24px; border-bottom: 1px solid var(--border); gap: 16px; width: 100%; box-sizing: border-box; }
+        .pro-row { display: flex; justify-content: space-between; align-items: center; padding: 22px 24px; border-bottom: 1px solid var(--border); gap: 16px; width: 100%; box-sizing: border-box; }
         .pro-row:last-child { border-bottom: none; }
-        .pro-label { font-size: 14px; font-weight: 700; color: var(--text); flex: 0 0 110px; min-width: 110px; }
+        .pro-label { font-size: 14px; font-weight: 700; color: var(--text); flex: 0 0 120px; min-width: 120px; }
         .pro-data-group { display: flex; align-items: center; gap: 24px; flex: 1; justify-content: flex-end; min-width: 0; }
-        .pro-data-item { display: flex; flex-direction: column; align-items: flex-end; min-width: 90px; }
+        .pro-data-item { display: flex; flex-direction: column; align-items: flex-end; min-width: 95px; }
         .pro-sub { font-size: 9px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); font-weight: 700; margin-bottom: 4px; white-space: nowrap; }
         .pro-val { font-size: 20px; font-weight: 800; line-height: 1; white-space: nowrap; }
         .pro-divider { width: 1px; height: 24px; background: var(--border); opacity: 0.5; flex-shrink: 0; }
@@ -803,17 +811,24 @@ app.get("/", (req, res) => {
         <div id="page-dashboard">
             <div class="grid-system">
                 
+                <!-- CARD 1: TEMPERATURE CARD (MAX/MIN CENTERED + INTEGRATED TIMESTAMPS) -->
                 <div class="card">
                     <div>
                         <div class="label">Temperature</div>
-                        <div class="row-block" style="align-items: flex-start;">
+                        <div class="row-block">
                             <div class="compact-aside">
                                 <div class="main-val"><span id="t">0.0</span><span class="unit">°C</span></div>
                                 <div id="tTrendBox" class="sub-pill">--</div>
                             </div>
-                            <div class="right-aside">
-                                <div style="font-size: 14px; font-weight: 700; color: #ef4444;">HI <span id="mx" style="font-size:16px; margin-left:2px;">--</span></div>
-                                <div style="font-size: 14px; font-weight: 700; color: #0ea5e9;">LO <span id="mn" style="font-size:16px; margin-left:2px;">--</span></div>
+                            <div class="center-limit-cluster">
+                                <div class="limit-pill">
+                                    <span class="limit-title" style="color:#ef4444">MAX</span>
+                                    <span id="mx" class="limit-data" style="color:#ef4444">--</span>
+                                </div>
+                                <div class="limit-pill">
+                                    <span class="limit-title" style="color:#0ea5e9">MIN</span>
+                                    <span id="mn" class="limit-data" style="color:#0ea5e9">--</span>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -836,6 +851,7 @@ app.get("/", (req, res) => {
                     </div>
                 </div>
 
+                <!-- CARD 2: WIND DYNAMICS CARD (COMPASS RE-CENTERED) -->
                 <div class="card">
                     <canvas id="windCanvas"></canvas>
                     <div>
@@ -843,10 +859,10 @@ app.get("/", (req, res) => {
                         <div class="row-block">
                             <div class="compact-aside">
                                 <div class="main-val">
-                                    <span id="w">0.0</span><span class="unit" style="margin-right:4px;">km/h</span>
-                                    <span id="wd_bracket" style="font-size:13px; color:var(--muted); font-weight:700">(--)</span>
+                                    <span id="w">0.0</span><span class="unit" style="margin-right:2px;">km/h</span>
                                 </div>
-                                <div class="sub-pill" style="margin-top:4px;"><span id="wg">--</span></div>
+                                <div style="font-size:13px; color:var(--muted); font-weight:700; margin-top:2px;" id="wd_bracket">(--)</div>
+                                <div class="sub-pill"><span id="wg">--</span></div>
                             </div>
                             <div class="compass-ui"><div id="needle"></div></div>
                         </div>
@@ -866,17 +882,23 @@ app.get("/", (req, res) => {
                     </div>
                 </div>
 
+                <!-- CARD 3: PRECISION RAINFALL (HIGH PROMINENCE RATE LIMITS) -->
                 <div class="card">
                     <div>
                         <div class="label">Rainfall</div>
-                        <div class="row-block" style="align-items: flex-start;">
+                        <div class="row-block">
                             <div class="compact-aside">
                                 <div class="main-val"><span id="r_tot">0.0</span><span class="unit">mm</span></div>
                             </div>
-                            <div class="right-aside" style="gap: 2px;">
-                                <div style="font-size: 11px; font-weight: 600; color: var(--muted);">RATE</div>
-                                <div style="font-size: 14px; font-weight: 700; color: #3b82f6;" id="r_rate">0.0mm/h</div>
-                                <div style="font-size: 9px; color: var(--muted);" id="mr">Max: --</div>
+                            <div class="center-limit-cluster">
+                                <div class="limit-pill">
+                                    <span class="limit-title" style="color:#2563eb">Rate</span>
+                                    <span id="r_rate" class="limit-data" style="color:#2563eb">0.0<span style="font-size:9px; font-weight:500; margin-left:1px;">mm/h</span></span>
+                                </div>
+                                <div class="limit-pill">
+                                    <span class="limit-title" style="color:#1d4ed8">Max Intensity</span>
+                                    <span id="mr" class="limit-data" style="color:#1d4ed8">--</span>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -899,13 +921,14 @@ app.get("/", (req, res) => {
                     </div>
                 </div>
 
+                <!-- CARD 4: ATMOSPHERIC SYSTEM -->
                 <div class="card">
                     <div>
                         <div class="label">Atmospheric</div>
                         <div class="row-block">
                             <div class="compact-aside">
                                 <div class="main-val"><span id="pr">--</span><span class="unit">hPa</span></div>
-                                <div class="sub-pill" style="margin-top:4px;">Baro Trend: <span id="pIcon" style="margin-left:2px;">●</span></div>
+                                <div class="sub-pill">Trend Gauge: <span id="pIcon" style="margin-left:2px;">●</span></div>
                             </div>
                         </div>
                     </div>
@@ -927,6 +950,7 @@ app.get("/", (req, res) => {
             </div>
 
             <div class="sub-tabs-section" style="margin-top: 32px;">
+
 
 
                 <div style="display: flex; gap: 10px; margin-bottom: 20px; justify-content: center;">
