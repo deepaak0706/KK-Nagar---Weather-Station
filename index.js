@@ -642,17 +642,17 @@ app.get("/", (req, res) => {
         }
 
         body.is-night {
-    --bg: #0d1321 !important;
-    --card: rgba(17, 24, 45, 0.9);
-    --border: rgba(129, 140, 248, 0.12);
-    --text: #e2e8ff !important;
-    --muted: #6b7fa3;
-    --accent: #818cf8;
-    --glow: 0 30px 60px -20px rgba(0, 0, 0, 0.7);
-    --line: rgba(129, 140, 248, 0.08);
+    --bg: #0f1117 !important;
+    --card: rgba(22, 24, 30, 0.95);
+    --border: rgba(255, 255, 255, 0.05);
+    --text: #eaeaea !important;
+    --muted: #888888;
+    --accent: #60a5fa;
+    --glow: 0 30px 60px -20px rgba(0, 0, 0, 0.65);
+    --line: rgba(255, 255, 255, 0.06);
 }
 
-           
+         
         body { 
             margin: 0; font-family: 'Outfit', sans-serif; background: var(--bg); color: var(--text); 
             padding: 24px 24px 120px 24px; transition: background 0.4s ease, color 0.4s ease; 
