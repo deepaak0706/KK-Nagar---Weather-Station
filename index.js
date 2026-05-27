@@ -824,16 +824,24 @@ app.get("/", (req, res) => {
                             </div>
                             
                             <div class="v-line"></div>
-                            <div class="right-panel" style="gap:8px;">
-    <div style="background:rgba(239,68,68,0.08); border:1px solid rgba(239,68,68,0.2); border-radius:12px; padding:6px 12px;">
-        <div style="font-size:9px; font-weight:900; letter-spacing:1.5px; color:#ef4444; margin-bottom:3px;">MAX</div>
-        <div style="font-size:18px; font-weight:800; color:#ef4444; line-height:1;" id="mx">--</div>
+                            <div class="right-panel" style="gap:10px;">
+    <div style="display:flex; flex-direction:column; gap:1px;">
+        <div style="display:flex; align-items:center; gap:5px;">
+            <div style="width:6px; height:6px; border-radius:50%; background:#ef4444; flex-shrink:0;"></div>
+            <span style="font-size:9px; font-weight:900; letter-spacing:1.5px; color:#ef4444;">MAX</span>
+        </div>
+        <span id="mx" style="font-size:22px; font-weight:800; color:#ef4444; line-height:1.1; font-variant-numeric:tabular-nums;">--</span>
     </div>
-    <div style="background:rgba(14,165,233,0.08); border:1px solid rgba(14,165,233,0.2); border-radius:12px; padding:6px 12px;">
-        <div style="font-size:9px; font-weight:900; letter-spacing:1.5px; color:#0ea5e9; margin-bottom:3px;">MIN</div>
-        <div style="font-size:18px; font-weight:800; color:#0ea5e9; line-height:1;" id="mn">--</div>
+    <div style="height:1px; width:100%; background:var(--line);"></div>
+    <div style="display:flex; flex-direction:column; gap:1px;">
+        <div style="display:flex; align-items:center; gap:5px;">
+            <div style="width:6px; height:6px; border-radius:50%; background:#0ea5e9; flex-shrink:0;"></div>
+            <span style="font-size:9px; font-weight:900; letter-spacing:1.5px; color:#0ea5e9;">MIN</span>
+        </div>
+        <span id="mn" style="font-size:22px; font-weight:800; color:#0ea5e9; line-height:1.1; font-variant-numeric:tabular-nums;">--</span>
     </div>
 </div>
+
 
                             
 
@@ -908,16 +916,24 @@ app.get("/", (req, res) => {
                             </div>
                             
                             <div class="v-line"></div>
-                            <div class="right-panel" style="gap:0;">
-    <div style="flex-direction:column; align-items:flex-start; gap:2px; padding-bottom:8px; border-bottom:1px solid var(--line); width:100%;">
-        <span style="font-size:9px; font-weight:900; letter-spacing:1.5px; color:#2563eb;">RATE</span>
-        <span id="r_rate" style="font-size:20px; font-weight:800; color:#2563eb; line-height:1;">--</span>
+
+                            <div class="right-panel" style="gap:0; width:100%;">
+    <div style="display:flex; flex-direction:column; gap:2px; padding-bottom:10px; border-bottom:1px solid var(--line); width:100%;">
+        <div style="display:flex; align-items:center; gap:5px;">
+            <div style="width:6px; height:6px; border-radius:50%; background:#2563eb; flex-shrink:0;"></div>
+            <span style="font-size:9px; font-weight:900; letter-spacing:1.5px; color:#2563eb;">RATE</span>
+        </div>
+        <span id="r_rate" style="font-size:22px; font-weight:800; color:#2563eb; line-height:1.1; font-variant-numeric:tabular-nums;">--</span>
     </div>
-    <div style="flex-direction:column; align-items:flex-start; gap:2px; padding-top:8px; width:100%;">
-        <span style="font-size:9px; font-weight:900; letter-spacing:1.5px; color:#1d4ed8;">MAX RATE</span>
-        <span id="mr" style="font-size:20px; font-weight:800; color:#1d4ed8; line-height:1;">--</span>
+    <div style="display:flex; flex-direction:column; gap:2px; padding-top:10px; width:100%;">
+        <div style="display:flex; align-items:center; gap:5px;">
+            <div style="width:6px; height:6px; border-radius:50%; background:#1d4ed8; flex-shrink:0;"></div>
+            <span style="font-size:9px; font-weight:900; letter-spacing:1.5px; color:#1d4ed8;">MAX RATE</span>
+        </div>
+        <span id="mr" style="font-size:22px; font-weight:800; color:#1d4ed8; line-height:1.1; font-variant-numeric:tabular-nums;">--</span>
     </div>
 </div>
+
 
                             
                         </div>
