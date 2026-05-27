@@ -749,7 +749,16 @@ app.get("/", (req, res) => {
 
         /* ADVANCED HIGH-PROMINENCE COMPASS HUD WITH HUD CARDINAL TEXTS */
         .compass-container { position: relative; width: 72px; height: 72px; margin: 0 auto; display: flex; align-items: center; justify-content: center; }
-        .compass-ui { width: 100%; height: 100%; border: 1.5px solid var(--line); border-radius: 50%; position: absolute; top:0; left:0; display: flex; align-items: center; justify-content: center; }
+        .compass-ui { 
+    width: 100%; height: 100%; 
+    border: 1.5px solid var(--line); 
+    border-radius: 50%; 
+    position: absolute; top:0; left:0; 
+    display: flex; align-items: center; justify-content: center;
+    background: radial-gradient(circle, rgba(2,132,199,0.06) 0%, transparent 70%);
+    box-shadow: inset 0 0 12px rgba(2,132,199,0.08);
+}
+
         
         .cardinal-pt { position: absolute; font-size: 9px; font-weight: 900; color: var(--muted); line-height: 1; }
         .pt-n { top: 2px; } .pt-s { bottom: 2px; } .pt-e { right: 4px; } .pt-w { left: 4px; }
@@ -815,17 +824,18 @@ app.get("/", (req, res) => {
                             </div>
                             
                             <div class="v-line"></div>
-                            
-                            <div class="right-panel">
-    <div class="limit-row-pod" style="flex-direction:column; align-items:flex-start; gap:2px;">
-        <span class="pod-lbl" style="font-size:10px; font-weight:900; letter-spacing:1.5px; color:#ef4444; opacity:1;">MAX</span>
-        <span id="mx" class="pod-val" style="font-size:20px; color:#ef4444;">--</span>
+                            <div class="right-panel" style="gap:8px;">
+    <div style="background:rgba(239,68,68,0.08); border:1px solid rgba(239,68,68,0.2); border-radius:12px; padding:6px 12px;">
+        <div style="font-size:9px; font-weight:900; letter-spacing:1.5px; color:#ef4444; margin-bottom:3px;">MAX</div>
+        <div style="font-size:18px; font-weight:800; color:#ef4444; line-height:1;" id="mx">--</div>
     </div>
-    <div class="limit-row-pod" style="flex-direction:column; align-items:flex-start; gap:2px;">
-        <span class="pod-lbl" style="font-size:10px; font-weight:900; letter-spacing:1.5px; color:#0ea5e9; opacity:1;">MIN</span>
-        <span id="mn" class="pod-val" style="font-size:20px; color:#0ea5e9;">--</span>
+    <div style="background:rgba(14,165,233,0.08); border:1px solid rgba(14,165,233,0.2); border-radius:12px; padding:6px 12px;">
+        <div style="font-size:9px; font-weight:900; letter-spacing:1.5px; color:#0ea5e9; margin-bottom:3px;">MIN</div>
+        <div style="font-size:18px; font-weight:800; color:#0ea5e9; line-height:1;" id="mn">--</div>
     </div>
 </div>
+
+                            
 
                         </div>
                     </div>
@@ -854,7 +864,8 @@ app.get("/", (req, res) => {
                         <div class="label">Wind Vector</div>
                         <div class="row-block">
                             <div class="left-panel">
-                                <div class="main-val"><span id="w">0.0</span><span class="unit">km/h</span></div><span id="wd_bracket" style="font-size:14px; font-weight:700; color:var(--muted); margin-left:8px;">(--)</span>
+                                <div class="main-val"><span id="w">0.0</span><span class="unit">km/h</span><span id="wd_bracket" style="font-size:13px; font-weight:700; color:var(--muted); margin-left:8px; letter-spacing:0;">(--)</span></div>
+
                                 <div class="sub-pill">Gusting to:<span id="wg">--</span></div>
                             </div>
                             
@@ -897,18 +908,18 @@ app.get("/", (req, res) => {
                             </div>
                             
                             <div class="v-line"></div>
-                            
-                            <div class="right-panel">
-                                <div class="limit-row-pod" style="flex-direction:column; align-items:flex-start; gap:2px;">
-    <span class="pod-lbl" style="font-size:10px; font-weight:900; letter-spacing:1.5px; color:#2563eb; opacity:1;">RATE</span>
-    <span id="r_rate" class="pod-val" style="font-size:20px; color:#2563eb;">--</span>
-</div>
-<div class="limit-row-pod" style="flex-direction:column; align-items:flex-start; gap:2px;">
-    <span class="pod-lbl" style="font-size:10px; font-weight:900; letter-spacing:1.5px; color:#1d4ed8; opacity:1;">MAX RATE</span>
-    <span id="mr" class="pod-val" style="font-size:20px; color:#1d4ed8;">--</span>
+                            <div class="right-panel" style="gap:0;">
+    <div style="flex-direction:column; align-items:flex-start; gap:2px; padding-bottom:8px; border-bottom:1px solid var(--line); width:100%;">
+        <span style="font-size:9px; font-weight:900; letter-spacing:1.5px; color:#2563eb;">RATE</span>
+        <span id="r_rate" style="font-size:20px; font-weight:800; color:#2563eb; line-height:1;">--</span>
+    </div>
+    <div style="flex-direction:column; align-items:flex-start; gap:2px; padding-top:8px; width:100%;">
+        <span style="font-size:9px; font-weight:900; letter-spacing:1.5px; color:#1d4ed8;">MAX RATE</span>
+        <span id="mr" style="font-size:20px; font-weight:800; color:#1d4ed8; line-height:1;">--</span>
+    </div>
 </div>
 
-                            </div>
+                            
                         </div>
                     </div>
                     
