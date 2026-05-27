@@ -817,10 +817,11 @@ app.get("/", (req, res) => {
                             <div class="v-line"></div>
                             
                             <div class="right-panel">
-                                <div class="limit-row-pod" style="color:#ef4444">
-                                    <span class="pod-lbl">MAX:</span>
-                                    <span id="mx" class="pod-val" style="font-size:18px;">--</span>
-                                </div>
+                                <div class="limit-row-pod" style="flex-direction:column; align-items:flex-start; gap:2px;">
+    <span class="pod-lbl" style="font-size:10px; font-weight:900; letter-spacing:1.5px; color:#ef4444; opacity:1;">MAX</span>
+    <span id="mx" class="pod-val" style="font-size:20px; color:#ef4444;">--</span>
+</div>
+
                                 <div class="limit-row-pod" style="color:#0ea5e9">
                                     <span class="pod-lbl">MIN:</span>
                                     <span id="mn" class="pod-val" style="font-size:18px;">--</span>
