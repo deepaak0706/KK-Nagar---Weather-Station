@@ -855,7 +855,7 @@ app.get("/", (req, res) => {
                             <div class="left-panel">
                                 <div class="main-val"><span id="w">0.0</span><span class="unit">km/h</span></div>
                                 <div style="font-size:13px; color:var(--muted); font-weight:700; margin-top:4px;" id="wd_bracket">(--)</div>
-                                <div class="sub-pill"><span id="wg">--</span></div>
+                                <div class="sub-pill">Gusting to:<span id="wg">--</span></div>
                             </div>
                             
                             <div class="v-line"></div>
