@@ -898,14 +898,15 @@ app.get("/", (req, res) => {
                             <div class="v-line"></div>
                             
                             <div class="right-panel">
-                                <div class="limit-row-pod" style="color:#2563eb">
-                                    <span class="pod-lbl">RATE:</span>
-                                    <span id="r_rate" class="pod-val" style="font-size:18px;">--mm/h</span>
-                                </div>
-                                <div class="limit-row-pod" style="color:#1d4ed8">
-                                    <span class="pod-lbl">MAX RATE:</span>
-                                    <span id="mr" class="pod-val" style="font-size:18px;">--mm/h</span>
-                                </div>
+                                <div class="limit-row-pod" style="flex-direction:column; align-items:flex-start; gap:2px;">
+    <span class="pod-lbl" style="font-size:10px; font-weight:900; letter-spacing:1.5px; color:#2563eb; opacity:1;">RATE</span>
+    <span id="r_rate" class="pod-val" style="font-size:20px; color:#2563eb;">--</span>
+</div>
+<div class="limit-row-pod" style="flex-direction:column; align-items:flex-start; gap:2px;">
+    <span class="pod-lbl" style="font-size:10px; font-weight:900; letter-spacing:1.5px; color:#1d4ed8; opacity:1;">MAX RATE</span>
+    <span id="mr" class="pod-val" style="font-size:20px; color:#1d4ed8;">--</span>
+</div>
+
                             </div>
                         </div>
                     </div>
