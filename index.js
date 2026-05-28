@@ -165,6 +165,11 @@ async function bufferOnlyUpdate() {
  * MAIN SYNC: Handles Dashboard, 10-Min DB Write, and Midnight Reset
  */
 async function syncWithEcowitt(forceWrite = false) {
+    const shouldFetch = forceWrite || !state.cachedData;
+
+    if (!shouldFetch) {
+        return state.cachedData;
+    }
     const now = Date.now();
     const nowIST = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" }));
     const todayISTStr = nowIST.toLocaleDateString('en-CA'); 
