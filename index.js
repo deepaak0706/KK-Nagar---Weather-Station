@@ -999,6 +999,8 @@ app.get("/", (req, res) => {
     </div>
 </div>
 
+</div> <!-- End of .grid-system -->
+
 
             <div class="sub-tabs-section" style="margin-top: 32px;">
 
