@@ -882,30 +882,42 @@ body.is-night .modular-cell {
     }
 
 /* ========================================== */
-/* 📱 FIXED: HIGH-CONTRAST ADAPTIVE DIVIDERS  */
+/* 📱 ULTRA-MODERN ADAPTIVE MOBILE SYSTEM     */
 /* ========================================== */
 @media screen and (max-width: 767px) {
     body {
         padding: 20px 16px 120px 16px !important;
     }
 
-    /* DEFAULT LIGHT MODE: Pure canvas streaming look */
-    .card {
+    /* 1. DEFAULT LIGHT MODE: Pure canvas streaming look */
+    .grid-system .card {
         background: transparent !important; 
         border: none !important;
         box-shadow: none !important;
         border-radius: 0 !important;
         margin-bottom: 36px !important; 
-        position: relative !important; /* Forces perfect alignment anchor */
+        position: relative !important; 
         padding: 12px 4px !important; 
     }
 
-    /* ✨ FIXED LIGHT MODE DIVIDER */
-    /* Blends your border shade with your primary blue so it stands out elegantly */
-    .card:not(:last-of-type)::after {
+    /* 🔍 ✨ FIXED: INTERNAL MICRO-DIVIDERS RECOVERY (LIGHT MODE) */
+    /* This amplifies existing internal borders/lines so they don't wash out */
+    .grid-system .card * {
+        border-color: rgba(0, 50, 100, 0.12) !important; /* Clean, modern steel-tinted line */
+    }
+    /* If the internal dividers are built using custom standalone line/divider divs */
+    .grid-system .card [class*="divider"],
+    .grid-system .card [class*="line"],
+    .grid-system .card [class*="separator"] {
+        background-color: rgba(0, 50, 100, 0.12) !important;
+        opacity: 1 !important;
+    }
+
+    /* 2. MAIN HORIZONTAL BLOCK DIVIDER (LIGHT MODE) */
+    .grid-system .card:not(:last-of-type)::after {
         content: '';
         position: absolute;
-        bottom: -18px; /* Perfectly centered in the 36px empty space */
+        bottom: -18px; 
         left: 10%;
         width: 80%;
         height: 1px;
@@ -916,14 +928,14 @@ body.is-night .modular-cell {
             var(--border, #cbd5e1) 75%, 
             transparent 100%
         );
-        opacity: 0.75; /* Higher visibility for bright screens */
+        opacity: 0.75; 
         z-index: 10;
     }
 
-    /* AUTOMATIC DARK MODE: Re-activates dark bounding boxes */
-    .dark .card, 
-    .dark-mode .card, 
-    [data-theme="dark"] .card { 
+    /* 3. AUTOMATIC DARK MODE: Floating panels activate */
+    .dark .grid-system .card, 
+    .dark-mode .grid-system .card, 
+    [data-theme="dark"] .grid-system .card { 
         background: var(--card, #111827) !important; 
         border-radius: 24px !important;
         padding: 24px 20px !important;
@@ -931,11 +943,22 @@ body.is-night .modular-cell {
         box-shadow: 0 10px 30px -15px rgba(0, 0, 0, 0.3) !important;
     }
 
-    /* ✨ DARK MODE DIVIDER TUNING */
-    /* Drops opacity down on dark screens to keep that expensive, glowing feel */
-    .dark .card:not(:last-of-type)::after,
-    .dark-mode .card:not(:last-of-type)::after,
-    [data-theme="dark"] .card:not(:last-of-type)::after {
+    /* 🔍 ✨ INTERNAL MICRO-DIVIDERS RECOVERY (DARK MODE) */
+    .dark .grid-system .card *, 
+    .dark-mode .grid-system .card *, 
+    [data-theme="dark"] .grid-system .card * {
+        border-color: rgba(255, 255, 255, 0.08) !important; 
+    }
+    .dark .grid-system .card [class*="divider"],
+    .dark-mode .grid-system .card [class*="divider"],
+    [data-theme="dark"] .grid-system .card [class*="divider"] {
+        background-color: rgba(255, 255, 255, 0.08) !important;
+    }
+
+    /* 4. MAIN HORIZONTAL BLOCK DIVIDER (DARK MODE) */
+    .dark .grid-system .card:not(:last-of-type)::after,
+    .dark-mode .grid-system .card:not(:last-of-type)::after,
+    [data-theme="dark"] .grid-system .card:not(:last-of-type)::after {
         bottom: -14px;
         background: linear-gradient(to right, 
             transparent 0%, 
@@ -951,6 +974,7 @@ body.is-night .modular-cell {
         box-shadow: none !important;
     }
 }
+
 
 /* ========================================== */
 /* 💻 FIX: MODERN 2x2 DESKTOP MATRIX GRID     */
