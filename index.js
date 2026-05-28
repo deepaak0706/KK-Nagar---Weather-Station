@@ -881,7 +881,7 @@ body.is-night .modular-cell {
         animation: countUp 0.4s cubic-bezier(0.22, 1, 0.36, 1);
     }
 
-    @media screen and (max-width: 767px) {
+   @media screen and (max-width: 767px) {
     body {
         background: var(--card) !important; 
         padding: 24px 16px 120px 16px;
@@ -893,31 +893,25 @@ body.is-night .modular-cell {
         box-shadow: none !important;        
         backdrop-filter: none !important;
         -webkit-backdrop-filter: none !important;
-        padding: 20px 4px !important;       
+        padding: 28px 4px !important; /* Increased padding so whitespace does the dividing */
         border-radius: 0 !important;
-        position: relative; /* Setup anchor for the premium custom line */
     }
 
-    /* 👇 THE AURORA SEPARATOR: Fades out completely at both ends */
-    .card::after {
+    /* 👇 PREMIUM CONTENT INDICATORS: Small pill next to titles */
+    .card .label {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px; /* Space between pill and text */
+    }
+
+    .card .label::before {
         content: '';
-        position: absolute;
-        bottom: 0;
-        left: 0;
-        width: 100%;
-        height: 1px;
-        background: linear-gradient(to right, 
-            transparent 0%, 
-            var(--border) 20%, 
-            var(--accent) 50%, 
-            var(--border) 80%, 
-            transparent 100%
-        );
-        opacity: 0.4; /* Soft, non-intrusive elegance */
-    }
-
-    .card:last-of-type::after {
-        display: none; /* Keeps the final block clean */
+        display: inline-block;
+        width: 4px;
+        height: 12px;
+        background: var(--accent); /* Inherits your beautiful blue accent color */
+        border-radius: 4px;
+        box-shadow: 0 0 8px var(--accent); /* Subtle premium app glow */
     }
 
     .pro-summary-table {
@@ -926,7 +920,7 @@ body.is-night .modular-cell {
         background: transparent !important;
     }
 }
-
+    
 
 </style>
 </head>
