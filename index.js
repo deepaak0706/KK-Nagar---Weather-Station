@@ -654,10 +654,16 @@ app.get("/", (req, res) => {
 
          
         body { 
-            margin: 0; font-family: 'Outfit', sans-serif; background: var(--bg); color: var(--text); 
-            padding: 24px 24px 120px 24px; transition: background 0.4s ease, color 0.4s ease; 
-            min-height: 100vh; overflow-x: hidden; box-sizing: border-box;
-        }
+    margin: 0; font-family: 'Outfit', sans-serif; background: var(--bg); color: var(--text); 
+    padding: 24px 24px 120px 24px; transition: background 0.4s ease, color 0.4s ease; 
+    min-height: 100vh; overflow-x: hidden; box-sizing: border-box;
+    background-image: 
+        radial-gradient(at 15% 15%, rgba(2,132,199,0.07) 0px, transparent 55%),
+        radial-gradient(at 85% 10%, rgba(99,102,241,0.05) 0px, transparent 50%),
+        radial-gradient(at 80% 85%, rgba(2,132,199,0.05) 0px, transparent 50%);
+    background-attachment: fixed;
+}
+
 
         *, *:before, *:after { box-sizing: inherit; }
 
@@ -706,14 +712,22 @@ app.get("/", (req, res) => {
             justify-content: space-between;
             gap: 24px;
             width: 100%;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
         }
+
+        .card:hover { 
+    transform: translateY(-3px); 
+    box-shadow: 0 24px 48px -12px rgba(2,132,199,0.12); 
+}
+
         
         #windCanvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; border-radius: 24px; }
         .card > *:not(canvas) { position: relative; z-index: 5; }
 
         .label { color: var(--accent); font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 14px; }
         
-        .main-val { font-size: 52px; font-weight: 800; margin: 0; letter-spacing: -1.5px; display: flex; align-items: baseline; line-height: 1; font-variant-numeric: tabular-nums; }
+        .main-val { font-size: 52px; font-weight: 800; margin: 0; letter-spacing: -1.5px; display: flex; align-items: baseline; line-height: 1; font-variant-numeric: tabular-nums; text-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+
         .unit { font-size: 18px; font-weight: 600; color: var(--muted); margin-left: 3px; }
 
         /* EQUAL COMPACT GRID PANELS */
