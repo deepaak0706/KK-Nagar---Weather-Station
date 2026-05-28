@@ -630,21 +630,21 @@ app.get("/", (req, res) => {
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <style>
-    /* ========================================== */
-    /* ☀️ PREMIUM LIGHT MODE (Satin Slate)       */
+    /* ☁️ E-INK LIGHT MODE (Anti-Glare / Matte)    */
     /* ========================================== */
     :root { 
-        --bg: #f1f5f9 !important;        /* Calm, low-glare matte canvas background */
-        --card: #ffffff;                 /* Pure crisp white card faces to pop off the canvas */
-        --border: #e2e8f0;               /* Clean structural border around cards */
-        --text: #0f172a !important;      /* Deep ink slate for high legibility without pure black strain */
-        --muted: #64748b;                /* Sophisticated technical gray for helper values/units */
-        --accent: #0284c7;               /* Balanced structural blue for key focal elements */
-        --lbl-color: #475569;            /* Subdued premium slate for section headers (kills the dizzying blue effect) */
-        --glow: 0 4px 20px -2px rgba(15, 23, 42, 0.04); /* Subtle drop depth shadow */
-        --line: #f1f5f9;                 /* Soft, clean interior container grid lines */
+        --bg: #e2e8f0 !important;        /* Slate 200: A true matte gray canvas, kills backlight glare */
+        --card: #f8fafc;                 /* Slate 50: An off-white card face, removes the "flashlight" effect */
+        --border: #cbd5e1;               /* Slate 300: Slightly deeper border to firmly ground the cards */
+        --text: #1e293b !important;      /* Deep, muted charcoal (softer than before) */
+        --muted: #64748b;                /* Mid-gray for secondary text */
+        
+        /* Muting the accents to stop them from looking "neon" */
+        --accent: #0369a1;               /* A deeper, calmer ocean blue instead of bright royal blue */
+        --lbl-color: #475569;            /* Soft slate for headings */
+        --glow: 0 4px 15px -3px rgba(15, 23, 42, 0.08); /* Deeper, softer shadow to anchor the UI */
+        --line: #e2e8f0;                 /* Inner dividers match the background */
     }
-
     /* ========================================== */
     /* 🌙 PREMIUM DARK MODE (OLED Obsidian)       */
     /* ========================================== */
