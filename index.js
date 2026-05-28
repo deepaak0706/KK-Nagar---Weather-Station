@@ -490,8 +490,23 @@ async function getWeatherSummary() {
  * ROUTES
  */
 
-// 1. API for the dashboard data (NO HISTORY INCLUDED, LIGHTWEIGHT)
-app.get("/weather", async (req, res) => res.json(await syncWithEcowitt(false)));
+// NEW: Safe, Read-Only getter for visitors
+app.get("/weather", (req, res) => {
+    if (state.cachedData) {
+        res.json(state.cachedData);
+    } else {
+        // Return a placeholder structure so your frontend doesn't crash
+        // while the server waits for the first Cron job to run.
+        res.json({
+            temp: { current: 0, max: 0, min: 0, realFeel: 0, rate: 0, dew: 0 },
+            atmo: { hum: 0, hTrend: 0, press: 0, pTrend: 0, sol: 0, uv: 0 },
+            wind: { speed: 0, gust: 0, maxS: 0, maxG: 0, deg: 0, card: "--" },
+            rain: { total: 0, rate: 0, maxR: 0, weekly: 0, monthly: 0, yearly: 0 },
+            lastSync: new Date().toISOString(),
+            status: "warming_up"
+        });
+    }
+});
 
 // 2. API for the historical summary table
 app.get("/api/summary", async (req, res) => res.json(await getWeatherSummary()));
