@@ -921,6 +921,51 @@ body.is-night .modular-cell {
     }
 }
     
+/* ========================================== */
+/* 💻 LIVE PREVIEW: UNIFIED DESKTOP DECK      */
+/* ========================================== */
+@media (min-width: 1100px) {
+    /* 1. Turn the grid container into the single unified card deck */
+    .grid-system {
+        background: var(--card);
+        border: 1px solid var(--border);
+        box-shadow: var(--glow);
+        border-radius: 28px;
+        padding: 8px 16px;
+        gap: 0; /* Clear space between cards so they snap together seamlessly */
+        overflow: hidden;
+    }
+
+    /* 2. Dissolve the individual sub-cards into seamless columns */
+    .grid-system .card {
+        background: transparent !important;
+        border: none !important;
+        box-shadow: none !important;
+        backdrop-filter: none !important;
+        -webkit-backdrop-filter: none !important;
+        border-radius: 0 !important;
+        padding: 24px 32px !important;
+        position: relative;
+    }
+
+    /* 3. Inject premium vertical dividers between the 4 metrics */
+    .grid-system .card:not(:last-child)::after {
+        content: '';
+        position: absolute;
+        right: 0;
+        top: 15%;
+        width: 1px;
+        height: 70%;
+        /* Silky smooth vertical fade that matches your accent theme */
+        background: linear-gradient(to bottom, 
+            transparent 0%, 
+            var(--border) 20%, 
+            var(--border) 80%, 
+            transparent 100%
+        );
+        opacity: 0.6;
+    }
+}
 
 </style>
 </head>
