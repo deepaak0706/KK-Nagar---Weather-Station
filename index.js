@@ -642,28 +642,22 @@ app.get("/", (req, res) => {
         }
 
         body.is-night {
-    --bg: #0f1117 !important;
-    --card: rgba(22, 24, 30, 0.95);
-    --border: rgba(255, 255, 255, 0.05);
-    --text: #eaeaea !important;
-    --muted: #888888;
-    --accent: #60a5fa;
-    --glow: 0 30px 60px -20px rgba(0, 0, 0, 0.65);
-    --line: rgba(255, 255, 255, 0.06);
+    --bg: #0d1321 !important;
+    --card: rgba(17, 24, 45, 0.9);
+    --border: rgba(129, 140, 248, 0.12);
+    --text: #e2e8ff !important;
+    --muted: #6b7fa3;
+    --accent: #818cf8;
+    --glow: 0 30px 60px -20px rgba(0, 0, 0, 0.7);
+    --line: rgba(129, 140, 248, 0.08);
 }
 
-         
+           
         body { 
-    margin: 0; font-family: 'Outfit', sans-serif; background: var(--bg); color: var(--text); 
-    padding: 24px 24px 120px 24px; transition: background 0.4s ease, color 0.4s ease; 
-    min-height: 100vh; overflow-x: hidden; box-sizing: border-box;
-    background-image: 
-        radial-gradient(at 15% 15%, rgba(2,132,199,0.07) 0px, transparent 55%),
-        radial-gradient(at 85% 10%, rgba(99,102,241,0.05) 0px, transparent 50%),
-        radial-gradient(at 80% 85%, rgba(2,132,199,0.05) 0px, transparent 50%);
-    background-attachment: fixed;
-}
-
+            margin: 0; font-family: 'Outfit', sans-serif; background: var(--bg); color: var(--text); 
+            padding: 24px 24px 120px 24px; transition: background 0.4s ease, color 0.4s ease; 
+            min-height: 100vh; overflow-x: hidden; box-sizing: border-box;
+        }
 
         *, *:before, *:after { box-sizing: inherit; }
 
@@ -681,57 +675,45 @@ app.get("/", (req, res) => {
         @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
         
         .grid-system { 
-    display: grid; 
-    grid-template-columns: repeat(4, 1fr);
-    gap: 20px; 
-    margin-bottom: 32px; 
-    width: 100%;
-    align-items: stretch;
-}
+            display: grid; 
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); 
+            gap: 16px; 
+            margin-bottom: 32px; 
+            width: 100%;
+        }
         
-        @media (max-width: 768px) {
-    .grid-system { grid-template-columns: 1fr; }
-}
-@media (min-width: 769px) and (max-width: 1099px) {
-    .grid-system { grid-template-columns: repeat(2, 1fr); }
-}
-@media (min-width: 1100px) {
+        @media (min-width: 1200px) {
+            .grid-system { grid-template-columns: repeat(2, 1fr); }
+        }
+
+        @media (min-width: 1100px) {
     .grid-system { grid-template-columns: repeat(4, 1fr); }
 }
 
 
 
         .card { 
-    background: var(--card); 
-    padding: 20px; 
-    border-radius: 24px; 
-    border: 1px solid var(--border); 
-    backdrop-filter: blur(30px); 
-    -webkit-backdrop-filter: blur(30px); 
-    box-shadow: var(--glow); 
-    position: relative; 
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    gap: 24px;
-    width: 100%;
-    min-width: 0;
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
-
-        .card:hover { 
-    transform: translateY(-3px); 
-    box-shadow: 0 24px 48px -12px rgba(2,132,199,0.12); 
-}
-
+            background: var(--card); 
+            padding: 20px; 
+            border-radius: 24px; 
+            border: 1px solid var(--border); 
+            backdrop-filter: blur(30px); 
+            -webkit-backdrop-filter: blur(30px); 
+            box-shadow: var(--glow); 
+            position: relative; 
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            gap: 24px;
+            width: 100%;
+        }
         
         #windCanvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; border-radius: 24px; }
         .card > *:not(canvas) { position: relative; z-index: 5; }
 
         .label { color: var(--accent); font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 14px; }
         
-        .main-val { font-size: 52px; font-weight: 800; margin: 0; letter-spacing: -1.5px; display: flex; align-items: baseline; line-height: 1; font-variant-numeric: tabular-nums; text-shadow: 0 2px 8px rgba(0,0,0,0.06); }
-
+        .main-val { font-size: 52px; font-weight: 800; margin: 0; letter-spacing: -1.5px; display: flex; align-items: baseline; line-height: 1; font-variant-numeric: tabular-nums; }
         .unit { font-size: 18px; font-weight: 600; color: var(--muted); margin-left: 3px; }
 
         /* EQUAL COMPACT GRID PANELS */
@@ -765,7 +747,7 @@ app.get("/", (req, res) => {
         .modular-cell:last-child { border-right: none; }
         
         .cell-lbl { font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); font-weight: 700; margin-bottom: 4px; }
-        .cell-val { font-size: 15px; font-weight: 700; color: var(--text); }
+        .cell-val { font-size: 14px; font-weight: 700; color: var(--text); }
 
         .sub-pill { font-size: 11px; font-weight: 600; color: var(--text); display: inline-flex; align-items: center; gap: 4px; margin-top: 8px; }
 
@@ -793,20 +775,7 @@ app.get("/", (req, res) => {
         .tab-btn { background: var(--card); border: 1px solid var(--border); padding: 12px 24px; border-radius: 14px; color: var(--text); font-weight: 700; cursor: pointer; transition: 0.2s; backdrop-filter: blur(20px); font-size: 13px; }
         .tab-btn.active { background: var(--accent); color: white; border-color: var(--accent); box-shadow: var(--glow); }
 
-        .graphs-wrapper { 
-    display: grid; 
-    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); 
-    gap: 16px; 
-    margin-top: 0;
-    width: 100%;
-    box-sizing: border-box;
-}
-@media (min-width: 1100px) {
-    .graphs-wrapper { 
-        grid-template-columns: repeat(4, 1fr);
-        gap: 20px;
-    }
-}
+        .graphs-wrapper { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin-top: 20px; }
         .graph-card { background: var(--card); padding: 24px; border-radius: 24px; border: 1px solid var(--border); height: 320px; box-shadow: var(--glow); display: flex; flex-direction: column; overflow: hidden; }
         .graph-card canvas { flex-grow: 1; width: 100% !important; height: 100% !important; }
 
@@ -823,18 +792,6 @@ app.get("/", (req, res) => {
         .pro-divider { width: 1px; height: 24px; background: var(--border); opacity: 0.5; flex-shrink: 0; }
         
         .glass-select { background: var(--card) !important; border: 1px solid var(--border); border-radius: 12px; padding: 8px 12px; font-family: inherit; font-weight: 600; color: var(--text) !important; outline: none; cursor: pointer; appearance: none; -webkit-appearance: none; background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e"); background-repeat: no-repeat; background-position: right 10px center; background-size: 1em; padding-right: 40px; }
-   
-        @keyframes countUp {
-    from { transform: translateY(8px); opacity: 0; }
-    to { transform: translateY(0); opacity: 1; }
-}
-.num-flip {
-    display: inline-block;
-    animation: countUp 0.4s cubic-bezier(0.22, 1, 0.36, 1);
-}
-
-    
-    
     </style>
 </head>
 
@@ -858,172 +815,180 @@ app.get("/", (req, res) => {
             <button onclick="showPage('historical')" id="tab-hist" class="tab-btn">Historical Data</button>
        </div>
 
-      <div id="page-dashboard" style="width: 100%;">
-    <div class="grid-system">
-        
-        <div class="card">
-            <div>
-                <div class="label">Temperature</div>
-                <div class="row-block">
-                    <div class="left-panel">
-                        <div class="main-val"><span id="t">0.0</span><span class="unit">°C</span></div>
-                        <div id="tTrendBox" class="sub-pill">--</div>
+        <div id="page-dashboard">
+            <div class="grid-system">
+                
+                <div class="card">
+                    <div>
+                        <div class="label">Temperature</div>
+                        <div class="row-block">
+                            <div class="left-panel">
+                                <div class="main-val"><span id="t">0.0</span><span class="unit">°C</span></div>
+                                <div id="tTrendBox" class="sub-pill">--</div>
+                            </div>
+                            
+                            <div class="v-line"></div>
+                            <div class="right-panel" style="gap:10px;">
+    <div style="display:flex; flex-direction:column; gap:1px;">
+        <div style="display:flex; align-items:center; gap:5px;">
+            <div style="width:6px; height:6px; border-radius:50%; background:#ef4444; flex-shrink:0;"></div>
+            <span style="font-size:9px; font-weight:900; letter-spacing:1.5px; color:#ef4444;">MAX</span>
+        </div>
+        <span id="mx" style="font-size:22px; font-weight:800; color:#ef4444; line-height:1.1; font-variant-numeric:tabular-nums;">--</span>
+    </div>
+    <div style="height:1px; width:100%; background:var(--line);"></div>
+    <div style="display:flex; flex-direction:column; gap:1px;">
+        <div style="display:flex; align-items:center; gap:5px;">
+            <div style="width:6px; height:6px; border-radius:50%; background:#0ea5e9; flex-shrink:0;"></div>
+            <span style="font-size:9px; font-weight:900; letter-spacing:1.5px; color:#0ea5e9;">MIN</span>
+        </div>
+        <span id="mn" style="font-size:22px; font-weight:800; color:#0ea5e9; line-height:1.1; font-variant-numeric:tabular-nums;">--</span>
+    </div>
+</div>
+
+
+                            
+
+                        </div>
                     </div>
                     
-                    <div class="v-line"></div>
-                    <div class="right-panel" style="gap:10px;">
-                        <div style="display:flex; flex-direction:column; gap:1px;">
-                            <div style="display:flex; align-items:center; gap:5px;">
-                                <div style="width:6px; height:6px; border-radius:50%; background:#ef4444; flex-shrink:0;"></div>
-                                <span style="font-size:9px; font-weight:900; letter-spacing:1.5px; color:#ef4444;">MAX</span>
-                            </div>
-                            <span id="mx" style="font-size:22px; font-weight:800; color:#ef4444; line-height:1.1; font-variant-numeric:tabular-nums;">--</span>
+                    <div class="mod-divider"></div>
+                    
+                    <div class="modular-inline-stack">
+                        <div class="modular-cell">
+                            <span class="cell-lbl">Feels Like</span>
+                            <span id="rf" class="cell-val" style="color: #f97316;">--</span>
                         </div>
-                        <div style="height:1px; width:100%; background:var(--line);"></div>
-                        <div style="display:flex; flex-direction:column; gap:1px;">
-                            <div style="display:flex; align-items:center; gap:5px;">
-                                <div style="width:6px; height:6px; border-radius:50%; background:#0ea5e9; flex-shrink:0;"></div>
-                                <span style="font-size:9px; font-weight:900; letter-spacing:1.5px; color:#0ea5e9;">MIN</span>
-                            </div>
-                            <span id="mn" style="font-size:22px; font-weight:800; color:#0ea5e9; line-height:1.1; font-variant-numeric:tabular-nums;">--</span>
+                        <div class="modular-cell">
+                            <span class="cell-lbl">Humidity</span>
+                            <span id="h_val" class="cell-val">--</span>
+                        </div>
+                        <div class="modular-cell">
+                            <span class="cell-lbl">Dew Point</span>
+                            <span id="d_val" class="cell-val">--</span>
                         </div>
                     </div>
                 </div>
-            </div>
-            
-            <div class="mod-divider"></div>
-            
-            <div class="modular-inline-stack">
-                <div class="modular-cell">
-                    <span class="cell-lbl">Feels Like</span>
-                    <span id="rf" class="cell-val" style="color: #f97316;">--</span>
-                </div>
-                <div class="modular-cell">
-                    <span class="cell-lbl">Humidity</span>
-                    <span id="h_val" class="cell-val">--</span>
-                </div>
-                <div class="modular-cell">
-                    <span class="cell-lbl">Dew Point</span>
-                    <span id="d_val" class="cell-val">--</span>
-                </div>
-            </div>
-        </div>
 
-        <div class="card">
-            <canvas id="windCanvas"></canvas>
-            <div>
-                <div class="label">Wind Vector</div>
-                <div class="row-block">
-                    <div class="left-panel">
-                        <div class="main-val"><span id="w">0.0</span><span class="unit">km/h</span><span id="wd_bracket" style="font-size:13px; font-weight:700; color:var(--muted); margin-left:8px; letter-spacing:0;">(--)</span></div>
-                        <div class="sub-pill">Gusting to: <span id="wg">--</span></div>
+                <div class="card">
+                    <canvas id="windCanvas"></canvas>
+                    <div>
+                        <div class="label">Wind Vector</div>
+                        <div class="row-block">
+                            <div class="left-panel">
+                                <div class="main-val"><span id="w">0.0</span><span class="unit">km/h</span><span id="wd_bracket" style="font-size:13px; font-weight:700; color:var(--muted); margin-left:8px; letter-spacing:0;">(--)</span></div>
+
+                            <div class="sub-pill">Gusting to:<span id="wg">--</span></div>
+                        </div>
+                        
+                        <div class="v-line"></div>
+                        
+                        <div class="right-panel" style="align-items: center; padding-left:0; flex: 0.9;">
+                            <div class="compass-container">
+                                <div class="compass-ui">
+                                    <span class="cardinal-pt pt-n">N</span>
+                                    <span class="cardinal-pt pt-s">S</span>
+                                    <span class="cardinal-pt pt-e">E</span>
+                                    <span class="cardinal-pt pt-w">W</span>
+                                    <div id="needle"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mod-divider"></div>
+                
+                <div class="modular-inline-stack stack-2-col">
+                    <div class="modular-cell">
+                        <span class="cell-lbl">Sustained Max</span>
+                        <span id="mw" class="cell-val">--</span>
+                    </div>
+                    <div class="modular-cell">
+                        <span class="cell-lbl">Peak Gust</span>
+                        <span id="mg" class="cell-val">--</span>
+                    </div>
+                </div>
+            </div>
+
+                <div class="card">
+                    <div>
+                        <div class="label">Rainfall</div>
+                        <div class="row-block">
+                            <div class="left-panel">
+                                <div class="main-val"><span id="r_tot">0.0</span><span class="unit">mm</span></div>
+                            </div>
+                            
+                            <div class="v-line"></div>
+
+                            <div class="right-panel" style="gap:0; width:100%;">
+    <div style="display:flex; flex-direction:column; gap:2px; padding-bottom:10px; border-bottom:1px solid var(--line); width:100%;">
+        <div style="display:flex; align-items:center; gap:5px;">
+            <div style="width:6px; height:6px; border-radius:50%; background:#2563eb; flex-shrink:0;"></div>
+            <span style="font-size:9px; font-weight:900; letter-spacing:1.5px; color:#2563eb;">RATE</span>
+        </div>
+        <span id="r_rate" style="font-size:22px; font-weight:800; color:#2563eb; line-height:1.1; font-variant-numeric:tabular-nums;">--</span>
+    </div>
+    <div style="display:flex; flex-direction:column; gap:2px; padding-top:10px; width:100%;">
+        <div style="display:flex; align-items:center; gap:5px;">
+            <div style="width:6px; height:6px; border-radius:50%; background:#1d4ed8; flex-shrink:0;"></div>
+            <span style="font-size:9px; font-weight:900; letter-spacing:1.5px; color:#1d4ed8;">MAX RATE</span>
+        </div>
+        <span id="mr" style="font-size:22px; font-weight:800; color:#1d4ed8; line-height:1.1; font-variant-numeric:tabular-nums;">--</span>
+    </div>
+</div>
+
+
+                            
+                        </div>
                     </div>
                     
-                    <div class="v-line"></div>
+                    <div class="mod-divider"></div>
                     
-                    <div class="right-panel" style="align-items: center; padding-left:0; flex: 0.9;">
-                        <div class="compass-container" style="width:80px; height:80px; flex-shrink:0;">
-                            <div class="compass-ui" style="background: radial-gradient(circle, rgba(2,132,199,0.08) 0%, transparent 70%); box-shadow: inset 0 0 14px rgba(2,132,199,0.1); border: 1.5px solid var(--line); width:100%; height:100%; display:flex; align-items:center; justify-content:center; position:relative;">
-                                <span class="cardinal-pt pt-n">N</span>
-                                <span class="cardinal-pt pt-s">S</span>
-                                <span class="cardinal-pt pt-e">E</span>
-                                <span class="cardinal-pt pt-w">W</span>
-                                <div id="needle"></div>
-                            </div>
+                    <div class="modular-inline-stack">
+                        <div class="modular-cell">
+                            <span class="cell-lbl">Weekly</span>
+                            <span id="r_week" class="cell-val">--</span>
+                        </div>
+                        <div class="modular-cell">
+                            <span class="cell-lbl">Monthly</span>
+                            <span id="r_month" class="cell-val">--</span>
+                        </div>
+                        <div class="modular-cell">
+                            <span class="cell-lbl">Yearly</span>
+                            <span id="r_year" class="cell-val">--</span>
                         </div>
                     </div>
                 </div>
-            </div>
-            
-            <div class="mod-divider"></div>
-            
-            <div class="modular-inline-stack stack-2-col">
-                <div class="modular-cell">
-                    <span class="cell-lbl">Sustained Max</span>
-                    <span id="mw" class="cell-val">--</span>
-                </div>
-                <div class="modular-cell">
-                    <span class="cell-lbl">Peak Gust</span>
-                    <span id="mg" class="cell-val">--</span>
-                </div>
-            </div>
-        </div>
 
-        <div class="card">
-            <div>
-                <div class="label">Rainfall</div>
-                <div class="row-block">
-                    <div class="left-panel">
-                        <div class="main-val"><span id="r_tot">0.0</span><span class="unit">mm</span></div>
+                <div class="card">
+                    <div>
+                        <div class="label">Atmospheric</div>
+                        <div class="row-block">
+                            <div class="left-panel">
+                                <div class="main-val"><span id="pr">--</span><span class="unit">hPa</span></div>
+                                <div class="sub-pill">Trend Gauge: <span id="pIcon" style="margin-left:2px;">●</span></div>
+                            </div>
+                        </div>
                     </div>
                     
-                    <div class="v-line"></div>
-
-                    <div class="right-panel" style="gap:0; width:100%;">
-                        <div style="display:flex; flex-direction:column; gap:2px; padding-bottom:10px; border-bottom:1px solid var(--line); width:100%;">
-                            <div style="display:flex; align-items:center; gap:5px;">
-                                <div style="width:6px; height:6px; border-radius:50%; background:#06b6d4; flex-shrink:0;"></div>
-                                <span style="font-size:9px; font-weight:900; letter-spacing:1.5px; color:#2563eb;">RATE</span>
-                            </div>
-                            <span id="r_rate" style="font-size:22px; font-weight:800; color:#06b6d4; line-height:1.1; font-variant-numeric:tabular-nums;">--</span>
+                    <div class="mod-divider"></div>
+                    
+                    <div class="modular-inline-stack stack-2-col">
+                        <div class="modular-cell">
+                            <span class="cell-lbl">Solar Radiation</span>
+                            <span id="sol" class="cell-val">--</span>
                         </div>
-                        <div style="display:flex; flex-direction:column; gap:2px; padding-top:10px; width:100%;">
-                            <div style="display:flex; align-items:center; gap:5px;">
-                                <div style="width:6px; height:6px; border-radius:50%; background:#7c3aed; flex-shrink:0;"></div>
-                                <span style="font-size:9px; font-weight:900; letter-spacing:1.5px; color:#1d4ed8;">MAX RATE</span>
-                            </div>
-                            <span id="mr" style="font-size:22px; font-weight:800; color:#1d4ed8; line-height:1.1; font-variant-numeric:tabular-nums;">--</span>
+                        <div class="modular-cell">
+                            <span class="cell-lbl">UV Index</span>
+                            <span id="uv" class="cell-val">--</span>
                         </div>
                     </div>
                 </div>
-            </div>
-            
-            <div class="mod-divider"></div>
-            
-            <div class="modular-inline-stack">
-                <div class="modular-cell">
-                    <span class="cell-lbl">Weekly</span>
-                    <span id="r_week" class="cell-val">--</span>
-                </div>
-                <div class="modular-cell">
-                    <span class="cell-lbl">Monthly</span>
-                    <span id="r_month" class="cell-val">--</span>
-                </div>
-                <div class="modular-cell">
-                    <span class="cell-lbl">Yearly</span>
-                    <span id="r_year" class="cell-val">--</span>
-                </div>
-            </div>
-        </div>
 
-        <div class="card">
-            <div>
-                <div class="label">Atmospheric</div>
-                <div class="row-block">
-                    <div class="left-panel">
-                        <div class="main-val">
-                            <span id="pr">--</span>
-                            <span class="unit">hPa</span>
-                            <span id="pIcon" style="font-size:16px; margin-left:8px; font-weight:800; line-height:1; align-self:center;"></span>
-                        </div>
-                    </div>
-                </div>
             </div>
-            <div class="mod-divider"></div>
-            <div class="modular-inline-stack stack-2-col">
-                <div class="modular-cell">
-                    <span class="cell-lbl">Solar Radiation</span>
-                    <span id="sol" class="cell-val">--</span>
-                </div>
-                <div class="modular-cell">
-                    <span class="cell-lbl">UV Index</span>
-                    <span id="uv" class="cell-val">--</span>
-                </div>
-            </div>
-        </div>
 
-
-            <div class="sub-tabs-section" style="margin-top: 32px; width: 100%; clear: both; display: block;">
+            <div class="sub-tabs-section" style="margin-top: 32px;">
 
                 <div style="display: flex; gap: 10px; margin-bottom: 20px; justify-content: center;">
                     <button onclick="switchSubView('summary')" id="btn-sub-sum" class="tab-btn active">24H Summary</button>
@@ -1031,7 +996,7 @@ app.get("/", (req, res) => {
                 </div>
 
                 
-                <div id="sub-view-summary" style="display: block; animation: fadeIn 0.4s ease; width: 100%;">
+                <div id="sub-view-summary" style="display: block; animation: fadeIn 0.4s ease;">
     <div class="pro-summary-table">
         
         <div class="pro-row">
@@ -1090,7 +1055,7 @@ app.get("/", (req, res) => {
 </div>
 
 
-                <div id="sub-view-graphs" style="display: none; animation: fadeIn 0.4s ease; width: 100%;">
+                <div id="sub-view-graphs" style="display: none; animation: fadeIn 0.4s ease;">
                     
                     <div id="graphs-loading" style="text-align: center; padding: 40px; color: var(--muted); font-weight: 700; font-size: 14px; display: none;">
                         <span style="display: inline-block; animation: blink 1.5s infinite;">Loading 24H Graph Data from Database...</span>
@@ -1212,25 +1177,22 @@ app.get("/", (req, res) => {
         }
         
         function updateValueWithFade(id, newValue, decimals = 1, suffix = "") {
-    const obj = document.getElementById(id);
-    if (!obj) return;
-    const val = newValue !== undefined && newValue !== null ? newValue : 0;
-    const formattedValue = parseFloat(val).toFixed(decimals) + suffix;
+            const obj = document.getElementById(id);
+            if (!obj) return;
+            const val = newValue !== undefined && newValue !== null ? newValue : 0;
+            const formattedValue = parseFloat(val).toFixed(decimals) + suffix;
 
-    if (obj.innerText !== formattedValue) {
-        obj.style.transition = 'none';
-        obj.style.opacity = "0";
-        obj.style.transform = "translateY(6px)";
-        
-        setTimeout(() => {
-            obj.innerHTML = '<span class="num-flip">' + formattedValue + '</span>';
-            obj.style.transition = 'opacity 0.3s ease, transform 0.3s cubic-bezier(0.22, 1, 0.36, 1)';
-            obj.style.opacity = "1";
-            obj.style.transform = "translateY(0)";
-        }, 50);
-    }
-}
-
+            if (obj.innerText !== formattedValue) {
+                obj.classList.remove('fade-update');
+                obj.style.opacity = "0"; 
+                setTimeout(() => {
+                    void obj.offsetWidth; // Force CSS refresh
+                    obj.innerText = formattedValue;
+                    obj.style.opacity = "1";
+                    obj.classList.add('fade-update');
+                }, 50); 
+            }
+        }
 
         // NEW 24H SUB TAB LOGIC (FIXED)
         async function switchSubView(type) {
@@ -1297,7 +1259,7 @@ app.get("/", (req, res) => {
                 updateValueWithFade('t', d.temp.current, 1);
                 updateValueWithFade('w', d.wind.speed, 1);
                 updateValueWithFade('r_tot', d.rain.total, 1);
-                document.getElementById('r_rate').innerHTML = d.rain.rate.toFixed(1) + '<span style="font-size:11px; font-weight:600; color:var(--muted); margin-left:3px;">mm/h</span>';
+                document.getElementById('r_rate').innerText = d.rain.rate.toFixed(1) + ' mm/h';
                 updateValueWithFade('wg', d.wind.gust, 1, ' km/h'); 
 
                 document.getElementById('tTrendBox').innerHTML = d.temp.rate > 0 ? '<span class="trend-up">▲</span> +' + d.temp.rate + '°C /hr' : d.temp.rate < 0 ? '<span class="trend-down">▼</span> ' + d.temp.rate + '°C /hr' : '● Steady';
@@ -1319,16 +1281,13 @@ app.get("/", (req, res) => {
                 document.getElementById('r_week').innerText = d.rain.weekly + ' mm';
                 document.getElementById('r_month').innerText = d.rain.monthly + ' mm';
                 document.getElementById('r_year').innerText = d.rain.yearly + ' mm';
-                document.getElementById('mr').innerHTML = d.rain.maxR > 0 
-    ? d.rain.maxR.toFixed(1) + '<span style="font-size:11px; font-weight:600; color:var(--muted); margin-left:3px;">mm/h</span> <span style="font-size:9px; color:var(--muted); font-weight:500; opacity:0.75;">' + d.rain.maxRTime + '</span>' 
-    : '0<span style="font-size:11px; font-weight:600; color:var(--muted); margin-left:3px;">mm/h</span>';
-
+                document.getElementById('mr').innerHTML = d.rain.maxR > 0 ? d.rain.maxR + ' mm/h <span class="time-mark">' + d.rain.maxRTime + '</span>' : '0 mm/h';
 
                 const pTrend = d.atmo.pTrend;
-                if (pTrend >= 0.1) document.getElementById('pIcon').innerHTML = '<span style="color:#ef4444; font-size:14px;">▲</span>';
-                else if (pTrend <= -0.1) document.getElementById('pIcon').innerHTML = '<span style="color:#0ea5e9; font-size:14px;">▼</span>';
-                else document.getElementById('pIcon').innerHTML = '<span style="color:var(--muted); font-size:12px;">●</span>';
-
+                let pArrow = '●';
+                if (pTrend >= 0.1) pArrow = '<span class="trend-up" style="color:#ef4444">▲</span>';
+                if (pTrend <= -0.1) pArrow = '<span class="trend-down" style="color:#0ea5e9">▼</span>';
+                document.getElementById('pIcon').innerHTML = pArrow;
                 
                 document.getElementById('pr').innerText = d.atmo.press;
                 document.getElementById('sol').innerText = d.atmo.sol + ' W/m²'; 
