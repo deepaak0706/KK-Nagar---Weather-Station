@@ -880,6 +880,55 @@ body.is-night .modular-cell {
         display: inline-block;
         animation: countUp 0.4s cubic-bezier(0.22, 1, 0.36, 1);
     }
+
+
+
+    @media screen and (max-width: 767px) {
+    body {
+        background: var(--card) !important; 
+        padding: 24px 16px 120px 16px;
+    }
+
+    .card {
+        background: transparent !important; 
+        border: none !important;            
+        box-shadow: none !important;        
+        backdrop-filter: none !important;
+        -webkit-backdrop-filter: none !important;
+        padding: 20px 4px !important;       
+        border-radius: 0 !important;
+        position: relative; /* Setup anchor for the premium custom line */
+    }
+
+    /* 👇 THE AURORA SEPARATOR: Fades out completely at both ends */
+    .card::after {
+        content: '';
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        height: 1px;
+        background: linear-gradient(to right, 
+            transparent 0%, 
+            var(--border) 20%, 
+            var(--accent) 50%, 
+            var(--border) 80%, 
+            transparent 100%
+        );
+        opacity: 0.4; /* Soft, non-intrusive elegance */
+    }
+
+    .card:last-of-type::after {
+        display: none; /* Keeps the final block clean */
+    }
+
+    .pro-summary-table {
+        border: none !important;
+        box-shadow: none !important;
+        background: transparent !important;
+    }
+}
+
 </style>
 </head>
 
