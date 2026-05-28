@@ -880,6 +880,39 @@ body.is-night .modular-cell {
         display: inline-block;
         animation: countUp 0.4s cubic-bezier(0.22, 1, 0.36, 1);
     }
+
+    /* ========================================== */
+/* 🧪 LIVE PREVIEW: UNIFIED CANVAS SYSTEM     */
+/* ========================================== */
+@media screen and (max-width: 767px) {
+    body {
+        /* Forces the phone background to seamlessly match the card faces */
+        background: var(--card) !important; 
+        padding: 24px 16px 120px 16px;
+    }
+
+    .card {
+        background: transparent !important; /* Dissolves the individual card shapes */
+        border: none !important;            /* Strips the outer borders */
+        box-shadow: none !important;        /* Suppresses shadows completely */
+        backdrop-filter: none !important;
+        -webkit-backdrop-filter: none !important;
+        padding: 16px 4px !important;       /* Lets the content alignment slide outwards */
+        border-radius: 0 !important;
+        
+        /* Adds a clean separator rule under each section */
+        border-bottom: 1px solid var(--border) !important; 
+    }
+
+    /* Keeps the final analytics summary block clean at the bottom */
+    .pro-summary-table {
+        border: none !important;
+        box-shadow: none !important;
+        background: transparent !important;
+    }
+}
+
+
 </style>
 </head>
 
