@@ -512,12 +512,16 @@ app.get("/weather", (req, res) => {
 app.get("/api/summary", async (req, res) => res.json(await getWeatherSummary()));
 
 app.get("/api/sync", async (req, res) => {
-    // If it's a 1-minute tick (no write), just sync data
-    if (req.query.write !== 'true') {
-        return res.json(await syncWithEcowitt(false));
+    // If the URL has ?write=true, we perform a database write.
+    // If it's just a normal call, we just refresh the memory cache.
+    const shouldWrite = req.query.write === 'true';
+    
+    try {
+        const data = await syncWithEcowitt(shouldWrite);
+        res.json(data);
+    } catch (err) {
+        res.status(500).json({ error: "Sync failed" });
     }
-    // Otherwise, perform the full DB write
-    res.json(await syncWithEcowitt(true));
 });
 
 // 4. NEW GRAPH ONLY ROUTE (Triggered strictly on button click)
