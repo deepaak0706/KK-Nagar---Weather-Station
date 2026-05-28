@@ -1,4 +1,4 @@
-const express = require("express");
+const express = require("express"); 
 
 const fetch = require("node-fetch");
 const { Pool } = require('pg');
@@ -623,15 +623,12 @@ app.get('/api/historical-rain', async (req, res) => {
     }
 });
 
-app.use(express.static(path.join(__dirname)));
-
 // 5. The User Interface (Your HTML)
 app.get("/", (req, res) => {
     res.send(`
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <link rel="manifest" href="/manifest.json">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>KK Nagar Weather Station</title>
