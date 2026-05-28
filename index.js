@@ -971,30 +971,31 @@ app.get("/", (req, res) => {
                 </div>
 
                 <div class="card">
-    <div>
-        <div class="label">Atmospheric</div>
-        <div class="row-block">
-            <div class="left-panel">
-                <div class="main-val">
-                    <span id="pr">--</span>
-                    <span class="unit">hPa</span>
-                    <span id="pIcon" style="font-size:16px; margin-left:8px; font-weight:800; line-height:1; align-self:center;"></span>
+                    <div>
+                        <div class="label">Atmospheric</div>
+                        <div class="row-block">
+                            <div class="left-panel">
+                                <div class="main-val"><span id="pr">--</span><span class="unit">hPa</span></div>
+                                <div class="sub-pill">Trend Gauge: <span id="pIcon" style="margin-left:2px;">●</span></div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mod-divider"></div>
+                    
+                    <div class="modular-inline-stack stack-2-col">
+                        <div class="modular-cell">
+                            <span class="cell-lbl">Solar Radiation</span>
+                            <span id="sol" class="cell-val">--</span>
+                        </div>
+                        <div class="modular-cell">
+                            <span class="cell-lbl">UV Index</span>
+                            <span id="uv" class="cell-val">--</span>
+                        </div>
+                    </div>
                 </div>
+
             </div>
-        </div>
-    </div>
-    <div class="mod-divider"></div>
-    <div class="modular-inline-stack stack-2-col">
-        <div class="modular-cell">
-            <span class="cell-lbl">Solar Radiation</span>
-            <span id="sol" class="cell-val">--</span>
-        </div>
-        <div class="modular-cell">
-            <span class="cell-lbl">UV Index</span>
-            <span id="uv" class="cell-val">--</span>
-        </div>
-    </div>
-</div>
 
             <div class="sub-tabs-section" style="margin-top: 32px;">
 
