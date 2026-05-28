@@ -684,12 +684,13 @@ app.get("/", (req, res) => {
     
 
     .grid-system { 
-        display: grid; 
-        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); 
-        gap: 16px; 
-        margin-bottom: 32px; 
-        width: 100%;
-    }
+    display: grid; 
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); 
+    /* Gap scales from 12px on mobile to 24px on desktop */
+    gap: clamp(12px, 2vw, 24px); 
+    margin-bottom: 32px; 
+    width: 100%;
+}
     
     @media screen and (min-width: 768px) {
         .grid-system { 
@@ -702,21 +703,23 @@ app.get("/", (req, res) => {
     }
 
     .card { 
-        background: var(--card); 
-        padding: 20px; 
-        border-radius: 24px; 
-        border: 1px solid var(--border); 
-        backdrop-filter: blur(30px); 
-        -webkit-backdrop-filter: blur(30px); 
-        box-shadow: var(--glow); 
-        position: relative; 
-        display: flex;
-        flex-direction: column;
-        justify-content: space-between;
-        gap: 24px;
-        width: 100%;
-        transition: background 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
-    }
+    background: var(--card); 
+    /* Padding scales from 16px on mobile to 28px on wide screens */
+    padding: clamp(16px, 2.5vw, 28px); 
+    border-radius: 24px; 
+    border: 1px solid var(--border); 
+    backdrop-filter: blur(30px); 
+    -webkit-backdrop-filter: blur(30px); 
+    box-shadow: var(--glow); 
+    position: relative; 
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    /* Internal gap scales automatically */
+    gap: clamp(16px, 2vw, 24px); 
+    width: 100%;
+    transition: background 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+}
     
     #windCanvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; border-radius: 24px; }
     .card > *:not(canvas) { position: relative; z-index: 5; }
@@ -732,8 +735,43 @@ app.get("/", (req, res) => {
         transition: color 0.3s ease;
     }
     
-    .main-val { font-size: 52px; font-weight: 800; margin: 0; letter-spacing: -1.5px; display: flex; align-items: baseline; line-height: 1; font-variant-numeric: tabular-nums; }
-    .unit { font-size: 18px; font-weight: 600; color: var(--muted); margin-left: 3px; }
+    /* Scales the main temperature/wind numbers from 42px up to 64px */
+.main-val { 
+    font-size: clamp(42px, 4.5vw, 64px); 
+    font-weight: 800; 
+    margin: 0; 
+    letter-spacing: -1.5px; 
+    display: flex; 
+    align-items: baseline; 
+    line-height: 1; 
+    font-variant-numeric: tabular-nums; 
+}
+
+/* Scales the °C / mm / hPa units */
+.unit { 
+    font-size: clamp(14px, 1.5vw, 20px); 
+    font-weight: 600; 
+    color: var(--muted); 
+    margin-left: 3px; 
+}
+
+/* Scales the "TEMPERATURE", "WIND VECTOR" labels gently */
+.label { 
+    color: var(--lbl-color); 
+    font-size: clamp(10px, 1vw, 12px); 
+    font-weight: 800; 
+    text-transform: uppercase; 
+    letter-spacing: 1.5px; 
+    margin-bottom: 14px; 
+    transition: color 0.3s ease;
+}
+
+/* Scales the smaller modular values (like Max/Min) */
+.pod-val, .cell-val { 
+    font-size: clamp(14px, 1.2vw, 17px); 
+    font-weight: 700; 
+    color: var(--text); 
+}
 
     /* EQUAL COMPACT GRID PANELS */
     .row-block { 
