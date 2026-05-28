@@ -633,46 +633,39 @@ app.get("/", (req, res) => {
     /* ☁️ E-INK LIGHT MODE (Anti-Glare / Matte)    */
     /* ========================================== */
     :root { 
-    --bg: #f4f7fa !important;        
-    --card: #ffffff;                 
-    --border: rgba(15, 23, 42, 0.05); /* Ultra-soft edge border */
-    --text: #0f172a !important;      
-    --muted: #64748b;                
-    --accent: #0284c7;               
-    --lbl-color: #475569;            
-    /* 👇 FIX: Flattened shadow so cards don't look like they are "hovering" */
-    --glow: 0 2px 8px rgba(15, 23, 42, 0.02); 
-    --line: #e2e8f0;                 
-}
+        --bg: #e2e8f0 !important;        /* Slate 200: A true matte gray canvas, kills backlight glare */
+        --card: #f8fafc;                 /* Slate 50: An off-white card face, removes the "flashlight" effect */
+        --border: #cbd5e1;               /* Slate 300: Slightly deeper border to firmly ground the cards */
+        --text: #1e293b !important;      /* Deep, muted charcoal (softer than before) */
+        --muted: #64748b;                /* Mid-gray for secondary text */
+        
+        /* Muting the accents to stop them from looking "neon" */
+        --accent: #0369a1;               /* A deeper, calmer ocean blue instead of bright royal blue */
+        --lbl-color: #475569;            /* Soft slate for headings */
+        --glow: 0 4px 15px -3px rgba(15, 23, 42, 0.08); /* Deeper, softer shadow to anchor the UI */
+        --line: #e2e8f0;                 /* Inner dividers match the background */
+    }
     /* ========================================== */
     /* 🌙 PREMIUM DARK MODE (OLED Obsidian)       */
     /* ========================================== */
     body.is-night {
-    --bg: #090d16 !important;        
-    --card: #111827;                 
-    --border: rgba(255, 255, 255, 0.03); 
-    --text: #f8fafc !important;      
-    --muted: #94a3b8;                
-    --accent: #38bdf8;               
-    --lbl-color: #60a5fa;            
-    /* 👇 FIX: Clean, flat premium dark room depth shadow */
-    --glow: 0 4px 20px rgba(0, 0, 0, 0.4); 
-    --line: #1f2937;                 
-}
+        --bg: #090d16 !important;        /* Deep space midnight backing (not flat pitch black) */
+        --card: #111827;                 /* Premium dark obsidian card blocks */
+        --border: #1f2937;               /* Sleek metallic perimeter border */
+        --text: #f8fafc !important;      /* Soft off-white cloud text to prevent neon glowing/bleeding */
+        --muted: #94a3b8;                /* Soft metallic gray for secondary metrics */
+        --accent: #38bdf8;               /* Radiant sky blue accents for premium highlight tracking */
+        --lbl-color: #60a5fa;            /* Perfectly balanced luminous light blue for high title visibility */
+        --glow: 0 20px 40px -15px rgba(0, 0, 0, 0.5); /* Heavy deep canvas room shadow */
+        --line: #1f2937;                 /* Laser-etched internal dividers */
+    }
 
      
     body { 
-    margin: 0; 
-    font-family: 'Outfit', sans-serif; 
-    background: var(--bg); 
-    color: var(--text); 
-    /* 👇 FIX: Tight padding on mobile so cards fit seamlessly edge-to-edge */
-    padding: 16px 12px 120px 12px; 
-    transition: background 0.4s ease, color 0.4s ease; 
-    min-height: 100vh; 
-    overflow-x: hidden; 
-    box-sizing: border-box;
-}
+        margin: 0; font-family: 'Outfit', sans-serif; background: var(--bg); color: var(--text); 
+        padding: 24px 24px 120px 24px; transition: background 0.4s ease, color 0.4s ease; 
+        min-height: 100vh; overflow-x: hidden; box-sizing: border-box;
+    }
 
     *, *:before, *:after { box-sizing: inherit; }
 
@@ -691,13 +684,12 @@ app.get("/", (req, res) => {
     
 
     .grid-system { 
-    display: grid; 
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); 
-    /* Gap scales from 12px on mobile to 24px on desktop */
-    gap: clamp(12px, 2vw, 24px); 
-    margin-bottom: 32px; 
-    width: 100%;
-}
+        display: grid; 
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); 
+        gap: 16px; 
+        margin-bottom: 32px; 
+        width: 100%;
+    }
     
     @media screen and (min-width: 768px) {
         .grid-system { 
@@ -705,30 +697,26 @@ app.get("/", (req, res) => {
             grid-template-columns: repeat(2, 1fr) !important; 
         }
     }
-    @media (min-width: 768px) {
-    body { 
-        padding: 24px 24px 120px 24px; 
+    @media (min-width: 1100px) {
+        .grid-system { grid-template-columns: repeat(4, 1fr); }
     }
-}
 
     .card { 
-    background: var(--card); 
-    /* Padding scales from 16px on mobile to 28px on wide screens */
-    padding: clamp(16px, 2.5vw, 28px); 
-    border-radius: 24px; 
-    border: 1px solid var(--border); 
-    backdrop-filter: blur(30px); 
-    -webkit-backdrop-filter: blur(30px); 
-    box-shadow: var(--glow); 
-    position: relative; 
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    /* Internal gap scales automatically */
-    gap: clamp(16px, 2vw, 24px); 
-    width: 100%;
-    transition: background 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
-}
+        background: var(--card); 
+        padding: 20px; 
+        border-radius: 24px; 
+        border: 1px solid var(--border); 
+        backdrop-filter: blur(30px); 
+        -webkit-backdrop-filter: blur(30px); 
+        box-shadow: var(--glow); 
+        position: relative; 
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        gap: 24px;
+        width: 100%;
+        transition: background 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+    }
     
     #windCanvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; border-radius: 24px; }
     .card > *:not(canvas) { position: relative; z-index: 5; }
@@ -744,43 +732,8 @@ app.get("/", (req, res) => {
         transition: color 0.3s ease;
     }
     
-    /* Scales the main temperature/wind numbers from 42px up to 64px */
-.main-val { 
-    font-size: clamp(42px, 4.5vw, 64px); 
-    font-weight: 800; 
-    margin: 0; 
-    letter-spacing: -1.5px; 
-    display: flex; 
-    align-items: baseline; 
-    line-height: 1; 
-    font-variant-numeric: tabular-nums; 
-}
-
-/* Scales the °C / mm / hPa units */
-.unit { 
-    font-size: clamp(14px, 1.5vw, 20px); 
-    font-weight: 600; 
-    color: var(--muted); 
-    margin-left: 3px; 
-}
-
-/* Scales the "TEMPERATURE", "WIND VECTOR" labels gently */
-.label { 
-    color: var(--lbl-color); 
-    font-size: clamp(10px, 1vw, 12px); 
-    font-weight: 800; 
-    text-transform: uppercase; 
-    letter-spacing: 1.5px; 
-    margin-bottom: 14px; 
-    transition: color 0.3s ease;
-}
-
-/* Scales the smaller modular values (like Max/Min) */
-.pod-val, .cell-val { 
-    font-size: clamp(14px, 1.2vw, 17px); 
-    font-weight: 700; 
-    color: var(--text); 
-}
+    .main-val { font-size: 52px; font-weight: 800; margin: 0; letter-spacing: -1.5px; display: flex; align-items: baseline; line-height: 1; font-variant-numeric: tabular-nums; }
+    .unit { font-size: 18px; font-weight: 600; color: var(--muted); margin-left: 3px; }
 
     /* EQUAL COMPACT GRID PANELS */
     .row-block { 
@@ -815,9 +768,10 @@ app.get("/", (req, res) => {
    .v-line { 
     width: 1px; 
     height: 75px; 
+    /* Silky smooth fade out at the top and bottom */
     background: linear-gradient(to bottom, transparent 0%, var(--line) 15%, var(--line) 85%, transparent 100%); 
-    justify-self: center; 
-    /* Removed opacity: 0.5 */
+    opacity: 0.5; /* Makes it look sleek and expensive */
+    justify-self: center; /* Centers it perfectly in its 1px grid track */
 }
 
     /* HIGH PROMINENCE COMPACT VALUE PODS (PROMINENCE BUMPED BY +0.5) */
@@ -830,7 +784,7 @@ app.get("/", (req, res) => {
     background: linear-gradient(to right, transparent 0%, var(--line) 15%, var(--line) 85%, transparent 100%); 
     width: 100%; 
     margin: 4px 0; 
-    /* Removed opacity: 0.5 */
+    opacity: 0.5; 
 }
 
     .modular-inline-stack { 
@@ -854,33 +808,8 @@ app.get("/", (req, res) => {
 body.is-night .modular-cell {
     border-right: 1px solid rgba(255, 255, 255, 0.08); /* Matches dark mode subtlety */
 }
-/* 1. Close this rule out cleanly first */
 .modular-cell:last-child { 
     border-right: none; 
-} 
-
-/* 2. Now define the new grid stack out in the open */
-.aligned-bottom-stack {
-    display: grid;
-    /* Maps identically to the upper column layout */
-    grid-template-columns: 52% 1px 1fr; 
-    align-items: center;
-    width: 100%;
-    margin-top: 4px;
-}
-
-.aligned-bottom-stack .modular-cell {
-    border-right: none !important; /* Strips old offset borders */
-    width: 100%;
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    padding-left: 16px;
-}
-
-.aligned-bottom-stack .modular-cell:first-child {
-    padding-left: 0;
-    padding-right: 16px;
 }
     
     .cell-lbl { font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); font-weight: 700; margin-bottom: 4px; }
@@ -1044,19 +973,17 @@ body.is-night .modular-cell {
                 
                 <div class="mod-divider"></div>
                 
-                <div class="aligned-bottom-stack">
+                <div class="modular-inline-stack stack-2-col">
                     <div class="modular-cell">
                         <span class="cell-lbl">Sustained Max</span>
                         <span id="mw" class="cell-val">--</span>
                     </div>
-                    
-                    <div class="v-line" style="height: 35px;"></div>
-                    
                     <div class="modular-cell">
                         <span class="cell-lbl">Peak Gust</span>
                         <span id="mg" class="cell-val">--</span>
                     </div>
                 </div>
+            </div>
 
                 <div class="card">
                     <div>
