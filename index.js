@@ -792,6 +792,18 @@ app.get("/", (req, res) => {
         .pro-divider { width: 1px; height: 24px; background: var(--border); opacity: 0.5; flex-shrink: 0; }
         
         .glass-select { background: var(--card) !important; border: 1px solid var(--border); border-radius: 12px; padding: 8px 12px; font-family: inherit; font-weight: 600; color: var(--text) !important; outline: none; cursor: pointer; appearance: none; -webkit-appearance: none; background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e"); background-repeat: no-repeat; background-position: right 10px center; background-size: 1em; padding-right: 40px; }
+   
+        @keyframes countUp {
+    from { transform: translateY(8px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}
+.num-flip {
+    display: inline-block;
+    animation: countUp 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+    
+    
     </style>
 </head>
 
@@ -1177,22 +1189,25 @@ app.get("/", (req, res) => {
         }
         
         function updateValueWithFade(id, newValue, decimals = 1, suffix = "") {
-            const obj = document.getElementById(id);
-            if (!obj) return;
-            const val = newValue !== undefined && newValue !== null ? newValue : 0;
-            const formattedValue = parseFloat(val).toFixed(decimals) + suffix;
+    const obj = document.getElementById(id);
+    if (!obj) return;
+    const val = newValue !== undefined && newValue !== null ? newValue : 0;
+    const formattedValue = parseFloat(val).toFixed(decimals) + suffix;
 
-            if (obj.innerText !== formattedValue) {
-                obj.classList.remove('fade-update');
-                obj.style.opacity = "0"; 
-                setTimeout(() => {
-                    void obj.offsetWidth; // Force CSS refresh
-                    obj.innerText = formattedValue;
-                    obj.style.opacity = "1";
-                    obj.classList.add('fade-update');
-                }, 50); 
-            }
-        }
+    if (obj.innerText !== formattedValue) {
+        obj.style.transition = 'none';
+        obj.style.opacity = "0";
+        obj.style.transform = "translateY(6px)";
+        
+        setTimeout(() => {
+            obj.innerHTML = '<span class="num-flip">' + formattedValue + '</span>';
+            obj.style.transition = 'opacity 0.3s ease, transform 0.3s cubic-bezier(0.22, 1, 0.36, 1)';
+            obj.style.opacity = "1";
+            obj.style.transform = "translateY(0)";
+        }, 50);
+    }
+}
+
 
         // NEW 24H SUB TAB LOGIC (FIXED)
         async function switchSubView(type) {
