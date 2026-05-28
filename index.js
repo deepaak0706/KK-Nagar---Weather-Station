@@ -882,27 +882,45 @@ body.is-night .modular-cell {
     }
 
 /* ========================================== */
-/* 📱 ULTRA-MODERN ADAPTIVE MOBILE SYSTEM     */
+/* 📱 FIXED: HIGH-CONTRAST ADAPTIVE DIVIDERS  */
 /* ========================================== */
 @media screen and (max-width: 767px) {
-    /* 1. Clean up outer page spacing safely */
     body {
         padding: 20px 16px 120px 16px !important;
     }
 
-    /* 2. DEFAULT LIGHT MODE: Cards are 100% invisible backgrounds */
+    /* DEFAULT LIGHT MODE: Pure canvas streaming look */
     .card {
         background: transparent !important; 
         border: none !important;
         box-shadow: none !important;
         border-radius: 0 !important;
         margin-bottom: 36px !important; 
-        position: relative;
-        padding: 12px 4px !important; /* Tightens text directly against the main canvas */
+        position: relative !important; /* Forces perfect alignment anchor */
+        padding: 12px 4px !important; 
     }
 
-    /* 3. AUTOMATIC DARK MODE: Restores the floating panels dynamically */
-    /* This automatically targets standard dark mode framework classes */
+    /* ✨ FIXED LIGHT MODE DIVIDER */
+    /* Blends your border shade with your primary blue so it stands out elegantly */
+    .card:not(:last-of-type)::after {
+        content: '';
+        position: absolute;
+        bottom: -18px; /* Perfectly centered in the 36px empty space */
+        left: 10%;
+        width: 80%;
+        height: 1px;
+        background: linear-gradient(to right, 
+            transparent 0%, 
+            var(--border, #cbd5e1) 25%, 
+            var(--accent, #00a3ff) 50%, 
+            var(--border, #cbd5e1) 75%, 
+            transparent 100%
+        );
+        opacity: 0.75; /* Higher visibility for bright screens */
+        z-index: 10;
+    }
+
+    /* AUTOMATIC DARK MODE: Re-activates dark bounding boxes */
     .dark .card, 
     .dark-mode .card, 
     [data-theme="dark"] .card { 
@@ -913,38 +931,27 @@ body.is-night .modular-cell {
         box-shadow: 0 10px 30px -15px rgba(0, 0, 0, 0.3) !important;
     }
 
-    /* 4. THE MODERN FLOATING DIVIDER LINE (Beautifully adaptive) */
-    .card:not(:last-of-type)::after {
-        content: '';
-        position: absolute;
-        bottom: -20px; 
-        left: 10%;
-        width: 80%;
-        height: 1px;
+    /* ✨ DARK MODE DIVIDER TUNING */
+    /* Drops opacity down on dark screens to keep that expensive, glowing feel */
+    .dark .card:not(:last-of-type)::after,
+    .dark-mode .card:not(:last-of-type)::after,
+    [data-theme="dark"] .card:not(:last-of-type)::after {
+        bottom: -14px;
         background: linear-gradient(to right, 
             transparent 0%, 
             var(--accent, #00a3ff) 50%, 
             transparent 100%
         );
-        opacity: 0.3; 
+        opacity: 0.2; 
     }
 
-    /* Slight adjustment to line placement for padded dark mode blocks */
-    .dark .card:not(:last-of-type)::after,
-    .dark-mode .card:not(:last-of-type)::after,
-    [data-theme="dark"] .card:not(:last-of-type)::after {
-        bottom: -16px;
-        opacity: 0.15;
-    }
-
-    /* Keeps your bottom summary table looking clean */
     .pro-summary-table {
         background: transparent !important;
         border: none !important;
         box-shadow: none !important;
     }
 }
-}
+
 /* ========================================== */
 /* 💻 FIX: MODERN 2x2 DESKTOP MATRIX GRID     */
 /* ========================================== */
