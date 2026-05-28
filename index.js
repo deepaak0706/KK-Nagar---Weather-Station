@@ -929,6 +929,78 @@ body.is-night .modular-cell {
     }
 }
 
+/* ========================================== */
+/* 💻 FIX: MODERN 2x2 DESKTOP MATRIX GRID     */
+/* ========================================== */
+@media screen and (min-width: 768px) {
+    /* 1. Turn the main layout wrapper into the single unified deck */
+    .grid-system {
+        background: var(--card);
+        border: 1px solid var(--border);
+        box-shadow: var(--glow);
+        border-radius: 28px;
+        padding: 12px 16px;
+        gap: 0; /* Snaps the columns together tightly */
+        overflow: hidden;
+    }
+
+    /* 2. Flatten individual cards and set up anchoring for dividers */
+    .grid-system .card {
+        background: transparent !important;
+        border: none !important;
+        box-shadow: none !important;
+        backdrop-filter: none !important;
+        -webkit-backdrop-filter: none !important;
+        border-radius: 0 !important;
+        position: relative;
+    }
+
+    /* 3. Add vertical space between top and bottom rows */
+    .grid-system .card:nth-child(1),
+    .grid-system .card:nth-child(2) {
+        padding: 28px 32px 36px 32px !important; /* Extra bottom cushion */
+    }
+    .grid-system .card:nth-child(3),
+    .grid-system .card:nth-child(4) {
+        padding: 36px 32px 28px 32px !important; /* Extra top cushion */
+    }
+
+    /* 4. MODERN VERTICAL DIVIDER: Only down the absolute center column */
+    .grid-system .card:nth-child(odd)::after {
+        content: '';
+        position: absolute;
+        right: 0;
+        top: 15%;
+        width: 1px;
+        height: 70%;
+        background: linear-gradient(to bottom, 
+            transparent 0%, 
+            var(--border) 20%, 
+            var(--border) 80%, 
+            transparent 100%
+        );
+        opacity: 0.5;
+    }
+
+    /* 5. MODERN HORIZONTAL DIVIDER: Smoothly separates Top and Bottom rows */
+    .grid-system .card:nth-child(1)::before,
+    .grid-system .card:nth-child(2)::before {
+        content: '';
+        position: absolute;
+        bottom: 0;
+        left: 8%;
+        width: 84%;
+        height: 1px;
+        background: linear-gradient(to right, 
+            transparent 0%, 
+            var(--border) 15%, 
+            var(--border) 85%, 
+            transparent 100%
+        );
+        opacity: 0.5;
+    }
+}
+
 </style>
 </head>
 
