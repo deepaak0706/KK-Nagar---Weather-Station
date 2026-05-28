@@ -633,50 +633,53 @@ app.get("/", (req, res) => {
     /* ☁️ E-INK LIGHT MODE (Anti-Glare / Matte)    */
     /* ========================================== */
     :root { 
-        --bg: #e2e8f0 !important;        /* Slate 200: True matte gray canvas */
-        --card: #f8fafc;                 /* Slate 50: Single unified plate color */
-        --border: #cbd5e1;               /* Slate 300: Main perimeter outer border */
-        --text: #1e293b !important;      /* Deep, muted charcoal text */
-        --muted: #64748b;                /* Mid-gray for secondary metrics */
-        --accent: #0369a1;               /* Calmer ocean blue anchor accents */
-        --lbl-color: #475569;            /* Soft slate for headings */
-        --glow: 0 4px 20px -5px rgba(15, 23, 42, 0.06); 
+        --bg: #e2e8f0 !important;        /* Slate 200: A true matte gray canvas, kills backlight glare */
+        --card: #f8fafc;                 /* Slate 50: An off-white card face, removes the "flashlight" effect */
+        --border: #cbd5e1;               /* Slate 300: Slightly deeper border to firmly ground the cards */
+        --text: #1e293b !important;      /* Deep, muted charcoal (softer than before) */
+        --muted: #64748b;                /* Mid-gray for secondary text */
         
-        /* ✨ Ultra-slim modern line tint */
-        --line: rgba(15, 23, 42, 0.08);  
+        /* Muting the accents to stop them from looking "neon" */
+        --accent: #0369a1;               /* A deeper, calmer ocean blue instead of bright royal blue */
+        --lbl-color: #475569;            /* Soft slate for headings */
+        --glow: 0 4px 15px -3px rgba(15, 23, 42, 0.08); /* Deeper, softer shadow to anchor the UI */
+        --line: #e2e8f0;                 /* Inner dividers match the background */
     }
     /* ========================================== */
     /* 🌙 PREMIUM DARK MODE (OLED Obsidian)       */
     /* ========================================== */
     body.is-night {
-        --bg: #090d16 !important;        /* Deep space midnight backing */
-        --card: #111827;                 /* Premium unified dark obsidian panel */
-        --border: #1f2937;               /* Metallic layout perimeter frame */
-        --text: #f8fafc !important;      /* Soft off-white cloud text */
-        --muted: #94a3b8;                /* Soft metallic gray labels */
-        --accent: #38bdf8;               /* Radiant sky blue accents */
-        --lbl-color: #60a5fa;            /* Perfectly balanced luminous title blue */
-        --glow: 0 20px 40px -15px rgba(0, 0, 0, 0.6); 
-        
-        /* ✨ Laser-etched ultra-thin line tint */
-        --line: rgba(255, 255, 255, 0.07); 
+        --bg: #090d16 !important;        /* Deep space midnight backing (not flat pitch black) */
+        --card: #111827;                 /* Premium dark obsidian card blocks */
+        --border: #1f2937;               /* Sleek metallic perimeter border */
+        --text: #f8fafc !important;      /* Soft off-white cloud text to prevent neon glowing/bleeding */
+        --muted: #94a3b8;                /* Soft metallic gray for secondary metrics */
+        --accent: #38bdf8;               /* Radiant sky blue accents for premium highlight tracking */
+        --lbl-color: #60a5fa;            /* Perfectly balanced luminous light blue for high title visibility */
+        --glow: 0 20px 40px -15px rgba(0, 0, 0, 0.5); /* Heavy deep canvas room shadow */
+        --line: #1f2937;                 /* Laser-etched internal dividers */
     }
 
+     
     body { 
-        margin: 0; 
-        font-family: 'Outfit', sans-serif; 
-        background: var(--bg); 
-        color: var(--text); 
-        padding: 16px 12px 120px 12px; 
-        transition: background 0.4s ease, color 0.4s ease; 
-        min-height: 100vh; 
-        overflow-x: hidden; 
-        box-sizing: border-box;
-    }
+    margin: 0; 
+    font-family: 'Outfit', sans-serif; 
+    background: var(--bg); 
+    color: var(--text); 
+    /* 👇 FIX: Tight side margins on mobile so elements stretch across the screen nicely */
+    padding: 16px 10px 120px 10px; 
+    transition: background 0.4s ease, color 0.4s ease; 
+    min-height: 100vh; 
+    overflow-x: hidden; 
+    box-sizing: border-box;
+}
 
-    @media screen and (min-width: 768px) {
-        body { padding: 24px 24px 120px 24px; }
+/* 👇 RESTORES ORIGINAL SPACING ON DESKTOP SCREENS */
+@media screen and (min-width: 768px) {
+    body { 
+        padding: 24px 24px 120px 24px; 
     }
+}
 
     *, *:before, *:after { box-sizing: inherit; }
 
@@ -692,86 +695,47 @@ app.get("/", (req, res) => {
     .status-bar { display: flex; align-items: center; gap: 8px; background: var(--card); padding: 6px 16px; border-radius: 100px; border: 1px solid var(--border); box-shadow: var(--glow); font-size: 12px; backdrop-filter: blur(20px); }
     .live-dot { width: 6px; height: 6px; background: #10b981; border-radius: 50%; animation: blink 2s infinite; box-shadow: 0 0 8px #10b981; }
     @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+    
 
-    /* 🎛️ THE UNIFIED MATRIX CHASSIS */
     .grid-system { 
-        position: relative;                   /* Anchors our premium fading crosshair lines */
         display: grid; 
-        grid-template-columns: 1fr;           /* Standard clean stack on mobile devices */
-        grid-auto-rows: auto;                 /* ⚡ FIX: Forces rows to hug content naturally—no more giant gaps! */
-        background: var(--card) !important;   /* Return container to your premium panel color */
-        border: 1px solid var(--border); 
-        border-radius: 28px;              
-        box-shadow: var(--glow);
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); 
+        gap: 16px; 
         margin-bottom: 32px; 
         width: 100%;
-        overflow: hidden;                     
-        transition: background 0.3s ease, border-color 0.3s ease;
     }
-
-    /* 📱 MOBILE VIEW: HORIZONTAL ULTRA-THIN FADING DIVIDERS */
-    @media screen and (max-width: 767px) {
-        .grid-system .card:not(:last-of-type) {
-            /* Draws a razor-thin 1px line at the bottom of cards that fades perfectly at both ends */
-            background-image: linear-gradient(to right, transparent 0%, var(--line) 15%, var(--line) 85%, transparent 100%);
-            background-position: bottom;
-            background-size: 100% 1px;
-            background-repeat: no-repeat;
-        }
-    }
-
-    /* 💻 DESKTOP VIEW: PREMIUM 2x2 FADING CROSSHAIR INTERSECTION */
+    
     @media screen and (min-width: 768px) {
         .grid-system { 
-            grid-template-columns: repeat(2, 1fr); 
-        }
-
-        /* Horizontal central dividing line (Fades beautifully at left & right) */
-        .grid-system::before {
-            content: '';
-            position: absolute;
-            left: 6%;
-            right: 6%;
-            top: 50%;
-            height: 1px;
-            background: linear-gradient(to right, transparent 0%, var(--line) 15%, var(--line) 85%, transparent 100%);
-            z-index: 10;
-            pointer-events: none;
-        }
-
-        /* Vertical central dividing line (Fades beautifully at top & bottom) */
-        .grid-system::after {
-            content: '';
-            position: absolute;
-            top: 6%;
-            bottom: 6%;
-            left: 50%;
-            width: 1px;
-            background: linear-gradient(to bottom, transparent 0%, var(--line) 15%, var(--line) 85%, transparent 100%);
-            z-index: 10;
-            pointer-events: none;
+            /* !important forces the browser to kill any 4-column ghost styles */
+            grid-template-columns: repeat(2, 1fr) !important; 
         }
     }
+    @media (min-width: 1100px) {
+        .grid-system { grid-template-columns: repeat(4, 1fr); }
+    }
 
-    /* 🧊 INTERNAL CELL CONTAINERS */
     .card { 
-        background: transparent !important;   /* Let the parent container's surface shine through */
-        padding: 24px; 
-        border: none !important;              
-        box-shadow: none !important;          
-        border-radius: 0px !important;        
+        background: var(--card); 
+        padding: 20px; 
+        border-radius: 24px; 
+        border: 1px solid var(--border); 
+        backdrop-filter: blur(30px); 
+        -webkit-backdrop-filter: blur(30px); 
+        box-shadow: var(--glow); 
         position: relative; 
         display: flex;
         flex-direction: column;
-        justify-content: flex-start;          /* ⚡ FIX: Clusters contents naturally instead of flying apart */
-        gap: 20px;                            /* Perfectly proportioned spacing between content blocks */
+        justify-content: space-between;
+        gap: 24px;
         width: 100%;
-        height: auto;                         /* Ensures individual cards stay snug around their contents */
+        transition: background 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
     }
     
-    #windCanvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; }
+    #windCanvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; border-radius: 24px; }
     .card > *:not(canvas) { position: relative; z-index: 5; }
 
+    /* 🏷️ FIXED LABEL EYE STRAIN: Uses dedicated heading variables with tracked spacing */
     .label { 
         color: var(--lbl-color); 
         font-size: 11px; 
@@ -787,50 +751,55 @@ app.get("/", (req, res) => {
 
     /* EQUAL COMPACT GRID PANELS */
     .row-block { 
-        display: grid; 
-        grid-template-columns: 52% 1px 1fr; 
-        align-items: center; 
-        width: 100%; 
-    }
+    display: grid; 
+    /* This locks the layout mathematically: 52% left, 1px line, remaining space right. ZERO wobble. */
+    grid-template-columns: 52% 1px 1fr; 
+    align-items: center; 
+    width: 100%; 
+}
 
-    .left-panel { 
-        display: flex; 
-        flex-direction: column; 
-        justify-content: center; 
-        align-items: flex-start; 
-        padding-right: 16px; 
-        box-sizing: border-box;
-        min-width: 0; 
-    }
+.left-panel { 
+    display: flex; 
+    flex-direction: column; 
+    justify-content: center; 
+    align-items: flex-start; 
+    padding-right: 16px; /* Keeps text away from the line */
+    box-sizing: border-box;
+    min-width: 0; /* Prevents wide numbers from breaking the grid */
+}
 
-    .right-panel { 
-        display: flex; 
-        flex-direction: column; 
-        gap: 12px; 
-        justify-content: center; 
-        padding-left: 16px; 
-        align-items: flex-start; 
-        box-sizing: border-box;
-        min-width: 0;
-    }
-        
-    .v-line { 
-        width: 1px; 
-        height: 75px; 
-        background: linear-gradient(to bottom, transparent 0%, var(--line) 15%, var(--line) 85%, transparent 100%); 
-        justify-self: center; 
-    }
+.right-panel { 
+    display: flex; 
+    flex-direction: column; 
+    gap: 12px; 
+    justify-content: center; 
+    padding-left: 16px; /* Keeps text away from the line */
+    align-items: flex-start; 
+    box-sizing: border-box;
+    min-width: 0;
+}
+    
+   .v-line { 
+    width: 1px; 
+    height: 75px; 
+    /* Silky smooth fade out at the top and bottom */
+    background: linear-gradient(to bottom, transparent 0%, var(--line) 15%, var(--line) 85%, transparent 100%); 
+    opacity: 0.5; /* Makes it look sleek and expensive */
+    justify-self: center; /* Centers it perfectly in its 1px grid track */
+}
 
+    /* HIGH PROMINENCE COMPACT VALUE PODS (PROMINENCE BUMPED BY +0.5) */
     .limit-row-pod { display: flex; align-items: center; justify-content: flex-start; gap: 6px; width: 100%; font-size: 15px; font-weight: 700; line-height: 1; }
     .pod-lbl { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.8px; opacity: 0.9; }
     .pod-val { font-variant-numeric: tabular-nums; }
 
     .mod-divider { 
-        height: 1px; 
-        background: linear-gradient(to right, transparent 0%, var(--line) 15%, var(--line) 85%, transparent 100%); 
-        width: 100%; 
-        margin: 4px 0; 
-    }
+    height: 1px; 
+    background: linear-gradient(to right, transparent 0%, var(--line) 15%, var(--line) 85%, transparent 100%); 
+    width: 100%; 
+    margin: 4px 0; 
+    opacity: 0.5; 
+}
 
     .modular-inline-stack { 
         display: grid; 
@@ -844,21 +813,25 @@ app.get("/", (req, res) => {
     .stack-2-col { grid-template-columns: repeat(2, 1fr); }
 
     .modular-cell { 
-        display: flex; 
-        flex-direction: column; 
-        align-items: center; 
-        text-align: center; 
-        border-right: 1px solid var(--line); 
-    }
-    .modular-cell:last-child { 
-        border-right: none; 
-    }
+    display: flex; 
+    flex-direction: column; 
+    align-items: center; 
+    text-align: center; 
+    border-right: 1px solid rgba(100, 116, 139, 0.15); 
+}
+body.is-night .modular-cell {
+    border-right: 1px solid rgba(255, 255, 255, 0.08); /* Matches dark mode subtlety */
+}
+.modular-cell:last-child { 
+    border-right: none; 
+}
     
     .cell-lbl { font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); font-weight: 700; margin-bottom: 4px; }
     .cell-val { font-size: 15px; font-weight: 700; color: var(--text); }
 
     .sub-pill { font-size: 11px; font-weight: 600; color: var(--text); display: inline-flex; align-items: center; gap: 4px; margin-top: 8px; }
 
+    /* ADVANCED HIGH-PROMINENCE COMPASS HUD WITH HUD CARDINAL TEXTS */
     .compass-container { position: relative; width: 72px; height: 72px; margin: 0 auto; display: flex; align-items: center; justify-content: center; }
     .compass-ui { 
         width: 100%; height: 100%; 
@@ -866,8 +839,8 @@ app.get("/", (req, res) => {
         border-radius: 50%; 
         position: absolute; top:0; left:0; 
         display: flex; align-items: center; justify-content: center;
-        background: radial-gradient(circle, rgba(2,132,199,0.04) 0%, transparent 70%);
-        box-shadow: inset 0 0 12px rgba(2,132,199,0.05);
+        background: radial-gradient(circle, rgba(2,132,199,0.06) 0%, transparent 70%);
+        box-shadow: inset 0 0 12px rgba(2,132,199,0.08);
     }
     
     .cardinal-pt { position: absolute; font-size: 9px; font-weight: 900; color: var(--muted); line-height: 1; }
