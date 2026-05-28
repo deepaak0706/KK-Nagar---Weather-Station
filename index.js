@@ -934,14 +934,14 @@ app.get("/", (req, res) => {
     <div style="display:flex; flex-direction:column; gap:2px; padding-bottom:10px; border-bottom:1px solid var(--line); width:100%;">
         <div style="display:flex; align-items:center; gap:5px;">
             <div style="width:6px; height:6px; border-radius:50%; background:#06b6d4; flex-shrink:0;"></div>
-            <span style="font-size:9px; font-weight:900; letter-spacing:1.5px; color:#2563eb;">Current Rate</span>
+            <span style="font-size:9px; font-weight:900; letter-spacing:1.5px; color:#2563eb;">RATE</span>
         </div>
         <span id="r_rate" style="font-size:22px; font-weight:800; color:#06b6d4; line-height:1.1; font-variant-numeric:tabular-nums;">--</span>
     </div>
     <div style="display:flex; flex-direction:column; gap:2px; padding-top:10px; width:100%;">
         <div style="display:flex; align-items:center; gap:5px;">
             <div style="width:6px; height:6px; border-radius:50%; background:#7c3aed; flex-shrink:0;"></div>
-            <span style="font-size:9px; font-weight:900; letter-spacing:1.5px; color:#7c3aed;">Max Rate</span>
+            <span style="font-size:9px; font-weight:900; letter-spacing:1.5px; color:#7c3aed;">MAX RATE</span>
         </div>
         <span id="mr" style="font-size:22px; font-weight:800; color:#1d4ed8; line-height:1.1; font-variant-numeric:tabular-nums;">--</span>
     </div>
@@ -971,30 +971,31 @@ app.get("/", (req, res) => {
                 </div>
 
                 <div class="card">
-    <div>
-        <div class="label">Atmospheric</div>
-        <div class="row-block">
-            <div class="left-panel">
-                <div class="main-val">
-                    <span id="pr">--</span>
-                    <span class="unit">hPa</span>
-                    <span id="pIcon" style="font-size:16px; margin-left:8px; font-weight:800; line-height:1; align-self:center;"></span>
+                    <div>
+                        <div class="label">Atmospheric</div>
+                        <div class="row-block">
+                            <div class="left-panel">
+                                <div class="main-val"><span id="pr">--</span><span class="unit">hPa</span></div>
+                                <div class="sub-pill">Trend Gauge: <span id="pIcon" style="margin-left:2px;">●</span></div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mod-divider"></div>
+                    
+                    <div class="modular-inline-stack stack-2-col">
+                        <div class="modular-cell">
+                            <span class="cell-lbl">Solar Radiation</span>
+                            <span id="sol" class="cell-val">--</span>
+                        </div>
+                        <div class="modular-cell">
+                            <span class="cell-lbl">UV Index</span>
+                            <span id="uv" class="cell-val">--</span>
+                        </div>
+                    </div>
                 </div>
+
             </div>
-        </div>
-    </div>
-    <div class="mod-divider"></div>
-    <div class="modular-inline-stack stack-2-col">
-        <div class="modular-cell">
-            <span class="cell-lbl">Solar Radiation</span>
-            <span id="sol" class="cell-val">--</span>
-        </div>
-        <div class="modular-cell">
-            <span class="cell-lbl">UV Index</span>
-            <span id="uv" class="cell-val">--</span>
-        </div>
-    </div>
-</div>
 
             <div class="sub-tabs-section" style="margin-top: 32px;">
 
