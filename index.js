@@ -67,7 +67,12 @@ function calculateRealFeel(tempC, humidity) {
  * Decay is now handled externally by the Cron.
  */
 
- function processRainLogic(newDailyInches, currentTimeStamp) {
+ function processRainLogic(newDailyInches, currentTimeStamp, isCron = false) {
+     // If a user refresh happens, don't update the baseline or time
+    // Only the Cron should advance the "lastRainRaw" and "lastRainTime"
+    if (!isCron) {
+        return state.lastCalculatedRate; 
+    }
     const now = Date.now();
     
     if (state.lastRainRaw === null) {
@@ -167,6 +172,7 @@ async function bufferOnlyUpdate() {
  */
 async function syncWithEcowitt(forceWrite = false) {
     const now = Date.now();
+    const fmtL = () => new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' });
     const nowIST = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" }));
     const todayISTStr = nowIST.toLocaleDateString('en-CA'); 
     const hour = nowIST.getHours();
@@ -190,8 +196,8 @@ async function syncWithEcowitt(forceWrite = false) {
             // Convert API mm to raw inches for the logic engine
             const currentDailyInches = parseFloat(d.rainfall.daily.value) / 25.4;
             
-            // Trigger the engine to update state.lastCalculatedRate
-            processRainLogic(currentDailyInches, new Date().toISOString());
+            const liveRR = parseFloat((state.lastCalculatedRate * 25.4).toFixed(1));
+            state.cachedData.rain.rate = liveRR;
 
             // Convert other rain fields to inches for internal consistency
             d.rainfall.daily.value = currentDailyInches;
@@ -206,7 +212,6 @@ async function syncWithEcowitt(forceWrite = false) {
             const liveHum = d.outdoor.humidity.value || 0;
             const livePress = parseFloat((d.pressure.relative.value * 33.8639).toFixed(1));
             const liveDewC = parseFloat(((d.outdoor.dew_point.value - 32) * 5 / 9).toFixed(1));
-            const liveRR = parseFloat((state.lastCalculatedRate * 25.4).toFixed(1));
             
             // 3. UPDATE CACHED SNAPSHOT
             state.cachedData.atmo.press = livePress;
@@ -222,7 +227,7 @@ async function syncWithEcowitt(forceWrite = false) {
             state.cachedData.rain.rate = liveRR;
 
             // 4. MAX/MIN LOGIC (Check live vs. existing cache)
-            const fmtL = () => new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' });
+            
             const fmtIso = (isoStr) => isoStr ? new Date(isoStr).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' }) : fmtL();
 
             if (liveTemp > state.cachedData.temp.max) { state.cachedData.temp.max = liveTemp; state.cachedData.temp.maxTime = fmtL(); }
