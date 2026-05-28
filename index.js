@@ -686,6 +686,7 @@ app.get("/", (req, res) => {
     gap: 20px; 
     margin-bottom: 32px; 
     width: 100%;
+    align-items: stretch;
 }
         
         @media (max-width: 768px) {
@@ -701,21 +702,22 @@ app.get("/", (req, res) => {
 
 
         .card { 
-            background: var(--card); 
-            padding: 20px; 
-            border-radius: 24px; 
-            border: 1px solid var(--border); 
-            backdrop-filter: blur(30px); 
-            -webkit-backdrop-filter: blur(30px); 
-            box-shadow: var(--glow); 
-            position: relative; 
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-            gap: 24px;
-            width: 100%;
-            transition: transform 0.2s ease, box-shadow 0.2s ease;
-        }
+    background: var(--card); 
+    padding: 20px; 
+    border-radius: 24px; 
+    border: 1px solid var(--border); 
+    backdrop-filter: blur(30px); 
+    -webkit-backdrop-filter: blur(30px); 
+    box-shadow: var(--glow); 
+    position: relative; 
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: 24px;
+    width: 100%;
+    min-width: 0;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
 
         .card:hover { 
     transform: translateY(-3px); 
@@ -793,13 +795,17 @@ app.get("/", (req, res) => {
 
         .graphs-wrapper { 
     display: grid; 
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); 
-    gap: 20px; 
-    margin-top: 20px;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); 
+    gap: 16px; 
+    margin-top: 0;
     width: 100%;
+    box-sizing: border-box;
 }
 @media (min-width: 1100px) {
-    .graphs-wrapper { grid-template-columns: repeat(4, 1fr); }
+    .graphs-wrapper { 
+        grid-template-columns: repeat(4, 1fr);
+        gap: 20px;
+    }
 }
         .graph-card { background: var(--card); padding: 24px; border-radius: 24px; border: 1px solid var(--border); height: 320px; box-shadow: var(--glow); display: flex; flex-direction: column; overflow: hidden; }
         .graph-card canvas { flex-grow: 1; width: 100% !important; height: 100% !important; }
@@ -852,7 +858,7 @@ app.get("/", (req, res) => {
             <button onclick="showPage('historical')" id="tab-hist" class="tab-btn">Historical Data</button>
        </div>
 
-        <div id="page-dashboard">
+        <div id="page-dashboard" style="width: 100%;">
             <div class="grid-system">
                 
                 <div class="card">
@@ -1025,7 +1031,7 @@ app.get("/", (req, res) => {
 </div>
 
 
-            <div class="sub-tabs-section" style="margin-top: 32px; width: 100%; clear: both;">
+            <div class="sub-tabs-section" style="margin-top: 32px; width: 100%; clear: both; display: block;">
 
                 <div style="display: flex; gap: 10px; margin-bottom: 20px; justify-content: center;">
                     <button onclick="switchSubView('summary')" id="btn-sub-sum" class="tab-btn active">24H Summary</button>
@@ -1033,7 +1039,7 @@ app.get("/", (req, res) => {
                 </div>
 
                 
-                <div id="sub-view-summary" style="display: block; animation: fadeIn 0.4s ease;">
+                <div id="sub-view-summary" style="display: block; animation: fadeIn 0.4s ease; width: 100%;">
     <div class="pro-summary-table">
         
         <div class="pro-row">
