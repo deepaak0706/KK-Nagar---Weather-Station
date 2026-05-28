@@ -633,39 +633,46 @@ app.get("/", (req, res) => {
     /* ☁️ E-INK LIGHT MODE (Anti-Glare / Matte)    */
     /* ========================================== */
     :root { 
-    --bg: #e2e8f0 !important;        
-    --card: #f8fafc;                 
-    --border: #cbd5e1;               
-    --text: #1e293b !important;      
+    --bg: #f4f7fa !important;        
+    --card: #ffffff;                 
+    --border: rgba(15, 23, 42, 0.05); /* Ultra-soft edge border */
+    --text: #0f172a !important;      
     --muted: #64748b;                
-    --accent: #0369a1;               
+    --accent: #0284c7;               
     --lbl-color: #475569;            
-    --glow: 0 4px 15px -3px rgba(15, 23, 42, 0.08); 
-    
-    /* 👇 THIS IS THE FIX: Darker lines so they don't vanish */
-    --line: #cbd5e1;                 
+    /* 👇 FIX: Flattened shadow so cards don't look like they are "hovering" */
+    --glow: 0 2px 8px rgba(15, 23, 42, 0.02); 
+    --line: #e2e8f0;                 
 }
     /* ========================================== */
     /* 🌙 PREMIUM DARK MODE (OLED Obsidian)       */
     /* ========================================== */
     body.is-night {
-        --bg: #090d16 !important;        /* Deep space midnight backing (not flat pitch black) */
-        --card: #111827;                 /* Premium dark obsidian card blocks */
-        --border: #1f2937;               /* Sleek metallic perimeter border */
-        --text: #f8fafc !important;      /* Soft off-white cloud text to prevent neon glowing/bleeding */
-        --muted: #94a3b8;                /* Soft metallic gray for secondary metrics */
-        --accent: #38bdf8;               /* Radiant sky blue accents for premium highlight tracking */
-        --lbl-color: #60a5fa;            /* Perfectly balanced luminous light blue for high title visibility */
-        --glow: 0 20px 40px -15px rgba(0, 0, 0, 0.5); /* Heavy deep canvas room shadow */
-        --line: #1f2937;                 /* Laser-etched internal dividers */
-    }
+    --bg: #090d16 !important;        
+    --card: #111827;                 
+    --border: rgba(255, 255, 255, 0.03); 
+    --text: #f8fafc !important;      
+    --muted: #94a3b8;                
+    --accent: #38bdf8;               
+    --lbl-color: #60a5fa;            
+    /* 👇 FIX: Clean, flat premium dark room depth shadow */
+    --glow: 0 4px 20px rgba(0, 0, 0, 0.4); 
+    --line: #1f2937;                 
+}
 
      
     body { 
-        margin: 0; font-family: 'Outfit', sans-serif; background: var(--bg); color: var(--text); 
-        padding: 24px 24px 120px 24px; transition: background 0.4s ease, color 0.4s ease; 
-        min-height: 100vh; overflow-x: hidden; box-sizing: border-box;
-    }
+    margin: 0; 
+    font-family: 'Outfit', sans-serif; 
+    background: var(--bg); 
+    color: var(--text); 
+    /* 👇 FIX: Tight padding on mobile so cards fit seamlessly edge-to-edge */
+    padding: 16px 12px 120px 12px; 
+    transition: background 0.4s ease, color 0.4s ease; 
+    min-height: 100vh; 
+    overflow-x: hidden; 
+    box-sizing: border-box;
+}
 
     *, *:before, *:after { box-sizing: inherit; }
 
@@ -698,9 +705,11 @@ app.get("/", (req, res) => {
             grid-template-columns: repeat(2, 1fr) !important; 
         }
     }
-    @media (min-width: 1100px) {
-        .grid-system { grid-template-columns: repeat(4, 1fr); }
+    @media (min-width: 768px) {
+    body { 
+        padding: 24px 24px 120px 24px; 
     }
+}
 
     .card { 
     background: var(--card); 
@@ -845,8 +854,33 @@ app.get("/", (req, res) => {
 body.is-night .modular-cell {
     border-right: 1px solid rgba(255, 255, 255, 0.08); /* Matches dark mode subtlety */
 }
+/* 1. Close this rule out cleanly first */
 .modular-cell:last-child { 
     border-right: none; 
+} 
+
+/* 2. Now define the new grid stack out in the open */
+.aligned-bottom-stack {
+    display: grid;
+    /* Maps identically to the upper column layout */
+    grid-template-columns: 52% 1px 1fr; 
+    align-items: center;
+    width: 100%;
+    margin-top: 4px;
+}
+
+.aligned-bottom-stack .modular-cell {
+    border-right: none !important; /* Strips old offset borders */
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    padding-left: 16px;
+}
+
+.aligned-bottom-stack .modular-cell:first-child {
+    padding-left: 0;
+    padding-right: 16px;
 }
     
     .cell-lbl { font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); font-weight: 700; margin-bottom: 4px; }
@@ -1010,17 +1044,19 @@ body.is-night .modular-cell {
                 
                 <div class="mod-divider"></div>
                 
-                <div class="modular-inline-stack stack-2-col">
+                <div class="aligned-bottom-stack">
                     <div class="modular-cell">
                         <span class="cell-lbl">Sustained Max</span>
                         <span id="mw" class="cell-val">--</span>
                     </div>
+                    
+                    <div class="v-line" style="height: 35px;"></div>
+                    
                     <div class="modular-cell">
                         <span class="cell-lbl">Peak Gust</span>
                         <span id="mg" class="cell-val">--</span>
                     </div>
                 </div>
-            </div>
 
                 <div class="card">
                     <div>
