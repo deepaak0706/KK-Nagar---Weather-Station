@@ -683,16 +683,20 @@ app.get("/", (req, res) => {
     @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
     
     .grid-system { 
-        display: grid; 
-        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); 
-        gap: 16px; 
-        margin-bottom: 32px; 
-        width: 100%;
+    display: grid; 
+    /* Keeps mobile exactly as it is (flows naturally into 1 column) */
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); 
+    gap: 16px; 
+    margin-bottom: 32px; 
+    width: 100%;
+}
+
+/* Locks tablets and desktops strictly into a 2-column (2x2) grid */
+@media (min-width: 992px) {
+    .grid-system { 
+        grid-template-columns: repeat(2, 1fr); 
     }
-    
-    @media (min-width: 1200px) {
-        .grid-system { grid-template-columns: repeat(2, 1fr); }
-    }
+}
 
     @media (min-width: 1100px) {
         .grid-system { grid-template-columns: repeat(4, 1fr); }
