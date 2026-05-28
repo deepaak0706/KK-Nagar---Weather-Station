@@ -133,7 +133,7 @@ async function bufferOnlyUpdate() {
 
         // 1. Process physical tips first
         const dailyRainInches = parseFloat(d.rainfall.daily.value) / 25.4;
-        processRainLogic(dailyRainInches, currentTimeStamp);
+        processRainLogic(dailyRainInches, currentTimeStamp, true);
 
         // 2. STABLE DECAY ENGINE (Exclusive to Cron)
         // We give 3 minutes (180s) of "grace" before dropping the rate.
