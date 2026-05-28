@@ -633,18 +633,18 @@ app.get("/", (req, res) => {
     /* ☁️ E-INK LIGHT MODE (Anti-Glare / Matte)    */
     /* ========================================== */
     :root { 
-        --bg: #e2e8f0 !important;        /* Slate 200: A true matte gray canvas, kills backlight glare */
-        --card: #f8fafc;                 /* Slate 50: An off-white card face, removes the "flashlight" effect */
-        --border: #cbd5e1;               /* Slate 300: Slightly deeper border to firmly ground the cards */
-        --text: #1e293b !important;      /* Deep, muted charcoal (softer than before) */
-        --muted: #64748b;                /* Mid-gray for secondary text */
-        
-        /* Muting the accents to stop them from looking "neon" */
-        --accent: #0369a1;               /* A deeper, calmer ocean blue instead of bright royal blue */
-        --lbl-color: #475569;            /* Soft slate for headings */
-        --glow: 0 4px 15px -3px rgba(15, 23, 42, 0.08); /* Deeper, softer shadow to anchor the UI */
-        --line: #e2e8f0;                 /* Inner dividers match the background */
-    }
+    --bg: #e2e8f0 !important;        
+    --card: #f8fafc;                 
+    --border: #cbd5e1;               
+    --text: #1e293b !important;      
+    --muted: #64748b;                
+    --accent: #0369a1;               
+    --lbl-color: #475569;            
+    --glow: 0 4px 15px -3px rgba(15, 23, 42, 0.08); 
+    
+    /* 👇 THIS IS THE FIX: Darker lines so they don't vanish */
+    --line: #cbd5e1;                 
+}
     /* ========================================== */
     /* 🌙 PREMIUM DARK MODE (OLED Obsidian)       */
     /* ========================================== */
@@ -806,10 +806,9 @@ app.get("/", (req, res) => {
    .v-line { 
     width: 1px; 
     height: 75px; 
-    /* Silky smooth fade out at the top and bottom */
     background: linear-gradient(to bottom, transparent 0%, var(--line) 15%, var(--line) 85%, transparent 100%); 
-    opacity: 0.5; /* Makes it look sleek and expensive */
-    justify-self: center; /* Centers it perfectly in its 1px grid track */
+    justify-self: center; 
+    /* Removed opacity: 0.5 */
 }
 
     /* HIGH PROMINENCE COMPACT VALUE PODS (PROMINENCE BUMPED BY +0.5) */
@@ -822,7 +821,7 @@ app.get("/", (req, res) => {
     background: linear-gradient(to right, transparent 0%, var(--line) 15%, var(--line) 85%, transparent 100%); 
     width: 100%; 
     margin: 4px 0; 
-    opacity: 0.5; 
+    /* Removed opacity: 0.5 */
 }
 
     .modular-inline-stack { 
