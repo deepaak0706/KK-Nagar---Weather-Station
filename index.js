@@ -623,6 +623,8 @@ app.get('/api/historical-rain', async (req, res) => {
     }
 });
 
+app.use(express.static(path.join(__dirname)));
+
 // 5. The User Interface (Your HTML)
 app.get("/", (req, res) => {
     res.send(`
