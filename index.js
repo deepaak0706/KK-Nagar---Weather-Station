@@ -922,21 +922,25 @@ body.is-night .modular-cell {
 }
     
 /* ========================================== */
-/* 💻 FIX: MODERN 2x2 DESKTOP MATRIX GRID     */
+/* 💻 PERFECT FIT: COMPACT DESKTOP MATRIX     */
 /* ========================================== */
-@media screen and (min-width: 768px) {
-    /* 1. Turn the main layout wrapper into the single unified deck */
+@media screen and (min-width: 1100px) {
+    /* 1. Constrain the main deck so it doesn't over-stretch on wide monitors */
     .grid-system {
         background: var(--card);
         border: 1px solid var(--border);
         box-shadow: var(--glow);
-        border-radius: 28px;
-        padding: 12px 16px;
-        gap: 0; /* Snaps the columns together tightly */
+        border-radius: 24px;
+        padding: 0 !important; /* Reset outer padding for true edge-to-edge alignment */
+        gap: 0 !important; 
+        max-width: 1240px;     /* Forces a premium, standard desktop width */
+        margin: 0 auto 24px auto; /* Centers the deck and leaves room for the summary below */
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
         overflow: hidden;
     }
 
-    /* 2. Flatten individual cards and set up anchoring for dividers */
+    /* 2. Tighten inner padding so everything pulls up to fit on one screen */
     .grid-system .card {
         background: transparent !important;
         border: none !important;
@@ -944,52 +948,27 @@ body.is-night .modular-cell {
         backdrop-filter: none !important;
         -webkit-backdrop-filter: none !important;
         border-radius: 0 !important;
-        position: relative;
+        padding: 24px 40px !important; /* Compressed vertically, roomy horizontally */
     }
 
-    /* 3. Add vertical space between top and bottom rows */
+    /* 3. NATIVE CLEAN DIVIDERS (No more floating absolute lines) */
+    /* Right border for the left column (Cards 1 and 3) */
+    .grid-system .card:nth-child(1),
+    .grid-system .card:nth-child(3) {
+        border-right: 1px solid var(--border) !important;
+    }
+
+    /* Bottom border for the top row (Cards 1 and 2) */
     .grid-system .card:nth-child(1),
     .grid-system .card:nth-child(2) {
-        padding: 28px 32px 36px 32px !important; /* Extra bottom cushion */
-    }
-    .grid-system .card:nth-child(3),
-    .grid-system .card:nth-child(4) {
-        padding: 36px 32px 28px 32px !important; /* Extra top cushion */
+        border-bottom: 1px solid var(--border) !important;
     }
 
-    /* 4. MODERN VERTICAL DIVIDER: Only down the absolute center column */
-    .grid-system .card:nth-child(odd)::after {
-        content: '';
-        position: absolute;
-        right: 0;
-        top: 15%;
-        width: 1px;
-        height: 70%;
-        background: linear-gradient(to bottom, 
-            transparent 0%, 
-            var(--border) 20%, 
-            var(--border) 80%, 
-            transparent 100%
-        );
-        opacity: 0.5;
-    }
-
-    /* 5. MODERN HORIZONTAL DIVIDER: Smoothly separates Top and Bottom rows */
-    .grid-system .card:nth-child(1)::before,
-    .grid-system .card:nth-child(2)::before {
-        content: '';
-        position: absolute;
-        bottom: 0;
-        left: 8%;
-        width: 84%;
-        height: 1px;
-        background: linear-gradient(to right, 
-            transparent 0%, 
-            var(--border) 15%, 
-            var(--border) 85%, 
-            transparent 100%
-        );
-        opacity: 0.5;
+    /* 4. Pull up the lower summary table so it sits elegantly on the same page */
+    .pro-summary-table, 
+    div:has(> .pro-summary-table) {
+        max-width: 1240px;
+        margin: 0 auto !important;
     }
 }
 </style>
