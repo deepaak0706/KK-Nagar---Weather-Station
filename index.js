@@ -681,18 +681,20 @@ app.get("/", (req, res) => {
         @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
         
         .grid-system { 
-            display: grid; 
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); 
-            gap: 16px; 
-            margin-bottom: 32px; 
-            width: 100%;
-        }
+    display: grid; 
+    grid-template-columns: repeat(4, 1fr);
+    gap: 20px; 
+    margin-bottom: 32px; 
+    width: 100%;
+}
         
-        @media (min-width: 1200px) {
-            .grid-system { grid-template-columns: repeat(2, 1fr); }
-        }
-
-        @media (min-width: 1100px) {
+        @media (max-width: 768px) {
+    .grid-system { grid-template-columns: 1fr; }
+}
+@media (min-width: 769px) and (max-width: 1099px) {
+    .grid-system { grid-template-columns: repeat(2, 1fr); }
+}
+@media (min-width: 1100px) {
     .grid-system { grid-template-columns: repeat(4, 1fr); }
 }
 
@@ -789,7 +791,16 @@ app.get("/", (req, res) => {
         .tab-btn { background: var(--card); border: 1px solid var(--border); padding: 12px 24px; border-radius: 14px; color: var(--text); font-weight: 700; cursor: pointer; transition: 0.2s; backdrop-filter: blur(20px); font-size: 13px; }
         .tab-btn.active { background: var(--accent); color: white; border-color: var(--accent); box-shadow: var(--glow); }
 
-        .graphs-wrapper { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin-top: 20px; }
+        .graphs-wrapper { 
+    display: grid; 
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); 
+    gap: 20px; 
+    margin-top: 20px;
+    width: 100%;
+}
+@media (min-width: 1100px) {
+    .graphs-wrapper { grid-template-columns: repeat(4, 1fr); }
+}
         .graph-card { background: var(--card); padding: 24px; border-radius: 24px; border: 1px solid var(--border); height: 320px; box-shadow: var(--glow); display: flex; flex-direction: column; overflow: hidden; }
         .graph-card canvas { flex-grow: 1; width: 100% !important; height: 100% !important; }
 
@@ -1014,7 +1025,7 @@ app.get("/", (req, res) => {
 </div>
 
 
-            <div class="sub-tabs-section" style="margin-top: 32px;">
+            <div class="sub-tabs-section" style="margin-top: 32px; width: 100%; clear: both;">
 
                 <div style="display: flex; gap: 10px; margin-bottom: 20px; justify-content: center;">
                     <button onclick="switchSubView('summary')" id="btn-sub-sum" class="tab-btn active">24H Summary</button>
@@ -1081,7 +1092,7 @@ app.get("/", (req, res) => {
 </div>
 
 
-                <div id="sub-view-graphs" style="display: none; animation: fadeIn 0.4s ease;">
+                <div id="sub-view-graphs" style="display: none; animation: fadeIn 0.4s ease; width: 100%;">
                     
                     <div id="graphs-loading" style="text-align: center; padding: 40px; color: var(--muted); font-weight: 700; font-size: 14px; display: none;">
                         <span style="display: inline-block; animation: blink 1.5s infinite;">Loading 24H Graph Data from Database...</span>
