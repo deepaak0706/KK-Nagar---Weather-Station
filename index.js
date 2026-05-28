@@ -929,22 +929,23 @@ body.is-night .modular-cell {
     }
 }
 
-/* ========================================== */
-/* 💻 FIX: MODERN 2x2 DESKTOP MATRIX GRID     */
-/* ========================================== */
+/* ======================================================= */
+/* 💻 FIX: ULTRA-MODERN 4-WAY LASER CROSSHAIR MATRIX GRID  */
+/* ======================================================= */
 @media screen and (min-width: 768px) {
-    /* 1. Turn the main layout wrapper into the single unified deck */
+    /* 1. Unified Deck Container Setup */
     .grid-system {
         background: var(--card);
         border: 1px solid var(--border);
         box-shadow: var(--glow);
         border-radius: 28px;
         padding: 12px 16px;
-        gap: 0; /* Snaps the columns together tightly */
+        gap: 0; /* Snaps cards together perfectly */
         overflow: hidden;
+        position: relative; /* Crucial: anchors the global crosshair pseudo-elements */
     }
 
-    /* 2. Flatten individual cards and set up anchoring for dividers */
+    /* 2. Flatten individual cards completely */
     .grid-system .card {
         background: transparent !important;
         border: none !important;
@@ -955,49 +956,60 @@ body.is-night .modular-cell {
         position: relative;
     }
 
-    /* 3. Add vertical space between top and bottom rows */
+    /* Remove any leftover pseudo-dividers from the previous card implementation */
+    .grid-system .card::before,
+    .grid-system .card::after {
+        display: none !important;
+    }
+
+    /* 3. Balanced Padding Matrix for Uniform Spacing */
     .grid-system .card:nth-child(1),
     .grid-system .card:nth-child(2) {
-        padding: 28px 32px 36px 32px !important; /* Extra bottom cushion */
+        padding: 32px 36px 40px 36px !important; /* Extra breathing room above the crosshair */
     }
     .grid-system .card:nth-child(3),
     .grid-system .card:nth-child(4) {
-        padding: 36px 32px 28px 32px !important; /* Extra top cushion */
+        padding: 40px 36px 32px 36px !important; /* Extra breathing room below the crosshair */
     }
 
-    /* 4. MODERN VERTICAL DIVIDER: Only down the absolute center column */
-    .grid-system .card:nth-child(odd)::after {
+    /* 4. THE HORIZONTAL LASER BEAM (Global) */
+    .grid-system::before {
         content: '';
         position: absolute;
-        right: 0;
-        top: 15%;
-        width: 1px;
-        height: 70%;
-        background: linear-gradient(to bottom, 
-            transparent 0%, 
-            var(--border) 20%, 
-            var(--border) 80%, 
-            transparent 100%
-        );
-        opacity: 0.5;
-    }
-
-    /* 5. MODERN HORIZONTAL DIVIDER: Smoothly separates Top and Bottom rows */
-    .grid-system .card:nth-child(1)::before,
-    .grid-system .card:nth-child(2)::before {
-        content: '';
-        position: absolute;
-        bottom: 0;
-        left: 8%;
-        width: 84%;
+        left: 4%;
+        right: 4%;
+        top: 50%;
         height: 1px;
         background: linear-gradient(to right, 
             transparent 0%, 
             var(--border) 15%, 
+            var(--border) 50%, 
             var(--border) 85%, 
             transparent 100%
         );
-        opacity: 0.5;
+        opacity: 0.65; /* Slightly increased for crisp high-tech visibility */
+        z-index: 2;
+        pointer-events: none;
+    }
+
+    /* 5. THE VERTICAL LASER BEAM (Global) */
+    .grid-system::after {
+        content: '';
+        position: absolute;
+        top: 6%;
+        bottom: 6%;
+        left: 50%;
+        width: 1px;
+        background: linear-gradient(to bottom, 
+            transparent 0%, 
+            var(--border) 15%, 
+            var(--border) 50%, 
+            var(--border) 85%, 
+            transparent 100%
+        );
+        opacity: 0.65;
+        z-index: 2;
+        pointer-events: none;
     }
 }
 
