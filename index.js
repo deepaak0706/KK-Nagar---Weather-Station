@@ -662,10 +662,24 @@ app.get("/", (req, res) => {
 
      
     body { 
-        margin: 0; font-family: 'Outfit', sans-serif; background: var(--bg); color: var(--text); 
-        padding: 24px 24px 120px 24px; transition: background 0.4s ease, color 0.4s ease; 
-        min-height: 100vh; overflow-x: hidden; box-sizing: border-box;
+    margin: 0; 
+    font-family: 'Outfit', sans-serif; 
+    background: var(--bg); 
+    color: var(--text); 
+    /* 👇 FIX: Tight side margins on mobile so elements stretch across the screen nicely */
+    padding: 16px 10px 120px 10px; 
+    transition: background 0.4s ease, color 0.4s ease; 
+    min-height: 100vh; 
+    overflow-x: hidden; 
+    box-sizing: border-box;
+}
+
+/* 👇 RESTORES ORIGINAL SPACING ON DESKTOP SCREENS */
+@media screen and (min-width: 768px) {
+    body { 
+        padding: 24px 24px 120px 24px; 
     }
+}
 
     *, *:before, *:after { box-sizing: inherit; }
 
