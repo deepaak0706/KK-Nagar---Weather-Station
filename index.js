@@ -633,53 +633,49 @@ app.get("/", (req, res) => {
     /* ☁️ E-INK LIGHT MODE (Anti-Glare / Matte)    */
     /* ========================================== */
     :root { 
-        --bg: #e2e8f0 !important;        /* Slate 200: A true matte gray canvas, kills backlight glare */
-        --card: #f8fafc;                 /* Slate 50: An off-white card face, removes the "flashlight" effect */
-        --border: #cbd5e1;               /* Slate 300: Slightly deeper border to firmly ground the cards */
-        --text: #1e293b !important;      /* Deep, muted charcoal (softer than before) */
-        --muted: #64748b;                /* Mid-gray for secondary text */
-        
-        /* Muting the accents to stop them from looking "neon" */
-        --accent: #0369a1;               /* A deeper, calmer ocean blue instead of bright royal blue */
+        --bg: #e2e8f0 !important;        /* Slate 200: True matte gray canvas */
+        --card: #f8fafc;                 /* Slate 50: Single unified plate color */
+        --border: #cbd5e1;               /* Slate 300: Main perimeter outer border */
+        --text: #1e293b !important;      /* Deep, muted charcoal text */
+        --muted: #64748b;                /* Mid-gray for secondary metrics */
+        --accent: #0369a1;               /* Calmer ocean blue anchor accents */
         --lbl-color: #475569;            /* Soft slate for headings */
-        --glow: 0 4px 15px -3px rgba(15, 23, 42, 0.08); /* Deeper, softer shadow to anchor the UI */
+        --glow: 0 4px 20px -5px rgba(15, 23, 42, 0.06); 
         
-        /* ✨ FIXED: Tinted dark ink transparency so internal lines pop beautifully in light mode */
-        --line: rgba(15, 23, 42, 0.12);  
+        /* ✨ Ultra-slim modern line tint */
+        --line: rgba(15, 23, 42, 0.08);  
     }
     /* ========================================== */
     /* 🌙 PREMIUM DARK MODE (OLED Obsidian)       */
     /* ========================================== */
     body.is-night {
-        --bg: #090d16 !important;        /* Deep space midnight backing (not flat pitch black) */
-        --card: #111827;                 /* Premium dark obsidian card blocks */
-        --border: #1f2937;               /* Sleek metallic perimeter border */
-        --text: #f8fafc !important;      /* Soft off-white cloud text to prevent neon glowing/bleeding */
-        --muted: #94a3b8;                /* Soft metallic gray for secondary metrics */
-        --accent: #38bdf8;               /* Radiant sky blue accents for premium highlight tracking */
-        --lbl-color: #60a5fa;            /* Perfectly balanced luminous light blue for high title visibility */
-        --glow: 0 20px 40px -15px rgba(0, 0, 0, 0.5); /* Heavy deep canvas room shadow */
-        --line: #1f2937;                 /* Laser-etched internal dividers */
+        --bg: #090d16 !important;        /* Deep space midnight backing */
+        --card: #111827;                 /* Premium unified dark obsidian panel */
+        --border: #1f2937;               /* Metallic layout perimeter frame */
+        --text: #f8fafc !important;      /* Soft off-white cloud text */
+        --muted: #94a3b8;                /* Soft metallic gray labels */
+        --accent: #38bdf8;               /* Radiant sky blue accents */
+        --lbl-color: #60a5fa;            /* Perfectly balanced luminous title blue */
+        --glow: 0 20px 40px -15px rgba(0, 0, 0, 0.6); 
+        
+        /* ✨ Laser-etched ultra-thin line tint */
+        --line: rgba(255, 255, 255, 0.07); 
     }
 
-     
     body { 
         margin: 0; 
         font-family: 'Outfit', sans-serif; 
         background: var(--bg); 
         color: var(--text); 
-        padding: 16px 14px 120px 14px; 
+        padding: 16px 12px 120px 12px; 
         transition: background 0.4s ease, color 0.4s ease; 
         min-height: 100vh; 
         overflow-x: hidden; 
         box-sizing: border-box;
     }
 
-    /* RESTORES ORIGINAL SPACING ON DESKTOP SCREENS */
     @media screen and (min-width: 768px) {
-        body { 
-            padding: 24px 24px 120px 24px; 
-        }
+        body { padding: 24px 24px 120px 24px; }
     }
 
     *, *:before, *:after { box-sizing: inherit; }
@@ -696,63 +692,55 @@ app.get("/", (req, res) => {
     .status-bar { display: flex; align-items: center; gap: 8px; background: var(--card); padding: 6px 16px; border-radius: 100px; border: 1px solid var(--border); box-shadow: var(--glow); font-size: 12px; backdrop-filter: blur(20px); }
     .live-dot { width: 6px; height: 6px; background: #10b981; border-radius: 50%; animation: blink 2s infinite; box-shadow: 0 0 8px #10b981; }
     @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
-    
 
-    /* 📊 UNIFIED GRID SYSTEM CONFIGURATION */
+    /* 🎛️ THE UNIFIED MATRIX CHASSIS */
     .grid-system { 
         display: grid; 
-        grid-template-columns: 1fr;       /* Mobile Layout: Balanced 4-card sequence stack */
-        gap: 36px;                        /* Spacing headroom for inter-card laser lines */
+        grid-template-columns: 1fr;       /* 1 Column single list presentation on mobile */
+        background: var(--card);          /* The panel container styling */
+        border: 1px solid var(--border); 
+        border-radius: 28px;              
+        box-shadow: var(--glow);
         margin-bottom: 32px; 
         width: 100%;
+        overflow: hidden;                 /* Clean corners containing internal metrics */
+        transition: background 0.3s ease, border-color 0.3s ease;
     }
     
-    /* 📱 MOBILE SCREEN INTER-CARD LINES */
+    /* 📱 MOBILE SEAMLESS GRADIENT DIVIDERS */
     @media screen and (max-width: 767px) {
-        .grid-system .card:not(:last-of-type)::after {
-            content: '';
-            position: absolute;
-            bottom: -18px;                /* Centers the divider in the 36px layout gap */
-            left: 15%;
-            width: 70%;
-            height: 1px;
-            background: linear-gradient(to right, 
-                transparent 0%, 
-                var(--border) 30%, 
-                var(--accent) 50%, 
-                var(--border) 70%, 
-                transparent 100%
-            );
-            opacity: 0.6;
+        .grid-system .card:not(:last-of-type) {
+            border-bottom: 1px solid var(--line);
         }
     }
 
-    /* 💻 DESKTOP SCREEN FIXED 2x2 MATRIX LAYOUT */
+    /* 💻 DESKTOP 2x2 SEAMLESS CROSSHAIR GRID */
     @media screen and (min-width: 768px) {
         .grid-system { 
-            grid-template-columns: repeat(2, 1fr) !important; /* Forces a locked 2x2 grid grid distribution */
-            gap: 24px;
+            grid-template-columns: repeat(2, 1fr) !important; 
         }
+        /* Vertical & horizontal crosshair lines using non-overlapping layout grids */
+        .grid-system .card:nth-child(1) { border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+        .grid-system .card:nth-child(2) { border-bottom: 1px solid var(--line); }
+        .grid-system .card:nth-child(3) { border-right: 1px solid var(--line); }
     }
 
+    /* 🧊 INTERNAL CELL CONTAINER STYLE (CLEAN & METRIC-FOCUSED) */
     .card { 
-        background: var(--card); 
-        padding: 20px; 
-        border-radius: 24px; 
-        border: 1px solid var(--border); 
-        backdrop-filter: blur(30px); 
-        -webkit-backdrop-filter: blur(30px); 
-        box-shadow: var(--glow); 
+        background: transparent !important; 
+        padding: 24px; 
+        border: none !important; 
+        box-shadow: none !important;
+        border-radius: 0px !important;
         position: relative; 
         display: flex;
         flex-direction: column;
         justify-content: space-between;
         gap: 24px;
         width: 100%;
-        transition: background 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
     }
     
-    #windCanvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; border-radius: 24px; }
+    #windCanvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; }
     .card > *:not(canvas) { position: relative; z-index: 5; }
 
     .label { 
@@ -801,7 +789,6 @@ app.get("/", (req, res) => {
         width: 1px; 
         height: 75px; 
         background: linear-gradient(to bottom, transparent 0%, var(--line) 15%, var(--line) 85%, transparent 100%); 
-        opacity: 1 !important; /* Restored visibility anchor */
         justify-self: center; 
     }
 
@@ -814,7 +801,6 @@ app.get("/", (req, res) => {
         background: linear-gradient(to right, transparent 0%, var(--line) 15%, var(--line) 85%, transparent 100%); 
         width: 100%; 
         margin: 4px 0; 
-        opacity: 1 !important; 
     }
 
     .modular-inline-stack { 
@@ -833,10 +819,7 @@ app.get("/", (req, res) => {
         flex-direction: column; 
         align-items: center; 
         text-align: center; 
-        border-right: 1px solid rgba(100, 116, 139, 0.15); 
-    }
-    body.is-night .modular-cell {
-        border-right: 1px solid rgba(255, 255, 255, 0.08); 
+        border-right: 1px solid var(--line); 
     }
     .modular-cell:last-child { 
         border-right: none; 
@@ -854,8 +837,8 @@ app.get("/", (req, res) => {
         border-radius: 50%; 
         position: absolute; top:0; left:0; 
         display: flex; align-items: center; justify-content: center;
-        background: radial-gradient(circle, rgba(2,132,199,0.06) 0%, transparent 70%);
-        box-shadow: inset 0 0 12px rgba(2,132,199,0.08);
+        background: radial-gradient(circle, rgba(2,132,199,0.04) 0%, transparent 70%);
+        box-shadow: inset 0 0 12px rgba(2,132,199,0.05);
     }
     
     .cardinal-pt { position: absolute; font-size: 9px; font-weight: 900; color: var(--muted); line-height: 1; }
