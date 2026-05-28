@@ -693,52 +693,80 @@ app.get("/", (req, res) => {
     .live-dot { width: 6px; height: 6px; background: #10b981; border-radius: 50%; animation: blink 2s infinite; box-shadow: 0 0 8px #10b981; }
     @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
 
-/* 🎛️ THE UNIFIED MATRIX CHASSIS */
+    /* 🎛️ THE UNIFIED MATRIX CHASSIS */
     .grid-system { 
+        position: relative;                   /* Anchors our premium fading crosshair lines */
         display: grid; 
-        grid-template-columns: 1fr;           /* 1 Column stack on mobile */
-        gap: 1px;                             /* ⚡ THE TRICK: Instantly creates a 1px razor divider line */
-        background: var(--line) !important;   /* The matrix background becomes the divider fill */
+        grid-template-columns: 1fr;           /* Standard clean stack on mobile devices */
+        grid-auto-rows: auto;                 /* ⚡ FIX: Forces rows to hug content naturally—no more giant gaps! */
+        background: var(--card) !important;   /* Return container to your premium panel color */
         border: 1px solid var(--border); 
         border-radius: 28px;              
         box-shadow: var(--glow);
         margin-bottom: 32px; 
         width: 100%;
-        overflow: hidden;                     /* Beautifully clips the inner cell corners to the 28px radius */
+        overflow: hidden;                     
+        transition: background 0.3s ease, border-color 0.3s ease;
     }
 
-    /* 💻 DESKTOP 2x2 SEAMLESS CROSSHAIR GRID */
-    @media screen and (min-width: 768px) {
-        .grid-system { 
-            grid-template-columns: repeat(2, 1fr); /* Forms a perfect intersecting crosshair grid */
+    /* 📱 MOBILE VIEW: HORIZONTAL ULTRA-THIN FADING DIVIDERS */
+    @media screen and (max-width: 767px) {
+        .grid-system .card:not(:last-of-type) {
+            /* Draws a razor-thin 1px line at the bottom of cards that fades perfectly at both ends */
+            background-image: linear-gradient(to right, transparent 0%, var(--line) 15%, var(--line) 85%, transparent 100%);
+            background-position: bottom;
+            background-size: 100% 1px;
+            background-repeat: no-repeat;
         }
     }
 
-    /* 💻 DESKTOP 2x2 SEAMLESS CROSSHAIR GRID */
+    /* 💻 DESKTOP VIEW: PREMIUM 2x2 FADING CROSSHAIR INTERSECTION */
     @media screen and (min-width: 768px) {
         .grid-system { 
-            grid-template-columns: repeat(2, 1fr) !important; 
+            grid-template-columns: repeat(2, 1fr); 
         }
-        /* Vertical & horizontal crosshair lines using non-overlapping layout grids */
-        .grid-system .card:nth-child(1) { border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); }
-        .grid-system .card:nth-child(2) { border-bottom: 1px solid var(--line); }
-        .grid-system .card:nth-child(3) { border-right: 1px solid var(--line); }
+
+        /* Horizontal central dividing line (Fades beautifully at left & right) */
+        .grid-system::before {
+            content: '';
+            position: absolute;
+            left: 6%;
+            right: 6%;
+            top: 50%;
+            height: 1px;
+            background: linear-gradient(to right, transparent 0%, var(--line) 15%, var(--line) 85%, transparent 100%);
+            z-index: 10;
+            pointer-events: none;
+        }
+
+        /* Vertical central dividing line (Fades beautifully at top & bottom) */
+        .grid-system::after {
+            content: '';
+            position: absolute;
+            top: 6%;
+            bottom: 6%;
+            left: 50%;
+            width: 1px;
+            background: linear-gradient(to bottom, transparent 0%, var(--line) 15%, var(--line) 85%, transparent 100%);
+            z-index: 10;
+            pointer-events: none;
+        }
     }
 
     /* 🧊 INTERNAL CELL CONTAINERS */
     .card { 
-        background: var(--card) !important;   /* Must be solid to mask the background fill, leaving just the 1px gaps */
+        background: transparent !important;   /* Let the parent container's surface shine through */
         padding: 24px; 
-        border: none !important;              /* Strip all individual legacy borders */
-        box-shadow: none !important;          /* Strip all individual legacy shadows */
-        border-radius: 0px !important;        /* Strip all individual legacy corner curves */
+        border: none !important;              
+        box-shadow: none !important;          
+        border-radius: 0px !important;        
         position: relative; 
         display: flex;
         flex-direction: column;
-        justify-content: space-between;
-        gap: 24px;
+        justify-content: flex-start;          /* ⚡ FIX: Clusters contents naturally instead of flying apart */
+        gap: 20px;                            /* Perfectly proportioned spacing between content blocks */
         width: 100%;
-    } width: 100%;
+        height: auto;                         /* Ensures individual cards stay snug around their contents */
     }
     
     #windCanvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; }
