@@ -881,66 +881,73 @@ body.is-night .modular-cell {
         animation: countUp 0.4s cubic-bezier(0.22, 1, 0.36, 1);
     }
 
-   @media screen and (max-width: 767px) {
+/* ========================================== */
+/* 📱 ULTRA-MODERN FLOATING DIVIDER SYSTEM    */
+/* ========================================== */
+@media screen and (max-width: 767px) {
     body {
-        background: var(--card) !important; 
-        padding: 24px 16px 120px 16px;
+        /* Restores your original canvas contrast */
+        background: var(--background) !important; 
+        padding: 20px 16px 120px 16px;
     }
 
     .card {
-        background: transparent !important; 
-        border: none !important;            
-        box-shadow: none !important;        
-        backdrop-filter: none !important;
-        -webkit-backdrop-filter: none !important;
-        padding: 28px 4px !important; /* Increased padding so whitespace does the dividing */
-        border-radius: 0 !important;
-    }
-
-    /* 👇 PREMIUM CONTENT INDICATORS: Small pill next to titles */
-    .card .label {
-        display: inline-flex;
-        align-items: center;
-        gap: 8px; /* Space between pill and text */
-    }
-
-    .card .label::before {
-        content: '';
-        display: inline-block;
-        width: 4px;
-        height: 12px;
-        background: var(--accent); /* Inherits your beautiful blue accent color */
-        border-radius: 4px;
-        box-shadow: 0 0 8px var(--accent); /* Subtle premium app glow */
-    }
-
-    .pro-summary-table {
+        background: var(--card) !important;
         border: none !important;
-        box-shadow: none !important;
-        background: transparent !important;
+        border-radius: 24px !important; /* Premium curved corners */
+        padding: 24px 20px !important;  /* Spacious inner padding */
+        
+        /* Fixes congestion: creates a deliberate structural gap between panels */
+        margin-bottom: 28px !important; 
+        position: relative;
+        
+        /* High-end, whisper-soft drop shadow instead of harsh outlines */
+        box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.04) !important;
+    }
+
+    /* ✨ THE FLOATING ACCENT BRIDGING LINE */
+    /* This injects a beautiful, soft gradient line right in the middle of the empty gap */
+    .card:not(:last-of-type)::after {
+        content: '';
+        position: absolute;
+        bottom: -15px; /* Safely floats the line exactly in the middle of the margin gap */
+        left: 15%;
+        width: 70%;
+        height: 1px;
+        
+        /* Silky smooth gradient that pulls a hint of your primary blue accent color */
+        background: linear-gradient(to right, 
+            transparent 0%, 
+            var(--accent) 50%, 
+            transparent 100%
+        );
+        
+        /* Keeps it incredibly mild, elegant, and non-distracting */
+        opacity: 0.25; 
+    }
+
+    /* Ensures the bottom summary framework scales cleanly */
+    .pro-summary-table {
+        border-radius: 24px !important;
+        border: none !important;
     }
 }
-    
 /* ========================================== */
-/* 💻 PERFECT FIT: COMPACT DESKTOP MATRIX     */
+/* 💻 FIX: MODERN 2x2 DESKTOP MATRIX GRID     */
 /* ========================================== */
-@media screen and (min-width: 1100px) {
-    /* 1. Constrain the main deck so it doesn't over-stretch on wide monitors */
+@media screen and (min-width: 768px) {
+    /* 1. Turn the main layout wrapper into the single unified deck */
     .grid-system {
         background: var(--card);
         border: 1px solid var(--border);
         box-shadow: var(--glow);
-        border-radius: 24px;
-        padding: 0 !important; /* Reset outer padding for true edge-to-edge alignment */
-        gap: 0 !important; 
-        max-width: 1240px;     /* Forces a premium, standard desktop width */
-        margin: 0 auto 24px auto; /* Centers the deck and leaves room for the summary below */
-        display: grid;
-        grid-template-columns: repeat(2, 1fr);
+        border-radius: 28px;
+        padding: 12px 16px;
+        gap: 0; /* Snaps the columns together tightly */
         overflow: hidden;
     }
 
-    /* 2. Tighten inner padding so everything pulls up to fit on one screen */
+    /* 2. Flatten individual cards and set up anchoring for dividers */
     .grid-system .card {
         background: transparent !important;
         border: none !important;
@@ -948,27 +955,52 @@ body.is-night .modular-cell {
         backdrop-filter: none !important;
         -webkit-backdrop-filter: none !important;
         border-radius: 0 !important;
-        padding: 24px 40px !important; /* Compressed vertically, roomy horizontally */
+        position: relative;
     }
 
-    /* 3. NATIVE CLEAN DIVIDERS (No more floating absolute lines) */
-    /* Right border for the left column (Cards 1 and 3) */
-    .grid-system .card:nth-child(1),
-    .grid-system .card:nth-child(3) {
-        border-right: 1px solid var(--border) !important;
-    }
-
-    /* Bottom border for the top row (Cards 1 and 2) */
+    /* 3. Add vertical space between top and bottom rows */
     .grid-system .card:nth-child(1),
     .grid-system .card:nth-child(2) {
-        border-bottom: 1px solid var(--border) !important;
+        padding: 28px 32px 36px 32px !important; /* Extra bottom cushion */
+    }
+    .grid-system .card:nth-child(3),
+    .grid-system .card:nth-child(4) {
+        padding: 36px 32px 28px 32px !important; /* Extra top cushion */
     }
 
-    /* 4. Pull up the lower summary table so it sits elegantly on the same page */
-    .pro-summary-table, 
-    div:has(> .pro-summary-table) {
-        max-width: 1240px;
-        margin: 0 auto !important;
+    /* 4. MODERN VERTICAL DIVIDER: Only down the absolute center column */
+    .grid-system .card:nth-child(odd)::after {
+        content: '';
+        position: absolute;
+        right: 0;
+        top: 15%;
+        width: 1px;
+        height: 70%;
+        background: linear-gradient(to bottom, 
+            transparent 0%, 
+            var(--border) 20%, 
+            var(--border) 80%, 
+            transparent 100%
+        );
+        opacity: 0.5;
+    }
+
+    /* 5. MODERN HORIZONTAL DIVIDER: Smoothly separates Top and Bottom rows */
+    .grid-system .card:nth-child(1)::before,
+    .grid-system .card:nth-child(2)::before {
+        content: '';
+        position: absolute;
+        bottom: 0;
+        left: 8%;
+        width: 84%;
+        height: 1px;
+        background: linear-gradient(to right, 
+            transparent 0%, 
+            var(--border) 15%, 
+            var(--border) 85%, 
+            transparent 100%
+        );
+        opacity: 0.5;
     }
 }
 </style>
