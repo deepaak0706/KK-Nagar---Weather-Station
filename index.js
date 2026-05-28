@@ -642,17 +642,17 @@ app.get("/", (req, res) => {
         }
 
         body.is-night {
-    --bg: #0d1321 !important;
-    --card: rgba(17, 24, 45, 0.9);
-    --border: rgba(129, 140, 248, 0.12);
-    --text: #e2e8ff !important;
-    --muted: #6b7fa3;
-    --accent: #818cf8;
-    --glow: 0 30px 60px -20px rgba(0, 0, 0, 0.7);
-    --line: rgba(129, 140, 248, 0.08);
+    --bg: #0f1117 !important;
+    --card: rgba(22, 24, 30, 0.95);
+    --border: rgba(255, 255, 255, 0.05);
+    --text: #eaeaea !important;
+    --muted: #888888;
+    --accent: #60a5fa;
+    --glow: 0 30px 60px -20px rgba(0, 0, 0, 0.65);
+    --line: rgba(255, 255, 255, 0.06);
 }
 
-           
+         
         body { 
             margin: 0; font-family: 'Outfit', sans-serif; background: var(--bg); color: var(--text); 
             padding: 24px 24px 120px 24px; transition: background 0.4s ease, color 0.4s ease; 
@@ -747,7 +747,7 @@ app.get("/", (req, res) => {
         .modular-cell:last-child { border-right: none; }
         
         .cell-lbl { font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); font-weight: 700; margin-bottom: 4px; }
-        .cell-val { font-size: 14px; font-weight: 700; color: var(--text); }
+        .cell-val { font-size: 15px; font-weight: 700; color: var(--text); }
 
         .sub-pill { font-size: 11px; font-weight: 600; color: var(--text); display: inline-flex; align-items: center; gap: 4px; margin-top: 8px; }
 
@@ -792,6 +792,15 @@ app.get("/", (req, res) => {
         .pro-divider { width: 1px; height: 24px; background: var(--border); opacity: 0.5; flex-shrink: 0; }
         
         .glass-select { background: var(--card) !important; border: 1px solid var(--border); border-radius: 12px; padding: 8px 12px; font-family: inherit; font-weight: 600; color: var(--text) !important; outline: none; cursor: pointer; appearance: none; -webkit-appearance: none; background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e"); background-repeat: no-repeat; background-position: right 10px center; background-size: 1em; padding-right: 40px; }
+   
+        @keyframes countUp {
+    from { transform: translateY(8px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}
+.num-flip {
+    display: inline-block;
+    animation: countUp 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+}
     </style>
 </head>
 
