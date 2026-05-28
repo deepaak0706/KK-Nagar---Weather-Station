@@ -1033,21 +1033,20 @@ body:not(.dark):not(.dark-mode):not([data-theme="dark"]) .grid-system div[style*
 }
 
 /* ========================================== */
-/* ✨ FIXED: PROMINENT INTERNAL LIGHT-MODE LINES */
+/* ✨ FIXED: SURGICAL INTERNAL LIGHT-MODE LINES*/
 /* ========================================== */
 
-/* Only executes when the app is in LIGHT MODE */
+/* Only alters lines in Light Mode; never touches backgrounds or dark mode */
 body:not(.dark):not(.dark-mode):not([data-theme="dark"]) .grid-system .card * {
-    /* 1. Sharpens any native borders used as vertical dividers */
-    border-color: rgba(15, 23, 42, 0.15) !important; 
+    border-color: rgba(0, 0, 0, 0.15) !important;
 }
 
-/* 2. If your vertical lines are built using standalone 1px separator divs */
-body:not(.dark):not(.dark-mode):not([data-theme="dark"]) .grid-system .card div[style*="width"],
-body:not(.dark):not(.dark-mode):not([data-theme="dark"]) .grid-system .card span[style*="width"],
-body:not(.dark):not(.dark-mode):not([data-theme="dark"]) .grid-system .card [class*="divider"],
-body:not(.dark):not(.dark-mode):not([data-theme="dark"]) .grid-system .card [class*="separator"] {
-    background-color: rgba(15, 23, 42, 0.15) !important;
+/* If your vertical lines use 1px wide divider divs instead of borders */
+body:not(.dark):not(.dark-mode):not([data-theme="dark"]) .grid-system .card div[style*="width: 1px"],
+body:not(.dark):not(.dark-mode):not([data-theme="dark"]) .grid-system .card div[style*="width:1px"],
+body:not(.dark):not(.dark-mode):not([data-theme="dark"]) .grid-system .card span[style*="width: 1px"],
+body:not(.dark):not(.dark-mode):not([data-theme="dark"]) .grid-system .card span[style*="width:1px"] {
+    background-color: rgba(0, 0, 0, 0.15) !important;
     opacity: 1 !important;
 }
 
