@@ -858,85 +858,72 @@ app.get("/", (req, res) => {
             <button onclick="showPage('historical')" id="tab-hist" class="tab-btn">Historical Data</button>
        </div>
 
-        <div id="page-dashboard" style="width: 100%;">
-            <div class="grid-system">
-                
-                <div class="card">
-                    <div>
-                        <div class="label">Temperature</div>
-                        <div class="row-block">
-                            <div class="left-panel">
-                                <div class="main-val"><span id="t">0.0</span><span class="unit">°C</span></div>
-                                <div id="tTrendBox" class="sub-pill">--</div>
-                            </div>
-                            
-                            <div class="v-line"></div>
-                            <div class="right-panel" style="gap:10px;">
-    <div style="display:flex; flex-direction:column; gap:1px;">
-        <div style="display:flex; align-items:center; gap:5px;">
-            <div style="width:6px; height:6px; border-radius:50%; background:#ef4444; flex-shrink:0;"></div>
-            <span style="font-size:9px; font-weight:900; letter-spacing:1.5px; color:#ef4444;">MAX</span>
-        </div>
-        <span id="mx" style="font-size:22px; font-weight:800; color:#ef4444; line-height:1.1; font-variant-numeric:tabular-nums;">--</span>
-    </div>
-    <div style="height:1px; width:100%; background:var(--line);"></div>
-    <div style="display:flex; flex-direction:column; gap:1px;">
-        <div style="display:flex; align-items:center; gap:5px;">
-            <div style="width:6px; height:6px; border-radius:50%; background:#0ea5e9; flex-shrink:0;"></div>
-            <span style="font-size:9px; font-weight:900; letter-spacing:1.5px; color:#0ea5e9;">MIN</span>
-        </div>
-        <span id="mn" style="font-size:22px; font-weight:800; color:#0ea5e9; line-height:1.1; font-variant-numeric:tabular-nums;">--</span>
-    </div>
-</div>
-
-
-                            
-
-                        </div>
+      <div id="page-dashboard" style="width: 100%;">
+    <div class="grid-system">
+        
+        <div class="card">
+            <div>
+                <div class="label">Temperature</div>
+                <div class="row-block">
+                    <div class="left-panel">
+                        <div class="main-val"><span id="t">0.0</span><span class="unit">°C</span></div>
+                        <div id="tTrendBox" class="sub-pill">--</div>
                     </div>
                     
-                    <div class="mod-divider"></div>
-                    
-                    <div class="modular-inline-stack">
-                        <div class="modular-cell">
-                            <span class="cell-lbl">Feels Like</span>
-                            <span id="rf" class="cell-val" style="color: #f97316;">--</span>
+                    <div class="v-line"></div>
+                    <div class="right-panel" style="gap:10px;">
+                        <div style="display:flex; flex-direction:column; gap:1px;">
+                            <div style="display:flex; align-items:center; gap:5px;">
+                                <div style="width:6px; height:6px; border-radius:50%; background:#ef4444; flex-shrink:0;"></div>
+                                <span style="font-size:9px; font-weight:900; letter-spacing:1.5px; color:#ef4444;">MAX</span>
+                            </div>
+                            <span id="mx" style="font-size:22px; font-weight:800; color:#ef4444; line-height:1.1; font-variant-numeric:tabular-nums;">--</span>
                         </div>
-                        <div class="modular-cell">
-                            <span class="cell-lbl">Humidity</span>
-                            <span id="h_val" class="cell-val">--</span>
-                        </div>
-                        <div class="modular-cell">
-                            <span class="cell-lbl">Dew Point</span>
-                            <span id="d_val" class="cell-val">--</span>
+                        <div style="height:1px; width:100%; background:var(--line);"></div>
+                        <div style="display:flex; flex-direction:column; gap:1px;">
+                            <div style="display:flex; align-items:center; gap:5px;">
+                                <div style="width:6px; height:6px; border-radius:50%; background:#0ea5e9; flex-shrink:0;"></div>
+                                <span style="font-size:9px; font-weight:900; letter-spacing:1.5px; color:#0ea5e9;">MIN</span>
+                            </div>
+                            <span id="mn" style="font-size:22px; font-weight:800; color:#0ea5e9; line-height:1.1; font-variant-numeric:tabular-nums;">--</span>
                         </div>
                     </div>
                 </div>
+            </div>
+            
+            <div class="mod-divider"></div>
+            
+            <div class="modular-inline-stack">
+                <div class="modular-cell">
+                    <span class="cell-lbl">Feels Like</span>
+                    <span id="rf" class="cell-val" style="color: #f97316;">--</span>
+                </div>
+                <div class="modular-cell">
+                    <span class="cell-lbl">Humidity</span>
+                    <span id="h_val" class="cell-val">--</span>
+                </div>
+                <div class="modular-cell">
+                    <span class="cell-lbl">Dew Point</span>
+                    <span id="d_val" class="cell-val">--</span>
+                </div>
+            </div>
+        </div>
 
-                <div class="card">
-                    <canvas id="windCanvas"></canvas>
-                    <div>
-                        <div class="label">Wind Vector</div>
-                        <div class="row-block">
-                            <div class="left-panel">
-                                <div class="main-val"><span id="w">0.0</span><span class="unit">km/h</span><span id="wd_bracket" style="font-size:13px; font-weight:700; color:var(--muted); margin-left:8px; letter-spacing:0;">(--)</span></div>
-                                <div class="sub-pill">Gusting to: <span id="wg">--</span></div>
-                            </div>
-                        </div>
+        <div class="card">
+            <canvas id="windCanvas"></canvas>
+            <div>
+                <div class="label">Wind Vector</div>
+                <div class="row-block">
+                    <div class="left-panel">
+                        <div class="main-val"><span id="w">0.0</span><span class="unit">km/h</span><span id="wd_bracket" style="font-size:13px; font-weight:700; color:var(--muted); margin-left:8px; letter-spacing:0;">(--)</span></div>
+                        <div class="sub-pill">Gusting to: <span id="wg">--</span></div>
                     </div>
-                    <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:16px;">
-                        <div style="display:flex; flex-direction:column; gap:0; flex:1;">
-                            <div style="padding-bottom:8px; border-bottom:1px solid var(--line);">
-                                <div class="cell-lbl">Sustained Max</div>
-                                <span id="mw" style="font-size:15px; font-weight:700; color:var(--text);">--</span>
-                            </div>
-                            <div style="padding-top:8px;">
-                                <div class="cell-lbl">Peak Gust</div>
-                                <span id="mg" style="font-size:15px; font-weight:700; color:var(--text);">--</span>
-                            </div>
-                        </div>
-                        <div class="compass-container" style="width:80px; height:80px; flex-shrink:0; margin-top:4px;">
-                            <div class="compass-ui" style="background: radial-gradient(circle, rgba(2,132,199,0.08) 0%, transparent 70%); box-shadow: inset 0 0 14px rgba(2,132,199,0.1); border: 1.5px solid var(--line);">
+                    
+                    <div class="v-line"></div>
+                    
+                    <div class="right-panel" style="align-items: center; padding-left:0; flex: 0.9;">
+                        <div class="compass-container" style="width:80px; height:80px; flex-shrink:0;">
+                            <div class="compass-ui" style="background: radial-gradient(circle, rgba(2,132,199,0.08) 0%, transparent 70%); box-shadow: inset 0 0 14px rgba(2,132,199,0.1); border: 1.5px solid var(--line); width:100%; height:100%; display:flex; align-items:center; justify-content:center; position:relative;">
                                 <span class="cardinal-pt pt-n">N</span>
                                 <span class="cardinal-pt pt-s">S</span>
                                 <span class="cardinal-pt pt-e">E</span>
@@ -946,96 +933,94 @@ app.get("/", (req, res) => {
                         </div>
                     </div>
                 </div>
-                
-                <div class="mod-divider"></div>
-                
-                <div class="modular-inline-stack stack-2-col">
-                    <div class="modular-cell">
-                        <span class="cell-lbl">Sustained Max</span>
-                        <span id="mw" class="cell-val">--</span>
-                    </div>
-                    <div class="modular-cell">
-                        <span class="cell-lbl">Peak Gust</span>
-                        <span id="mg" class="cell-val">--</span>
-                    </div>
+            </div>
+            
+            <div class="mod-divider"></div>
+            
+            <div class="modular-inline-stack stack-2-col">
+                <div class="modular-cell">
+                    <span class="cell-lbl">Sustained Max</span>
+                    <span id="mw" class="cell-val">--</span>
+                </div>
+                <div class="modular-cell">
+                    <span class="cell-lbl">Peak Gust</span>
+                    <span id="mg" class="cell-val">--</span>
                 </div>
             </div>
+        </div>
 
-                <div class="card">
-                    <div>
-                        <div class="label">Rainfall</div>
-                        <div class="row-block">
-                            <div class="left-panel">
-                                <div class="main-val"><span id="r_tot">0.0</span><span class="unit">mm</span></div>
+        <div class="card">
+            <div>
+                <div class="label">Rainfall</div>
+                <div class="row-block">
+                    <div class="left-panel">
+                        <div class="main-val"><span id="r_tot">0.0</span><span class="unit">mm</span></div>
+                    </div>
+                    
+                    <div class="v-line"></div>
+
+                    <div class="right-panel" style="gap:0; width:100%;">
+                        <div style="display:flex; flex-direction:column; gap:2px; padding-bottom:10px; border-bottom:1px solid var(--line); width:100%;">
+                            <div style="display:flex; align-items:center; gap:5px;">
+                                <div style="width:6px; height:6px; border-radius:50%; background:#06b6d4; flex-shrink:0;"></div>
+                                <span style="font-size:9px; font-weight:900; letter-spacing:1.5px; color:#2563eb;">RATE</span>
                             </div>
-                            
-                            <div class="v-line"></div>
-
-                            <div class="right-panel" style="gap:0; width:100%;">
-    <div style="display:flex; flex-direction:column; gap:2px; padding-bottom:10px; border-bottom:1px solid var(--line); width:100%;">
-        <div style="display:flex; align-items:center; gap:5px;">
-            <div style="width:6px; height:6px; border-radius:50%; background:#06b6d4; flex-shrink:0;"></div>
-            <span style="font-size:9px; font-weight:900; letter-spacing:1.5px; color:#2563eb;">RATE</span>
-        </div>
-        <span id="r_rate" style="font-size:22px; font-weight:800; color:#06b6d4; line-height:1.1; font-variant-numeric:tabular-nums;">--</span>
-    </div>
-    <div style="display:flex; flex-direction:column; gap:2px; padding-top:10px; width:100%;">
-        <div style="display:flex; align-items:center; gap:5px;">
-            <div style="width:6px; height:6px; border-radius:50%; background:#7c3aed; flex-shrink:0;"></div>
-            <span style="font-size:9px; font-weight:900; letter-spacing:1.5px; color:#7c3aed;">MAX RATE</span>
-        </div>
-        <span id="mr" style="font-size:22px; font-weight:800; color:#1d4ed8; line-height:1.1; font-variant-numeric:tabular-nums;">--</span>
-    </div>
-</div>
-
-
-                            
+                            <span id="r_rate" style="font-size:22px; font-weight:800; color:#06b6d4; line-height:1.1; font-variant-numeric:tabular-nums;">--</span>
                         </div>
-                    </div>
-                    
-                    <div class="mod-divider"></div>
-                    
-                    <div class="modular-inline-stack">
-                        <div class="modular-cell">
-                            <span class="cell-lbl">Weekly</span>
-                            <span id="r_week" class="cell-val">--</span>
-                        </div>
-                        <div class="modular-cell">
-                            <span class="cell-lbl">Monthly</span>
-                            <span id="r_month" class="cell-val">--</span>
-                        </div>
-                        <div class="modular-cell">
-                            <span class="cell-lbl">Yearly</span>
-                            <span id="r_year" class="cell-val">--</span>
+                        <div style="display:flex; flex-direction:column; gap:2px; padding-top:10px; width:100%;">
+                            <div style="display:flex; align-items:center; gap:5px;">
+                                <div style="width:6px; height:6px; border-radius:50%; background:#7c3aed; flex-shrink:0;"></div>
+                                <span style="font-size:9px; font-weight:900; letter-spacing:1.5px; color:#1d4ed8;">MAX RATE</span>
+                            </div>
+                            <span id="mr" style="font-size:22px; font-weight:800; color:#1d4ed8; line-height:1.1; font-variant-numeric:tabular-nums;">--</span>
                         </div>
                     </div>
                 </div>
-
-                <div class="card">
-    <div>
-        <div class="label">Atmospheric</div>
-        <div class="row-block">
-            <div class="left-panel">
-                <div class="main-val">
-                    <span id="pr">--</span>
-                    <span class="unit">hPa</span>
-                    <span id="pIcon" style="font-size:16px; margin-left:8px; font-weight:800; line-height:1; align-self:center;"></span>
+            </div>
+            
+            <div class="mod-divider"></div>
+            
+            <div class="modular-inline-stack">
+                <div class="modular-cell">
+                    <span class="cell-lbl">Weekly</span>
+                    <span id="r_week" class="cell-val">--</span>
+                </div>
+                <div class="modular-cell">
+                    <span class="cell-lbl">Monthly</span>
+                    <span id="r_month" class="cell-val">--</span>
+                </div>
+                <div class="modular-cell">
+                    <span class="cell-lbl">Yearly</span>
+                    <span id="r_year" class="cell-val">--</span>
                 </div>
             </div>
         </div>
-    </div>
-    <div class="mod-divider"></div>
-    <div class="modular-inline-stack stack-2-col">
-        <div class="modular-cell">
-            <span class="cell-lbl">Solar Radiation</span>
-            <span id="sol" class="cell-val">--</span>
+
+        <div class="card">
+            <div>
+                <div class="label">Atmospheric</div>
+                <div class="row-block">
+                    <div class="left-panel">
+                        <div class="main-val">
+                            <span id="pr">--</span>
+                            <span class="unit">hPa</span>
+                            <span id="pIcon" style="font-size:16px; margin-left:8px; font-weight:800; line-height:1; align-self:center;"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="mod-divider"></div>
+            <div class="modular-inline-stack stack-2-col">
+                <div class="modular-cell">
+                    <span class="cell-lbl">Solar Radiation</span>
+                    <span id="sol" class="cell-val">--</span>
+                </div>
+                <div class="modular-cell">
+                    <span class="cell-lbl">UV Index</span>
+                    <span id="uv" class="cell-val">--</span>
+                </div>
+            </div>
         </div>
-        <div class="modular-cell">
-            <span class="cell-lbl">UV Index</span>
-            <span id="uv" class="cell-val">--</span>
-        </div>
-    </div>
-</div>
 
 
             <div class="sub-tabs-section" style="margin-top: 32px; width: 100%; clear: both; display: block;">
