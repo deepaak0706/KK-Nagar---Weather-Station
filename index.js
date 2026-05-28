@@ -937,14 +937,14 @@ app.get("/", (req, res) => {
     <div style="display:flex; flex-direction:column; gap:2px; padding-bottom:10px; border-bottom:1px solid var(--line); width:100%;">
         <div style="display:flex; align-items:center; gap:5px;">
             <div style="width:6px; height:6px; border-radius:50%; background:#06b6d4; flex-shrink:0;"></div>
-            <span style="font-size:9px; font-weight:900; letter-spacing:1.5px; color:#2563eb;">RATE</span>
+            <span style="font-size:9px; font-weight:900; letter-spacing:1.5px; color:#2563eb;">Current RR</span>
         </div>
         <span id="r_rate" style="font-size:22px; font-weight:800; color:#06b6d4; line-height:1.1; font-variant-numeric:tabular-nums;">--</span>
     </div>
     <div style="display:flex; flex-direction:column; gap:2px; padding-top:10px; width:100%;">
         <div style="display:flex; align-items:center; gap:5px;">
             <div style="width:6px; height:6px; border-radius:50%; background:#7c3aed; flex-shrink:0;"></div>
-            <span style="font-size:9px; font-weight:900; letter-spacing:1.5px; color:#7c3aed;">MAX RATE</span>
+            <span style="font-size:9px; font-weight:900; letter-spacing:1.5px; color:#7c3aed;">Max RR</span>
         </div>
         <span id="mr" style="font-size:22px; font-weight:800; color:#1d4ed8; line-height:1.1; font-variant-numeric:tabular-nums;">--</span>
     </div>
