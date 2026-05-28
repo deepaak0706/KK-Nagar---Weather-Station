@@ -1,3 +1,5 @@
+Final Stable
+
 const express = require("express"); 
 
 const fetch = require("node-fetch");
@@ -801,6 +803,9 @@ app.get("/", (req, res) => {
     display: inline-block;
     animation: countUp 0.4s cubic-bezier(0.22, 1, 0.36, 1);
 }
+
+    
+    
     </style>
 </head>
 
@@ -975,17 +980,15 @@ app.get("/", (req, res) => {
         <div class="label">Atmospheric</div>
         <div class="row-block">
             <div class="left-panel">
-                <div class="main-val" style="display: flex; align-items: baseline; gap: 6px;">
+                <div class="main-val">
                     <span id="pr">--</span>
                     <span class="unit">hPa</span>
-                    <span id="pIcon" style="font-size: 16px; font-weight: 800; line-height: 1; margin-left: 2px; color: var(--accent);">●</span>
+                    <span id="pIcon" style="font-size:16px; margin-left:8px; font-weight:800; line-height:1; align-self:center;"></span>
                 </div>
             </div>
         </div>
     </div>
-    
     <div class="mod-divider"></div>
-    
     <div class="modular-inline-stack stack-2-col">
         <div class="modular-cell">
             <span class="cell-lbl">Solar Radiation</span>
@@ -998,7 +1001,7 @@ app.get("/", (req, res) => {
     </div>
 </div>
 
-</div> <!-- End of .grid-system -->
+
             <div class="sub-tabs-section" style="margin-top: 32px;">
 
                 <div style="display: flex; gap: 10px; margin-bottom: 20px; justify-content: center;">
@@ -1188,22 +1191,25 @@ app.get("/", (req, res) => {
         }
         
         function updateValueWithFade(id, newValue, decimals = 1, suffix = "") {
-            const obj = document.getElementById(id);
-            if (!obj) return;
-            const val = newValue !== undefined && newValue !== null ? newValue : 0;
-            const formattedValue = parseFloat(val).toFixed(decimals) + suffix;
+    const obj = document.getElementById(id);
+    if (!obj) return;
+    const val = newValue !== undefined && newValue !== null ? newValue : 0;
+    const formattedValue = parseFloat(val).toFixed(decimals) + suffix;
 
-            if (obj.innerText !== formattedValue) {
-                obj.classList.remove('fade-update');
-                obj.style.opacity = "0"; 
-                setTimeout(() => {
-                    void obj.offsetWidth; // Force CSS refresh
-                    obj.innerText = formattedValue;
-                    obj.style.opacity = "1";
-                    obj.classList.add('fade-update');
-                }, 50); 
-            }
-        }
+    if (obj.innerText !== formattedValue) {
+        obj.style.transition = 'none';
+        obj.style.opacity = "0";
+        obj.style.transform = "translateY(6px)";
+        
+        setTimeout(() => {
+            obj.innerHTML = '<span class="num-flip">' + formattedValue + '</span>';
+            obj.style.transition = 'opacity 0.3s ease, transform 0.3s cubic-bezier(0.22, 1, 0.36, 1)';
+            obj.style.opacity = "1";
+            obj.style.transform = "translateY(0)";
+        }, 50);
+    }
+}
+
 
         // NEW 24H SUB TAB LOGIC (FIXED)
         async function switchSubView(type) {
@@ -1270,7 +1276,7 @@ app.get("/", (req, res) => {
                 updateValueWithFade('t', d.temp.current, 1);
                 updateValueWithFade('w', d.wind.speed, 1);
                 updateValueWithFade('r_tot', d.rain.total, 1);
-                document.getElementById('r_rate').innerText = d.rain.rate.toFixed(1) + ' mm/h';
+                document.getElementById('r_rate').innerHTML = d.rain.rate.toFixed(1) + '<span style="font-size:11px; font-weight:600; color:var(--muted); margin-left:3px;">mm/h</span>';
                 updateValueWithFade('wg', d.wind.gust, 1, ' km/h'); 
 
                 document.getElementById('tTrendBox').innerHTML = d.temp.rate > 0 ? '<span class="trend-up">▲</span> +' + d.temp.rate + '°C /hr' : d.temp.rate < 0 ? '<span class="trend-down">▼</span> ' + d.temp.rate + '°C /hr' : '● Steady';
@@ -1292,13 +1298,16 @@ app.get("/", (req, res) => {
                 document.getElementById('r_week').innerText = d.rain.weekly + ' mm';
                 document.getElementById('r_month').innerText = d.rain.monthly + ' mm';
                 document.getElementById('r_year').innerText = d.rain.yearly + ' mm';
-                document.getElementById('mr').innerHTML = d.rain.maxR > 0 ? d.rain.maxR + ' mm/h <span class="time-mark">' + d.rain.maxRTime + '</span>' : '0 mm/h';
+                document.getElementById('mr').innerHTML = d.rain.maxR > 0 
+    ? d.rain.maxR.toFixed(1) + '<span style="font-size:11px; font-weight:600; color:var(--muted); margin-left:3px;">mm/h</span> <span style="font-size:9px; color:var(--muted); font-weight:500; opacity:0.75;">' + d.rain.maxRTime + '</span>' 
+    : '0<span style="font-size:11px; font-weight:600; color:var(--muted); margin-left:3px;">mm/h</span>';
+
 
                 const pTrend = d.atmo.pTrend;
-                let pArrow = '●';
-                if (pTrend >= 0.1) pArrow = '<span class="trend-up" style="color:#ef4444">▲</span>';
-                if (pTrend <= -0.1) pArrow = '<span class="trend-down" style="color:#0ea5e9">▼</span>';
-                document.getElementById('pIcon').innerHTML = pArrow;
+                if (pTrend >= 0.1) document.getElementById('pIcon').innerHTML = '<span style="color:#ef4444; font-size:14px;">▲</span>';
+                else if (pTrend <= -0.1) document.getElementById('pIcon').innerHTML = '<span style="color:#0ea5e9; font-size:14px;">▼</span>';
+                else document.getElementById('pIcon').innerHTML = '<span style="color:var(--muted); font-size:12px;">●</span>';
+
                 
                 document.getElementById('pr').innerText = d.atmo.press;
                 document.getElementById('sol').innerText = d.atmo.sol + ' W/m²'; 
