@@ -733,19 +733,56 @@ app.get("/", (req, res) => {
     .unit { font-size: 18px; font-weight: 600; color: var(--muted); margin-left: 3px; }
 
     /* EQUAL COMPACT GRID PANELS */
-    .row-block { display: flex; align-items: center; justify-content: space-between; width: 100%; }
-    .left-panel { flex: 1.1; display: flex; flex-direction: column; justify-content: center; align-items: flex-start; }
-    .right-panel { flex: 0.9; display: flex; flex-direction: column; gap: 12px; justify-content: center; padding-left: 16px; align-items: flex-start; }
+    .row-block { 
+    display: grid; 
+    /* This locks the layout mathematically: 52% left, 1px line, remaining space right. ZERO wobble. */
+    grid-template-columns: 52% 1px 1fr; 
+    align-items: center; 
+    width: 100%; 
+}
+
+.left-panel { 
+    display: flex; 
+    flex-direction: column; 
+    justify-content: center; 
+    align-items: flex-start; 
+    padding-right: 16px; /* Keeps text away from the line */
+    box-sizing: border-box;
+    min-width: 0; /* Prevents wide numbers from breaking the grid */
+}
+
+.right-panel { 
+    display: flex; 
+    flex-direction: column; 
+    gap: 12px; 
+    justify-content: center; 
+    padding-left: 16px; /* Keeps text away from the line */
+    align-items: flex-start; 
+    box-sizing: border-box;
+    min-width: 0;
+}
     
-    /* RE-CENTERED Subtly visible DIVIDER */
-    .v-line { width: 1px; background: linear-gradient(to bottom, transparent, var(--line) 20%, var(--line) 80%, transparent); height: 90px; flex-shrink: 0; align-self: center; }
+   .v-line { 
+    width: 1px; 
+    height: 75px; 
+    /* Silky smooth fade out at the top and bottom */
+    background: linear-gradient(to bottom, transparent 0%, var(--line) 15%, var(--line) 85%, transparent 100%); 
+    opacity: 0.5; /* Makes it look sleek and expensive */
+    justify-self: center; /* Centers it perfectly in its 1px grid track */
+}
 
     /* HIGH PROMINENCE COMPACT VALUE PODS (PROMINENCE BUMPED BY +0.5) */
     .limit-row-pod { display: flex; align-items: center; justify-content: flex-start; gap: 6px; width: 100%; font-size: 15px; font-weight: 700; line-height: 1; }
     .pod-lbl { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.8px; opacity: 0.9; }
     .pod-val { font-variant-numeric: tabular-nums; }
 
-    .mod-divider { height: 1px; background: linear-gradient(to right, transparent, var(--line) 10%, var(--line) 90%, transparent); width: 100%; margin: 2px 0; }
+    .mod-divider { 
+    height: 1px; 
+    background: linear-gradient(to right, transparent 0%, var(--line) 15%, var(--line) 85%, transparent 100%); 
+    width: 100%; 
+    margin: 4px 0; 
+    opacity: 0.5; 
+}
 
     .modular-inline-stack { 
         display: grid; 
@@ -758,8 +795,19 @@ app.get("/", (req, res) => {
     }
     .stack-2-col { grid-template-columns: repeat(2, 1fr); }
 
-    .modular-cell { display: flex; flex-direction: column; align-items: center; text-align: center; border-right: 1px solid var(--line); }
-    .modular-cell:last-child { border-right: none; }
+    .modular-cell { 
+    display: flex; 
+    flex-direction: column; 
+    align-items: center; 
+    text-align: center; 
+    border-right: 1px solid rgba(100, 116, 139, 0.15); 
+}
+body.is-night .modular-cell {
+    border-right: 1px solid rgba(255, 255, 255, 0.08); /* Matches dark mode subtlety */
+}
+.modular-cell:last-child { 
+    border-right: none; 
+}
     
     .cell-lbl { font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); font-weight: 700; margin-bottom: 4px; }
     .cell-val { font-size: 15px; font-weight: 700; color: var(--text); }
