@@ -511,10 +511,13 @@ app.get("/weather", (req, res) => {
 // 2. API for the historical summary table
 app.get("/api/summary", async (req, res) => res.json(await getWeatherSummary()));
 
-// 3. The Cron Job endpoint (handles buffer-only or full DB writes)
 app.get("/api/sync", async (req, res) => {
-    if (req.query.buffer === 'true') return res.json(await bufferOnlyUpdate());
-    res.json(await syncWithEcowitt(req.query.write === 'true'));
+    // If it's a 1-minute tick (no write), just sync data
+    if (req.query.write !== 'true') {
+        return res.json(await syncWithEcowitt(false));
+    }
+    // Otherwise, perform the full DB write
+    res.json(await syncWithEcowitt(true));
 });
 
 // 4. NEW GRAPH ONLY ROUTE (Triggered strictly on button click)
