@@ -1,5 +1,4 @@
 const express = require("express"); 
-
 const fetch = require("node-fetch");
 const { Pool } = require('pg');
 const path = require("path");
@@ -179,90 +178,13 @@ async function syncWithEcowitt(forceWrite = false) {
 
        // --- PART 1: VISITOR PATH ---
     // If not a forced write, and we have a cache younger than 9 minutes
-    if (!forceWrite && state.cachedData && (now - state.lastFetchTime < 540000)) {
-        try {
-            const url = `https://api.ecowitt.net/api/v3/device/real_time?application_key=${APPLICATION_KEY}&api_key=${API_KEY}&mac=${MAC}&rainfall_unitid=12`;
-            const response = await fetch(url);
-            const json = await response.json();
-            const d = json.data;
-
-            // 1. HIGH PRECISION RAIN INTERCEPT
-            // Convert API mm to raw inches for the logic engine
-            const currentDailyInches = parseFloat(d.rainfall.daily.value) / 25.4;
-            
-            // Trigger the engine to update state.lastCalculatedRate
-            processRainLogic(currentDailyInches, new Date().toISOString());
-
-            // Convert other rain fields to inches for internal consistency
-            d.rainfall.daily.value = currentDailyInches;
-            d.rainfall.weekly.value = parseFloat(d.rainfall.weekly.value) / 25.4;
-            d.rainfall.monthly.value = parseFloat(d.rainfall.monthly.value) / 25.4;
-            d.rainfall.yearly.value = parseFloat(d.rainfall.yearly.value) / 25.4;
-
-            // 2. LIVE CONVERSIONS (Imperial to Metric for Dashboard)
-            const liveTemp = parseFloat(((d.outdoor.temperature.value - 32) * 5 / 9).toFixed(1));
-            const liveWind = parseFloat((d.wind.wind_speed.value * 1.60934).toFixed(1));
-            const liveGust = parseFloat((d.wind.wind_gust.value * 1.60934).toFixed(1));
-            const liveHum = d.outdoor.humidity.value || 0;
-            const livePress = parseFloat((d.pressure.relative.value * 33.8639).toFixed(1));
-            const liveDewC = parseFloat(((d.outdoor.dew_point.value - 32) * 5 / 9).toFixed(1));
-            const liveRR = parseFloat((state.lastCalculatedRate * 25.4).toFixed(1));
-            
-            // 3. UPDATE CACHED SNAPSHOT
-            state.cachedData.atmo.press = livePress;
-            state.cachedData.atmo.hum = liveHum;
-            state.cachedData.temp.realFeel = calculateRealFeel(liveTemp, liveHum);
-            state.cachedData.temp.dew = liveDewC;
-            state.cachedData.temp.current = liveTemp;
-            state.cachedData.wind.speed = liveWind;
-            state.cachedData.wind.gust = liveGust;
-            
-            // High-precision rain total (prevents rounding errors)
-            state.cachedData.rain.total = Math.round(currentDailyInches * 2540) / 100;
-            state.cachedData.rain.rate = liveRR;
-
-            // 4. MAX/MIN LOGIC (Check live vs. existing cache)
-            const fmtL = () => new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' });
-            const fmtIso = (isoStr) => isoStr ? new Date(isoStr).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' }) : fmtL();
-
-            if (liveTemp > state.cachedData.temp.max) { state.cachedData.temp.max = liveTemp; state.cachedData.temp.maxTime = fmtL(); }
-            if (liveTemp < state.cachedData.temp.min) { state.cachedData.temp.min = liveTemp; state.cachedData.temp.minTime = fmtL(); }
-            if (liveWind > state.cachedData.wind.maxS) { state.cachedData.wind.maxS = liveWind; state.cachedData.wind.maxSTime = fmtL(); }
-            if (liveGust > state.cachedData.wind.maxG) { state.cachedData.wind.maxG = liveGust; state.cachedData.wind.maxGTime = fmtL(); }
-            if (liveRR > state.cachedData.rain.maxR) { state.cachedData.rain.maxR = liveRR; state.cachedData.rain.maxRTime = fmtL(); }
-
-            // 5. MEMORY BUFFER CHECK (Ensures visitors see 1-min peaks trapped in buffers)
-            if (state.bufMaxT !== -999) {
-                const bMx = parseFloat(((state.bufMaxT - 32) * 5/9).toFixed(1));
-                if (bMx > state.cachedData.temp.max) { state.cachedData.temp.max = bMx; state.cachedData.temp.maxTime = fmtIso(state.tMaxT); }
+    // --- PART 1: VISITOR PATH ---
+            // If not a forced write, simply return the cache. 
+            // Do not fetch, do not calculate, do not touch the Ecowitt API.
+            if (!forceWrite) {
+                return state.cachedData || { error: "Initial data loading..." };
             }
-            if (state.bufMinT !== 999) {
-                const bMn = parseFloat(((state.bufMinT - 32) * 5/9).toFixed(1));
-                if (bMn < state.cachedData.temp.min) { state.cachedData.temp.min = bMn; state.cachedData.temp.minTime = fmtIso(state.tMinT); }
-            }
-            if (state.bufW > 0) {
-                const bW = parseFloat((state.bufW * 1.60934).toFixed(1));
-                if (bW > state.cachedData.wind.maxS) { state.cachedData.wind.maxS = bW; state.cachedData.wind.maxSTime = fmtIso(state.tW); }
-            }
-            if (state.bufG > 0) {
-                const bG = parseFloat((state.bufG * 1.60934).toFixed(1));
-                if (bG > state.cachedData.wind.maxG) { state.cachedData.wind.maxG = bG; state.cachedData.wind.maxGTime = fmtIso(state.tG); }
-            }
-            if (state.bufRR > 0) {
-                const bRR = parseFloat((state.bufRR * 25.4).toFixed(1));
-                if (bRR > state.cachedData.rain.maxR) { state.cachedData.rain.maxR = bRR; state.cachedData.rain.maxRTime = fmtIso(state.tRR); }
-            }
-
-            state.cachedData.lastSync = new Date().toISOString();
-            state.lastFetchTime = now;
-            
-            return state.cachedData;
-        } catch (e) { 
-            console.error("Visitor Sync Error:", e);
-            return state.cachedData; 
-        }
-    }
-
+    
             // --- PART 2: WRITER PATH ---
     try {
         let snap; 
@@ -1846,8 +1768,6 @@ window.fetchHistoricalData = async function() {
         resultsTable.innerHTML = '<div style="text-align:center; padding:40px; color: #ef4444;">Connection failed.</div>';
     }
 };
-
-
 
 </script>
 </body>
