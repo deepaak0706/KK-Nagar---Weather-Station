@@ -885,57 +885,27 @@ body.is-night .modular-cell {
 /* 📱 ULTRA-MODERN ADAPTIVE MOBILE SYSTEM     */
 /* ========================================== */
 @media screen and (max-width: 767px) {
+    /* 1. Clean up outer page spacing safely */
     body {
         padding: 20px 16px 120px 16px !important;
     }
 
-    /* 1. DEFAULT LIGHT MODE: Pure canvas streaming look */
-    .grid-system .card {
+    /* 2. DEFAULT LIGHT MODE: Cards are 100% invisible backgrounds */
+    .card {
         background: transparent !important; 
         border: none !important;
         box-shadow: none !important;
         border-radius: 0 !important;
         margin-bottom: 36px !important; 
-        position: relative !important; 
-        padding: 12px 4px !important; 
+        position: relative;
+        padding: 12px 4px !important; /* Tightens text directly against the main canvas */
     }
 
-    /* 🔍 ✨ FIXED: INTERNAL MICRO-DIVIDERS RECOVERY (LIGHT MODE) */
-    /* This amplifies existing internal borders/lines so they don't wash out */
-    .grid-system .card * {
-        border-color: rgba(0, 50, 100, 0.12) !important; /* Clean, modern steel-tinted line */
-    }
-    /* If the internal dividers are built using custom standalone line/divider divs */
-    .grid-system .card [class*="divider"],
-    .grid-system .card [class*="line"],
-    .grid-system .card [class*="separator"] {
-        background-color: rgba(0, 50, 100, 0.12) !important;
-        opacity: 1 !important;
-    }
-
-    /* 2. MAIN HORIZONTAL BLOCK DIVIDER (LIGHT MODE) */
-    .grid-system .card:not(:last-of-type)::after {
-        content: '';
-        position: absolute;
-        bottom: -18px; 
-        left: 10%;
-        width: 80%;
-        height: 1px;
-        background: linear-gradient(to right, 
-            transparent 0%, 
-            var(--border, #cbd5e1) 25%, 
-            var(--accent, #00a3ff) 50%, 
-            var(--border, #cbd5e1) 75%, 
-            transparent 100%
-        );
-        opacity: 0.75; 
-        z-index: 10;
-    }
-
-    /* 3. AUTOMATIC DARK MODE: Floating panels activate */
-    .dark .grid-system .card, 
-    .dark-mode .grid-system .card, 
-    [data-theme="dark"] .grid-system .card { 
+    /* 3. AUTOMATIC DARK MODE: Restores the floating panels dynamically */
+    /* This automatically targets standard dark mode framework classes */
+    .dark .card, 
+    .dark-mode .card, 
+    [data-theme="dark"] .card { 
         background: var(--card, #111827) !important; 
         border-radius: 24px !important;
         padding: 24px 20px !important;
@@ -943,31 +913,31 @@ body.is-night .modular-cell {
         box-shadow: 0 10px 30px -15px rgba(0, 0, 0, 0.3) !important;
     }
 
-    /* 🔍 ✨ INTERNAL MICRO-DIVIDERS RECOVERY (DARK MODE) */
-    .dark .grid-system .card *, 
-    .dark-mode .grid-system .card *, 
-    [data-theme="dark"] .grid-system .card * {
-        border-color: rgba(255, 255, 255, 0.08) !important; 
-    }
-    .dark .grid-system .card [class*="divider"],
-    .dark-mode .grid-system .card [class*="divider"],
-    [data-theme="dark"] .grid-system .card [class*="divider"] {
-        background-color: rgba(255, 255, 255, 0.08) !important;
-    }
-
-    /* 4. MAIN HORIZONTAL BLOCK DIVIDER (DARK MODE) */
-    .dark .grid-system .card:not(:last-of-type)::after,
-    .dark-mode .grid-system .card:not(:last-of-type)::after,
-    [data-theme="dark"] .grid-system .card:not(:last-of-type)::after {
-        bottom: -14px;
+    /* 4. THE MODERN FLOATING DIVIDER LINE (Beautifully adaptive) */
+    .card:not(:last-of-type)::after {
+        content: '';
+        position: absolute;
+        bottom: -20px; 
+        left: 10%;
+        width: 80%;
+        height: 1px;
         background: linear-gradient(to right, 
             transparent 0%, 
             var(--accent, #00a3ff) 50%, 
             transparent 100%
         );
-        opacity: 0.2; 
+        opacity: 0.3; 
     }
 
+    /* Slight adjustment to line placement for padded dark mode blocks */
+    .dark .card:not(:last-of-type)::after,
+    .dark-mode .card:not(:last-of-type)::after,
+    [data-theme="dark"] .card:not(:last-of-type)::after {
+        bottom: -16px;
+        opacity: 0.15;
+    }
+
+    /* Keeps your bottom summary table looking clean */
     .pro-summary-table {
         background: transparent !important;
         border: none !important;
@@ -975,6 +945,20 @@ body.is-night .modular-cell {
     }
 }
 
+/* ========================================== */
+/* ✨ SURGICAL FIX: INTERNAL LIGHT MODE LINES */
+/* ========================================== */
+/* This ONLY runs in Light Mode and ONLY sharpens existing internal line borders */
+body:not(.dark):not(.dark-mode):not([data-theme="dark"]) .grid-system * {
+    border-color: rgba(0, 0, 0, 0.12) !important;
+}
+
+/* If your internal vertical lines use a background-color element instead of a border */
+body:not(.dark):not(.dark-mode):not([data-theme="dark"]) .grid-system div[style*="width: 1px"],
+body:not(.dark):not(.dark-mode):not([data-theme="dark"]) .grid-system div[style*="width:1px"] {
+    background-color: rgba(0, 0, 0, 0.12) !important;
+    opacity: 1 !important;
+}
 
 /* ========================================== */
 /* 💻 FIX: MODERN 2x2 DESKTOP MATRIX GRID     */
