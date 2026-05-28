@@ -682,22 +682,21 @@ app.get("/", (req, res) => {
     .live-dot { width: 6px; height: 6px; background: #10b981; border-radius: 50%; animation: blink 2s infinite; box-shadow: 0 0 8px #10b981; }
     @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
     
-    .grid-system { 
-    display: grid; 
-    /* Keeps mobile exactly as it is (flows naturally into 1 column) */
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); 
-    gap: 16px; 
-    margin-bottom: 32px; 
-    width: 100%;
-}
 
-/* Locks tablets and desktops strictly into a 2-column (2x2) grid */
-@media (min-width: 992px) {
     .grid-system { 
-        grid-template-columns: repeat(2, 1fr); 
+        display: grid; 
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); 
+        gap: 16px; 
+        margin-bottom: 32px; 
+        width: 100%;
     }
-}
-
+    
+    @media screen and (min-width: 768px) {
+        .grid-system { 
+            /* !important forces the browser to kill any 4-column ghost styles */
+            grid-template-columns: repeat(2, 1fr) !important; 
+        }
+    }
     @media (min-width: 1100px) {
         .grid-system { grid-template-columns: repeat(4, 1fr); }
     }
