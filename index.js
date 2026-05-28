@@ -895,6 +895,7 @@ app.get("/", (req, res) => {
         display: inline-block;
         animation: countUp 0.4s cubic-bezier(0.22, 1, 0.36, 1);
     }
+</style>
 </head>
 
 <body>
