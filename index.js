@@ -693,24 +693,24 @@ app.get("/", (req, res) => {
     .live-dot { width: 6px; height: 6px; background: #10b981; border-radius: 50%; animation: blink 2s infinite; box-shadow: 0 0 8px #10b981; }
     @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
 
-    /* 🎛️ THE UNIFIED MATRIX CHASSIS */
+/* 🎛️ THE UNIFIED MATRIX CHASSIS */
     .grid-system { 
         display: grid; 
-        grid-template-columns: 1fr;       /* 1 Column single list presentation on mobile */
-        background: var(--card);          /* The panel container styling */
+        grid-template-columns: 1fr;           /* 1 Column stack on mobile */
+        gap: 1px;                             /* ⚡ THE TRICK: Instantly creates a 1px razor divider line */
+        background: var(--line) !important;   /* The matrix background becomes the divider fill */
         border: 1px solid var(--border); 
         border-radius: 28px;              
         box-shadow: var(--glow);
         margin-bottom: 32px; 
         width: 100%;
-        overflow: hidden;                 /* Clean corners containing internal metrics */
-        transition: background 0.3s ease, border-color 0.3s ease;
+        overflow: hidden;                     /* Beautifully clips the inner cell corners to the 28px radius */
     }
-    
-    /* 📱 MOBILE SEAMLESS GRADIENT DIVIDERS */
-    @media screen and (max-width: 767px) {
-        .grid-system .card:not(:last-of-type) {
-            border-bottom: 1px solid var(--line);
+
+    /* 💻 DESKTOP 2x2 SEAMLESS CROSSHAIR GRID */
+    @media screen and (min-width: 768px) {
+        .grid-system { 
+            grid-template-columns: repeat(2, 1fr); /* Forms a perfect intersecting crosshair grid */
         }
     }
 
@@ -725,19 +725,20 @@ app.get("/", (req, res) => {
         .grid-system .card:nth-child(3) { border-right: 1px solid var(--line); }
     }
 
-    /* 🧊 INTERNAL CELL CONTAINER STYLE (CLEAN & METRIC-FOCUSED) */
+    /* 🧊 INTERNAL CELL CONTAINERS */
     .card { 
-        background: transparent !important; 
+        background: var(--card) !important;   /* Must be solid to mask the background fill, leaving just the 1px gaps */
         padding: 24px; 
-        border: none !important; 
-        box-shadow: none !important;
-        border-radius: 0px !important;
+        border: none !important;              /* Strip all individual legacy borders */
+        box-shadow: none !important;          /* Strip all individual legacy shadows */
+        border-radius: 0px !important;        /* Strip all individual legacy corner curves */
         position: relative; 
         display: flex;
         flex-direction: column;
         justify-content: space-between;
         gap: 24px;
         width: 100%;
+    } width: 100%;
     }
     
     #windCanvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; }
