@@ -630,12 +630,12 @@ app.get("/", (req, res) => {
 <html lang="en">
 <head>
     <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="KK Nagar Weather">
-<meta name="theme-color" content="#090d16">
-<link rel="icon" type="image/png" href="/icon-192.png">
-<link rel="apple-touch-icon" href="/icon-180.png">
-<link rel="manifest" href="/manifest.json">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="KK Nagar Weather">
+    <meta name="theme-color" content="#090d16">
+    <link rel="icon" type="image/png" href="/icon-192.png">
+    <link rel="apple-touch-icon" href="/icon-180.png">
+    <link rel="manifest" href="/manifest.json">
 
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
@@ -697,15 +697,79 @@ app.get("/", (req, res) => {
     *, *:before, *:after { box-sizing: inherit; }
 
     .container { width: 100%; max-width: 1340px; margin: 0 auto; }
+    
+    /* 🎯 #1: ENHANCED HEADER WITH GRADIENT */
     .header { margin-bottom: 28px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; }
-    .header h1 { font-size: 26px; font-weight: 800; margin: 0; letter-spacing: -0.5px; }
+    
+    .header h1 { 
+        font-size: 28px; 
+        font-weight: 900; 
+        margin: 0; 
+        letter-spacing: -1px;
+        
+        /* 🎨 NEW: Premium gradient text effect */
+        background: linear-gradient(135deg, var(--text) 0%, var(--text) 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        transition: all 0.4s ease;
+    }
+
+    body.is-night .header h1 {
+        text-shadow: 0 2px 12px rgba(56, 189, 248, 0.15);
+    }
+    
     .header-actions { display: flex; align-items: center; gap: 12px; }
     
     .theme-toggle { background: var(--card); border: 1px solid var(--border); padding: 4px; border-radius: 14px; display: flex; gap: 4px; box-shadow: var(--glow); cursor: pointer; backdrop-filter: blur(20px); }
     .theme-btn { padding: 5px 12px; border-radius: 10px; font-size: 11px; font-weight: 700; transition: 0.2s ease; color: var(--muted); }
     .theme-btn.active { background: var(--accent); color: white; }
 
-    .status-bar { display: flex; align-items: center; gap: 8px; background: var(--card); padding: 6px 16px; border-radius: 100px; border: 1px solid var(--border); box-shadow: var(--glow); font-size: 12px; backdrop-filter: blur(20px); }
+    /* 🎯 #2: PREMIUM STATUS BAR WITH GLOW */
+    .status-bar { 
+        display: flex; 
+        align-items: center; 
+        gap: 8px; 
+        background: var(--card); 
+        padding: 8px 16px; 
+        border-radius: 100px; 
+        
+        /* 🎨 ENHANCED: Multi-layer shadow + glow */
+        border: 1.5px solid var(--border);
+        box-shadow: 
+            0 4px 12px -2px rgba(3, 105, 161, 0.1),
+            inset 0 1px 0 rgba(255, 255, 255, 0.5);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        
+        font-size: 12px; 
+        font-weight: 600; 
+        letter-spacing: 0.3px;
+        transition: all 0.3s ease;
+    }
+
+    body.is-night .status-bar {
+        box-shadow: 
+            0 4px 16px -2px rgba(0, 0, 0, 0.4),
+            inset 0 1px 0 rgba(56, 189, 248, 0.1);
+    }
+
+    /* Hover lift effect */
+    @media (hover: hover) {
+        .status-bar:hover {
+            transform: translateY(-2px);
+            box-shadow: 
+                0 8px 20px -4px rgba(3, 105, 161, 0.15),
+                inset 0 1px 0 rgba(255, 255, 255, 0.6);
+        }
+
+        body.is-night .status-bar:hover {
+            box-shadow: 
+                0 8px 24px -4px rgba(56, 189, 248, 0.2),
+                inset 0 1px 0 rgba(56, 189, 248, 0.15);
+        }
+    }
+    
     .live-dot { width: 6px; height: 6px; background: #10b981; border-radius: 50%; animation: blink 2s infinite; box-shadow: 0 0 8px #10b981; }
     @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
     
@@ -728,11 +792,18 @@ app.get("/", (req, res) => {
         .grid-system { grid-template-columns: repeat(4, 1fr); }
     }
 
+    /* 🎯 #3: COLORED TOP BORDERS ON CARDS */
     .card { 
         background: var(--card); 
         padding: 20px; 
         border-radius: 24px; 
+        
+        /* 🎨 ENHANCED: Colored top accent border */
         border: 1px solid var(--border); 
+        border-top: 3px solid var(--accent);
+        border-top-left-radius: 24px;
+        border-top-right-radius: 24px;
+        
         backdrop-filter: blur(30px); 
         -webkit-backdrop-filter: blur(30px); 
         box-shadow: var(--glow); 
@@ -742,7 +813,24 @@ app.get("/", (req, res) => {
         justify-content: space-between;
         gap: 24px;
         width: 100%;
-        transition: background 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+        transition: all 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    /* Individual card color themes */
+    .grid-system .card:nth-child(1) { 
+        border-top-color: #ef4444; /* Temperature = Warm Red */
+    }
+
+    .grid-system .card:nth-child(2) { 
+        border-top-color: #f97316; /* Wind = Orange */
+    }
+
+    .grid-system .card:nth-child(3) { 
+        border-top-color: #3b82f6; /* Rain = Blue */
+    }
+
+    .grid-system .card:nth-child(4) { 
+        border-top-color: #06b6d4; /* Atmospheric = Cyan */
     }
     
     #windCanvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; border-radius: 24px; }
@@ -759,8 +847,49 @@ app.get("/", (req, res) => {
         transition: color 0.3s ease;
     }
     
-    .main-val { font-size: 52px; font-weight: 800; margin: 0; letter-spacing: -1.5px; display: flex; align-items: baseline; line-height: 1; font-variant-numeric: tabular-nums; }
+    /* 🎯 #4 & #5: SMOOTH TRANSITIONS + MAIN VALUES WITH PREMIUM DEPTH */
+    .main-val { 
+        font-size: 52px; 
+        font-weight: 800; 
+        margin: 0; 
+        
+        /* 🎨 ENHANCED: Better letter spacing + depth */
+        letter-spacing: -2px; 
+        display: flex; 
+        align-items: baseline; 
+        line-height: 1; 
+        font-variant-numeric: tabular-nums;
+        
+        /* Subtle text shadow for depth */
+        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        transition: all 0.4s ease;
+    }
+
+    body.is-night .main-val {
+        text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    }
+    
     .unit { font-size: 18px; font-weight: 600; color: var(--muted); margin-left: 3px; }
+
+    /* All numeric values animate smoothly */
+    .main-val span,
+    .cell-val,
+    .pod-val,
+    .limit-row-pod,
+    #t, #w, #r_tot, #pr,
+    #mx, #mn, #mw, #mg,
+    #r_rate, #mr, #rf, #h_val, #d_val,
+    #r_week, #r_month, #r_year,
+    #sol, #uv {
+        /* 🎨 SMOOTH: Transition animation on value changes */
+        transition: all 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+        font-variant-numeric: tabular-nums; /* Prevents width jumping */
+    }
+
+    /* Special smooth transition for trend indicators */
+    #tTrendBox {
+        transition: all 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+    }
 
     /* EQUAL COMPACT GRID PANELS */
     .row-block { 
@@ -825,19 +954,65 @@ app.get("/", (req, res) => {
     }
     .stack-2-col { grid-template-columns: repeat(2, 1fr); }
 
-    .modular-cell { 
-    display: flex; 
-    flex-direction: column; 
-    align-items: center; 
-    text-align: center; 
-    border-right: 1px solid rgba(100, 116, 139, 0.15); 
-}
-body.is-night .modular-cell {
-    border-right: 1px solid rgba(255, 255, 255, 0.08); /* Matches dark mode subtlety */
-}
-.modular-cell:last-child { 
-    border-right: none; 
-}
+    /* 🎯 BONUS: ENHANCED MODULAR CELLS */
+    .modular-cell {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        padding: 16px 8px;
+        transition: all 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+        position: relative;
+    }
+
+    /* Light mode cell styling */
+    .modular-cell {
+        border-right: 1px solid rgba(100, 116, 139, 0.15);
+        background: linear-gradient(135deg,
+            rgba(3, 105, 161, 0.04) 0%,
+            transparent 100%);
+        box-shadow:
+            inset 0 1px 0 rgba(255, 255, 255, 0.6),
+            inset -1px 0 0 rgba(3, 105, 161, 0.08);
+    }
+
+    body.is-night .modular-cell {
+        border-right: 1px solid rgba(56, 189, 248, 0.1);
+        background: linear-gradient(135deg,
+            rgba(56, 189, 248, 0.08) 0%,
+            rgba(59, 130, 246, 0.02) 100%);
+        box-shadow:
+            inset 0 1px 0 rgba(56, 189, 248, 0.15),
+            inset -1px 0 0 rgba(56, 189, 248, 0.12);
+    }
+
+    .modular-cell:last-child {
+        border-right: none;
+    }
+
+    /* Hover effect on cells */
+    @media (hover: hover) {
+        .modular-cell:hover {
+            background: linear-gradient(135deg,
+                rgba(3, 105, 161, 0.08) 0%,
+                rgba(59, 130, 246, 0.04) 100%);
+            box-shadow:
+                inset 0 1px 2px rgba(56, 189, 248, 0.2),
+                inset -1px 0 0 rgba(3, 105, 161, 0.15),
+                0 0 12px rgba(3, 105, 161, 0.12);
+            transform: translateY(-2px);
+        }
+
+        body.is-night .modular-cell:hover {
+            background: linear-gradient(135deg,
+                rgba(56, 189, 248, 0.12) 0%,
+                rgba(59, 130, 246, 0.06) 100%);
+            box-shadow:
+                inset 0 1px 2px rgba(56, 189, 248, 0.3),
+                inset -1px 0 0 rgba(56, 189, 248, 0.2),
+                0 0 20px rgba(56, 189, 248, 0.2);
+        }
+    }
     
     .cell-lbl { font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); font-weight: 700; margin-bottom: 4px; }
     .cell-val { font-size: 15px; font-weight: 700; color: var(--text); }
@@ -864,8 +1039,45 @@ body.is-night .modular-cell {
     .time-mark { font-size: 9px; color: var(--muted); font-weight: 500; display: inline-block; margin-left: 4px; opacity: 0.75; }
     
     .nav-tabs { display: flex; gap: 8px; margin-bottom: 24px; }
-    .tab-btn { background: var(--card); border: 1px solid var(--border); padding: 12px 24px; border-radius: 14px; color: var(--text); font-weight: 700; cursor: pointer; transition: 0.2s; backdrop-filter: blur(20px); font-size: 13px; }
-    .tab-btn.active { background: var(--accent); color: white; border-color: var(--accent); box-shadow: var(--glow); }
+    
+    /* 🎯 BONUS: TAB BUTTON ENHANCEMENTS */
+    .tab-btn {
+        background: var(--card);
+        border: 1px solid var(--border);
+        padding: 12px 24px;
+        border-radius: 14px;
+        color: var(--text);
+        font-weight: 700;
+        cursor: pointer;
+        transition: all 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+        backdrop-filter: blur(20px);
+        font-size: 13px;
+        letter-spacing: 0.2px;
+    }
+
+    .tab-btn.active {
+        background: var(--accent);
+        color: white;
+        border-color: var(--accent);
+        box-shadow: 
+            0 4px 12px -2px rgba(3, 105, 161, 0.3),
+            inset 0 1px 0 rgba(255, 255, 255, 0.2);
+        transform: translateY(-2px);
+    }
+
+    body.is-night .tab-btn.active {
+        box-shadow:
+            0 4px 16px -2px rgba(56, 189, 248, 0.4),
+            inset 0 1px 0 rgba(56, 189, 248, 0.3);
+    }
+
+    @media (hover: hover) {
+        .tab-btn:hover:not(.active) {
+            background: var(--card);
+            border-color: var(--accent);
+            box-shadow: 0 4px 8px -2px rgba(3, 105, 161, 0.1);
+        }
+    }
 
     .graphs-wrapper { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin-top: 20px; }
     .graph-card { background: var(--card); padding: 24px; border-radius: 24px; border: 1px solid var(--border); height: 320px; box-shadow: var(--glow); display: flex; flex-direction: column; overflow: hidden; }
@@ -894,8 +1106,6 @@ body.is-night .modular-cell {
         animation: countUp 0.4s cubic-bezier(0.22, 1, 0.36, 1);
     }
 
-
-
     @media screen and (max-width: 767px) {
     body {
         background: var(--card) !important; 
@@ -911,6 +1121,7 @@ body.is-night .modular-cell {
         padding: 20px 4px !important;       
         border-radius: 0 !important;
         position: relative; /* Setup anchor for the premium custom line */
+        border-top: none; /* Remove colored top border on mobile */
     }
 
     /* 👇 THE AURORA SEPARATOR: Fades out completely at both ends */
@@ -940,6 +1151,11 @@ body.is-night .modular-cell {
         box-shadow: none !important;
         background: transparent !important;
     }
+
+    .status-bar {
+        box-shadow: none;
+        border: 1px solid var(--border);
+    }
 }
 
 /* ======================================================= */
@@ -967,7 +1183,14 @@ body.is-night .modular-cell {
         -webkit-backdrop-filter: none !important;
         border-radius: 0 !important;
         position: relative;
+        border-top: 3px solid var(--accent) !important; /* Keep colored tops */
     }
+
+    /* Override individual card colors */
+    .grid-system .card:nth-child(1) { border-top-color: #ef4444 !important; }
+    .grid-system .card:nth-child(2) { border-top-color: #f97316 !important; }
+    .grid-system .card:nth-child(3) { border-top-color: #3b82f6 !important; }
+    .grid-system .card:nth-child(4) { border-top-color: #06b6d4 !important; }
 
     /* Remove any leftover pseudo-dividers from the previous card implementation */
     .grid-system .card::before,
@@ -1028,6 +1251,7 @@ body.is-night .modular-cell {
 
 </style>
 </head>
+
 
 <body>
     <div class="container">
