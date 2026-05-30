@@ -965,52 +965,53 @@ app.get("/", (req, res) => {
         position: relative;
     }
 
-    /* Light mode cell styling */
+    /* 🎨 LASER LIGHT DIVIDERS - NO BACKGROUND */
     .modular-cell {
-        border-right: 1px solid rgba(100, 116, 139, 0.15);
-        background: linear-gradient(135deg,
-            rgba(3, 105, 161, 0.04) 0%,
+        border-right: 1px solid transparent;
+        background: transparent !important;
+        box-shadow: none !important;
+        position: relative;
+    }
+
+    /* Light mode: Subtle laser divider */
+    .modular-cell::after {
+        content: '';
+        position: absolute;
+        right: 0;
+        top: 10%;
+        bottom: 10%;
+        width: 1px;
+        background: linear-gradient(to bottom,
+            transparent 0%,
+            rgba(3, 105, 161, 0.3) 15%,
+            rgba(3, 105, 161, 0.5) 50%,
+            rgba(3, 105, 161, 0.3) 85%,
             transparent 100%);
-        box-shadow:
-            inset 0 1px 0 rgba(255, 255, 255, 0.6),
-            inset -1px 0 0 rgba(3, 105, 161, 0.08);
+        box-shadow: 0 0 8px rgba(3, 105, 161, 0.2);
     }
 
-    body.is-night .modular-cell {
-        border-right: 1px solid rgba(56, 189, 248, 0.1);
-        background: linear-gradient(135deg,
-            rgba(56, 189, 248, 0.08) 0%,
-            rgba(59, 130, 246, 0.02) 100%);
-        box-shadow:
-            inset 0 1px 0 rgba(56, 189, 248, 0.15),
-            inset -1px 0 0 rgba(56, 189, 248, 0.12);
+    body.is-night .modular-cell::after {
+        background: linear-gradient(to bottom,
+            transparent 0%,
+            rgba(56, 189, 248, 0.4) 15%,
+            rgba(56, 189, 248, 0.6) 50%,
+            rgba(56, 189, 248, 0.4) 85%,
+            transparent 100%);
+        box-shadow: 0 0 12px rgba(56, 189, 248, 0.3);
     }
 
-    .modular-cell:last-child {
-        border-right: none;
+    .modular-cell:last-child::after {
+        display: none; /* No divider on last cell */
     }
 
-    /* Hover effect on cells */
+    /* Hover effect - subtle glow on divider */
     @media (hover: hover) {
-        .modular-cell:hover {
-            background: linear-gradient(135deg,
-                rgba(3, 105, 161, 0.08) 0%,
-                rgba(59, 130, 246, 0.04) 100%);
-            box-shadow:
-                inset 0 1px 2px rgba(56, 189, 248, 0.2),
-                inset -1px 0 0 rgba(3, 105, 161, 0.15),
-                0 0 12px rgba(3, 105, 161, 0.12);
-            transform: translateY(-2px);
+        .modular-cell:hover::after {
+            box-shadow: 0 0 16px rgba(3, 105, 161, 0.4);
         }
 
-        body.is-night .modular-cell:hover {
-            background: linear-gradient(135deg,
-                rgba(56, 189, 248, 0.12) 0%,
-                rgba(59, 130, 246, 0.06) 100%);
-            box-shadow:
-                inset 0 1px 2px rgba(56, 189, 248, 0.3),
-                inset -1px 0 0 rgba(56, 189, 248, 0.2),
-                0 0 20px rgba(56, 189, 248, 0.2);
+        body.is-night .modular-cell:hover::after {
+            box-shadow: 0 0 20px rgba(56, 189, 248, 0.5);
         }
     }
     
@@ -1251,7 +1252,6 @@ app.get("/", (req, res) => {
 
 </style>
 </head>
-
 
 <body>
     <div class="container">
