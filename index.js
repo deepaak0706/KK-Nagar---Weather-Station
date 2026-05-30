@@ -936,11 +936,7 @@ app.get("/", (req, res) => {
     .pod-val { font-variant-numeric: tabular-nums; }
 
     .mod-divider { 
-    height: 1px; 
-    background: linear-gradient(to right, transparent 0%, var(--line) 15%, var(--line) 85%, transparent 100%); 
-    width: 100%; 
-    margin: 4px 0; 
-    opacity: 0.5; 
+    display: none;
 }
 
     .modular-inline-stack { 
