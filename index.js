@@ -1160,99 +1160,51 @@ app.get("/", (req, res) => {
 }
 
 /* ======================================================= */
-/* 💻 FIX: ULTRA-MODERN 4-WAY LASER CROSSHAIR MATRIX GRID  */
+/* 💻 DESKTOP: 2x2 GRID WITH INDIVIDUAL CARD BORDERS      */
 /* ======================================================= */
 @media screen and (min-width: 768px) {
-    /* 1. Unified Deck Container Setup */
+    /* Keep cards separate with proper spacing */
     .grid-system {
-        background: var(--card);
-        border: 1px solid var(--border);
-        box-shadow: var(--glow);
-        border-radius: 28px;
-        padding: 12px 16px;
-        gap: 0; /* Snaps cards together perfectly */
-        overflow: hidden;
-        position: relative; /* Crucial: anchors the global crosshair pseudo-elements */
+        display: grid;
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 16px;
+        margin-bottom: 32px;
+        width: 100%;
     }
 
-    /* 2. Flatten individual cards completely */
+    /* Restore individual card styling */
     .grid-system .card {
-        background: transparent !important;
-        border: none !important;
-        box-shadow: none !important;
-        backdrop-filter: none !important;
-        -webkit-backdrop-filter: none !important;
-        border-radius: 0 !important;
+        background: var(--card) !important;
+        border: 1px solid var(--border) !important;
+        border-top: 3px solid var(--accent) !important;
+        border-radius: 24px !important;
+        box-shadow: var(--glow) !important;
+        backdrop-filter: blur(30px) !important;
+        -webkit-backdrop-filter: blur(30px) !important;
+        padding: 28px !important;
         position: relative;
-        border-top: 3px solid var(--accent) !important; /* Keep colored tops */
+        transition: all 0.35s cubic-bezier(0.22, 1, 0.36, 1);
     }
 
-    /* Override individual card colors */
-    .grid-system .card:nth-child(1) { border-top-color: #ef4444 !important; }
-    .grid-system .card:nth-child(2) { border-top-color: #f97316 !important; }
-    .grid-system .card:nth-child(3) { border-top-color: #3b82f6 !important; }
-    .grid-system .card:nth-child(4) { border-top-color: #06b6d4 !important; }
-
-    /* Remove any leftover pseudo-dividers from the previous card implementation */
-    .grid-system .card::before,
-    .grid-system .card::after {
-        display: none !important;
+    /* Hover elevation effect */
+    @media (hover: hover) {
+        .grid-system .card:hover {
+            transform: translateY(-4px);
+            box-shadow: 
+                0 20px 25px -5px rgba(0, 0, 0, 0.15),
+                var(--glow) !important;
+        }
     }
 
-    /* 3. Balanced Padding Matrix for Uniform Spacing */
-    .grid-system .card:nth-child(1),
-    .grid-system .card:nth-child(2) {
-        padding: 32px 36px 40px 36px !important; /* Extra breathing room above the crosshair */
-    }
-    .grid-system .card:nth-child(3),
-    .grid-system .card:nth-child(4) {
-        padding: 40px 36px 32px 36px !important; /* Extra breathing room below the crosshair */
-    }
-
-    /* 4. THE HORIZONTAL LASER BEAM (Global) */
-    .grid-system::before {
-        content: '';
-        position: absolute;
-        left: 4%;
-        right: 4%;
-        top: 50%;
-        height: 1px;
-        background: linear-gradient(to right, 
-            transparent 0%, 
-            var(--border) 15%, 
-            var(--border) 50%, 
-            var(--border) 85%, 
-            transparent 100%
-        );
-        opacity: 0.65; /* Slightly increased for crisp high-tech visibility */
-        z-index: 2;
-        pointer-events: none;
-    }
-
-    /* 5. THE VERTICAL LASER BEAM (Global) */
-    .grid-system::after {
-        content: '';
-        position: absolute;
-        top: 6%;
-        bottom: 6%;
-        left: 50%;
-        width: 1px;
-        background: linear-gradient(to bottom, 
-            transparent 0%, 
-            var(--border) 15%, 
-            var(--border) 50%, 
-            var(--border) 85%, 
-            transparent 100%
-        );
-        opacity: 0.65;
-        z-index: 2;
-        pointer-events: none;
-    }
+    /* Individual card color themes */
+    .grid-system .card:nth-child(1) { border-top-color: #ef4444; } /* Temperature = Red */
+    .grid-system .card:nth-child(2) { border-top-color: #f97316; } /* Wind = Orange */
+    .grid-system .card:nth-child(3) { border-top-color: #3b82f6; } /* Rain = Blue */
+    .grid-system .card:nth-child(4) { border-top-color: #06b6d4; } /* Atmospheric = Cyan */
 }
 
 </style>
 </head>
-
 <body>
     <div class="container">
         <div class="header">
