@@ -1204,7 +1204,7 @@ app.get("/", (req, res) => {
 <body>
     <div class="container">
         <div class="header">
-            <h1>KK Nagar Weather Hub</h1>
+            <h1>KK Nagar Weather Station</h1>
             <div class="header-actions">
                 <div class="status-bar"><div class="live-dot"></div><div class="timestamp"><span id="ts">--:--:--</span></div></div>
                 <div class="theme-toggle" id="themeToggle">
