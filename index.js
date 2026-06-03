@@ -360,20 +360,22 @@ async function syncWithEcowitt(forceWrite = false) {
                 const dbRR = snap.rr || 0;
 
                 await client.query(`
-                    INSERT INTO weather_history 
-                    (time, temp_f, temp_min_f, humidity, wind_speed_mph, wind_gust_mph, rain_rate_in, daily_rain_in, 
-                     max_w_time, max_t_time, min_t_time, max_r_time, max_g_time, solar_radiation, press_rel)
-                    VALUES (${timeSql}, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
-                `, [
-                    dbMaxT, dbMinT, liveHum, dbW, dbG, dbRR, d.rainfall.daily.value,
-                    snap.tW || new Date().toISOString(), 
-                    snap.tMaxT || new Date().toISOString(), 
-                    snap.tMinT || new Date().toISOString(), 
-                    snap.tRR || (state.lastRainTime ? new Date(state.lastRainTime).toISOString() : new Date().toISOString()),
-                    snap.tG || new Date().toISOString(), 
-                    d.solar_and_uvi?.solar?.value || 0, 
-                    d.pressure.relative.value || 0
-                ]);
+    INSERT INTO weather_history 
+    (time, temp_f, temp_min_f, temp_current_f, humidity, wind_speed_mph, wind_gust_mph, rain_rate_in, daily_rain_in, 
+     max_w_time, max_t_time, min_t_time, max_r_time, max_g_time, solar_radiation, press_rel)
+    VALUES (${timeSql}, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+`, [
+    dbMaxT, dbMinT, d.outdoor.temperature.value,  // ← ADD THIS: Current temp at write time
+    liveHum, dbW, dbG, dbRR, d.rainfall.daily.value,
+    snap.tW || new Date().toISOString(), 
+    snap.tMaxT || new Date().toISOString(), 
+    snap.tMinT || new Date().toISOString(), 
+    snap.tRR || (state.lastRainTime ? new Date(state.lastRainTime).toISOString() : new Date().toISOString()),
+    snap.tG || new Date().toISOString(), 
+    d.solar_and_uvi?.solar?.value || 0, 
+    d.pressure.relative.value || 0
+]);
+
 
                 // Midnight Roll-up (Untact)
                 if (hour === 0 && minute < 30 && state.lastArchivedDate !== todayISTStr) {
@@ -462,13 +464,17 @@ async function syncWithEcowitt(forceWrite = false) {
                 if (!pastRecord && historyRes.rows.length > 0) pastRecord = historyRes.rows[0];
 
                 if (pastRecord) {
-                    const pastTemp = parseFloat(((pastRecord.temp_f - 32) * 5 / 9).toFixed(1));
-                    tempRate = parseFloat((liveTemp - pastTemp).toFixed(1));
-                    humRate = parseFloat((liveHum - pastRecord.humidity).toFixed(1));
-                    if (pastRecord.press_rel) {
-                        pressRate = parseFloat((livePress - parseFloat((pastRecord.press_rel * 33.8639).toFixed(1))).toFixed(1));
-                    }
-                }
+    // Use temp_current_f if it exists, otherwise fallback to temp_f
+    const pastTempF = pastRecord.temp_current_f || pastRecord.temp_f;
+    const pastTemp = parseFloat(((pastTempF - 32) * 5 / 9).toFixed(1));
+    
+    tempRate = parseFloat((liveTemp - pastTemp).toFixed(1));
+    humRate = parseFloat((liveHum - pastRecord.humidity).toFixed(1));
+    if (pastRecord.press_rel) {
+        pressRate = parseFloat((livePress - parseFloat((pastRecord.press_rel * 33.8639).toFixed(1))).toFixed(1));
+    }
+}
+
                 
                 state.dataChangedSinceLastRead = false;
             } catch (dbError) { console.error("DB Prep Error:", dbError); }
