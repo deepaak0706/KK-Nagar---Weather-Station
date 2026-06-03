@@ -464,16 +464,22 @@ async function syncWithEcowitt(forceWrite = false) {
                 if (!pastRecord && historyRes.rows.length > 0) pastRecord = historyRes.rows[0];
 
                 if (pastRecord) {
-    // Use temp_current_f if it exists, otherwise fallback to temp_f
     const pastTempF = pastRecord.temp_current_f || pastRecord.temp_f;
     const pastTemp = parseFloat(((pastTempF - 32) * 5 / 9).toFixed(1));
     
-    tempRate = parseFloat((liveTemp - pastTemp).toFixed(1));
+    // Calculate time window in hours
+    const timeWindowMs = Date.now() - new Date(pastRecord.time).getTime();
+    const timeWindowHours = timeWindowMs / 3600000;
+    
+    // Normalize to per-hour rate
+    tempRate = parseFloat(((liveTemp - pastTemp) / timeWindowHours).toFixed(2));
+    
     humRate = parseFloat((liveHum - pastRecord.humidity).toFixed(1));
     if (pastRecord.press_rel) {
         pressRate = parseFloat((livePress - parseFloat((pastRecord.press_rel * 33.8639).toFixed(1))).toFixed(1));
     }
 }
+
 
                 
                 state.dataChangedSinceLastRead = false;
