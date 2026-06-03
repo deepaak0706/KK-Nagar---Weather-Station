@@ -472,7 +472,7 @@ async function syncWithEcowitt(forceWrite = false) {
     const timeWindowHours = timeWindowMs / 3600000;
     
     // Normalize to per-hour rate
-    tempRate = parseFloat(((liveTemp - pastTemp) / timeWindowHours).toFixed(2));
+    tempRate = parseFloat(((liveTemp - pastTemp) / timeWindowHours).toFixed(1));
     
     humRate = parseFloat((liveHum - pastRecord.humidity).toFixed(1));
     if (pastRecord.press_rel) {
