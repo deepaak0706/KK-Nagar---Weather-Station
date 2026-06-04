@@ -432,51 +432,71 @@ async function syncWithEcowitt(forceWrite = false) {
                 `, [todayISTStr]);
                 
                 let pastRecord = null;
-                const oneHourAgo = Date.now() - 3600000;
+const oneHourAgo = Date.now() - 3600000;
 
-                // FIX: Set to extreme opposites so the loop actually catches the FIRST true max/min from the DB.
-                mx_t = -999; mn_t = 999;
-                mx_w = 0; mx_g = 0; mx_r = 0;
-                
-                // Clear the times so we know if the DB was completely empty
-                mx_t_time = null; mn_t_time = null;
-                mx_w_t = null; mx_g_t = null; mx_r_t = null;
+// FIX: Set to extreme opposites so the loop actually catches the FIRST true max/min from the DB.
+mx_t = -999; mn_t = 999;
+mx_w = 0; mx_g = 0; mx_r = 0;
 
-                historyRes.rows.forEach(r => {
-                    const fmt = (iso) => new Date(iso || r.time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' });
-                    const r_max_t = parseFloat(((r.temp_f - 32) * 5 / 9).toFixed(1));
-                    const r_min_t = parseFloat(((r.temp_min_f - 32) * 5 / 9).toFixed(1));
-                    const r_w = parseFloat((r.wind_speed_mph * 1.60934).toFixed(1));
-                    const r_g = parseFloat((r.wind_gust_mph * 1.60934).toFixed(1));
-                    const r_rr = parseFloat((r.rain_rate_in * 25.4).toFixed(1));
+// Clear the times so we know if the DB was completely empty
+mx_t_time = null; mn_t_time = null;
+mx_w_t = null; mx_g_t = null; mx_r_t = null;
 
-                    if (r_max_t > mx_t) { mx_t = r_max_t; mx_t_time = fmt(r.max_t_time); }
-                    if (r_min_t < mn_t) { mn_t = r_min_t; mn_t_time = fmt(r.min_t_time); }
-                    if (r_w > mx_w) { mx_w = r_w; mx_w_t = fmt(r.max_w_time); }
-                    if (r_g > mx_g) { mx_g = r_g; mx_g_t = fmt(r.max_g_time); }
-                    if (r_rr > mx_r) { mx_r = r_rr; mx_r_t = fmt(r.max_r_time); }
-                    
-                    if (!pastRecord && new Date(r.time).getTime() >= oneHourAgo) {
-                        pastRecord = r;
-                    }
-                });
+// Find CLOSEST record to exactly 1 hour ago (Davis Pro 2 method)
+let closestDiff = Infinity;
 
-                if (!pastRecord && historyRes.rows.length > 0) pastRecord = historyRes.rows[0];
+historyRes.rows.forEach(r => {
+    const fmt = (iso) => new Date(iso || r.time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' });
+    const r_max_t = parseFloat(((r.temp_f - 32) * 5 / 9).toFixed(1));
+    const r_min_t = parseFloat(((r.temp_min_f - 32) * 5 / 9).toFixed(1));
+    const r_w = parseFloat((r.wind_speed_mph * 1.60934).toFixed(1));
+    const r_g = parseFloat((r.wind_gust_mph * 1.60934).toFixed(1));
+    const r_rr = parseFloat((r.rain_rate_in * 25.4).toFixed(1));
 
-                if (pastRecord) {
-    const pastTemp = parseFloat(((pastRecord.temp_current_f - 32) * 5 / 9).toFixed(1));
-    tempRate = parseFloat((liveTemp - pastTemp).toFixed(1));
+    if (r_max_t > mx_t) { mx_t = r_max_t; mx_t_time = fmt(r.max_t_time); }
+    if (r_min_t < mn_t) { mn_t = r_min_t; mn_t_time = fmt(r.min_t_time); }
+    if (r_w > mx_w) { mx_w = r_w; mx_w_t = fmt(r.max_w_time); }
+    if (r_g > mx_g) { mx_g = r_g; mx_g_t = fmt(r.max_g_time); }
+    if (r_rr > mx_r) { mx_r = r_rr; mx_r_t = fmt(r.max_r_time); }
+
+    // Find CLOSEST record to exactly 1 hour ago
+    const diff = Math.abs(new Date(r.time).getTime() - oneHourAgo);
+    if (diff < closestDiff) {
+        closestDiff = diff;
+        pastRecord = r;
+    }
+});
+
+// Fallback: if no records at all, use oldest available
+if (!pastRecord && historyRes.rows.length > 0) pastRecord = historyRes.rows[0];
+
+if (pastRecord) {
+    // Use temp_current_f (instantaneous), fallback to temp_f for old records
+    const pastTempF = (pastRecord.temp_current_f != null)
+        ? pastRecord.temp_current_f
+        : pastRecord.temp_f;
+
+    const pastTemp = parseFloat(((pastTempF - 32) * 5 / 9).toFixed(1));
+
+    // Actual time window in hours (Davis Pro 2 standard)
+    const timeWindowHours = (Date.now() - new Date(pastRecord.time).getTime()) / 3600000;
+
+    // Normalize to per-hour rate
+    tempRate = parseFloat(((liveTemp - pastTemp) / timeWindowHours).toFixed(1));
+
     humRate = parseFloat((liveHum - pastRecord.humidity).toFixed(1));
     if (pastRecord.press_rel) {
         pressRate = parseFloat((livePress - parseFloat((pastRecord.press_rel * 33.8639).toFixed(1))).toFixed(1));
     }
+
+    // Debug log - remove after confirming correct
+    console.log(`TempRate: Live=${liveTemp}, Past=${pastTemp}, Window=${timeWindowHours.toFixed(2)}hrs, Rate=${tempRate}°C/hr`);
 }
 
+state.dataChangedSinceLastRead = false;
+} catch (dbError) { console.error("DB Prep Error:", dbError); }
+}
 
-                
-                state.dataChangedSinceLastRead = false;
-            } catch (dbError) { console.error("DB Prep Error:", dbError); }
-        }
 
         const liveWind = parseFloat((d.wind.wind_speed.value * 1.60934).toFixed(1));
         const liveGust = parseFloat((d.wind.wind_gust.value * 1.60934).toFixed(1));
