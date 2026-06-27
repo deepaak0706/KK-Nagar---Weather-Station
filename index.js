@@ -45,6 +45,50 @@ function resetStateBuffers() {
     state.tW = null; state.tG = null; state.tMaxT = null; state.tMinT = null; state.tRR = null;
 }
 
+async function loadBufferState() {
+    const res = await pool.query('SELECT * FROM buffer_state WHERE id = 1');
+    const row = res.rows[0];
+    return {
+        lastRainRaw: row.last_rain_raw,
+        lastRainTime: row.last_rain_time ? Number(row.last_rain_time) : 0,
+        lastCalculatedRate: row.last_calculated_rate,
+        bufW: row.buf_w,
+        bufG: row.buf_g,
+        bufMaxT: row.buf_max_t,
+        bufMinT: row.buf_min_t,
+        bufRR: row.buf_rr,
+        tW: row.t_w,
+        tG: row.t_g,
+        tMaxT: row.t_max_t,
+        tMinT: row.t_min_t,
+        tRR: row.t_rr,
+    };
+}
+
+async function saveBufferState(b) {
+    await pool.query(`
+        UPDATE buffer_state SET
+            last_rain_raw = $1, last_rain_time = $2, last_calculated_rate = $3,
+            buf_w = $4, buf_g = $5, buf_max_t = $6, buf_min_t = $7, buf_rr = $8,
+            t_w = $9, t_g = $10, t_max_t = $11, t_min_t = $12, t_rr = $13
+        WHERE id = 1
+    `, [
+        b.lastRainRaw, b.lastRainTime, b.lastCalculatedRate,
+        b.bufW, b.bufG, b.bufMaxT, b.bufMinT, b.bufRR,
+        b.tW, b.tG, b.tMaxT, b.tMinT, b.tRR
+    ]);
+}
+
+async function resetBufferPeaksDB() {
+    await pool.query(`
+        UPDATE buffer_state SET
+            buf_w = 0, buf_g = 0, buf_max_t = -999, buf_min_t = 999, buf_rr = 0,
+            t_w = NULL, t_g = NULL, t_max_t = NULL, t_min_t = NULL, t_rr = NULL
+        WHERE id = 1
+    `);
+}
+
+
 const getCard = (a) => {
     const directions = ["N","NNE","NE","ENE","E","ESE","SE","SSE","S","SSW","SW","WSW","W","WNW","NW","NNW"];
     return directions[Math.round(a / 22.5) % 16];
@@ -67,32 +111,32 @@ function calculateRealFeel(tempC, humidity) {
  * Decay is now handled externally by the Cron.
  */
 
- function processRainLogic(newDailyInches, currentTimeStamp, isCron = false) {
+ function processRainLogic(buf, newDailyInches, currentTimeStamp, isCron = false) {
      // If a user refresh happens, don't update the baseline or time
     // Only the Cron should advance the "lastRainRaw" and "lastRainTime"
     if (!isCron) {
-        return state.lastCalculatedRate; 
+        return buf; 
     }
     const now = Date.now();
     
-    if (state.lastRainRaw === null) {
-        state.lastRainRaw = newDailyInches;
-        state.lastRainTime = now;
-        return 0;
+    if (buf.lastRainRaw === null) {
+        buf.lastRainRaw = newDailyInches;
+        buf.lastRainTime = now;
+        return buf;
     }
 
     // --- MIDNIGHT RESET FIX ---
     // If the API resets the daily total back to 0 (or a lower number)
-    if (newDailyInches < state.lastRainRaw) {
-        state.lastRainRaw = newDailyInches; // Reset our baseline tracker
-        return state.lastCalculatedRate;    // Exit without calculating a rate
+    if (newDailyInches < buf.lastRainRaw) {
+        buf.lastRainRaw = newDailyInches; // Reset our baseline tracker
+        return buf;    // Exit without calculating a rate
     }
     // --------------------------
 
-    const deltaRain = newDailyInches - state.lastRainRaw;
+    const deltaRain = newDailyInches - buf.lastRainRaw;
 
     if (deltaRain > 0.0001) { 
-        let timeSinceLastTipSec = (now - state.lastRainTime) / 1000;
+        let timeSinceLastTipSec = (now - buf.lastRainTime) / 1000;
 
         if (timeSinceLastTipSec > 600) {
             timeSinceLastTipSec = 60; 
@@ -100,19 +144,20 @@ function calculateRealFeel(tempC, humidity) {
 
         const effectiveTime = Math.max(timeSinceLastTipSec, 60);
         
-        state.lastCalculatedRate = deltaRain * (3600 / effectiveTime);
+        buf.lastCalculatedRate = deltaRain * (3600 / effectiveTime);
         
-        state.lastRainRaw = newDailyInches;
-        state.lastRainTime = now; 
+        buf.lastRainRaw = newDailyInches;
+        buf.lastRainTime = now; 
     } 
 
-    if (state.lastCalculatedRate > (state.bufRR || 0)) { 
-        state.bufRR = state.lastCalculatedRate; 
-        state.tRR = currentTimeStamp; 
+    if (buf.lastCalculatedRate > (buf.bufRR || 0)) { 
+        buf.bufRR = buf.lastCalculatedRate; 
+        buf.tRR = currentTimeStamp; 
     }
     
-    return state.lastCalculatedRate;
+    return buf;
 }
+
 
  
 // Fix the dangling return and the buffer function
@@ -131,21 +176,23 @@ async function bufferOnlyUpdate() {
         if (!json.data) throw new Error("Invalid API Response");
         const d = json.data;
 
+        let buf = await loadBufferState();
+
         // 1. Process physical tips first
         const dailyRainInches = parseFloat(d.rainfall.daily.value) / 25.4;
-        processRainLogic(dailyRainInches, currentTimeStamp, true);
+        buf = processRainLogic(buf, dailyRainInches, currentTimeStamp, true);
 
         // 2. STABLE DECAY ENGINE (Exclusive to Cron)
         // We give 3 minutes (180s) of "grace" before dropping the rate.
         // This bridges the gap between API updates during heavy rain.
-        const secondsSinceLastTip = (now - state.lastRainTime) / 1000;
+        const secondsSinceLastTip = (now - buf.lastRainTime) / 1000;
         
         if (secondsSinceLastTip > 180) { 
             // Reduce by 20% every minute for a smooth curve
-            state.lastCalculatedRate *= 0.8; 
+            buf.lastCalculatedRate *= 0.8; 
             
             // Cut to zero if it becomes negligible
-            if (state.lastCalculatedRate < 0.05) state.lastCalculatedRate = 0;
+            if (buf.lastCalculatedRate < 0.05) buf.lastCalculatedRate = 0;
         }
 
         // 3. WIND & TEMP PEAK BUFFERING
@@ -153,18 +200,21 @@ async function bufferOnlyUpdate() {
         const apiG = parseFloat(d.wind.wind_gust.value);
         const apiT = parseFloat(d.outdoor.temperature.value);
 
-        if (state.tW === null || apiW > state.bufW) { state.bufW = apiW; state.tW = currentTimeStamp; }
-        if (state.tG === null || apiG > state.bufG) { state.bufG = apiG; state.tG = currentTimeStamp; }
-        if (state.tMaxT === null || apiT > state.bufMaxT) { state.bufMaxT = apiT; state.tMaxT = currentTimeStamp; }
-        if (state.tMinT === null || apiT < state.bufMinT) { state.bufMinT = apiT; state.tMinT = currentTimeStamp; }
+        if (buf.tW === null || apiW > buf.bufW) { buf.bufW = apiW; buf.tW = currentTimeStamp; }
+        if (buf.tG === null || apiG > buf.bufG) { buf.bufG = apiG; buf.tG = currentTimeStamp; }
+        if (buf.tMaxT === null || apiT > buf.bufMaxT) { buf.bufMaxT = apiT; buf.tMaxT = currentTimeStamp; }
+        if (buf.tMinT === null || apiT < buf.bufMinT) { buf.bufMinT = apiT; buf.tMinT = currentTimeStamp; }
+
+        await saveBufferState(buf);
 
         state.lastFetchTime = now;
-        return { ok: true, buffered: true, currentRate: state.lastCalculatedRate };
+        return { ok: true, buffered: true, currentRate: buf.lastCalculatedRate };
     } catch (e) { 
         console.error("Cron Error:", e.message);
         return { error: e.message }; 
     }
 }
+
 
 
 /**
@@ -196,8 +246,10 @@ async function syncWithEcowitt(forceWrite = false) {
             // Convert API mm to raw inches for the logic engine
             const currentDailyInches = parseFloat(d.rainfall.daily.value) / 25.4;
             
-            const liveRR = parseFloat((state.lastCalculatedRate * 25.4).toFixed(1));
+                        const buf = await loadBufferState();
+            const liveRR = parseFloat((buf.lastCalculatedRate * 25.4).toFixed(1));
             state.cachedData.rain.rate = liveRR;
+
 
             // Convert other rain fields to inches for internal consistency
             d.rainfall.daily.value = currentDailyInches;
@@ -236,26 +288,26 @@ async function syncWithEcowitt(forceWrite = false) {
             if (liveGust > state.cachedData.wind.maxG) { state.cachedData.wind.maxG = liveGust; state.cachedData.wind.maxGTime = fmtL(); }
             if (liveRR > state.cachedData.rain.maxR) { state.cachedData.rain.maxR = liveRR; state.cachedData.rain.maxRTime = fmtL(); }
 
-            // 5. MEMORY BUFFER CHECK (Ensures visitors see 1-min peaks trapped in buffers)
-            if (state.bufMaxT !== -999) {
-                const bMx = parseFloat(((state.bufMaxT - 32) * 5/9).toFixed(1));
-                if (bMx > state.cachedData.temp.max) { state.cachedData.temp.max = bMx; state.cachedData.temp.maxTime = fmtIso(state.tMaxT); }
+                        // 5. SHARED DB BUFFER CHECK (Ensures visitors see 1-min peaks regardless of instance)
+            if (buf.bufMaxT !== -999) {
+                const bMx = parseFloat(((buf.bufMaxT - 32) * 5/9).toFixed(1));
+                if (bMx > state.cachedData.temp.max) { state.cachedData.temp.max = bMx; state.cachedData.temp.maxTime = fmtIso(buf.tMaxT); }
             }
-            if (state.bufMinT !== 999) {
-                const bMn = parseFloat(((state.bufMinT - 32) * 5/9).toFixed(1));
-                if (bMn < state.cachedData.temp.min) { state.cachedData.temp.min = bMn; state.cachedData.temp.minTime = fmtIso(state.tMinT); }
+            if (buf.bufMinT !== 999) {
+                const bMn = parseFloat(((buf.bufMinT - 32) * 5/9).toFixed(1));
+                if (bMn < state.cachedData.temp.min) { state.cachedData.temp.min = bMn; state.cachedData.temp.minTime = fmtIso(buf.tMinT); }
             }
-            if (state.bufW > 0) {
-                const bW = parseFloat((state.bufW * 1.60934).toFixed(1));
-                if (bW > state.cachedData.wind.maxS) { state.cachedData.wind.maxS = bW; state.cachedData.wind.maxSTime = fmtIso(state.tW); }
+            if (buf.bufW > 0) {
+                const bW = parseFloat((buf.bufW * 1.60934).toFixed(1));
+                if (bW > state.cachedData.wind.maxS) { state.cachedData.wind.maxS = bW; state.cachedData.wind.maxSTime = fmtIso(buf.tW); }
             }
-            if (state.bufG > 0) {
-                const bG = parseFloat((state.bufG * 1.60934).toFixed(1));
-                if (bG > state.cachedData.wind.maxG) { state.cachedData.wind.maxG = bG; state.cachedData.wind.maxGTime = fmtIso(state.tG); }
+            if (buf.bufG > 0) {
+                const bG = parseFloat((buf.bufG * 1.60934).toFixed(1));
+                if (bG > state.cachedData.wind.maxG) { state.cachedData.wind.maxG = bG; state.cachedData.wind.maxGTime = fmtIso(buf.tG); }
             }
-            if (state.bufRR > 0) {
-                const bRR = parseFloat((state.bufRR * 25.4).toFixed(1));
-                if (bRR > state.cachedData.rain.maxR) { state.cachedData.rain.maxR = bRR; state.cachedData.rain.maxRTime = fmtIso(state.tRR); }
+            if (buf.bufRR > 0) {
+                const bRR = parseFloat((buf.bufRR * 25.4).toFixed(1));
+                if (bRR > state.cachedData.rain.maxR) { state.cachedData.rain.maxR = bRR; state.cachedData.rain.maxRTime = fmtIso(buf.tRR); }
             }
 
             state.cachedData.lastSync = new Date().toISOString();
@@ -302,20 +354,25 @@ async function syncWithEcowitt(forceWrite = false) {
         d.rainfall.monthly.value = parseFloat(d.rainfall.monthly.value) / 25.4;
         d.rainfall.yearly.value = parseFloat(d.rainfall.yearly.value) / 25.4;
 
-        processRainLogic(d.rainfall.daily.value, new Date().toISOString());
+        // (rain rate calc no longer happens here on visitor-triggered writer calls,
+        //  it's already advanced by the 1-min cron in buffer_state — this just reads it)
+
 
         const liveTemp = parseFloat(((d.outdoor.temperature.value - 32) * 5 / 9).toFixed(1));
         const liveDewC = parseFloat(((d.outdoor.dew_point.value - 32) * 5 / 9).toFixed(1)); 
         const liveHum = d.outdoor.humidity.value || 0;
         const livePress = parseFloat((d.pressure.relative.value * 33.8639).toFixed(1));
 
+        let writerBuf;
         if (forceWrite) {
+            writerBuf = await loadBufferState();
             snap = {
-                maxT: state.bufMaxT, minT: state.bufMinT,
-                w: state.bufW, g: state.bufG, rr: state.bufRR,
-                tMaxT: state.tMaxT, tMinT: state.tMinT,
-                tW: state.tW, tG: state.tG, tRR: state.tRR
+                maxT: writerBuf.bufMaxT, minT: writerBuf.bufMinT,
+                w: writerBuf.bufW, g: writerBuf.bufG, rr: writerBuf.bufRR,
+                tMaxT: writerBuf.tMaxT, tMinT: writerBuf.tMinT,
+                tW: writerBuf.tW, tG: writerBuf.tG, tRR: writerBuf.tRR
             };
+
 
             const client = await pool.connect();
             try {
@@ -331,21 +388,19 @@ async function syncWithEcowitt(forceWrite = false) {
                     LIMIT 1
                 `, [checkStart, checkEnd]);
 
-                if (duplicateCheck.rows.length > 0) {
+
+                                if (duplicateCheck.rows.length > 0) {
                     console.log("⚠️ Duplicate Prevention: This 10-min slot is already written. Clearing ghost buffer.");
                     await client.query('ROLLBACK');
                     
                     dbWriteSuccess = true; 
                     client.release();
                     
-                    state.bufMaxT = -999; state.tMaxT = null;
-                    state.bufMinT = 999;  state.tMinT = null;
-                    state.bufW = 0;       state.tW = null;
-                    state.bufG = 0;       state.tG = null;
-                    state.bufRR = 0;      state.tRR = null;
+                    await resetBufferPeaksDB();
 
                     return state.cachedData; 
                 }
+
                 // --- END OF DUPLICATE CHECK ---
 
                 let timeSql = 'NOW()';
@@ -498,7 +553,9 @@ state.dataChangedSinceLastRead = false;
 
         const liveWind = parseFloat((d.wind.wind_speed.value * 1.60934).toFixed(1));
         const liveGust = parseFloat((d.wind.wind_gust.value * 1.60934).toFixed(1));
-        const liveRR = parseFloat((state.lastCalculatedRate * 25.4).toFixed(1));
+        const writerBufForRR = await loadBufferState();  // or reuse writerBuf if already loaded in this scope
+        const liveRR = parseFloat((writerBufForRR.lastCalculatedRate * 25.4).toFixed(1));
+
 
         const fmtIso = (isoStr) => {
             if (!isoStr) return fmtL();
@@ -558,13 +615,10 @@ state.dataChangedSinceLastRead = false;
             lastSync: new Date().toISOString()
         };
 
-        if (forceWrite && dbWriteSuccess) {
-            state.bufMaxT = -999; state.tMaxT = null;
-            state.bufMinT = 999;  state.tMinT = null;
-            state.bufW = 0;       state.tW = null;
-            state.bufG = 0;       state.tG = null;
-            state.bufRR = 0;      state.tRR = null;
+                if (forceWrite && dbWriteSuccess) {
+            await resetBufferPeaksDB();
         }
+
 
         state.lastFetchTime = now;
         return state.cachedData;
