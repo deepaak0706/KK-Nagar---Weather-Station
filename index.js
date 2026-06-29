@@ -746,6 +746,9 @@ app.get("/", (req, res) => {
     min-height: 100vh; 
     overflow-x: hidden; 
     box-sizing: border-box;
+    padding-top: calc(16px + env(safe-area-inset-top, 0px));
+    padding-left: calc(10px + env(safe-area-inset-left, 0px));
+    padding-right: calc(10px + env(safe-area-inset-right, 0px));
 }
 
 /* 👇 RESTORES ORIGINAL SPACING ON DESKTOP SCREENS */
