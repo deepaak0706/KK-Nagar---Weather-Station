@@ -1260,119 +1260,124 @@ app.get("/", (req, res) => {
     .grid-system .card:nth-child(4) { border-top-color: #06b6d4; } /* Atmospheric = Cyan */
 }
 
-.station-picker { position: relative; }
 
-.station-chip {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    background: var(--card);
-    border: 1.5px solid var(--accent);
-    border-radius: 100px;
-    padding: 7px 14px 7px 12px;
-    font-family: inherit;
-    font-size: 13px;
-    font-weight: 700;
-    color: var(--accent);
+.header { flex-wrap: wrap; }
+.station-picker { position: relative; min-width: 0; flex: 1 1 auto; }
+.header-actions { flex-shrink: 0; }
+
+.title-trigger {
+    display: inline-flex;
+    align-items: flex-start;
+    gap: 8px;
+    background: transparent;
+    border: none;
+    padding: 4px 0;
+    margin: 0;
     cursor: pointer;
-    box-shadow: var(--glow);
-    backdrop-filter: blur(20px);
+    font-family: inherit;
+    text-align: left;
+    max-width: 100%;
 }
-.station-chip .pin { font-size: 12px; }
-.station-chip .chev { font-size: 10px; opacity: 0.7; transition: transform 0.25s ease; }
-.station-chip.open .chev { transform: rotate(180deg); }
+.title-trigger h1 { margin: 0; }
+
+.title-chev {
+    flex-shrink: 0;
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    background: rgba(3, 105, 161, 0.1);
+    color: var(--accent);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px;
+    transition: transform 0.25s cubic-bezier(0.22,1,0.36,1), background 0.2s ease;
+    margin-top: 6px;
+}
+.title-trigger.open .title-chev {
+    transform: rotate(180deg);
+    background: var(--accent);
+    color: #fff;
+}
 
 .station-menu {
     position: absolute;
-    top: calc(100% + 8px);
-    right: 0;
-    min-width: 160px;
+    top: calc(100% + 6px);
+    left: 0;
+    min-width: 220px;
+    max-width: min(280px, calc(100vw - 32px));
     background: var(--card);
     border: 1px solid var(--border);
-    border-radius: 14px;
-    box-shadow: var(--glow);
-    backdrop-filter: blur(20px);
+    border-radius: 16px;
+    box-shadow: 0 14px 32px -8px rgba(15,23,42,0.2), var(--glow);
     overflow: hidden;
     z-index: 100;
     opacity: 0;
-    transform: translateY(-6px);
+    transform: translateY(-6px) scale(0.98);
     pointer-events: none;
-    transition: all 0.2s cubic-bezier(0.22, 1, 0.36, 1);
+    transition: all 0.18s cubic-bezier(0.22, 1, 0.36, 1);
 }
-.station-menu.open {
-    opacity: 1;
-    transform: translateY(0);
-    pointer-events: auto;
+.station-menu.open { opacity: 1; transform: translateY(0) scale(1); pointer-events: auto; }
+
+.menu-eyebrow {
+    font-size: 10px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase;
+    color: var(--muted); padding: 12px 14px 6px;
 }
 
 .station-menu-item {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 11px 14px;
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--text);
-    cursor: pointer;
-    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 10px;
+    padding: 12px 14px; font-size: 14px; font-weight: 700; color: var(--text);
+    cursor: pointer; border-top: 1px solid var(--border);
 }
-.station-menu-item:last-child { border-bottom: none; }
-.station-menu-item .dot {
-    width: 6px; height: 6px;
-    border-radius: 50%;
-    background: transparent;
+.station-menu-item .pin { font-size: 13px; opacity: 0.7; }
+.station-menu-item .check {
+    margin-left: auto; width: 16px; height: 16px; border-radius: 50%;
+    background: var(--accent); color: #fff; font-size: 10px;
+    display: none; align-items: center; justify-content: center;
 }
-.station-menu-item.active {
-    color: var(--accent);
-    background: rgba(3, 105, 161, 0.08);
-}
-.station-menu-item.active .dot { background: var(--accent); }
+.station-menu-item.active { color: var(--accent); background: rgba(3, 105, 161, 0.07); }
+.station-menu-item.active .check { display: flex; }
+.station-menu-item:active { background: rgba(3, 105, 161, 0.12); }
 
-@media screen and (max-width: 480px) {
-    .header { flex-wrap: wrap; }
-    .station-chip { font-size: 12px; padding: 6px 12px 6px 10px; }
+@media screen and (max-width: 400px) {
+    .header h1 { font-size: 19px; }
 }
+
 
 
 </style>
 </head>
 <body>
     <div class="container">
-        <div class="header">
-    <h1 id="station-title">KK Nagar Weather Station</h1>
-    <div class="header-actions">
+    <div class="header">
         <div class="station-picker" id="stationPicker">
-    <button class="station-chip" id="stationChipBtn" onclick="toggleStationMenu()">
-        <span class="pin">📍</span>
-        <span id="stationChipLabel">KK Nagar</span>
-        <span class="chev">▾</span>
-    </button>
-    <div class="station-menu" id="stationMenu">
-        <div class="station-menu-item active" id="opt-kknagar" onclick="switchStation('kknagar')">
-            <span>KK Nagar</span><span class="dot"></span>
-        </div>
-        <div class="station-menu-item" id="opt-neelangarai" onclick="switchStation('neelangarai')">
-            <span>Neelangarai</span><span class="dot"></span>
-        </div>
-    </div>
-</div>
-
-                <div class="status-bar"><div class="live-dot"></div><div class="timestamp"><span id="ts">--:--:--</span></div></div>
-                <div class="theme-toggle" id="themeToggle">
-                    <div class="theme-btn" id="btn-light">LIGHT</div>
-                    <div class="theme-btn" id="btn-dark">DARK</div>
-                    <div class="theme-btn active" id="btn-auto">AUTO</div>
+            <button class="title-trigger" id="titleTrigger" onclick="toggleStationMenu()">
+                <h1 id="station-title">KK Nagar Weather Station</h1>
+                <span class="title-chev">▾</span>
+            </button>
+            <div class="station-menu" id="stationMenu">
+                <div class="menu-eyebrow">Switch station</div>
+                <div class="station-menu-item active" id="opt-kknagar" onclick="switchStation('kknagar')">
+                    <span class="pin">📍</span><span>KK Nagar</span><span class="check">✓</span>
+                </div>
+                <div class="station-menu-item" id="opt-neelangarai" onclick="switchStation('neelangarai')">
+                    <span class="pin">📍</span><span>Neelangarai</span><span class="check">✓</span>
                 </div>
             </div>
         </div>
 
-       <div class="nav-tabs">
-            <button onclick="showPage('dashboard')" id="tab-dash" class="tab-btn active">Live Dashboard</button>
-            <button onclick="showPage('summary')" id="tab-sum" class="tab-btn">Monthly Summary</button>
-            <button onclick="showPage('historical')" id="tab-hist" class="tab-btn">Historical Data</button>
-       </div>
+        <div class="header-actions">
+            <div class="status-bar"><div class="live-dot"></div><div class="timestamp"><span id="ts">--:--:--</span></div></div>
+            <div class="theme-toggle" id="themeToggle">
+                <div class="theme-btn" id="btn-light">LIGHT</div>
+                <div class="theme-btn" id="btn-dark">DARK</div>
+                <div class="theme-btn active" id="btn-auto">AUTO</div>
+            </div>
+        </div>
+    </div>
 
-      
+    <div class="nav-tabs">
+        <button onclick="showPage('dashboard')" id="tab-dash" class="tab-btn active">Live Dashboard</button>
+        <button onclick="showPage('summary')" id="tab-sum" class="tab-btn">Monthly Summary</button>
+        <button onclick="showPage('historical')" id="tab-hist" class="tab-btn">Historical Data</button>
+    </div>
 
 
         <div id="page-dashboard">
@@ -1503,10 +1508,7 @@ app.get("/", (req, res) => {
         </div>
     </div>
 </div>
-
-
-
-                            
+                  
                         </div>
                     </div>
                     
@@ -1665,9 +1667,6 @@ function switchStation(id) {
     currentStation = id;
     localStorage.setItem('weatherStation', id);
 
-    document.getElementById('stationChipLabel').textContent =
-        id === 'kknagar' ? 'KK Nagar' : 'Neelangarai';
-
     document.getElementById('opt-kknagar').classList.toggle('active', id === 'kknagar');
     document.getElementById('opt-neelangarai').classList.toggle('active', id === 'neelangarai');
 
@@ -1681,19 +1680,19 @@ function switchStation(id) {
 
 function toggleStationMenu() {
     document.getElementById('stationMenu').classList.toggle('open');
-    document.getElementById('stationChipBtn').classList.toggle('open');
+    document.getElementById('titleTrigger').classList.toggle('open');
 }
 
 function closeStationMenu() {
     document.getElementById('stationMenu').classList.remove('open');
-    document.getElementById('stationChipBtn').classList.remove('open');
+    document.getElementById('titleTrigger').classList.remove('open');
 }
 
-// Close the dropdown if the user taps anywhere outside it
 document.addEventListener('click', function(e) {
     const picker = document.getElementById('stationPicker');
     if (picker && !picker.contains(e.target)) closeStationMenu();
 });
+
 
 
 // Apply saved station on load
