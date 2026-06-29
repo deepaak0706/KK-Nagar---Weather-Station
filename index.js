@@ -1265,40 +1265,55 @@ app.get("/", (req, res) => {
 
 
 .header { flex-wrap: wrap; }
-.station-picker { position: relative; min-width: 0; flex: 1 1 auto; }
+.station-picker { position: relative; min-width: 0; flex: 1 1 100%; }
 .header-actions { flex-shrink: 0; }
 
 .title-trigger {
-    display: inline-flex;
-    align-items: flex-start;
-    gap: 8px;
-    background: transparent;
-    border: none;
-    padding: 4px 0;
-    margin: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    width: 100%;
+    background: var(--card);
+    border: 1px solid var(--border);
+    padding: 10px 12px 10px 14px;
+    border-radius: 14px;
     cursor: pointer;
     font-family: inherit;
+    box-shadow: var(--glow);
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.title-trigger.open {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(56,189,248,0.15);
+}
+.title-trigger h1 {
+    font-size: 19px;
+    font-weight: 900;
+    letter-spacing: -0.4px;
+    margin: 0;
+    color: var(--text);
     text-align: left;
-    max-width: 100%;
 }
-.title-trigger h1 { margin: 0; }
-
-.title-chev {
+.chev-circle {
     flex-shrink: 0;
-    width: 22px; height: 22px;
+    width: 26px;
+    height: 26px;
     border-radius: 50%;
-    background: rgba(3, 105, 161, 0.1);
+    background: rgba(56,189,248,0.12);
     color: var(--accent);
-    display: flex; align-items: center; justify-content: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     font-size: 11px;
-    transition: transform 0.25s cubic-bezier(0.22,1,0.36,1), background 0.2s ease;
-    margin-top: 6px;
+    transition: transform 0.25s cubic-bezier(0.22,1,0.36,1), background 0.2s ease, color 0.2s ease;
 }
-.title-trigger.open .title-chev {
+.title-trigger.open .chev-circle {
     transform: rotate(180deg);
     background: var(--accent);
-    color: #fff;
+    color: var(--bg);
 }
+
 
 .station-menu {
     position: absolute;
@@ -1352,9 +1367,10 @@ app.get("/", (req, res) => {
     <div class="header">
         <div class="station-picker" id="stationPicker">
             <button class="title-trigger" id="titleTrigger" onclick="toggleStationMenu()">
-                <h1 id="station-title">KK Nagar Weather Station</h1>
-                <span class="title-chev">▾</span>
-            </button>
+    <h1 id="station-title">KK Nagar Weather Station</h1>
+    <span class="chev-circle">▾</span>
+</button>
+
             <div class="station-menu" id="stationMenu">
                 <div class="menu-eyebrow">Switch station</div>
                 <div class="station-menu-item active" id="opt-kknagar" onclick="switchStation('kknagar')">
