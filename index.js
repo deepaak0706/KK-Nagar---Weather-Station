@@ -1267,10 +1267,6 @@ app.get("/", (req, res) => {
         <div class="header">
     <h1 id="station-title">KK Nagar Weather Station</h1>
     <div class="header-actions">
-        <div class="theme-toggle" id="stationToggle">
-            <div class="theme-btn active" id="btn-kkn" onclick="switchStation('kknagar')">KK Nagar</div>
-            <div class="theme-btn" id="btn-nl" onclick="switchStation('neelangarai')">Neelangarai</div>
-        </div>
                 <div class="status-bar"><div class="live-dot"></div><div class="timestamp"><span id="ts">--:--:--</span></div></div>
                 <div class="theme-toggle" id="themeToggle">
                     <div class="theme-btn" id="btn-light">LIGHT</div>
@@ -1285,6 +1281,16 @@ app.get("/", (req, res) => {
             <button onclick="showPage('summary')" id="tab-sum" class="tab-btn">Monthly Summary</button>
             <button onclick="showPage('historical')" id="tab-hist" class="tab-btn">Historical Data</button>
        </div>
+
+       <div style="margin-bottom: 24px; background: var(--card); border: 1px solid var(--border); border-radius: 18px; padding: 5px; box-shadow: var(--glow); display: flex; position: relative;">
+    <div id="station-slider" style="position:absolute; top:5px; bottom:5px; left:5px; width:calc(50% - 5px); background: var(--accent); border-radius: 13px; transition: transform 0.3s cubic-bezier(0.22,1,0.36,1); z-index:0;"></div>
+    <button id="btn-kkn" onclick="switchStation('kknagar')" style="flex:1; padding:14px; border:none; background:transparent; font-family:inherit; font-size:14px; font-weight:700; cursor:pointer; border-radius:13px; position:relative; z-index:1; color:white; transition:color 0.3s ease;">
+        📍 KK Nagar
+    </button>
+    <button id="btn-nl" onclick="switchStation('neelangarai')" style="flex:1; padding:14px; border:none; background:transparent; font-family:inherit; font-size:14px; font-weight:700; cursor:pointer; border-radius:13px; position:relative; z-index:1; color:var(--muted); transition:color 0.3s ease;">
+        📍 Neelangarai
+    </button>
+</div>
 
         <div id="page-dashboard">
             <div class="grid-system">
@@ -1575,8 +1581,21 @@ app.get("/", (req, res) => {
 function switchStation(id) {
     currentStation = id;
     localStorage.setItem('weatherStation', id);
-    document.getElementById('btn-kkn').classList.toggle('active', id === 'kknagar');
-    document.getElementById('btn-nl').classList.toggle('active', id === 'neelangarai');
+    
+    const slider = document.getElementById('station-slider');
+    const kknBtn = document.getElementById('btn-kkn');
+    const nlBtn  = document.getElementById('btn-nl');
+    
+    if (id === 'kknagar') {
+        slider.style.transform = 'translateX(0)';
+        kknBtn.style.color = 'white';
+        nlBtn.style.color = 'var(--muted)';
+    } else {
+        slider.style.transform = 'translateX(100%)';
+        kknBtn.style.color = 'var(--muted)';
+        nlBtn.style.color = 'white';
+    }
+    
     document.getElementById('station-title').textContent = 
         id === 'kknagar' ? 'KK Nagar Weather Station' : 'Neelangarai Weather Station';
     graphDataLoaded = false;
