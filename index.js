@@ -488,6 +488,14 @@ async function syncWithEcowitt(station, forceWrite = false) {
                     st.lastArchivedDate = todayISTStr;
                     st.cachedData = null;
                     resetStateBuffers(station);
+
+                    // Also reset Postgres buffer to prevent stale peaks
+                    try {
+                        await resetBufferPeaksDB(station);
+                        console.log(`✅ Buffer peaks reset for [${station.id}]`);
+                    } catch (err) {
+                        console.error(`⚠️ Failed to reset buffer peaks for [${station.id}]:`, err.message);
+                    }
                 }
 
                 await client.query('COMMIT');
