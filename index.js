@@ -409,97 +409,104 @@ async function syncWithEcowitt(station, forceWrite = false) {
             };
 
             const client = await pool.connect();
-            try {
-                await client.query('BEGIN');
+try {
+    await client.query('BEGIN');
 
-                const checkStart = new Date(Date.now() - 5 * 60 * 1000).toISOString();
-                const checkEnd   = new Date(Date.now() + 5 * 60 * 1000).toISOString();
-                const dupCheck   = await client.query(`
-                    SELECT 1 FROM weather_history 
-                    WHERE station_id = $1 AND time BETWEEN $2 AND $3 LIMIT 1
-                `, [station.id, checkStart, checkEnd]);
+    const checkStart = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+    const checkEnd   = new Date(Date.now() + 5 * 60 * 1000).toISOString();
+    const dupCheck   = await client.query(`
+        SELECT 1 FROM weather_history 
+        WHERE station_id = $1 AND time BETWEEN $2 AND $3 LIMIT 1
+    `, [station.id, checkStart, checkEnd]);
 
-                if (dupCheck.rows.length > 0) {
-                    console.log(`⚠️ Duplicate skipped [${station.id}]`);
-                    await client.query('ROLLBACK');
-                    dbWriteSuccess = true;
-                    client.release();
-                    await resetBufferPeaksDB(station);
-                    return st.cachedData;
-                }
+    if (dupCheck.rows.length > 0) {
+        console.log(`⚠️ Duplicate skipped [${station.id}]`);
+        await client.query('ROLLBACK');
+        dbWriteSuccess = true;
+        client.release();
+        await resetBufferPeaksDB(station);
+        return st.cachedData;
+    }
 
-                let timeSql = 'NOW()';
-                if (hour === 0 && minute < 5) {
-                    timeSql = "(date_trunc('day', NOW() AT TIME ZONE 'Asia/Kolkata') AT TIME ZONE 'Asia/Kolkata') - INTERVAL '1 second'";
-                }
+    let timeSql = 'NOW()';
+    if (hour === 0 && minute < 5) {
+        timeSql = "(date_trunc('day', NOW() AT TIME ZONE 'Asia/Kolkata') AT TIME ZONE 'Asia/Kolkata') - INTERVAL '1 second'";
+    }
 
-                const dbMaxT = snap.maxT === -999 ? r.tempF   : snap.maxT;
-                const dbMinT = snap.minT ===  999 ? r.tempF   : snap.minT;
-                const dbW    = snap.tW   === null  ? r.windMph : snap.w;
-                const dbG    = snap.tG   === null  ? r.gustMph : snap.g;
-                const dbRR   = snap.rr || 0;
+    const dbMaxT = snap.maxT === -999 ? r.tempF   : snap.maxT;
+    const dbMinT = snap.minT ===  999 ? r.tempF   : snap.minT;
+    const dbW    = snap.tW   === null  ? r.windMph : snap.w;
+    const dbG    = snap.tG   === null  ? r.gustMph : snap.g;
+    const dbRR   = snap.rr || 0;
 
-                await client.query(`
-                    INSERT INTO weather_history 
-                    (station_id, time, temp_f, temp_min_f, temp_current_f, humidity,
-                     wind_speed_mph, wind_gust_mph, rain_rate_in, daily_rain_in,
-                     max_w_time, max_t_time, min_t_time, max_r_time, max_g_time,
-                     solar_radiation, press_rel)
-                    VALUES ($1, ${timeSql}, $2, $3, $4, $5, $6, $7, $8, $9,
-                            $10, $11, $12, $13, $14, $15, $16)
-                `, [
-                    station.id,
-                    dbMaxT, dbMinT, r.tempF, liveHum, dbW, dbG, dbRR, r.dailyIn,
-                    snap.tW    || new Date().toISOString(),
-                    snap.tMaxT || new Date().toISOString(),
-                    snap.tMinT || new Date().toISOString(),
-                    snap.tRR   || new Date().toISOString(),
-                    snap.tG    || new Date().toISOString(),
-                    r.solar, r.pressRaw
-                ]);
+    await client.query(`
+        INSERT INTO weather_history 
+        (station_id, time, temp_f, temp_min_f, temp_current_f, humidity,
+         wind_speed_mph, wind_gust_mph, rain_rate_in, daily_rain_in,
+         max_w_time, max_t_time, min_t_time, max_r_time, max_g_time,
+         solar_radiation, press_rel)
+        VALUES ($1, ${timeSql}, $2, $3, $4, $5, $6, $7, $8, $9,
+                $10, $11, $12, $13, $14, $15, $16)
+    `, [
+        station.id,
+        dbMaxT, dbMinT, r.tempF, liveHum, dbW, dbG, dbRR, r.dailyIn,
+        snap.tW    || new Date().toISOString(),
+        snap.tMaxT || new Date().toISOString(),
+        snap.tMinT || new Date().toISOString(),
+        snap.tRR   || new Date().toISOString(),
+        snap.tG    || new Date().toISOString(),
+        r.solar, r.pressRaw
+    ]);
 
-                // Midnight rollup
-                if (hour === 0 && minute < 30 && st.lastArchivedDate !== todayISTStr) {
-                    await client.query(`
-                        INSERT INTO daily_max_records 
-                            (station_id, record_date, max_temp_c, min_temp_c, max_wind_kmh, max_gust_kmh, total_rain_mm)
-                        SELECT 
-                            station_id,
-                            (time AT TIME ZONE 'Asia/Kolkata')::date,
-                            MAX((temp_f - 32) * 5/9), MIN((temp_min_f - 32) * 5/9),
-                            MAX(wind_speed_mph * 1.60934), MAX(wind_gust_mph * 1.60934),
-                            MAX(daily_rain_in * 25.4)
-                        FROM weather_history
-                        WHERE station_id = $1
-                          AND (time AT TIME ZONE 'Asia/Kolkata')::date < $2::date
-                        GROUP BY station_id, (time AT TIME ZONE 'Asia/Kolkata')::date
-                        ON CONFLICT (station_id, record_date) DO UPDATE SET
-                            max_temp_c=EXCLUDED.max_temp_c, min_temp_c=EXCLUDED.min_temp_c,
-                            max_wind_kmh=EXCLUDED.max_wind_kmh, max_gust_kmh=EXCLUDED.max_gust_kmh,
-                            total_rain_mm=EXCLUDED.total_rain_mm
-                    `, [station.id, todayISTStr]);
+    // Midnight rollup — runs INSIDE transaction
+    let didRollup = false;
+    if (hour === 0 && minute < 30 && st.lastArchivedDate !== todayISTStr) {
+        await client.query(`
+            INSERT INTO daily_max_records 
+                (station_id, record_date, max_temp_c, min_temp_c, max_wind_kmh, max_gust_kmh, total_rain_mm)
+            SELECT 
+                station_id,
+                (time AT TIME ZONE 'Asia/Kolkata')::date,
+                MAX((temp_f - 32) * 5/9), MIN((temp_min_f - 32) * 5/9),
+                MAX(wind_speed_mph * 1.60934), MAX(wind_gust_mph * 1.60934),
+                MAX(daily_rain_in * 25.4)
+            FROM weather_history
+            WHERE station_id = $1
+              AND (time AT TIME ZONE 'Asia/Kolkata')::date < $2::date
+            GROUP BY station_id, (time AT TIME ZONE 'Asia/Kolkata')::date
+            ON CONFLICT (station_id, record_date) DO UPDATE SET
+                max_temp_c=EXCLUDED.max_temp_c, min_temp_c=EXCLUDED.min_temp_c,
+                max_wind_kmh=EXCLUDED.max_wind_kmh, max_gust_kmh=EXCLUDED.max_gust_kmh,
+                total_rain_mm=EXCLUDED.total_rain_mm
+        `, [station.id, todayISTStr]);
 
-                    await client.query(`
-                        DELETE FROM weather_history 
-                        WHERE station_id = $1 
-                          AND (time AT TIME ZONE 'Asia/Kolkata')::date < $2::date
-                    `, [station.id, todayISTStr]);
+        await client.query(`
+            DELETE FROM weather_history 
+            WHERE station_id = $1 
+              AND (time AT TIME ZONE 'Asia/Kolkata')::date < $2::date
+        `, [station.id, todayISTStr]);
 
-                    
+        didRollup = true;
+    }
 
-                await client.query('COMMIT');
-                st.lastArchivedDate = todayISTStr;
-                st.cachedData = null;      
-                resetStateBuffers(station);
-                st.dataChangedSinceLastRead = true;
-                dbWriteSuccess = true;
+    // Single COMMIT covers everything
+    await client.query('COMMIT');
 
+    // Update in-memory state ONLY after confirmed commit
+    if (didRollup) {
+        st.lastArchivedDate = todayISTStr;
+        st.cachedData = null;
+        resetStateBuffers(station);
+        console.log(`✅ Midnight rollup complete [${station.id}]`);
+    }
 
-            } catch (err) {
-                await client.query('ROLLBACK');
-                console.error(`CRITICAL: DB Write Failed [${station.id}]`, err);
-            } finally { client.release(); }
-        }
+    st.dataChangedSinceLastRead = true;
+    dbWriteSuccess = true;
+
+} catch (err) {
+    await client.query('ROLLBACK');
+    console.error(`CRITICAL: DB Write Failed [${station.id}]`, err);
+} finally { client.release(); }
 
         // Load max/min from DB if data changed
         let tempRate = st.cachedData?.temp?.rate || 0;
