@@ -485,22 +485,15 @@ async function syncWithEcowitt(station, forceWrite = false) {
                           AND (time AT TIME ZONE 'Asia/Kolkata')::date < $2::date
                     `, [station.id, todayISTStr]);
 
-                    st.lastArchivedDate = todayISTStr;
-                    st.cachedData = null;
-                    resetStateBuffers(station);
-
-                    // Also reset Postgres buffer to prevent stale peaks
-                    try {
-                        await resetBufferPeaksDB(station);
-                        console.log(`✅ Buffer peaks reset for [${station.id}]`);
-                    } catch (err) {
-                        console.error(`⚠️ Failed to reset buffer peaks for [${station.id}]:`, err.message);
-                    }
-                }
+                    
 
                 await client.query('COMMIT');
+                st.lastArchivedDate = todayISTStr;
+                st.cachedData = null;      
+                resetStateBuffers(station);
                 st.dataChangedSinceLastRead = true;
                 dbWriteSuccess = true;
+
 
             } catch (err) {
                 await client.query('ROLLBACK');
