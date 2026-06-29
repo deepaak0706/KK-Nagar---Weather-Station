@@ -1170,7 +1170,7 @@ app.get("/", (req, res) => {
     @media screen and (max-width: 767px) {
     body {
         background: var(--card) !important; 
-        padding: 24px 16px 120px 16px;
+        padding: calc(24px + env(safe-area-inset-top, 0px)) 16px 120px 16px;
     }
 
     .card {
