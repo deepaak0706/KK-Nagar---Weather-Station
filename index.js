@@ -1260,6 +1260,80 @@ app.get("/", (req, res) => {
     .grid-system .card:nth-child(4) { border-top-color: #06b6d4; } /* Atmospheric = Cyan */
 }
 
+.station-picker { position: relative; }
+
+.station-chip {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--card);
+    border: 1.5px solid var(--accent);
+    border-radius: 100px;
+    padding: 7px 14px 7px 12px;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--accent);
+    cursor: pointer;
+    box-shadow: var(--glow);
+    backdrop-filter: blur(20px);
+}
+.station-chip .pin { font-size: 12px; }
+.station-chip .chev { font-size: 10px; opacity: 0.7; transition: transform 0.25s ease; }
+.station-chip.open .chev { transform: rotate(180deg); }
+
+.station-menu {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    min-width: 160px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    box-shadow: var(--glow);
+    backdrop-filter: blur(20px);
+    overflow: hidden;
+    z-index: 100;
+    opacity: 0;
+    transform: translateY(-6px);
+    pointer-events: none;
+    transition: all 0.2s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.station-menu.open {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
+}
+
+.station-menu-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 11px 14px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+    cursor: pointer;
+    border-bottom: 1px solid var(--border);
+}
+.station-menu-item:last-child { border-bottom: none; }
+.station-menu-item .dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: transparent;
+}
+.station-menu-item.active {
+    color: var(--accent);
+    background: rgba(3, 105, 161, 0.08);
+}
+.station-menu-item.active .dot { background: var(--accent); }
+
+@media screen and (max-width: 480px) {
+    .header { flex-wrap: wrap; }
+    .station-chip { font-size: 12px; padding: 6px 12px 6px 10px; }
+}
+
+
 </style>
 </head>
 <body>
@@ -1267,6 +1341,22 @@ app.get("/", (req, res) => {
         <div class="header">
     <h1 id="station-title">KK Nagar Weather Station</h1>
     <div class="header-actions">
+        <div class="station-picker" id="stationPicker">
+    <button class="station-chip" id="stationChipBtn" onclick="toggleStationMenu()">
+        <span class="pin">📍</span>
+        <span id="stationChipLabel">KK Nagar</span>
+        <span class="chev">▾</span>
+    </button>
+    <div class="station-menu" id="stationMenu">
+        <div class="station-menu-item active" id="opt-kknagar" onclick="switchStation('kknagar')">
+            <span>KK Nagar</span><span class="dot"></span>
+        </div>
+        <div class="station-menu-item" id="opt-neelangarai" onclick="switchStation('neelangarai')">
+            <span>Neelangarai</span><span class="dot"></span>
+        </div>
+    </div>
+</div>
+
                 <div class="status-bar"><div class="live-dot"></div><div class="timestamp"><span id="ts">--:--:--</span></div></div>
                 <div class="theme-toggle" id="themeToggle">
                     <div class="theme-btn" id="btn-light">LIGHT</div>
@@ -1282,15 +1372,8 @@ app.get("/", (req, res) => {
             <button onclick="showPage('historical')" id="tab-hist" class="tab-btn">Historical Data</button>
        </div>
 
-       <div style="margin-bottom: 24px; background: var(--card); border: 1px solid var(--border); border-radius: 18px; padding: 5px; box-shadow: var(--glow); display: flex; position: relative;">
-    <div id="station-slider" style="position:absolute; top:5px; bottom:5px; left:5px; width:calc(50% - 5px); background: var(--accent); border-radius: 13px; transition: transform 0.3s cubic-bezier(0.22,1,0.36,1); z-index:0;"></div>
-    <button id="btn-kkn" onclick="switchStation('kknagar')" style="flex:1; padding:14px; border:none; background:transparent; font-family:inherit; font-size:14px; font-weight:700; cursor:pointer; border-radius:13px; position:relative; z-index:1; color:white; transition:color 0.3s ease;">
-        📍 KK Nagar
-    </button>
-    <button id="btn-nl" onclick="switchStation('neelangarai')" style="flex:1; padding:14px; border:none; background:transparent; font-family:inherit; font-size:14px; font-weight:700; cursor:pointer; border-radius:13px; position:relative; z-index:1; color:var(--muted); transition:color 0.3s ease;">
-        📍 Neelangarai
-    </button>
-</div>
+      
+
 
         <div id="page-dashboard">
             <div class="grid-system">
@@ -1581,26 +1664,37 @@ app.get("/", (req, res) => {
 function switchStation(id) {
     currentStation = id;
     localStorage.setItem('weatherStation', id);
-    
-    const slider = document.getElementById('station-slider');
-    const kknBtn = document.getElementById('btn-kkn');
-    const nlBtn  = document.getElementById('btn-nl');
-    
-    if (id === 'kknagar') {
-        slider.style.transform = 'translateX(0)';
-        kknBtn.style.color = 'white';
-        nlBtn.style.color = 'var(--muted)';
-    } else {
-        slider.style.transform = 'translateX(100%)';
-        kknBtn.style.color = 'var(--muted)';
-        nlBtn.style.color = 'white';
-    }
-    
-    document.getElementById('station-title').textContent = 
+
+    document.getElementById('stationChipLabel').textContent =
+        id === 'kknagar' ? 'KK Nagar' : 'Neelangarai';
+
+    document.getElementById('opt-kknagar').classList.toggle('active', id === 'kknagar');
+    document.getElementById('opt-neelangarai').classList.toggle('active', id === 'neelangarai');
+
+    document.getElementById('station-title').textContent =
         id === 'kknagar' ? 'KK Nagar Weather Station' : 'Neelangarai Weather Station';
+
+    closeStationMenu();
     graphDataLoaded = false;
     update();
 }
+
+function toggleStationMenu() {
+    document.getElementById('stationMenu').classList.toggle('open');
+    document.getElementById('stationChipBtn').classList.toggle('open');
+}
+
+function closeStationMenu() {
+    document.getElementById('stationMenu').classList.remove('open');
+    document.getElementById('stationChipBtn').classList.remove('open');
+}
+
+// Close the dropdown if the user taps anywhere outside it
+document.addEventListener('click', function(e) {
+    const picker = document.getElementById('stationPicker');
+    if (picker && !picker.contains(e.target)) closeStationMenu();
+});
+
 
 // Apply saved station on load
 
