@@ -31,7 +31,6 @@ const STATIONS = {
         appKey: APPLICATION_KEY,
         apiKey: API_KEY,
         mac: MAC,
-        bufferId: 1,
     },
     neelangarai: {
         id: 'neelangarai',
@@ -40,7 +39,6 @@ const STATIONS = {
         appKey: NL_APPLICATION_KEY,
         apiKey: NL_API_KEY,
         mac: NL_MAC,
-        bufferId: 2,
     },
 };
 
@@ -71,13 +69,22 @@ function resetStateBuffers(station) {
     s.tW = null; s.tG = null; s.tMaxT = null; s.tMinT = null; s.tRR = null;
 }
 
-// REPLACE old function with this:
 async function loadBufferState(station) {
     const res = await pool.query(
-        'SELECT * FROM buffer_state WHERE id = $1',
-        [station.bufferId]
+        'SELECT * FROM buffer_state WHERE station_id = $1',
+        [station.id]  // ← FIX: use station.id, not station.bufferId
     );
     const row = res.rows[0];
+    if (!row) {
+        // If row doesn't exist for this station, return defaults
+        return {
+            lastRainRaw: null,
+            lastRainTime: 0,
+            lastCalculatedRate: 0,
+            bufW: 0, bufG: 0, bufMaxT: -999, bufMinT: 999, bufRR: 0,
+            tW: null, tG: null, tMaxT: null, tMinT: null, tRR: null,
+        };
+    }
     return {
         lastRainRaw: row.last_rain_raw,
         lastRainTime: row.last_rain_time ? Number(row.last_rain_time) : 0,
@@ -101,12 +108,12 @@ async function saveBufferState(station, b) {
             last_rain_raw = $1, last_rain_time = $2, last_calculated_rate = $3,
             buf_w = $4, buf_g = $5, buf_max_t = $6, buf_min_t = $7, buf_rr = $8,
             t_w = $9, t_g = $10, t_max_t = $11, t_min_t = $12, t_rr = $13
-        WHERE id = $14
+        WHERE station_id = $14
     `, [
         b.lastRainRaw, b.lastRainTime, b.lastCalculatedRate,
         b.bufW, b.bufG, b.bufMaxT, b.bufMinT, b.bufRR,
         b.tW, b.tG, b.tMaxT, b.tMinT, b.tRR,
-        station.bufferId
+        station.id  // ← FIX: use station.id
     ]);
 }
 
@@ -115,10 +122,9 @@ async function resetBufferPeaksDB(station) {
         UPDATE buffer_state SET
             buf_w = 0, buf_g = 0, buf_max_t = -999, buf_min_t = 999, buf_rr = 0,
             t_w = NULL, t_g = NULL, t_max_t = NULL, t_min_t = NULL, t_rr = NULL
-        WHERE id = $1
-    `, [station.bufferId]);
+        WHERE station_id = $1
+    `, [station.id]);  // ← FIX: use station.id
 }
-
 
 const getCard = (a) => {
     const directions = ["N","NNE","NE","ENE","E","ESE","SE","SSE","S","SSW","SW","WSW","W","WNW","NW","NNW"];
