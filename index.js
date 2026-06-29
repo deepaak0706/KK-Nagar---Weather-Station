@@ -508,6 +508,8 @@ try {
     console.error(`CRITICAL: DB Write Failed [${station.id}]`, err);
 } finally { client.release(); }
 
+        }
+
         // Load max/min from DB if data changed
         let tempRate = st.cachedData?.temp?.rate || 0;
         let humRate  = st.cachedData?.atmo?.hTrend || 0;
