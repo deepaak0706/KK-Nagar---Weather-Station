@@ -234,7 +234,7 @@ async function bufferOnlyUpdate(station) {
             const response = await fetch(url);
             const json = await response.json();
             if (!json || !json[0]) throw new Error("Invalid Ambient API Response");
-            const d = json[0];
+            const d = json[0].lastData;
 
             apiW = parseFloat(d.windspeedmph);
             apiG = parseFloat(d.windgustmph);
@@ -317,7 +317,7 @@ async function syncWithEcowitt(station, forceWrite = false) {
             const response = await fetch(url);
             const json = await response.json();
             if (!json || !json[0]) throw new Error("Invalid Ambient Response");
-            const d = json[0];
+            const d = json[0].lastData;
             return {
                 tempF:      parseFloat(d.tempf),
                 dewF:       parseFloat(d.dewPoint),
