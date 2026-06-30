@@ -1,3 +1,5 @@
+Merge midnight fix
+
 const express = require("express"); 
 
 const fetch = require("node-fetch");
@@ -331,17 +333,12 @@ async function syncWithEcowitt(station, forceWrite = false) {
     };
 
     // ── VISITOR PATH (cache < 9 min) ─────────────────────────
-if (!forceWrite && st.cachedData && (now - st.lastFetchTime < 540000)) {
-    try {
-        const buf = await loadBufferState(station);
-        const fmtIso = (iso) => iso ? new Date(iso).toLocaleTimeString('en-IN', {
-            hour: '2-digit', minute: '2-digit', second: '2-digit',
-            hour12: false, timeZone: 'Asia/Kolkata'
-        }) : fmtL();
-
-        // If live=true (30s frontend fetch) → hit API and update live values
-        if (req.query.live === 'true') {
+    if (!forceWrite && st.cachedData && (now - st.lastFetchTime < 540000)) {
+        try {
             const r = await fetchLiveData();
+            const buf = await loadBufferState(station);
+            const liveRR = parseFloat((buf.lastCalculatedRate * 25.4).toFixed(1));
+
             const liveTemp = parseFloat(((r.tempF - 32) * 5 / 9).toFixed(1));
             const liveWind = parseFloat((r.windMph * 1.60934).toFixed(1));
             const liveGust = parseFloat((r.gustMph * 1.60934).toFixed(1));
@@ -356,37 +353,30 @@ if (!forceWrite && st.cachedData && (now - st.lastFetchTime < 540000)) {
             st.cachedData.wind.speed = liveWind;
             st.cachedData.wind.gust = liveGust;
             st.cachedData.rain.total = Math.round(r.dailyIn * 2540) / 100;
+            st.cachedData.rain.rate = liveRR;
+
+            const fmtIso = (iso) => iso ? new Date(iso).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' }) : fmtL();
 
             if (liveTemp > st.cachedData.temp.max) { st.cachedData.temp.max = liveTemp; st.cachedData.temp.maxTime = fmtL(); }
             if (liveTemp < st.cachedData.temp.min) { st.cachedData.temp.min = liveTemp; st.cachedData.temp.minTime = fmtL(); }
             if (liveWind > st.cachedData.wind.maxS) { st.cachedData.wind.maxS = liveWind; st.cachedData.wind.maxSTime = fmtL(); }
             if (liveGust > st.cachedData.wind.maxG) { st.cachedData.wind.maxG = liveGust; st.cachedData.wind.maxGTime = fmtL(); }
+            if (liveRR > st.cachedData.rain.maxR) { st.cachedData.rain.maxR = liveRR; st.cachedData.rain.maxRTime = fmtL(); }
 
+            if (buf.bufMaxT !== -999) { const v = parseFloat(((buf.bufMaxT-32)*5/9).toFixed(1)); if (v > st.cachedData.temp.max) { st.cachedData.temp.max = v; st.cachedData.temp.maxTime = fmtIso(buf.tMaxT); } }
+            if (buf.bufMinT !== 999)  { const v = parseFloat(((buf.bufMinT-32)*5/9).toFixed(1)); if (v < st.cachedData.temp.min) { st.cachedData.temp.min = v; st.cachedData.temp.minTime = fmtIso(buf.tMinT); } }
+            if (buf.bufW > 0) { const v = parseFloat((buf.bufW*1.60934).toFixed(1)); if (v > st.cachedData.wind.maxS) { st.cachedData.wind.maxS = v; st.cachedData.wind.maxSTime = fmtIso(buf.tW); } }
+            if (buf.bufG > 0) { const v = parseFloat((buf.bufG*1.60934).toFixed(1)); if (v > st.cachedData.wind.maxG) { st.cachedData.wind.maxG = v; st.cachedData.wind.maxGTime = fmtIso(buf.tG); } }
+            if (buf.bufRR > 0) { const v = parseFloat((buf.bufRR*25.4).toFixed(1)); if (v > st.cachedData.rain.maxR) { st.cachedData.rain.maxR = v; st.cachedData.rain.maxRTime = fmtIso(buf.tRR); } }
+
+            st.cachedData.lastSync = new Date().toISOString();
             st.lastFetchTime = now;
+            return st.cachedData;
+        } catch (e) {
+            console.error(`Visitor Sync Error [${station.id}]:`, e);
+            return st.cachedData;
         }
-
-        // Always update rain rate from buffer regardless
-        const liveRR = parseFloat((buf.lastCalculatedRate * 25.4).toFixed(1));
-        st.cachedData.rain.rate = liveRR;
-        if (liveRR > st.cachedData.rain.maxR) { st.cachedData.rain.maxR = liveRR; st.cachedData.rain.maxRTime = fmtL(); }
-
-        // Always check buffer peaks
-        if (buf.bufMaxT !== -999) { const v = parseFloat(((buf.bufMaxT-32)*5/9).toFixed(1)); if (v > st.cachedData.temp.max) { st.cachedData.temp.max = v; st.cachedData.temp.maxTime = fmtIso(buf.tMaxT); } }
-        if (buf.bufMinT !== 999)  { const v = parseFloat(((buf.bufMinT-32)*5/9).toFixed(1)); if (v < st.cachedData.temp.min) { st.cachedData.temp.min = v; st.cachedData.temp.minTime = fmtIso(buf.tMinT); } }
-        if (buf.bufW > 0) { const v = parseFloat((buf.bufW*1.60934).toFixed(1)); if (v > st.cachedData.wind.maxS) { st.cachedData.wind.maxS = v; st.cachedData.wind.maxSTime = fmtIso(buf.tW); } }
-        if (buf.bufG > 0) { const v = parseFloat((buf.bufG*1.60934).toFixed(1)); if (v > st.cachedData.wind.maxG) { st.cachedData.wind.maxG = v; st.cachedData.wind.maxGTime = fmtIso(buf.tG); } }
-        if (buf.bufRR > 0) { const v = parseFloat((buf.bufRR*25.4).toFixed(1)); if (v > st.cachedData.rain.maxR) { st.cachedData.rain.maxR = v; st.cachedData.rain.maxRTime = fmtIso(buf.tRR); } }
-
-        st.cachedData.lastSync = new Date().toISOString();
-        return st.cachedData;
-
-    } catch (e) {
-        console.error(`Visitor path error [${station.id}]:`, e);
-        return st.cachedData;
     }
-}
-
-
 
     // ── WRITER PATH ──────────────────────────────────────────
     try {
@@ -1907,7 +1897,7 @@ document.addEventListener('click', function(e) {
 
         async function update() {
             try {
-                const res = await fetch('/weather?station=' + currentStation + '&live=true&v=' + Date.now());
+                const res = await fetch('/weather?station=' + currentStation + '&v=' + Date.now()); 
                 const d = await res.json(); 
                 if (!d || d.error) return;
 
