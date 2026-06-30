@@ -431,7 +431,6 @@ try {
         await client.query('ROLLBACK');
         dbWriteSuccess = true;
         client.release();
-        await resetBufferPeaksDB(station);
         return st.cachedData;
     }
 
@@ -446,6 +445,13 @@ try {
     const dbG    = snap.tG   === null  ? r.gustMph : snap.g;
     const dbRR   = snap.rr || 0;
 
+    if (isNaN(r.tempF) || isNaN(dbMaxT) || isNaN(dbMinT) || isNaN(dbW) || isNaN(dbG)) {
+    console.error(`Bad reading — skipping insert [${station.id}]`, { tempF: r.tempF, dbMaxT, dbMinT, dbW, dbG });
+    await client.query('ROLLBACK');
+    client.release();
+    return st.cachedData;
+    }
+    
     await client.query(`
         INSERT INTO weather_history 
         (station_id, time, temp_f, temp_min_f, temp_current_f, humidity,
