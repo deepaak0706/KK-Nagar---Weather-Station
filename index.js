@@ -31,6 +31,8 @@ const STATIONS = {
         appKey: APPLICATION_KEY,
         apiKey: API_KEY,
         mac: MAC,
+        yearlyBaseline: 312.2,  // ← KK Nagar: hardcoded baseline (mm)
+        yearlyApiOffset: null,  // Will store the API's initial value
     },
     neelangarai: {
         id: 'neelangarai',
@@ -39,6 +41,8 @@ const STATIONS = {
         appKey: NL_APPLICATION_KEY,
         apiKey: NL_API_KEY,
         mac: NL_MAC,
+        yearlyBaseline: 0,  // No baseline needed, use API value directly
+        yearlyApiOffset: null,
     },
 };
 
@@ -53,6 +57,7 @@ const stationState = {
         tW: null, tG: null, tMaxT: null, tMinT: null, tRR: null,
         lastArchivedDate: null, dataChangedSinceLastRead: false,
         summaryCache: null, lastSummaryFetchDate: null, lastDateSeen: null,
+        yearlyApiOffset: null,  // ← ADD THIS
     },
     neelangarai: { 
         cachedData: null, lastFetchTime: 0, lastDbWrite: 0,
@@ -61,8 +66,10 @@ const stationState = {
         tW: null, tG: null, tMaxT: null, tMinT: null, tRR: null,
         lastArchivedDate: null, dataChangedSinceLastRead: false,
         summaryCache: null, lastSummaryFetchDate: null, lastDateSeen: null,
+        yearlyApiOffset: null,  // ← ADD THIS
     },
 };
+
 function resetStateBuffers(station) {
     const s = stationState[station.id];
     s.bufW = 0; s.bufG = 0; s.bufMaxT = -999; s.bufMinT = 999; s.bufRR = 0;
@@ -592,15 +599,28 @@ try {
             temp: { current: liveTemp, max: mx_t, maxTime: mx_t_time, min: mn_t, minTime: mn_t_time, realFeel: calculateRealFeel(liveTemp, liveHum), rate: tempRate, dew: liveDewC },
             atmo: { hum: liveHum, hTrend: humRate, press: livePress, pTrend: pressRate, sol: r.solar, uv: r.uv },
             wind: { speed: liveWind, gust: liveGust, maxS: mx_w, maxSTime: mx_w_t, maxG: mx_g, maxGTime: mx_g_t, deg: r.windDeg, card: getCard(r.windDeg) },
-            rain: {
-                total:   Math.round(r.dailyIn  * 2540) / 100,
-                rate:    liveRR,
-                maxR:    mx_r,
-                maxRTime: mx_r_t,
-                weekly:  Math.round(r.weeklyIn  * 2540) / 100,
-                monthly: Math.round(r.monthlyIn * 2540) / 100,
-                yearly:  Math.round(r.yearlyIn  * 2540) / 100,
-            },
+            rain: (() => {
+    let yearlyMm = Math.round(r.yearlyIn * 25.4);
+    
+    if (station.yearlyBaseline > 0) {  // Only for KK Nagar
+        // First read: capture the API's baseline from today
+        if (st.yearlyApiOffset === null) {
+            st.yearlyApiOffset = yearlyMm;
+        }
+        // Calculate: hardcoded baseline + (current API value - API baseline from today)
+        yearlyMm = station.yearlyBaseline + (yearlyMm - st.yearlyApiOffset);
+    }
+    
+    return {
+        total:   Math.round(r.dailyIn  * 2540) / 100,
+        rate:    liveRR,
+        maxR:    mx_r,
+        maxRTime: mx_r_t,
+        weekly:  Math.round(r.weeklyIn  * 2540) / 100,
+        monthly: Math.round(r.monthlyIn * 2540) / 100,
+        yearly:  yearlyMm,
+    };
+})(),
             lastSync: new Date().toISOString()
         };
 
