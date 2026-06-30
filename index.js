@@ -1959,7 +1959,7 @@ document.addEventListener('click', function(e) {
             ctxW.stroke(); requestAnimationFrame(animateWind);
         }
 
-        applyTheme(); animateWind(); setInterval(update, 60000);
+        applyTheme(); animateWind(); setInterval(update, 30000);
 
         function showPage(pageId) {
     // 1. Toggle visibility of the three pages
