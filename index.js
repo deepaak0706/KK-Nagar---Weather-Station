@@ -230,7 +230,7 @@ async function bufferOnlyUpdate(station) {
             dailyRainInches = parseFloat(d.rainfall.daily.value) / 25.4;
 
         } else if (station.type === 'ambient') {
-            const url = `https://api.ambientweather.net/v1/devices/${station.mac}?applicationKey=${station.appKey}&apiKey=${station.apiKey}&limit=1`;
+            const url = `https://api.ambientweather.net/v1/devices?applicationKey=${station.appKey}&apiKey=${station.apiKey}&limit=1`;
             const response = await fetch(url);
             const json = await response.json();
             if (!json || !json[0]) throw new Error("Invalid Ambient API Response");
@@ -313,7 +313,7 @@ async function syncWithEcowitt(station, forceWrite = false) {
                 pressRaw:   parseFloat(d.pressure.relative.value),
             };
         } else {
-            const url = `https://api.ambientweather.net/v1/devices/${station.mac}?applicationKey=${station.appKey}&apiKey=${station.apiKey}&limit=1`;
+            const url = `https://api.ambientweather.net/v1/devices?applicationKey=${station.appKey}&apiKey=${station.apiKey}&limit=1`;
             const response = await fetch(url);
             const json = await response.json();
             if (!json || !json[0]) throw new Error("Invalid Ambient Response");
