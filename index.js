@@ -2135,7 +2135,11 @@ window.updateArchiveFilter = function() {
 
 window.showHistoricalUI = function() {
     var content = document.getElementById('historical-content');
-    var years = [2019, 2020, 2021, 2022, 2023, 2024, 2025, 2026];
+    var station = STATIONS[currentStation];  // ← ADD THIS LINE
+    var years = [];
+    for (var y = station.dataStartYear; y <= station.dataEndYear; y++) {  // ← USE CONFIG
+        years.push(y);
+    }
     var yearOptions = "";
     for (var i = 0; i < years.length; i++) {
         yearOptions += '<option value="' + years[i] + '">' + years[i] + '</option>';
@@ -2145,9 +2149,8 @@ window.showHistoricalUI = function() {
         '<div class="archive-container" style="animation: fadeIn 0.4s ease;">' +
             '<div style="margin-bottom: 20px; padding: 15px; background: var(--card); border-radius: 16px; border: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">' +
                 '<div style="font-weight: 800; color: var(--accent); font-size: 0.8rem; letter-spacing: 1px;">' + 
-STATIONS[currentStation].name.toUpperCase() + 
-' RAINFALL HISTORY</div>'
- +
+                STATIONS[currentStation].name.toUpperCase() + 
+                ' RAINFALL HISTORY</div>' +
                 '<div style="display: flex; gap: 8px;">' +
                     '<select id="histYearSelect" class="glass-select" style="padding: 5px 10px; border-radius: 8px; background: #1e293b; color: white; border: 1px solid #334155;">' +
                         yearOptions +
@@ -2162,6 +2165,7 @@ STATIONS[currentStation].name.toUpperCase() +
             '</div>' +
         '</div>';
 };
+
 
 /* --- ADD THIS: THE MISSING FETCH ENGINE --- */
 
