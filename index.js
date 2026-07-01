@@ -723,12 +723,13 @@ app.get("/api/history_graphs", async (req, res) => {
 // NEW: Route to handle Historical Rainfall Fetch
 app.get('/api/historical-rain', async (req, res) => {
     const { year } = req.query;
+    const s = getStation(req);  // ← Get current station
     if (!year) return res.status(400).json({ error: "Year is required" });
 
     try {
         const result = await pool.query(
-            'SELECT month_val, rainfall_mm FROM historical_rainfall WHERE year_val = $1 ORDER BY id ASC',
-            [parseInt(year)]
+            'SELECT month_val, rainfall_mm FROM historical_rainfall WHERE year_val = $1 AND station_id = $2 ORDER BY id ASC',
+            [parseInt(year), s.id]  // ← Add station filter
         );
         res.json({ year: year, data: result.rows });
     } catch (err) {
@@ -736,6 +737,7 @@ app.get('/api/historical-rain', async (req, res) => {
         res.status(500).json({ error: "Database query failed" });
     }
 });
+
 
 // 5. The User Interface (Your HTML)
 app.get("/", (req, res) => {
