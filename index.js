@@ -31,13 +31,8 @@ const STATIONS = {
         appKey: APPLICATION_KEY,
         apiKey: API_KEY,
         mac: MAC,
-        yearlyBaseline: 312.2,
-        yearlyApiOffset: null,
-        // ← ADD THESE 4 LINES:
-        dataStartYear: 2019,
-        dataEndYear: 2026,
-        summaryStartYear: 2026,
-        summaryEndYear: 2032,
+        yearlyBaseline: 312.2,  // ← KK Nagar: hardcoded baseline (mm)
+        yearlyApiOffset: null,  // Will store the API's initial value
     },
     neelangarai: {
         id: 'neelangarai',
@@ -46,16 +41,10 @@ const STATIONS = {
         appKey: NL_APPLICATION_KEY,
         apiKey: NL_API_KEY,
         mac: NL_MAC,
-        yearlyBaseline: 0,
+        yearlyBaseline: 0,  // No baseline needed, use API value directly
         yearlyApiOffset: null,
-        // ← ADD THESE 4 LINES:
-        dataStartYear: 2020,
-        dataEndYear: 2026,
-        summaryStartYear: 2026,
-        summaryEndYear: 2032,
     },
 };
-
 
 // =============================================
 // PER-STATION MEMORY STATE
@@ -723,13 +712,12 @@ app.get("/api/history_graphs", async (req, res) => {
 // NEW: Route to handle Historical Rainfall Fetch
 app.get('/api/historical-rain', async (req, res) => {
     const { year } = req.query;
-    const s = getStation(req);
     if (!year) return res.status(400).json({ error: "Year is required" });
 
     try {
         const result = await pool.query(
-            'SELECT month_val, rainfall_mm FROM historical_rainfall WHERE year_val = $1 AND station_id = $2 ORDER BY id ASC',
-            [parseInt(year), s.id]
+            'SELECT month_val, rainfall_mm FROM historical_rainfall WHERE year_val = $1 ORDER BY id ASC',
+            [parseInt(year)]
         );
         res.json({ year: year, data: result.rows });
     } catch (err) {
@@ -737,8 +725,6 @@ app.get('/api/historical-rain', async (req, res) => {
         res.status(500).json({ error: "Database query failed" });
     }
 });
-
-
 
 // 5. The User Interface (Your HTML)
 app.get("/", (req, res) => {
@@ -2136,13 +2122,47 @@ window.updateArchiveFilter = function() {
 };
 /* --- END CHIP CHOP --- */
 
+/* --- UPDATED: STRICTLY SAFE UI GENERATION --- */
+
+window.showMonthlySummaryUI = function() {
+    var content = document.getElementById('summary-content');
+    var months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+    
+    var monthOptions = "";
+    for (var i = 0; i < months.length; i++) {
+        var m = months[i];
+        var sel = (selectedMonth === m) ? 'selected' : '';
+        monthOptions += '<option value="' + m + '" ' + sel + '>' + m + '</option>';
+    }
+
+    var yearOptions = "";
+    for (var y = 2026; y <= 2032; y++) {
+        var ySel = (selectedYear == y) ? 'selected' : '';
+        yearOptions += '<option value="' + y + '" ' + ySel + '>' + y + '</option>';
+    }
+
+    // Using '+' instead of backticks to avoid $ issues
+    content.innerHTML = 
+        '<div class="archive-container" style="animation: fadeIn 0.5s ease;">' +
+            '<div style="margin-bottom: 20px; padding: 15px 25px; display: flex; justify-content: space-between; align-items: center; background: var(--card); border-radius: 20px; border: 1px solid var(--border);">' +
+                '<div style="font-weight: 800; letter-spacing: 0.5px; color: var(--accent);">MONTHLY ARCHIVES</div>' +
+                '<div style="display: flex; gap: 10px;">' +
+                    '<select id="monthSelect" class="glass-select">' + monthOptions + '</select>' +
+                    '<select id="yearSelect" class="glass-select">' + yearOptions + '</select>' +
+                    '<button onclick="updateArchiveFilter()" style="padding: 6px 12px; margin-left: 8px; background: var(--accent); color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">Get Data</button>' +
+                '</div>' +
+            '</div>' +
+            '<div id="archive-data-table">' +
+                '<div class="card" style="text-align:center; padding:60px; color: var(--muted);">' +
+                    'Select a month and click "Get Data" to load records.' +
+                '</div>' +
+            '</div>' +
+        '</div>';
+};
+
 window.showHistoricalUI = function() {
     var content = document.getElementById('historical-content');
-    var station = STATIONS[currentStation];  // ← ADD THIS LINE
-    var years = [];
-    for (var y = station.dataStartYear; y <= station.dataEndYear; y++) {  // ← USE CONFIG
-        years.push(y);
-    }
+    var years = [2019, 2020, 2021, 2022, 2023, 2024, 2025, 2026];
     var yearOptions = "";
     for (var i = 0; i < years.length; i++) {
         yearOptions += '<option value="' + years[i] + '">' + years[i] + '</option>';
@@ -2151,9 +2171,7 @@ window.showHistoricalUI = function() {
     content.innerHTML = 
         '<div class="archive-container" style="animation: fadeIn 0.4s ease;">' +
             '<div style="margin-bottom: 20px; padding: 15px; background: var(--card); border-radius: 16px; border: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">' +
-                '<div style="font-weight: 800; color: var(--accent); font-size: 0.8rem; letter-spacing: 1px;">' + 
-                STATIONS[currentStation].name.toUpperCase() + 
-                ' RAINFALL HISTORY</div>' +
+                '<div style="font-weight: 800; color: var(--accent); font-size: 0.8rem; letter-spacing: 1px;">KK NAGAR RAINFALL HISTORY</div>' +
                 '<div style="display: flex; gap: 8px;">' +
                     '<select id="histYearSelect" class="glass-select" style="padding: 5px 10px; border-radius: 8px; background: #1e293b; color: white; border: 1px solid #334155;">' +
                         yearOptions +
@@ -2168,7 +2186,6 @@ window.showHistoricalUI = function() {
             '</div>' +
         '</div>';
 };
-
 
 /* --- ADD THIS: THE MISSING FETCH ENGINE --- */
 
