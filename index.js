@@ -31,8 +31,14 @@ const STATIONS = {
         appKey: APPLICATION_KEY,
         apiKey: API_KEY,
         mac: MAC,
-        yearlyBaseline: 312.2,  // ← KK Nagar: hardcoded baseline (mm)
-        yearlyApiOffset: null,  // Will store the API's initial value
+        yearlyBaseline: 312.2,
+        yearlyApiOffset: null,
+        
+        // ← ADD THESE THREE LINES:
+        dataStartYear: 2019,        // When historical data starts
+        dataEndYear: 2026,          // When historical data ends
+        summaryStartYear: 2026,     // When monthly summary data starts
+        summaryEndYear: 2032,       // When monthly summary data ends
     },
     neelangarai: {
         id: 'neelangarai',
@@ -41,10 +47,17 @@ const STATIONS = {
         appKey: NL_APPLICATION_KEY,
         apiKey: NL_API_KEY,
         mac: NL_MAC,
-        yearlyBaseline: 0,  // No baseline needed, use API value directly
+        yearlyBaseline: 0,
         yearlyApiOffset: null,
+        
+        // ← ADD THESE THREE LINES (might be different dates):
+        dataStartYear: 2020,        // Neelangarai data started later
+        dataEndYear: 2026,
+        summaryStartYear: 2026,
+        summaryEndYear: 2032,
     },
 };
+
 
 // =============================================
 // PER-STATION MEMORY STATE
@@ -716,9 +729,10 @@ app.get('/api/historical-rain', async (req, res) => {
 
     try {
         const result = await pool.query(
-            'SELECT month_val, rainfall_mm FROM historical_rainfall WHERE year_val = $1 ORDER BY id ASC',
-            [parseInt(year)]
-        );
+    'SELECT month_val, rainfall_mm FROM historical_rainfall WHERE year_val = $1 AND station_id = $2 ORDER BY id ASC',
+    [parseInt(year), station.id]  // ← Add station.id filter
+);
+
         res.json({ year: year, data: result.rows });
     } catch (err) {
         console.error("Historical DB Error:", err);
@@ -1925,6 +1939,9 @@ document.addEventListener('click', function(e) {
                 const d = await res.json(); 
                 if (!d || d.error) return;
 
+                // ADD THIS LINE:
+                document.title = document.getElementById('station-title').textContent + ' Weather';  // ← Makes title dynamic!
+
                 updateValueWithFade('t', d.temp.current, 1);
                 updateValueWithFade('w', d.wind.speed, 1);
                 updateValueWithFade('r_tot', d.rain.total, 1);
@@ -2028,23 +2045,24 @@ let selectedYear = new Date().getFullYear().toString();
 
 // 1. Function to show the UI (dropdowns) immediately
 window.showMonthlySummaryUI = function() {
-    const content = document.getElementById('summary-content');
-    const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+    var content = document.getElementById('summary-content');
+    var station = STATIONS[currentStation];  // ← Get current station config
+    var months = ["January", "February", ...];
     
-    let monthOptions = months.map(function(m) {
+    var monthOptions = "";
+    for (var i = 0; i < months.length; i++) {
+        var m = months[i];
         var sel = (selectedMonth === m) ? 'selected' : '';
-        return '<option value="' + m + '" ' + sel + '>' + m + '</option>';
-    }).join('');
+        monthOptions += '<option value="' + m + '" ' + sel + '>' + m + '</option>';
+    }
 
-    let yearOptions = "";
-    const startYear = 2026;
-    const endYear = 2032; // Next 7 years from now
-    
-    for (var y = startYear; y <= endYear; y++) {
+    // Use station config instead of hardcoded values
+    var yearOptions = "";
+    for (var y = station.summaryStartYear; y <= station.summaryEndYear; y++) {  // ← NOW FROM CONFIG!
         var ySel = (selectedYear == y) ? 'selected' : '';
         yearOptions += '<option value="' + y + '" ' + ySel + '>' + y + '</option>';
     }
-
+    
     content.innerHTML = \`
         <div class="archive-container" style="animation: fadeIn 0.5s ease;">
             <div style="margin-bottom: 20px; padding: 15px 25px; display: flex; justify-content: space-between; align-items: center; background: var(--card); border-radius: 20px; border: 1px solid var(--border);">
@@ -2162,16 +2180,26 @@ window.showMonthlySummaryUI = function() {
 
 window.showHistoricalUI = function() {
     var content = document.getElementById('historical-content');
-    var years = [2019, 2020, 2021, 2022, 2023, 2024, 2025, 2026];
+    var station = STATIONS[currentStation];  // ← Get current station config
+    
+    // Build year list from station config (NOT HARDCODED)
+    var years = [];
+    for (var y = station.dataStartYear; y <= station.dataEndYear; y++) {
+        years.push(y);
+    }
+    
     var yearOptions = "";
     for (var i = 0; i < years.length; i++) {
         yearOptions += '<option value="' + years[i] + '">' + years[i] + '</option>';
     }
 
+    // Get station name from config (NOT HARDCODED)
+    var stationName = station.name.toUpperCase();  // ← Dynamic!
+
     content.innerHTML = 
         '<div class="archive-container" style="animation: fadeIn 0.4s ease;">' +
             '<div style="margin-bottom: 20px; padding: 15px; background: var(--card); border-radius: 16px; border: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">' +
-                '<div style="font-weight: 800; color: var(--accent); font-size: 0.8rem; letter-spacing: 1px;">KK NAGAR RAINFALL HISTORY</div>' +
+                '<div style="font-weight: 800; color: var(--accent); font-size: 0.8rem; letter-spacing: 1px;">' + stationName + ' RAINFALL HISTORY</div>' +  // ← NOW DYNAMIC!
                 '<div style="display: flex; gap: 8px;">' +
                     '<select id="histYearSelect" class="glass-select" style="padding: 5px 10px; border-radius: 8px; background: #1e293b; color: white; border: 1px solid #334155;">' +
                         yearOptions +
@@ -2186,6 +2214,7 @@ window.showHistoricalUI = function() {
             '</div>' +
         '</div>';
 };
+
 
 /* --- ADD THIS: THE MISSING FETCH ENGINE --- */
 
