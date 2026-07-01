@@ -690,6 +690,25 @@ app.get("/api/sync", async (req, res) => {
     res.json(await syncWithEcowitt(s, req.query.write === 'true'));
 });
 
+app.get("/api/sync-all", async (req, res) => {
+    const results = {};
+    try {
+        for (const stationId of ['kknagar', 'neelangarai']) {
+            const s = STATIONS[stationId];
+            if (req.query.buffer === 'true') {
+                results[stationId] = await bufferOnlyUpdate(s);
+            } else if (req.query.write === 'true') {
+                results[stationId] = await syncWithEcowitt(s, true);
+            }
+        }
+        res.json({ status: 'ok', timestamp: new Date().toISOString(), results });
+    } catch (err) {
+        console.error('Sync-all error:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+
 app.get("/api/history_graphs", async (req, res) => {
     const s = getStation(req);
     const todayISTStr = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" })).toLocaleDateString('en-CA');
