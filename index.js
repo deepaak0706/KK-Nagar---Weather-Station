@@ -510,8 +510,10 @@ try {
         st.lastArchivedDate = todayISTStr;
         st.cachedData = null;
         resetStateBuffers(station);
+        await resetBufferPeaksDB(station);  // ← ADD THIS
         console.log(`✅ Midnight rollup complete [${station.id}]`);
     }
+
 
     st.dataChangedSinceLastRead = true;
     dbWriteSuccess = true;
