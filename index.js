@@ -31,8 +31,13 @@ const STATIONS = {
         appKey: APPLICATION_KEY,
         apiKey: API_KEY,
         mac: MAC,
-        yearlyBaseline: 312.2,  // ← KK Nagar: hardcoded baseline (mm)
-        yearlyApiOffset: null,  // Will store the API's initial value
+        yearlyBaseline: 312.2,
+        yearlyApiOffset: null,
+        // ← ADD THESE 4 LINES:
+        dataStartYear: 2019,
+        dataEndYear: 2026,
+        summaryStartYear: 2026,
+        summaryEndYear: 2032,
     },
     neelangarai: {
         id: 'neelangarai',
@@ -41,10 +46,16 @@ const STATIONS = {
         appKey: NL_APPLICATION_KEY,
         apiKey: NL_API_KEY,
         mac: NL_MAC,
-        yearlyBaseline: 0,  // No baseline needed, use API value directly
+        yearlyBaseline: 0,
         yearlyApiOffset: null,
+        // ← ADD THESE 4 LINES:
+        dataStartYear: 2020,
+        dataEndYear: 2026,
+        summaryStartYear: 2026,
+        summaryEndYear: 2032,
     },
 };
+
 
 // =============================================
 // PER-STATION MEMORY STATE
