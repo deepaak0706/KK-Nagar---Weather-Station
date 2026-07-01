@@ -2133,44 +2133,6 @@ window.updateArchiveFilter = function() {
 };
 /* --- END CHIP CHOP --- */
 
-/* --- UPDATED: STRICTLY SAFE UI GENERATION --- */
-
-window.showMonthlySummaryUI = function() {
-    var content = document.getElementById('summary-content');
-    var months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-    
-    var monthOptions = "";
-    for (var i = 0; i < months.length; i++) {
-        var m = months[i];
-        var sel = (selectedMonth === m) ? 'selected' : '';
-        monthOptions += '<option value="' + m + '" ' + sel + '>' + m + '</option>';
-    }
-
-    var yearOptions = "";
-    for (var y = 2026; y <= 2032; y++) {
-        var ySel = (selectedYear == y) ? 'selected' : '';
-        yearOptions += '<option value="' + y + '" ' + ySel + '>' + y + '</option>';
-    }
-
-    // Using '+' instead of backticks to avoid $ issues
-    content.innerHTML = 
-        '<div class="archive-container" style="animation: fadeIn 0.5s ease;">' +
-            '<div style="margin-bottom: 20px; padding: 15px 25px; display: flex; justify-content: space-between; align-items: center; background: var(--card); border-radius: 20px; border: 1px solid var(--border);">' +
-                '<div style="font-weight: 800; letter-spacing: 0.5px; color: var(--accent);">MONTHLY ARCHIVES</div>' +
-                '<div style="display: flex; gap: 10px;">' +
-                    '<select id="monthSelect" class="glass-select">' + monthOptions + '</select>' +
-                    '<select id="yearSelect" class="glass-select">' + yearOptions + '</select>' +
-                    '<button onclick="updateArchiveFilter()" style="padding: 6px 12px; margin-left: 8px; background: var(--accent); color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">Get Data</button>' +
-                '</div>' +
-            '</div>' +
-            '<div id="archive-data-table">' +
-                '<div class="card" style="text-align:center; padding:60px; color: var(--muted);">' +
-                    'Select a month and click "Get Data" to load records.' +
-                '</div>' +
-            '</div>' +
-        '</div>';
-};
-
 window.showHistoricalUI = function() {
     var content = document.getElementById('historical-content');
     var years = [2019, 2020, 2021, 2022, 2023, 2024, 2025, 2026];
