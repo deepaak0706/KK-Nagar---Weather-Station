@@ -1427,6 +1427,52 @@ app.get("/", (req, res) => {
     .header h1 { font-size: 19px; }
 }
 
+/* 🌧️ RAINFALL GLOW & PULSE ANIMATIONS */
+
+@keyframes rain-pulse-glow {
+    0% { 
+        text-shadow: 0 2px 8px rgba(6, 182, 212, 0.3);
+        transform: scale(1);
+    }
+    50% { 
+        text-shadow: 0 0 20px rgba(6, 182, 212, 0.8), 0 0 30px rgba(6, 182, 212, 0.4);
+        transform: scale(1.02);
+    }
+    100% { 
+        text-shadow: 0 2px 8px rgba(6, 182, 212, 0.3);
+        transform: scale(1);
+    }
+}
+
+@keyframes current-rr-glow {
+    0% { 
+        text-shadow: 0 2px 8px rgba(6, 182, 212, 0.4);
+        color: #06b6d4;
+    }
+    50% { 
+        text-shadow: 0 0 16px rgba(6, 182, 212, 0.9), 0 0 24px rgba(6, 182, 212, 0.5);
+        color: #22d3ee;
+    }
+    100% { 
+        text-shadow: 0 2px 8px rgba(6, 182, 212, 0.4);
+        color: #06b6d4;
+    }
+}
+
+@keyframes max-rr-glow {
+    0% { 
+        text-shadow: 0 2px 8px rgba(125, 58, 237, 0.4);
+        color: #1d4ed8;
+    }
+    50% { 
+        text-shadow: 0 0 16px rgba(168, 85, 247, 0.9), 0 0 24px rgba(168, 85, 247, 0.5);
+        color: #a78bfa;
+    }
+    100% { 
+        text-shadow: 0 2px 8px rgba(125, 58, 237, 0.4);
+        color: #1d4ed8;
+    }
+}
 
 
 </style>
@@ -2008,6 +2054,8 @@ document.addEventListener('click', function(e) {
                     document.getElementById('s-rt').innerText = d.rain.total + ' mm';
                 }
 
+                updateRainGlow();  // 🌧️ Activate glow animation
+
                 // IF GRAPHS TAB IS OPEN, RE-FETCH GRAPH DATA TO UPDATE
                 if (graphDataLoaded && document.getElementById('sub-view-graphs').style.display === 'block') {
                     fetchGraphDataFromDB();
@@ -2286,6 +2334,43 @@ window.fetchHistoricalData = async function() {
     }
 };
 
+// 🌧️ SMART RAINFALL GLOW - Only shows when it's raining!
+function updateRainGlow() {
+    const rainTotal = parseFloat(document.getElementById('r_tot').textContent);
+    const currentRR = parseFloat(document.getElementById('r_rate').textContent);
+    const maxRR = parseFloat(document.getElementById('mr').textContent);
+
+    const rainTotElem = document.getElementById('r_tot');
+    const currentRRElem = document.getElementById('r_rate');
+    const maxRRElem = document.getElementById('mr');
+
+    // Main rain value: glow only if > 0
+    if (rainTotal === 0 || rainTotal === null || isNaN(rainTotal)) {
+        rainTotElem.style.animation = 'none';
+        rainTotElem.style.textShadow = 'none';
+    } else {
+        rainTotElem.style.animation = 'rain-pulse-glow 2.5s ease-in-out infinite';
+    }
+
+    // Current RR: glow only if > 0.1
+    if (currentRR === 0 || currentRR < 0.1 || isNaN(currentRR)) {
+        currentRRElem.style.animation = 'none';
+        currentRRElem.style.textShadow = 'none';
+    } else {
+        currentRRElem.style.animation = 'current-rr-glow 2s ease-in-out infinite';
+    }
+
+    // Max RR: glow only if > 0.1
+    if (maxRR === 0 || maxRR < 0.1 || isNaN(maxRR)) {
+        maxRRElem.style.animation = 'none';
+        maxRRElem.style.textShadow = 'none';
+    } else {
+        maxRRElem.style.animation = 'max-rr-glow 2s ease-in-out infinite';
+    }
+}
+
+// Auto-check every 30 seconds
+setInterval(updateRainGlow, 30000);
 
 
 </script>
