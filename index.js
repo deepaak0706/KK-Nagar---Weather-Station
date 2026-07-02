@@ -438,7 +438,7 @@ try {
         WHERE station_id = $1 AND time BETWEEN $2 AND $3 LIMIT 1
     `, [station.id, checkStart, checkEnd]);
 
-    if (dupCheck.rows.length > 0) {
+    if (!(hour === 0 && minute < 5) && dupCheck.rows.length > 0) {
         console.log(`⚠️ Duplicate skipped [${station.id}]`);
         await client.query('ROLLBACK');
         dbWriteSuccess = true;
