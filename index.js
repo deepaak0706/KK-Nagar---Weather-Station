@@ -1474,6 +1474,23 @@ app.get("/", (req, res) => {
     }
 }
 
+/* === THRESHOLD ZONES CSS === */
+.seg-wrap { display: flex; flex-direction: column; gap: 3px; margin-top: 6px; width: 100%; }
+.seg-row { display: flex; gap: 3px; width: 100%; }
+.seg { 
+  flex: 1; height: 5px; border-radius: 3px; 
+  background: rgba(255,255,255,0.06); 
+  border: 1px solid rgba(255,255,255,0.04); 
+  transition: all 0.4s ease; 
+}
+.seg.on-1 { background: #0ea5e9; box-shadow: 0 0 6px rgba(14,165,233,0.7); }
+.seg.on-2 { background: #22d3ee; box-shadow: 0 0 6px rgba(34,211,238,0.7); }
+.seg.on-3 { background: #f59e0b; box-shadow: 0 0 6px rgba(245,158,11,0.7); }
+.seg.on-4 { background: #ef4444; box-shadow: 0 0 8px rgba(239,68,68,0.8); }
+.seg-labels { display: flex; justify-content: space-between; margin-top: 3px; }
+.seg-lbl { font-size: 7px; font-weight: 700; color: var(--muted); opacity: 0.6; letter-spacing: 0.3px; text-transform: uppercase; }
+
+
 
 </style>
 </head>
@@ -1611,7 +1628,7 @@ app.get("/", (req, res) => {
                 </div>
             </div>
 
-                <div class="card">
+                                <div class="card">
                     <div>
                         <div class="label">Rainfall</div>
                         <div class="row-block">
@@ -1629,7 +1646,22 @@ app.get("/", (req, res) => {
         </div>
         <div style="display:flex; align-items:baseline; gap:3px;">
             <span id="r_rate" style="font-size:28px; font-weight:800; color:#06b6d4; line-height:1.1; font-variant-numeric:tabular-nums;">--</span>
-            <span style="font-size:11px; font-weight:600; color:var(--muted);"></span>
+            <span style="font-size:11px; font-weight:600; color:var(--muted);">mm/h</span>
+        </div>
+        <!-- ZONES: 4 capsules that light up progressively -->
+        <div class="seg-wrap" id="segWrap">
+            <div class="seg-row">
+                <div class="seg" id="seg1"></div>
+                <div class="seg" id="seg2"></div>
+                <div class="seg" id="seg3"></div>
+                <div class="seg" id="seg4"></div>
+            </div>
+            <div class="seg-labels">
+                <span class="seg-lbl">None</span>
+                <span class="seg-lbl">Light</span>
+                <span class="seg-lbl">Mod</span>
+                <span class="seg-lbl">Heavy</span>
+            </div>
         </div>
     </div>
     <div style="display:flex; flex-direction:column; gap:2px; padding-top:10px; width:100%;">
@@ -1638,9 +1670,10 @@ app.get("/", (req, res) => {
             <span style="font-size:12px; font-weight:900; letter-spacing:1.5px; color:#7c3aed;">Max RR</span>
         </div>
         <div style="display:flex; align-items:baseline; gap:3px;">
-            <span id="mr" style="font-size:28px; font-weight:800; color:#1d4ed8; line-height:1.1; font-variant-numeric:tabular-nums;">--</span>
-            <span style="font-size:11px; font-weight:600; color:var(--muted);"></span>
+            <span id="mr" style="font-size:28px; font-weight:800; color:#7c3aed; line-height:1.1; font-variant-numeric:tabular-nums;">--</span>
+            <span style="font-size:11px; font-weight:600; color:var(--muted);">mm/h</span>
         </div>
+        <span id="mr_time" style="font-size:9px; color:var(--muted); opacity:0.75; margin-top:1px;">—</span>
     </div>
 </div>
                   
@@ -1664,6 +1697,7 @@ app.get("/", (req, res) => {
                         </div>
                     </div>
                 </div>
+
 
                 <div class="card">
     <div>
@@ -2008,6 +2042,33 @@ document.addEventListener('click', function(e) {
                 updateValueWithFade('w', d.wind.speed, 1);
                 updateValueWithFade('r_tot', d.rain.total, 1);
                 document.getElementById('r_rate').innerHTML = d.rain.rate.toFixed(1) + '<span style="font-size:11px; font-weight:600; color:var(--muted); margin-left:3px;">mm/h</span>';
+                                // Update zone indicators based on IMD rainfall intensity standards (mm/h)
+                const rateValue = d.rain.rate;
+                let activeZone = 0;
+                
+                // IMD thresholds:
+                if(rateValue >= 0.1) {
+                    activeZone = 1; // Light
+                }
+                if(rateValue >= 7.6) {
+                    activeZone = 2; // Moderate
+                }
+                if(rateValue >= 64.5) {
+                    activeZone = 3; // Heavy
+                }
+                if(rateValue >= 124.5) {
+                    activeZone = 4; // Very Heavy
+                }
+                
+                // Light up the appropriate segments
+                const segClasses = ['', 'on-1', 'on-2', 'on-3', 'on-4'];
+                for(let i = 1; i <= 4; i++) {
+                    const el = document.getElementById('seg' + i);
+                    if(el) {
+                        el.className = 'seg' + (i <= activeZone ? ' ' + segClasses[i] : '');
+                    }
+                }
+
                 updateValueWithFade('wg', d.wind.gust, 1, ' km/h'); 
 
                 document.getElementById('tTrendBox').innerHTML = d.temp.rate > 0 ? '<span class="trend-up">▲</span> +' + d.temp.rate + '°C /hr' : d.temp.rate < 0 ? '<span class="trend-down">▼</span> ' + d.temp.rate + '°C /hr' : '● Steady';
