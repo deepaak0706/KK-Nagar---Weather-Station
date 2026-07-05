@@ -523,6 +523,7 @@ try {
         st.cachedData = null;
         resetStateBuffers(station);
         await resetBufferPeaksDB(station);  // ← ADD THIS
+        snap=undefined;
         console.log(`✅ Midnight rollup complete [${station.id}]`);
     }
 
