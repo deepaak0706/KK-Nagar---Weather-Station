@@ -457,6 +457,13 @@ try {
     const dbG    = snap.tG   === null  ? r.gustMph : snap.g;
     const dbRR   = snap.rr || 0;
 
+    // At midnight the API resets daily rain to 0.
+    // Use buffer's last known rain value if it's higher than what API returned.
+    const dbDailyIn = (hour === 0 && minute < 5 && writerBuf.lastRainRaw !== null && writerBuf.lastRainRaw > r.dailyIn)
+    ? writerBuf.lastRainRaw
+    : r.dailyIn;
+
+
     if (isNaN(r.tempF) || isNaN(dbMaxT) || isNaN(dbMinT) || isNaN(dbW) || isNaN(dbG)) {
     console.error(`Bad reading — skipping insert [${station.id}]`, { tempF: r.tempF, dbMaxT, dbMinT, dbW, dbG });
     await client.query('ROLLBACK');
@@ -474,7 +481,7 @@ try {
                 $10, $11, $12, $13, $14, $15, $16)
     `, [
         station.id,
-        dbMaxT, dbMinT, r.tempF, liveHum, dbW, dbG, dbRR, r.dailyIn,
+        dbMaxT, dbMinT, r.tempF, liveHum, dbW, dbG, dbRR, dbDailyIn,
         snap.tW    || new Date().toISOString(),
         snap.tMaxT || new Date().toISOString(),
         snap.tMinT || new Date().toISOString(),
