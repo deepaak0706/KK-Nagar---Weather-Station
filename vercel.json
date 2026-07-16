@@ -3,5 +3,15 @@
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/index.js" },
     { "source": "/(.*)", "destination": "/index.js" }
+  ],
+  "crons": [
+    {
+      "path": "/api/sync-all?buffer=true",
+      "schedule": "* * * * *"
+    },
+    {
+      "path": "/api/sync-all?write=true",
+      "schedule": "*/10 * * * *"
+    }
   ]
 }
