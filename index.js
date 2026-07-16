@@ -6,8 +6,8 @@ const path = require("path");
 const app = express();
 
 const pool = new Pool({
-    connectionString: process.env.POSTGRES_URL + "?sslmode=require",
-    ssl: { rejectUnauthorized: false }
+    connectionString: process.env.POSTGRES_URL,
+    ssl: true
 });
 
 // Existing — DO NOT TOUCH
