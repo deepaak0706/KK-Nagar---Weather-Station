@@ -7,7 +7,9 @@ const app = express();
 
 const pool = new Pool({
     connectionString: process.env.POSTGRES_URL,
-    ssl: true
+    ssl: {
+        rejectUnauthorized: false
+    }
 });
 
 // Existing — DO NOT TOUCH
