@@ -5,6 +5,7 @@ const { Pool } = require('pg');
 const path = require("path");
 const app = express();
 
+
 const pool = new Pool({
     connectionString: process.env.POSTGRES_URL,
     ssl: {
@@ -12,7 +13,7 @@ const pool = new Pool({
     }
 });
 
-// Existing — DO NOT TOUCH
+// Existing — DO NOT TOUCH THIS
 const APPLICATION_KEY = process.env.APPLICATION_KEY;
 const API_KEY = process.env.API_KEY;
 const MAC = process.env.MAC;
