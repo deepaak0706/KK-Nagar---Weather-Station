@@ -1167,21 +1167,24 @@ app.get("/", (req, res) => {
     .sub-pill { font-size: 11px; font-weight: 600; color: var(--text); display: inline-flex; align-items: center; gap: 4px; margin-top: 8px; }
 
     /* ADVANCED HIGH-PROMINENCE COMPASS HUD WITH HUD CARDINAL TEXTS */
-    .compass-container { position: relative; width: 72px; height: 72px; margin: 0 auto; display: flex; align-items: center; justify-content: center; }
+    .compass-container { position: relative; width: 96px; height: 96px; margin: 0 auto; display: flex; align-items: center; justify-content: center; }
     .compass-ui { 
         width: 100%; height: 100%; 
-        border: 1.5px solid var(--line); 
+        border: 1.5px solid var(--border); 
         border-radius: 50%; 
         position: absolute; top:0; left:0; 
         display: flex; align-items: center; justify-content: center;
-        background: radial-gradient(circle, rgba(2,132,199,0.06) 0%, transparent 70%);
-        box-shadow: inset 0 0 12px rgba(2,132,199,0.08);
+        background: radial-gradient(circle, rgba(56, 189, 248, 0.06) 0%, transparent 70%);
+        box-shadow: inset 0 0 20px rgba(56, 189, 248, 0.04), 0 0 0 1px rgba(56, 189, 248, 0.06);
     }
     
     .cardinal-pt { position: absolute; font-size: 9px; font-weight: 900; color: var(--muted); line-height: 1; }
-    .pt-n { top: 2px; } .pt-s { bottom: 2px; } .pt-e { right: 4px; } .pt-w { left: 4px; }
+    .pt-n { top: 4px; left: 50%; transform: translateX(-50%); color: #ef4444; } 
+    .pt-s { bottom: 4px; left: 50%; transform: translateX(-50%); } 
+    .pt-e { right: 6px; top: 50%; transform: translateY(-50%); } 
+    .pt-w { left: 6px; top: 50%; transform: translateY(-50%); }
 
-    #needle { width: 3px; height: 46px; background: linear-gradient(to bottom, #ef4444 50%, var(--muted) 50%); clip-path: polygon(50% 0%, 100% 100%, 50% 85%, 0% 100%); transition: transform 2s cubic-bezier(0.1, 0.9, 0.2, 1); z-index: 2; }
+    #needle { width: 3px; height: 62px; background: linear-gradient(to bottom, #ef4444 50%, #475569 50%); clip-path: polygon(50% 0%, 100% 100%, 50% 85%, 0% 100%); filter: drop-shadow(0 0 5px rgba(239, 68, 68, 0.7)); transition: transform 2s cubic-bezier(0.1, 0.9, 0.2, 1); z-index: 2; }
 
     /* ═════════════════════════════════════════════════════
        TIER 1: TEMPERATURE HEAT COLOR
@@ -1625,14 +1628,31 @@ app.get("/", (req, res) => {
                         
                         <div class="right-panel" style="align-items: center; padding-left:0; flex: 0.9;">
                             <div class="compass-container">
-                                <div class="compass-ui">
-                                    <span class="cardinal-pt pt-n">N</span>
-                                    <span class="cardinal-pt pt-s">S</span>
-                                    <span class="cardinal-pt pt-e">E</span>
-                                    <span class="cardinal-pt pt-w">W</span>
-                                    <div id="needle"></div>
-                                </div>
-                            </div>
+    <div class="compass-ui">
+        <!-- Tick marks SVG -->
+        <svg style="position:absolute;top:0;left:0;width:96px;height:96px;" viewBox="0 0 96 96">
+            <g stroke="#2d3748" stroke-width="1.5" stroke-linecap="round">
+                <line x1="48" y1="6"  x2="48" y2="13"/>      <!-- N -->
+                <line x1="75.9" y1="20.1" x2="70.8" y2="25.2"/> <!-- NE -->
+                <line x1="90" y1="48" x2="83" y2="48"/>      <!-- E -->
+                <line x1="75.9" y1="75.9" x2="70.8" y2="70.8"/> <!-- SE -->
+                <line x1="48" y1="90" x2="48" y2="83"/>      <!-- S -->
+                <line x1="20.1" y1="75.9" x2="25.2" y2="70.8"/> <!-- SW -->
+                <line x1="6" y1="48"  x2="13" y2="48"/>      <!-- W -->
+                <line x1="20.1" y1="20.1" x2="25.2" y2="25.2"/> <!-- NW -->
+            </g>
+        </svg>
+        
+        <!-- Cardinal directions -->
+        <span class="cardinal-pt pt-n">N</span>
+        <span class="cardinal-pt pt-s">S</span>
+        <span class="cardinal-pt pt-e">E</span>
+        <span class="cardinal-pt pt-w">W</span>
+        
+        <!-- Needle -->
+        <div id="needle"></div>
+    </div>
+</div>
                         </div>
                     </div>
                 </div>
