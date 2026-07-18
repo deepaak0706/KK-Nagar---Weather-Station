@@ -999,8 +999,8 @@ app.get("/", (req, res) => {
     
     /* 🎯 #4 & #5: SMOOTH TRANSITIONS + MAIN VALUES WITH PREMIUM DEPTH */
     .main-val { 
-        font-size: 56px; 
-        font-weight: 600; 
+        font-size: 52px; 
+        font-weight: 800; 
         margin: 0; 
         
         /* 🎨 ENHANCED: Better letter spacing + depth */
@@ -1167,54 +1167,22 @@ app.get("/", (req, res) => {
     .sub-pill { font-size: 11px; font-weight: 600; color: var(--text); display: inline-flex; align-items: center; gap: 4px; margin-top: 8px; }
 
     /* ADVANCED HIGH-PROMINENCE COMPASS HUD WITH HUD CARDINAL TEXTS */
-    .compass-container { position: relative; width: 80px; height: 80px; margin: 0 auto; display: flex; align-items: center; justify-content: center; margin-top: -5px; margin-bottom: -5px; }
+    .compass-container { position: relative; width: 72px; height: 72px; margin: 0 auto; display: flex; align-items: center; justify-content: center; }
     .compass-ui { 
         width: 100%; height: 100%; 
-        border: 1.5px solid var(--border); 
+        border: 1.5px solid var(--line); 
         border-radius: 50%; 
         position: absolute; top:0; left:0; 
         display: flex; align-items: center; justify-content: center;
-        background: radial-gradient(circle, rgba(56, 189, 248, 0.06) 0%, transparent 70%);
-        box-shadow: inset 0 0 20px rgba(56, 189, 248, 0.04), 0 0 0 1px rgba(56, 189, 248, 0.06);
+        background: radial-gradient(circle, rgba(2,132,199,0.06) 0%, transparent 70%);
+        box-shadow: inset 0 0 12px rgba(2,132,199,0.08);
     }
     
     .cardinal-pt { position: absolute; font-size: 9px; font-weight: 900; color: var(--muted); line-height: 1; }
-    .pt-n { top: -6px; left: 50%; transform: translateX(-50%); color: var(--muted); } 
-    .pt-s { bottom: -6px; left: 50%; transform: translateX(-50%); } 
-    .pt-e { right: -6px; top: 50%; transform: translateY(-50%); } 
-    .pt-w { left: -6px; top: 50%; transform: translateY(-50%); }
+    .pt-n { top: 2px; } .pt-s { bottom: 2px; } .pt-e { right: 4px; } .pt-w { left: 4px; }
 
-    #needle { width: 3px; height: 50px; background: linear-gradient(to bottom, #ef4444 50%, #475569 50%); clip-path: polygon(50% 0%, 100% 100%, 50% 85%, 0% 100%); filter: drop-shadow(0 0 5px rgba(239, 68, 68, 0.7)); transition: transform 2s cubic-bezier(0.1, 0.9, 0.2, 1); z-index: 2; }
+    #needle { width: 3px; height: 46px; background: linear-gradient(to bottom, #ef4444 50%, var(--muted) 50%); clip-path: polygon(50% 0%, 100% 100%, 50% 85%, 0% 100%); transition: transform 2s cubic-bezier(0.1, 0.9, 0.2, 1); z-index: 2; }
 
-    /* ═════════════════════════════════════════════════════
-       TIER 1: TEMPERATURE HEAT COLOR
-       ═════════════════════════════════════════════════════ */
-    
-    .temp-heat-cold {
-        color: #0ea5e9;
-        text-shadow: none;
-    }
-    
-    .temp-heat-mild {
-        color: #f8fafc;
-        text-shadow: none;
-    }
-    
-    .temp-heat-warm {
-        color: #f59e0b;
-        text-shadow: none;
-    }
-    
-    .temp-heat-hot {
-        color: #f97316;
-        text-shadow: none;
-    }
-    
-    .temp-heat-extreme {
-        color: #dc2626;
-        text-shadow: none;
-    }
-    
     .time-mark { font-size: 9px; color: var(--muted); font-weight: 500; display: inline-block; margin-left: 4px; opacity: 0.75; }
     
     .nav-tabs { display: flex; gap: 8px; margin-bottom: 24px; }
@@ -1518,20 +1486,6 @@ app.get("/", (req, res) => {
 }
 
 
-/* Add at top of <style> section */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap');
-
-.main-val {
-    font-family: 'Inter', sans-serif;
-    font-weight: 800;
-    letter-spacing: -1px;
-}
-
-.main-val .num-flip {
-    display: inline-block;
-}
-
-
 </style>
 </head>
 <body>
@@ -1642,31 +1596,14 @@ app.get("/", (req, res) => {
                         
                         <div class="right-panel" style="align-items: center; padding-left:0; flex: 0.9;">
                             <div class="compass-container">
-    <div class="compass-ui">
-        <!-- Tick marks SVG -->
-        <svg style="position:absolute;top:0;left:0;width:80px;height:80px;" viewBox="0 0 80 80">
-    <g stroke="#2d3748" stroke-width="1.5" stroke-linecap="round">
-        <line x1="40" y1="6"  x2="40" y2="12"/>      <!-- N -->
-        <line x1="60.6" y1="19.4" x2="55.6" y2="24.4"/> <!-- NE -->
-        <line x1="74" y1="40" x2="68" y2="40"/>      <!-- E -->
-        <line x1="60.6" y1="60.6" x2="55.6" y2="55.6"/> <!-- SE -->
-        <line x1="40" y1="74" x2="40" y2="68"/>      <!-- S -->
-        <line x1="19.4" y1="60.6" x2="24.4" y2="55.6"/> <!-- SW -->
-        <line x1="6" y1="40"  x2="12" y2="40"/>      <!-- W -->
-        <line x1="19.4" y1="19.4" x2="24.4" y2="24.4"/> <!-- NW -->
-    </g>
-</svg>
-        
-        <!-- Cardinal directions -->
-        <span class="cardinal-pt pt-n">N</span>
-        <span class="cardinal-pt pt-s">S</span>
-        <span class="cardinal-pt pt-e">E</span>
-        <span class="cardinal-pt pt-w">W</span>
-        
-        <!-- Needle -->
-        <div id="needle"></div>
-    </div>
-</div>
+                                <div class="compass-ui">
+                                    <span class="cardinal-pt pt-n">N</span>
+                                    <span class="cardinal-pt pt-s">S</span>
+                                    <span class="cardinal-pt pt-e">E</span>
+                                    <span class="cardinal-pt pt-w">W</span>
+                                    <div id="needle"></div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1995,7 +1932,7 @@ document.addEventListener('click', function(e) {
             });
         }
         
-        function updateValueWithFade(id, newValue, decimals = 1, suffix = "", colorClass = "") {
+        function updateValueWithFade(id, newValue, decimals = 1, suffix = "") {
     const obj = document.getElementById(id);
     if (!obj) return;
     const val = newValue !== undefined && newValue !== null ? newValue : 0;
@@ -2007,8 +1944,7 @@ document.addEventListener('click', function(e) {
         obj.style.transform = "translateY(6px)";
         
         setTimeout(() => {
-            const classAttr = colorClass ? ` ${colorClass}` : '';
-            obj.innerHTML = '<span class="num-flip' + classAttr + '">' + formattedValue + '</span>';
+            obj.innerHTML = '<span class="num-flip">' + formattedValue + '</span>';
             obj.style.transition = 'opacity 0.3s ease, transform 0.3s cubic-bezier(0.22, 1, 0.36, 1)';
             obj.style.opacity = "1";
             obj.style.transform = "translateY(0)";
@@ -2035,15 +1971,6 @@ document.addEventListener('click', function(e) {
             }
         }
 
-  // Get heat color class based on temperature in Celsius
-    function getHeatColorClass(tempC) {
-        if (tempC < 25) return 'temp-heat-cold';
-        if (tempC < 30) return 'temp-heat-mild';
-        if (tempC < 35) return 'temp-heat-warm';
-        if (tempC < 40) return 'temp-heat-hot';
-        return 'temp-heat-extreme';
-    }
-    
         async function fetchGraphDataFromDB() {
             try {
                 const res = await fetch('/api/history_graphs?station=' + currentStation);
@@ -2088,12 +2015,7 @@ document.addEventListener('click', function(e) {
                 const d = await res.json(); 
                 if (!d || d.error) return;
 
-                const tempColorClass = getHeatColorClass(d.temp.current);
-                updateValueWithFade('t', d.temp.current, 1, "", tempColorClass);
-                const tempEl = document.getElementById('t');
-                const heatClass = getHeatColorClass(d.temp.current);
-                const numFlip = tempEl.querySelector('.num-flip');
-                if (numFlip) numFlip.className = 'num-flip ' + heatClass;
+                updateValueWithFade('t', d.temp.current, 1);
                 updateValueWithFade('w', d.wind.speed, 1);
                 updateValueWithFade('r_tot', d.rain.total, 1);
                 document.getElementById('r_rate').innerHTML = d.rain.rate.toFixed(1) + '<span style="font-size:11px; font-weight:600; color:var(--muted); margin-left:3px;">mm/h</span>';
