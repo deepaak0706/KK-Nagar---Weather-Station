@@ -1518,6 +1518,20 @@ app.get("/", (req, res) => {
 }
 
 
+/* Add at top of <style> section */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap');
+
+.main-val {
+    font-family: 'Inter', sans-serif;
+    font-weight: 800;
+    letter-spacing: -1px;
+}
+
+.main-val .num-flip {
+    display: inline-block;
+}
+
+
 </style>
 </head>
 <body>
@@ -1981,7 +1995,7 @@ document.addEventListener('click', function(e) {
             });
         }
         
-        function updateValueWithFade(id, newValue, decimals = 1, suffix = "") {
+        function updateValueWithFade(id, newValue, decimals = 1, suffix = "", colorClass = "") {
     const obj = document.getElementById(id);
     if (!obj) return;
     const val = newValue !== undefined && newValue !== null ? newValue : 0;
@@ -1993,7 +2007,8 @@ document.addEventListener('click', function(e) {
         obj.style.transform = "translateY(6px)";
         
         setTimeout(() => {
-            obj.innerHTML = '<span class="num-flip">' + formattedValue + '</span>';
+            const classAttr = colorClass ? ` ${colorClass}` : '';
+            obj.innerHTML = '<span class="num-flip' + classAttr + '">' + formattedValue + '</span>';
             obj.style.transition = 'opacity 0.3s ease, transform 0.3s cubic-bezier(0.22, 1, 0.36, 1)';
             obj.style.opacity = "1";
             obj.style.transform = "translateY(0)";
@@ -2073,7 +2088,8 @@ document.addEventListener('click', function(e) {
                 const d = await res.json(); 
                 if (!d || d.error) return;
 
-                updateValueWithFade('t', d.temp.current, 1);
+                const tempColorClass = getHeatColorClass(d.temp.current);
+                updateValueWithFade('t', d.temp.current, 1, "", tempColorClass);
                 const tempEl = document.getElementById('t');
                 const heatClass = getHeatColorClass(d.temp.current);
                 tempEl.className = heatClass;
