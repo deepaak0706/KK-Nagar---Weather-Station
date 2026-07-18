@@ -2035,14 +2035,14 @@ document.addEventListener('click', function(e) {
             }
         }
 
-        // Get heat color class based on temperature in Celsius
-            function getHeatColorClass(tempC) {
-                if (tempC < 25) return 'temp-heat-cold';
-                if (tempC < 30) return 'temp-heat-mild';
-                if (tempC < 35) return 'temp-heat-warm';
-                if (tempC < 40) return 'temp-heat-hot';
-                return 'temp-heat-extreme';
-            }
+  // Get heat color class based on temperature in Celsius
+    function getHeatColorClass(tempC) {
+        if (tempC < 25) return 'temp-heat-cold';
+        if (tempC < 30) return 'temp-heat-mild';
+        if (tempC < 35) return 'temp-heat-warm';
+        if (tempC < 40) return 'temp-heat-hot';
+        return 'temp-heat-extreme';
+    }
     
         async function fetchGraphDataFromDB() {
             try {
