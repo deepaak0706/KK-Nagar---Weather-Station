@@ -999,8 +999,8 @@ app.get("/", (req, res) => {
     
     /* 🎯 #4 & #5: SMOOTH TRANSITIONS + MAIN VALUES WITH PREMIUM DEPTH */
     .main-val { 
-        font-size: 52px; 
-        font-weight: 800; 
+        font-size: 56px; 
+        font-weight: 600; 
         margin: 0; 
         
         /* 🎨 ENHANCED: Better letter spacing + depth */
@@ -1179,10 +1179,10 @@ app.get("/", (req, res) => {
     }
     
     .cardinal-pt { position: absolute; font-size: 9px; font-weight: 900; color: var(--muted); line-height: 1; }
-    .pt-n { top: -2px; left: 50%; transform: translateX(-50%); color: #ef4444; } 
-    .pt-s { bottom: -2px; left: 50%; transform: translateX(-50%); } 
-    .pt-e { right: -2px; top: 50%; transform: translateY(-50%); } 
-    .pt-w { left: -2px; top: 50%; transform: translateY(-50%); }
+    .pt-n { top: -6px; left: 50%; transform: translateX(-50%); color: var(--muted); } 
+    .pt-s { bottom: -6px; left: 50%; transform: translateX(-50%); } 
+    .pt-e { right: -6px; top: 50%; transform: translateY(-50%); } 
+    .pt-w { left: -6px; top: 50%; transform: translateY(-50%); }
 
     #needle { width: 3px; height: 50px; background: linear-gradient(to bottom, #ef4444 50%, #475569 50%); clip-path: polygon(50% 0%, 100% 100%, 50% 85%, 0% 100%); filter: drop-shadow(0 0 5px rgba(239, 68, 68, 0.7)); transition: transform 2s cubic-bezier(0.1, 0.9, 0.2, 1); z-index: 2; }
 
