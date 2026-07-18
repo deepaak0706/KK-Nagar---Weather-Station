@@ -1183,6 +1183,35 @@ app.get("/", (req, res) => {
 
     #needle { width: 3px; height: 46px; background: linear-gradient(to bottom, #ef4444 50%, var(--muted) 50%); clip-path: polygon(50% 0%, 100% 100%, 50% 85%, 0% 100%); transition: transform 2s cubic-bezier(0.1, 0.9, 0.2, 1); z-index: 2; }
 
+    /* ═════════════════════════════════════════════════════
+       TIER 1: TEMPERATURE HEAT COLOR
+       ═════════════════════════════════════════════════════ */
+    
+    .temp-heat-cold {
+        color: #38bdf8;
+        text-shadow: 0 0 20px rgba(56, 189, 248, 0.4);
+    }
+    
+    .temp-heat-mild {
+        color: #f8fafc;
+        text-shadow: none;
+    }
+    
+    .temp-heat-warm {
+        color: #fbbf24;
+        text-shadow: 0 0 20px rgba(251, 191, 36, 0.3);
+    }
+    
+    .temp-heat-hot {
+        color: #f97316;
+        text-shadow: 0 0 20px rgba(249, 115, 22, 0.3);
+    }
+    
+    .temp-heat-extreme {
+        color: #ef4444;
+        text-shadow: 0 0 24px rgba(239, 68, 68, 0.4);
+    }
+    
     .time-mark { font-size: 9px; color: var(--muted); font-weight: 500; display: inline-block; margin-left: 4px; opacity: 0.75; }
     
     .nav-tabs { display: flex; gap: 8px; margin-bottom: 24px; }
@@ -1971,6 +2000,15 @@ document.addEventListener('click', function(e) {
             }
         }
 
+        // Get heat color class based on temperature in Celsius
+            function getHeatColorClass(tempC) {
+                if (tempC < 25) return 'temp-heat-cold';
+                if (tempC < 30) return 'temp-heat-mild';
+                if (tempC < 35) return 'temp-heat-warm';
+                if (tempC < 40) return 'temp-heat-hot';
+                return 'temp-heat-extreme';
+            }
+    
         async function fetchGraphDataFromDB() {
             try {
                 const res = await fetch('/api/history_graphs?station=' + currentStation);
@@ -2016,6 +2054,9 @@ document.addEventListener('click', function(e) {
                 if (!d || d.error) return;
 
                 updateValueWithFade('t', d.temp.current, 1);
+                const tempEl = document.getElementById('t');
+                const heatClass = getHeatColorClass(d.temp.current);
+                tempEl.className = heatClass;
                 updateValueWithFade('w', d.wind.speed, 1);
                 updateValueWithFade('r_tot', d.rain.total, 1);
                 document.getElementById('r_rate').innerHTML = d.rain.rate.toFixed(1) + '<span style="font-size:11px; font-weight:600; color:var(--muted); margin-left:3px;">mm/h</span>';
