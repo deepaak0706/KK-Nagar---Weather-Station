@@ -1167,7 +1167,7 @@ app.get("/", (req, res) => {
     .sub-pill { font-size: 11px; font-weight: 600; color: var(--text); display: inline-flex; align-items: center; gap: 4px; margin-top: 8px; }
 
     /* ADVANCED HIGH-PROMINENCE COMPASS HUD WITH HUD CARDINAL TEXTS */
-    .compass-container { position: relative; width: 96px; height: 96px; margin: 0 auto; display: flex; align-items: center; justify-content: center; }
+    .compass-container { position: relative; width: 80px; height: 80px; margin: 0 auto; display: flex; align-items: center; justify-content: center; }
     .compass-ui { 
         width: 100%; height: 100%; 
         border: 1.5px solid var(--border); 
@@ -1179,20 +1179,20 @@ app.get("/", (req, res) => {
     }
     
     .cardinal-pt { position: absolute; font-size: 9px; font-weight: 900; color: var(--muted); line-height: 1; }
-    .pt-n { top: 4px; left: 50%; transform: translateX(-50%); color: #ef4444; } 
-    .pt-s { bottom: 4px; left: 50%; transform: translateX(-50%); } 
-    .pt-e { right: 6px; top: 50%; transform: translateY(-50%); } 
-    .pt-w { left: 6px; top: 50%; transform: translateY(-50%); }
+    .pt-n { top: 2px; left: 50%; transform: translateX(-50%); color: #ef4444; } 
+    .pt-s { bottom: 2px; left: 50%; transform: translateX(-50%); } 
+    .pt-e { right: 2px; top: 50%; transform: translateY(-50%); } 
+    .pt-w { left: 2px; top: 50%; transform: translateY(-50%); }
 
-    #needle { width: 3px; height: 62px; background: linear-gradient(to bottom, #ef4444 50%, #475569 50%); clip-path: polygon(50% 0%, 100% 100%, 50% 85%, 0% 100%); filter: drop-shadow(0 0 5px rgba(239, 68, 68, 0.7)); transition: transform 2s cubic-bezier(0.1, 0.9, 0.2, 1); z-index: 2; }
+    #needle { width: 3px; height: 50px; background: linear-gradient(to bottom, #ef4444 50%, #475569 50%); clip-path: polygon(50% 0%, 100% 100%, 50% 85%, 0% 100%); filter: drop-shadow(0 0 5px rgba(239, 68, 68, 0.7)); transition: transform 2s cubic-bezier(0.1, 0.9, 0.2, 1); z-index: 2; }
 
     /* ═════════════════════════════════════════════════════
        TIER 1: TEMPERATURE HEAT COLOR
        ═════════════════════════════════════════════════════ */
     
     .temp-heat-cold {
-        color: #38bdf8;
-        text-shadow: 0 0 20px rgba(56, 189, 248, 0.4);
+        color: #0ea5e9;
+        text-shadow: none;
     }
     
     .temp-heat-mild {
@@ -1201,18 +1201,18 @@ app.get("/", (req, res) => {
     }
     
     .temp-heat-warm {
-        color: #fbbf24;
-        text-shadow: 0 0 20px rgba(251, 191, 36, 0.3);
+        color: #f59e0b;
+        text-shadow: none;
     }
     
     .temp-heat-hot {
         color: #f97316;
-        text-shadow: 0 0 20px rgba(249, 115, 22, 0.3);
+        text-shadow: none;
     }
     
     .temp-heat-extreme {
-        color: #ef4444;
-        text-shadow: 0 0 24px rgba(239, 68, 68, 0.4);
+        color: #dc2626;
+        text-shadow: none;
     }
     
     .time-mark { font-size: 9px; color: var(--muted); font-weight: 500; display: inline-block; margin-left: 4px; opacity: 0.75; }
@@ -1630,18 +1630,18 @@ app.get("/", (req, res) => {
                             <div class="compass-container">
     <div class="compass-ui">
         <!-- Tick marks SVG -->
-        <svg style="position:absolute;top:0;left:0;width:96px;height:96px;" viewBox="0 0 96 96">
-            <g stroke="#2d3748" stroke-width="1.5" stroke-linecap="round">
-                <line x1="48" y1="6"  x2="48" y2="13"/>      <!-- N -->
-                <line x1="75.9" y1="20.1" x2="70.8" y2="25.2"/> <!-- NE -->
-                <line x1="90" y1="48" x2="83" y2="48"/>      <!-- E -->
-                <line x1="75.9" y1="75.9" x2="70.8" y2="70.8"/> <!-- SE -->
-                <line x1="48" y1="90" x2="48" y2="83"/>      <!-- S -->
-                <line x1="20.1" y1="75.9" x2="25.2" y2="70.8"/> <!-- SW -->
-                <line x1="6" y1="48"  x2="13" y2="48"/>      <!-- W -->
-                <line x1="20.1" y1="20.1" x2="25.2" y2="25.2"/> <!-- NW -->
-            </g>
-        </svg>
+        <svg style="position:absolute;top:0;left:0;width:80px;height:80px;" viewBox="0 0 80 80">
+    <g stroke="#2d3748" stroke-width="1.5" stroke-linecap="round">
+        <line x1="40" y1="4"  x2="40" y2="10"/>      <!-- N -->
+        <line x1="63.3" y1="16.7" x2="58.8" y2="21.2"/> <!-- NE -->
+        <line x1="76" y1="40" x2="70" y2="40"/>      <!-- E -->
+        <line x1="63.3" y1="63.3" x2="58.8" y2="58.8"/> <!-- SE -->
+        <line x1="40" y1="76" x2="40" y2="70"/>      <!-- S -->
+        <line x1="16.7" y1="63.3" x2="21.2" y2="58.8"/> <!-- SW -->
+        <line x1="4" y1="40"  x2="10" y2="40"/>      <!-- W -->
+        <line x1="16.7" y1="16.7" x2="21.2" y2="21.2"/> <!-- NW -->
+    </g>
+</svg>
         
         <!-- Cardinal directions -->
         <span class="cardinal-pt pt-n">N</span>
