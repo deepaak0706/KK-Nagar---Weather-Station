@@ -2092,7 +2092,8 @@ document.addEventListener('click', function(e) {
                 updateValueWithFade('t', d.temp.current, 1, "", tempColorClass);
                 const tempEl = document.getElementById('t');
                 const heatClass = getHeatColorClass(d.temp.current);
-                tempEl.className = heatClass;
+                const numFlip = tempEl.querySelector('.num-flip');
+                if (numFlip) numFlip.className = 'num-flip ' + heatClass;
                 updateValueWithFade('w', d.wind.speed, 1);
                 updateValueWithFade('r_tot', d.rain.total, 1);
                 document.getElementById('r_rate').innerHTML = d.rain.rate.toFixed(1) + '<span style="font-size:11px; font-weight:600; color:var(--muted); margin-left:3px;">mm/h</span>';
