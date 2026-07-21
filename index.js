@@ -36,7 +36,6 @@ const STATIONS = {
         apiKey: API_KEY,
         mac: MAC,
         yearlyBaseline: 357.4,
-        yearlyApiOffset: null,
         // ← ADD THESE 4 LINES:
         dataStartYear: 2019,
         dataEndYear: 2026,
@@ -51,7 +50,6 @@ const STATIONS = {
         apiKey: NL_API_KEY,
         mac: NL_MAC,
         yearlyBaseline: 0,
-        yearlyApiOffset: null,
         // ← ADD THESE 4 LINES:
         dataStartYear: 2020,
         dataEndYear: 2026,
@@ -81,7 +79,7 @@ const stationState = {
         tW: null, tG: null, tMaxT: null, tMinT: null, tRR: null,
         lastArchivedDate: null, dataChangedSinceLastRead: false,
         summaryCache: null, lastSummaryFetchDate: null, lastDateSeen: null,
-        yearlyApiOffset: null,  // ← ADD THIS
+
     },
 };
 
