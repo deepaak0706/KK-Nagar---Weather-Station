@@ -632,16 +632,22 @@ try {
     let yearlyMm = Math.round(r.yearlyIn * 25.4);
     
     if (station.id === 'kknagar' && station.yearlyBaseline > 0) {
-        // At midnight, capture the daily snapshot
-        if (hour === 0 && minute < 5) {
-            // Snapshot: baseline + what API reports at 12 AM
-            st.yearlyMidnightSnapshot = yearlyMm;
-            console.log(`📸 Yearly snapshot captured [${station.id}]: ${yearlyMm}mm`);
-        }
-        // All day: baseline + (today's API value - midnight snapshot)
-        if (st.yearlyMidnightSnapshot !== null && st.yearlyMidnightSnapshot !== undefined) {
-            yearlyMm = station.yearlyBaseline + (yearlyMm - st.yearlyMidnightSnapshot);
-        }
+    // If snapshot doesn't exist yet, capture it now (first run or after server restart)
+    if (st.yearlyMidnightSnapshot === null || st.yearlyMidnightSnapshot === undefined) {
+        st.yearlyMidnightSnapshot = yearlyMm;
+        console.log(`📸 Initial yearly snapshot [${station.id}]: ${yearlyMm}mm`);
+    }
+    
+    // At midnight, recapture the snapshot for next day
+    if (hour === 0 && minute < 5) {
+        st.yearlyMidnightSnapshot = yearlyMm;
+        console.log(`📸 Midnight yearly snapshot [${station.id}]: ${yearlyMm}mm`);
+    }
+    
+    // Always calculate using snapshot
+    yearlyMm = station.yearlyBaseline + (yearlyMm - st.yearlyMidnightSnapshot);
+}
+
     }
     
     return {
