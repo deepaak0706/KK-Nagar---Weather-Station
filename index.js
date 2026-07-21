@@ -632,23 +632,21 @@ try {
     let yearlyMm = Math.round(r.yearlyIn * 25.4);
     
     if (station.id === 'kknagar' && station.yearlyBaseline > 0) {
-    // If snapshot doesn't exist yet, capture it now (first run or after server restart)
-    if (st.yearlyMidnightSnapshot === null || st.yearlyMidnightSnapshot === undefined) {
-        st.yearlyMidnightSnapshot = yearlyMm;
-        console.log(`📸 Initial yearly snapshot [${station.id}]: ${yearlyMm}mm`);
-    }
-    
-    // At midnight, recapture the snapshot for next day
-    if (hour === 0 && minute < 5) {
-        st.yearlyMidnightSnapshot = yearlyMm;
-        console.log(`📸 Midnight yearly snapshot [${station.id}]: ${yearlyMm}mm`);
-    }
-    
-    // Always calculate using snapshot
-    yearlyMm = station.yearlyBaseline + (yearlyMm - st.yearlyMidnightSnapshot);
-}
-
-    }
+        // If snapshot doesn't exist yet, capture it now
+        if (st.yearlyMidnightSnapshot === null || st.yearlyMidnightSnapshot === undefined) {
+            st.yearlyMidnightSnapshot = yearlyMm;
+            console.log(`📸 Initial yearly snapshot [${station.id}]: ${yearlyMm}mm`);
+        }
+        
+        // At midnight, recapture the snapshot for next day
+        if (hour === 0 && minute < 5) {
+            st.yearlyMidnightSnapshot = yearlyMm;
+            console.log(`📸 Midnight yearly snapshot [${station.id}]: ${yearlyMm}mm`);
+        }
+        
+        // Always calculate using snapshot
+        yearlyMm = station.yearlyBaseline + (yearlyMm - st.yearlyMidnightSnapshot);
+    }  // ← CLOSE THE IF HERE (only one brace)
     
     return {
         total:   Math.round(r.dailyIn  * 2540) / 100,
@@ -660,7 +658,6 @@ try {
         yearly:  yearlyMm,
     };
 })(),
-
             lastSync: new Date().toISOString()
         };
 
