@@ -35,7 +35,7 @@ const STATIONS = {
         appKey: APPLICATION_KEY,
         apiKey: API_KEY,
         mac: MAC,
-        yearlyBaseline: 312.2,
+        yearlyBaseline: 357.4,
         yearlyApiOffset: null,
         // ← ADD THESE 4 LINES:
         dataStartYear: 2019,
@@ -72,7 +72,7 @@ const stationState = {
         tW: null, tG: null, tMaxT: null, tMinT: null, tRR: null,
         lastArchivedDate: null, dataChangedSinceLastRead: false,
         summaryCache: null, lastSummaryFetchDate: null, lastDateSeen: null,
-        yearlyApiOffset: null,  // ← ADD THIS
+        yearlyMidnightSnapshot: null,  // ← ADD THIS
     },
     neelangarai: { 
         cachedData: null, lastFetchTime: 0, lastDbWrite: 0,
@@ -633,13 +633,17 @@ try {
             rain: (() => {
     let yearlyMm = Math.round(r.yearlyIn * 25.4);
     
-    if (station.yearlyBaseline > 0) {  // Only for KK Nagar
-        // First read: capture the API's baseline from today
-        if (st.yearlyApiOffset === null) {
-            st.yearlyApiOffset = yearlyMm;
+    if (station.id === 'kknagar' && station.yearlyBaseline > 0) {
+        // At midnight, capture the daily snapshot
+        if (hour === 0 && minute < 5) {
+            // Snapshot: baseline + what API reports at 12 AM
+            st.yearlyMidnightSnapshot = yearlyMm;
+            console.log(`📸 Yearly snapshot captured [${station.id}]: ${yearlyMm}mm`);
         }
-        // Calculate: hardcoded baseline + (current API value - API baseline from today)
-        yearlyMm = station.yearlyBaseline + (yearlyMm - st.yearlyApiOffset);
+        // All day: baseline + (today's API value - midnight snapshot)
+        if (st.yearlyMidnightSnapshot !== null && st.yearlyMidnightSnapshot !== undefined) {
+            yearlyMm = station.yearlyBaseline + (yearlyMm - st.yearlyMidnightSnapshot);
+        }
     }
     
     return {
@@ -652,6 +656,7 @@ try {
         yearly:  yearlyMm,
     };
 })(),
+
             lastSync: new Date().toISOString()
         };
 
