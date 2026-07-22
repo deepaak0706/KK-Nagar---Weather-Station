@@ -195,10 +195,6 @@ function calculateRealFeel(tempC, humidity) {
     if (deltaRain > 0.0001) { 
         let timeSinceLastTipSec = (now - buf.lastRainTime) / 1000;
 
-        if (timeSinceLastTipSec > 600) {
-            timeSinceLastTipSec = 60; 
-        }
-
         const effectiveTime = Math.max(timeSinceLastTipSec, 60);
         
         buf.lastCalculatedRate = deltaRain * (3600 / effectiveTime);
@@ -260,12 +256,14 @@ async function bufferOnlyUpdate(station) {
         // 1. Process rain tips
         buf = processRainLogic(buf, dailyRainInches, currentTimeStamp, true);
 
-        // 2. Decay engine
+        // Fresh event: if no rain for 5+ minutes, reset
         const secondsSinceLastTip = (now - buf.lastRainTime) / 1000;
-        if (secondsSinceLastTip > 180) {
-            buf.lastCalculatedRate *= 0.8;
-            if (buf.lastCalculatedRate < 0.05) buf.lastCalculatedRate = 0;
-        }
+        if (secondsSinceLastTip > 300) {  // > 5 minutes
+        buf.lastCalculatedRate = 0;
+        buf.lastRainRaw = null;
+        buf.lastRainTime = now;
+         }
+
 
         // 3. Wind & temp peak buffering
         if (buf.tW === null || apiW > buf.bufW) { buf.bufW = apiW; buf.tW = currentTimeStamp; }
