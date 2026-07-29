@@ -262,6 +262,11 @@ async function bufferOnlyUpdate(station) {
         // 1. Process rain tips
         buf = processRainLogic(buf, dailyRainInches, currentTimeStamp, true);
 
+        // Zero out rain rate if no rain for 5+ minutes
+        const secondsSinceLastTip = (now - buf.lastRainTime) / 1000;
+        if (secondsSinceLastTip > 300) {  // > 5 minutes
+            buf.lastCalculatedRate = 0;
+        }
 
         // 2. Wind & temp peak buffering
         if (buf.tW === null || apiW > buf.bufW) { buf.bufW = apiW; buf.tW = currentTimeStamp; }
