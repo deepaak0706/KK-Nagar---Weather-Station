@@ -192,8 +192,13 @@ function calculateRealFeel(tempC, humidity) {
 
     const deltaRain = newDailyInches - buf.lastRainRaw;
 
-    if (deltaRain > 0.0001) { 
+        if (deltaRain > 0.0001) { 
         let timeSinceLastTipSec = (now - buf.lastRainTime) / 1000;
+
+        // Fresh event: if gap > 5 min, treat as new rain (60 sec baseline)
+        if (timeSinceLastTipSec > 300) {
+            timeSinceLastTipSec = 60;
+        }
 
         const effectiveTime = Math.max(timeSinceLastTipSec, 60);
         
@@ -201,7 +206,8 @@ function calculateRealFeel(tempC, humidity) {
         
         buf.lastRainRaw = newDailyInches;
         buf.lastRainTime = now; 
-    } 
+    }
+
 
     if (buf.lastCalculatedRate > (buf.bufRR || 0)) { 
         buf.bufRR = buf.lastCalculatedRate; 
@@ -256,16 +262,8 @@ async function bufferOnlyUpdate(station) {
         // 1. Process rain tips
         buf = processRainLogic(buf, dailyRainInches, currentTimeStamp, true);
 
-        // Fresh event: if no rain for 5+ minutes, reset
-        const secondsSinceLastTip = (now - buf.lastRainTime) / 1000;
-        if (secondsSinceLastTip > 300) {  // > 5 minutes
-        buf.lastCalculatedRate = 0;
-        buf.lastRainRaw = null;
-        buf.lastRainTime = now;
-         }
 
-
-        // 3. Wind & temp peak buffering
+        // 2. Wind & temp peak buffering
         if (buf.tW === null || apiW > buf.bufW) { buf.bufW = apiW; buf.tW = currentTimeStamp; }
         if (buf.tG === null || apiG > buf.bufG) { buf.bufG = apiG; buf.tG = currentTimeStamp; }
         if (buf.tMaxT === null || apiT > buf.bufMaxT) { buf.bufMaxT = apiT; buf.tMaxT = currentTimeStamp; }
