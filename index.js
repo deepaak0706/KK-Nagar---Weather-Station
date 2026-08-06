@@ -23,6 +23,11 @@ const NL_APPLICATION_KEY = process.env.NL_APPLICATION_KEY;
 const NL_API_KEY = process.env.NL_API_KEY;
 const NL_MAC = process.env.NL_MAC;
 
+// New — Ayyapakkam
+const AYYA_APPLICATION_KEY = process.env.AYYA_APPLICATION_KEY;
+const AYYA_API_KEY = process.env.AYYA_API_KEY;
+const AYYA_MAC = process.env.AYYA_MAC;
+
 // =============================================
 // STATION CONFIGURATION
 // =============================================
@@ -56,6 +61,20 @@ const STATIONS = {
         summaryStartYear: 2026,
         summaryEndYear: 2032,
     },
+
+    ayyapakkam: {
+        id: 'ayyapakkam',
+        name: 'Ayyapakkam',
+        type: 'ambient',
+        appKey: AYYA_APPLICATION_KEY,
+        apiKey: AYYA_API_KEY,
+        mac: AYYA_MAC,
+        yearlyBaseline: 0,
+        dataStartYear: 2020,
+        dataEndYear: 2026,
+        summaryStartYear: 2026,
+        summaryEndYear: 2032,
+    },
 };
 
 
@@ -80,6 +99,16 @@ const stationState = {
         lastArchivedDate: null, dataChangedSinceLastRead: false,
         summaryCache: null, lastSummaryFetchDate: null, lastDateSeen: null,
 
+    },
+
+    ayyapakkam: { 
+        cachedData: null, lastFetchTime: 0, lastDbWrite: 0,
+        lastRainRaw: null, lastCalculatedRate: 0, lastRainTime: 0, 
+        bufW: 0, bufG: 0, bufMaxT: -999, bufMinT: 999, bufRR: 0,
+        tW: null, tG: null, tMaxT: null, tMinT: null, tRR: null,
+        lastArchivedDate: null, dataChangedSinceLastRead: false,
+        summaryCache: null, lastSummaryFetchDate: null, lastDateSeen: null,
+        yearlyMidnightSnapshot: null,
     },
 };
 
@@ -723,7 +752,7 @@ app.get("/api/sync", async (req, res) => {
 app.get("/api/sync-all", async (req, res) => {
     const results = {};
     try {
-        for (const stationId of ['kknagar', 'neelangarai']) {
+        for (const stationId of ['kknagar', 'neelangarai', 'ayyapakkam']) {
             const s = STATIONS[stationId];
             if (req.query.buffer === 'true') {
                 results[stationId] = await bufferOnlyUpdate(s);
@@ -1513,6 +1542,9 @@ app.get("/", (req, res) => {
                 <div class="station-menu-item" id="opt-neelangarai" onclick="switchStation('neelangarai')">
                     <span class="pin">📍</span><span>Neelangarai</span><span class="check">✓</span>
                 </div>
+                <div class="station-menu-item" id="opt-ayyapakkam" onclick="switchStation('ayyapakkam')">
+                    <span class="station-name">Ayyapakkam</span>
+                </div>
             </div>
         </div>
 
@@ -1822,9 +1854,12 @@ function switchStation(id) {
 
     document.getElementById('opt-kknagar').classList.toggle('active', id === 'kknagar');
     document.getElementById('opt-neelangarai').classList.toggle('active', id === 'neelangarai');
+    document.getElementById('opt-ayyapakkam').classList.toggle('active', id === 'ayyapakkam');
 
     document.getElementById('station-title').textContent =
-        id === 'kknagar' ? 'KK Nagar Weather Station' : 'Neelangarai Weather Station';
+    id === 'kknagar' ? 'KK Nagar Weather Station' : 
+    id === 'neelangarai' ? 'Neelangarai Weather Station' :
+    'Ayyapakkam Weather Station';
 
     closeStationMenu();
     graphDataLoaded = false;
