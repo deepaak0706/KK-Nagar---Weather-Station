@@ -280,12 +280,6 @@ async function bufferOnlyUpdate(station) {
             if (!json || !json[0]) throw new Error("Invalid Ambient API Response");
             const d = json[0].lastData;
 
-            // Outdoor sensor fallback to indoor if unavailable
-            const tempf = d.tempf !== null && d.tempf !== undefined ? d.tempf : d.tempinf;
-            const humidity = d.humidity !== null && d.humidity !== undefined ? d.humidity : d.humidityin;
-            const dewPoint = d.dewPoint !== null && d.dewPoint !== undefined ? d.dewPoint : d.dewPointin;
-            const feelsLike = d.feelsLike !== null && d.feelsLike !== undefined ? d.feelsLike : d.feelsLikein;
-
             apiW = parseFloat(d.windspeedmph);
             apiG = parseFloat(d.windgustmph);
             apiT = parseFloat(d.tempf);
