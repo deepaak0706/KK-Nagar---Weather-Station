@@ -140,8 +140,8 @@ async function loadBufferState(station) {
         lastCalculatedRate: row.last_calculated_rate,
         bufW: row.buf_w,
         bufG: row.buf_g,
-        bufMaxT: row.buf_max_t,
-        bufMinT: row.buf_min_t,
+        bufMaxT: row.buf_max_t !== null ? row.buf_max_t : -999,    // ← FIX
+        bufMinT: row.buf_min_t !== null ? row.buf_min_t : 999,      // ← FIX
         bufRR: row.buf_rr,
         tW: row.t_w,
         tG: row.t_g,
