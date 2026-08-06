@@ -507,7 +507,7 @@ try {
     client.release();
     return st.cachedData;
     }
-    
+    const liveHum = r.humidity;
     await client.query(`
         INSERT INTO weather_history 
         (station_id, time, temp_f, temp_min_f, temp_current_f, humidity,
