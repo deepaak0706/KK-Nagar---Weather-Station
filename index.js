@@ -356,29 +356,34 @@ async function syncWithEcowitt(station, forceWrite = false) {
                 pressRaw:   parseFloat(d.pressure.relative.value),
             };
         } else {
-            const url = `https://api.ambientweather.net/v1/devices?applicationKey=${station.appKey}&apiKey=${station.apiKey}&limit=1`;
-            const response = await fetch(url);
-            const json = await response.json();
-            if (!json || !json[0]) throw new Error("Invalid Ambient Response");
-            const d = json[0].lastData;
-            
-            return {
-                tempF:      parseFloat(d.tempf),
-                dewF:       parseFloat(d.dewPoint),
-                humidity:   parseFloat(d.humidity) || 0,
-                pressInHg:  parseFloat(d.baromrelin),
-                windMph:    parseFloat(d.windspeedmph),
-                gustMph:    parseFloat(d.windgustmph),
-                windDeg:    parseFloat(d.winddir),
-                dailyIn:    parseFloat(d.dailyrainin),
-                weeklyIn:   parseFloat(d.weeklyrainin),
-                monthlyIn:  parseFloat(d.monthlyrainin),
-                yearlyIn:   parseFloat(d.yearlyrainin),
-                solar:      parseFloat(d.solarradiation) || 0,
-                uv:         parseFloat(d.uv) || 0,
-                pressRaw:   parseFloat(d.baromrelin),
-            };
-        }
+    const url = `https://api.ambientweather.net/v1/devices?applicationKey=${station.appKey}&apiKey=${station.apiKey}&limit=1`;
+    const response = await fetch(url);
+    const json = await response.json();
+    if (!json || !json[0]) throw new Error("Invalid Ambient Response");
+    const d = json[0].lastData;
+    
+    // Outdoor sensor fallback to indoor if unavailable
+    const tempf = d.tempf !== null && d.tempf !== undefined ? d.tempf : d.tempinf;
+    const humidity = d.humidity !== null && d.humidity !== undefined ? d.humidity : d.humidityin;
+    const dewPoint = d.dewPoint !== null && d.dewPoint !== undefined ? d.dewPoint : d.dewPointin;
+    
+    return {
+        tempF:      parseFloat(tempf),
+        dewF:       parseFloat(dewPoint),
+        humidity:   parseFloat(humidity) || 0,
+        pressInHg:  parseFloat(d.baromrelin),
+        windMph:    parseFloat(d.windspeedmph),
+        gustMph:    parseFloat(d.windgustmph),
+        windDeg:    parseFloat(d.winddir),
+        dailyIn:    parseFloat(d.dailyrainin),
+        weeklyIn:   parseFloat(d.weeklyrainin),
+        monthlyIn:  parseFloat(d.monthlyrainin),
+        yearlyIn:   parseFloat(d.yearlyrainin),
+        solar:      parseFloat(d.solarradiation) || 0,
+        uv:         parseFloat(d.uv) || 0,
+        pressRaw:   parseFloat(d.baromrelin),
+    };
+}
     };
 
     // ── VISITOR PATH (cache < 9 min) ─────────────────────────
