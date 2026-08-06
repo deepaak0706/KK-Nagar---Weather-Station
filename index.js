@@ -280,6 +280,10 @@ async function bufferOnlyUpdate(station) {
             if (!json || !json[0]) throw new Error("Invalid Ambient API Response");
             const d = json[0].lastData;
 
+            // Use same fallback logic as fetchLiveData
+            const tempf = d.tempf !== null && d.tempf !== undefined ? d.tempf : d.tempinf;
+            const humidity = d.humidity !== null && d.humidity !== undefined ? d.humidity : d.humidityin;
+
             apiW = parseFloat(d.windspeedmph);
             apiG = parseFloat(d.windgustmph);
             apiT = parseFloat(d.tempf);
