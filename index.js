@@ -361,6 +361,13 @@ async function syncWithEcowitt(station, forceWrite = false) {
             const json = await response.json();
             if (!json || !json[0]) throw new Error("Invalid Ambient Response");
             const d = json[0].lastData;
+
+            // Outdoor sensor fallback to indoor if unavailable
+            const tempf = d.tempf !== null && d.tempf !== undefined ? d.tempf : d.tempinf;
+            const humidity = d.humidity !== null && d.humidity !== undefined ? d.humidity : d.humidityin;
+            const dewPoint = d.dewPoint !== null && d.dewPoint !== undefined ? d.dewPoint : d.dewPointin;
+            const feelsLike = d.feelsLike !== null && d.feelsLike !== undefined ? d.feelsLike : d.feelsLikein;
+            
             return {
                 tempF:      parseFloat(d.tempf),
                 dewF:       parseFloat(d.dewPoint),
