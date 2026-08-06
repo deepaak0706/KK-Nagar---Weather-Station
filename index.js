@@ -1543,7 +1543,8 @@ app.get("/", (req, res) => {
                     <span class="pin">📍</span><span>Neelangarai</span><span class="check">✓</span>
                 </div>
                 <div class="station-menu-item" id="opt-ayyapakkam" onclick="switchStation('ayyapakkam')">
-                    <span class="station-name">Ayyapakkam</span>
+                    <span class="pin">📍</span><span>Ayyapakkam</span><span class="check">✓</span>
+                    
                 </div>
             </div>
         </div>
