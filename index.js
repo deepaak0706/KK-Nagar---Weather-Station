@@ -286,7 +286,7 @@ async function bufferOnlyUpdate(station) {
 
             apiW = parseFloat(d.windspeedmph);
             apiG = parseFloat(d.windgustmph);
-            apiT = parseFloat(d.tempf);
+            apiT = parseFloat(tempf);
             dailyRainInches = parseFloat(d.dailyrainin);
         }
 
