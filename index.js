@@ -2306,30 +2306,10 @@ async function fetchMonthlySummary() {
             </div>
         `;
 
-        tableContainer.innerHTML = statsCard + `
-            <div class="pro-summary-table" style="background: var(--card); border-radius: 15px; overflow: hidden; border: 1px solid var(--border);">
-                <div class="pro-row" style="background: var(--badge); font-weight: 800; font-size: 11px; text-transform: uppercase; display: flex; align-items: center; padding: 15px; border-bottom: 1px solid var(--border);">
-                    <div style="width: 20%;">Date</div>
-                    <div style="width: 25%; text-align: center;">Temp (H/L)</div>
-                    <div style="width: 30%; text-align: center;">Wind / Gust</div>
-                    <div style="width: 25%; text-align: right;">Rainfall</div>
-                </div>
-                ${days.map(function(d) {
-                    return `
-                    <div class="pro-row" style="display: flex; align-items: center; padding: 15px; border-bottom: 1px solid var(--border);">
-                        <div style="width: 20%; font-size: 16px;"><b>${new Date(d.record_date).getDate()}</b></div>
-                        <div style="width: 25%; display: flex; justify-content: center; gap: 8px;">
-                            <span style="color:#ef4444; font-weight: 700;">${parseFloat(d.max_temp_c).toFixed(1)}°</span>
-                            <span style="color:#3b82f6; font-weight: 700;">${parseFloat(d.min_temp_c).toFixed(1)}°</span>
-                        </div>
-                        <div style="width: 30%; display: flex; justify-content: center; gap: 8px;">
-                            <span style="color:#f97316;">${parseFloat(d.max_wind_kmh).toFixed(1)}</span>
-                            <span style="color:#ec4899;">${parseFloat(d.max_gust_kmh).toFixed(1)}</span>
-                        </div>
-                        <div style="width: 25%; text-align: right; color: #06b6d4; font-weight: 700;">${parseFloat(d.total_rain_mm).toFixed(1)} mm</div>
-                    </div>`;
-                }).join('')}
-            </div>`;
+                tableContainer.innerHTML = statsCard + '<div class="pro-summary-table" style="background: var(--card); border-radius: 15px; overflow: hidden; border: 1px solid var(--border);"><div class="pro-row" style="background: var(--badge); font-weight: 800; font-size: 11px; text-transform: uppercase; display: flex; align-items: center; padding: 15px; border-bottom: 1px solid var(--border);"><div style="width: 20%;">Date</div><div style="width: 25%; text-align: center;">Temp (H/L)</div><div style="width: 30%; text-align: center;">Wind / Gust</div><div style="width: 25%; text-align: right;">Rainfall</div></div>' + days.map(function(d) {
+            return '<div class="pro-row" style="display: flex; align-items: center; padding: 15px; border-bottom: 1px solid var(--border);"><div style="width: 20%; font-size: 16px;"><b>' + new Date(d.record_date).getDate() + '</b></div><div style="width: 25%; display: flex; justify-content: center; gap: 8px;"><span style="color:#ef4444; font-weight: 700;">' + parseFloat(d.max_temp_c).toFixed(1) + '°</span><span style="color:#3b82f6; font-weight: 700;">' + parseFloat(d.min_temp_c).toFixed(1) + '°</span></div><div style="width: 30%; display: flex; justify-content: center; gap: 8px;"><span style="color:#f97316;">' + parseFloat(d.max_wind_kmh).toFixed(1) + '</span><span style="color:#ec4899;">' + parseFloat(d.max_gust_kmh).toFixed(1) + '</span></div><div style="width: 25%; text-align: right; color: #06b6d4; font-weight: 700;">' + parseFloat(d.total_rain_mm).toFixed(1) + ' mm</div></div>';
+        }).join('') + '</div>';
+
 
     } catch (e) {
         console.error("Error fetching summary:", e);
