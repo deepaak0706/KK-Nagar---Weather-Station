@@ -28,6 +28,12 @@ const AYYA_APPLICATION_KEY = process.env.AYYA_APPLICATION_KEY;
 const AYYA_API_KEY = process.env.AYYA_API_KEY;
 const AYYA_MAC = process.env.AYYA_MAC;
 
+// New — Sanatorium (Ecowitt)
+const SANATORIUM_APPLICATION_KEY = process.env.SANATORIUM_APPLICATION_KEY;
+const SANATORIUM_API_KEY = process.env.SANATORIUM_API_KEY;
+const SANATORIUM_MAC = process.env.SANATORIUM_MAC;
+
+
 // =============================================
 // STATION CONFIGURATION
 // =============================================
@@ -75,6 +81,20 @@ const STATIONS = {
         summaryStartYear: 2026,
         summaryEndYear: 2032,
     },
+
+        sanatorium: {
+        id: 'sanatorium',
+        name: 'Sanatorium',
+        type: 'ecowitt',
+        appKey: SANATORIUM_APPLICATION_KEY,
+        apiKey: SANATORIUM_API_KEY,
+        mac: SANATORIUM_MAC,
+        yearlyBaseline: 0,
+        dataStartYear: 2020,
+        dataEndYear: 2026,
+        summaryStartYear: 2026,
+        summaryEndYear: 2032,
+    },
 };
 
 
@@ -110,7 +130,18 @@ const stationState = {
         summaryCache: null, lastSummaryFetchDate: null, lastDateSeen: null,
         yearlyMidnightSnapshot: null,
     },
+
+        sanatorium: { 
+        cachedData: null, lastFetchTime: 0, lastDbWrite: 0,
+        lastRainRaw: null, lastCalculatedRate: 0, lastRainTime: 0, 
+        bufW: 0, bufG: 0, bufMaxT: -999, bufMinT: 999, bufRR: 0,
+        tW: null, tG: null, tMaxT: null, tMinT: null, tRR: null,
+        lastArchivedDate: null, dataChangedSinceLastRead: false,
+        summaryCache: null, lastSummaryFetchDate: null, lastDateSeen: null,
+        yearlyMidnightSnapshot: null,
+    },
 };
+
 
 function resetStateBuffers(station) {
     const s = stationState[station.id];
@@ -762,7 +793,7 @@ app.get("/api/sync", async (req, res) => {
 app.get("/api/sync-all", async (req, res) => {
     const results = {};
     try {
-        for (const stationId of ['kknagar', 'neelangarai', 'ayyapakkam']) {
+        for (const stationId of ['kknagar', 'neelangarai', 'ayyapakkam', 'sanatorium']) {
             const s = STATIONS[stationId];
             if (req.query.buffer === 'true') {
                 results[stationId] = await bufferOnlyUpdate(s);
@@ -1554,7 +1585,9 @@ app.get("/", (req, res) => {
                 </div>
                 <div class="station-menu-item" id="opt-ayyapakkam" onclick="switchStation('ayyapakkam')">
                     <span class="pin">📍</span><span>Ayyapakkam</span><span class="check">✓</span>
-                    
+                </div>
+                <div class="station-menu-item" id="opt-sanatorium" onclick="switchStation('sanatorium')">
+                    <span class="pin">📍</span><span>Sanatorium</span><span class="check">✓</span>
                 </div>
             </div>
         </div>
@@ -1866,11 +1899,13 @@ function switchStation(id) {
     document.getElementById('opt-kknagar').classList.toggle('active', id === 'kknagar');
     document.getElementById('opt-neelangarai').classList.toggle('active', id === 'neelangarai');
     document.getElementById('opt-ayyapakkam').classList.toggle('active', id === 'ayyapakkam');
+    document.getElementById('opt-sanatorium').classList.toggle('active', id === 'sanatorium');
 
     document.getElementById('station-title').textContent =
     id === 'kknagar' ? 'KK Nagar Weather Station' : 
     id === 'neelangarai' ? 'Neelangarai Weather Station' :
-    'Ayyapakkam Weather Station';
+    id === 'ayyapakkam' ? 'Ayyapakkam Weather Station' :
+    'Sanatorium Weather Station';
 
     closeStationMenu();
     graphDataLoaded = false;
