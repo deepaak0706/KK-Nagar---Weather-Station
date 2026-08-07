@@ -847,6 +847,56 @@ app.get('/api/historical-rain', async (req, res) => {
     }
 });
 
+app.get('/manifest.json', (req, res) => {
+    res.json({
+        name: "KK Nagar Weather Hub",
+        short_name: "Weather Hub",
+        start_url: "/",
+        display: "standalone",
+        background_color: "#090d16",
+        theme_color: "#38bdf8",
+        icons: [
+            {
+                src: "/icon-192.png",
+                sizes: "192x192",
+                type: "image/png"
+            },
+            {
+                src: "/icon-512.png",
+                sizes: "512x512",
+                type: "image/png"
+            }
+        ]
+    });
+});
+
+app.get('/sw.js', (req, res) => {
+    res.type('application/javascript').send(`
+const CACHE_NAME = 'kk-nagar-weather-v1';
+const urlsToCache = [
+  '/',
+  '/manifest.json'
+];
+
+self.addEventListener('install', event => {
+  event.waitUntil(
+    caches.open(CACHE_NAME)
+      .then(cache => cache.addAll(urlsToCache))
+      .catch(err => console.log('Cache failed:', err))
+  );
+});
+
+self.addEventListener('fetch', event => {
+  event.respondWith(
+    caches.match(event.request)
+      .then(response => response || fetch(event.request))
+      .catch(() => caches.match('/'))
+  );
+});
+    `);
+});
+
+
 app.get('/sw.js', (req, res) => {
     res.type('application/javascript').send(`
 const CACHE_NAME = 'kk-nagar-weather-v1';
