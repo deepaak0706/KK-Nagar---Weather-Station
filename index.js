@@ -2253,18 +2253,60 @@ async function fetchMonthlySummary() {
     try {
         const res = await fetch('/api/summary?station=' + currentStation);
         const groups = await res.json();
-        const currentKey = \`\${selectedMonth} \${selectedYear}\`;
+        const currentKey = `${selectedMonth} ${selectedYear}`;
         const days = groups[currentKey] || [];
 
         if (days.length === 0) {
-            tableContainer.innerHTML = \`
+            tableContainer.innerHTML = `
                 <div class="card" style="text-align:center; padding:60px; color: var(--muted); font-weight: 600;">
-                    No data recorded for \${currentKey}
-                </div>\`;
+                    No data recorded for ${currentKey}
+                </div>`;
             return;
         }
 
-        tableContainer.innerHTML = \`
+        // Calculate month statistics
+        const maxTemp = Math.max(...days.map(d => d.max_temp_c));
+        const minTemp = Math.min(...days.map(d => d.min_temp_c));
+        const totalRain = days.reduce((sum, d) => sum + parseFloat(d.total_rain_mm || 0), 0);
+        const rainyDays = days.filter(d => parseFloat(d.total_rain_mm || 0) >= 2.5).length;
+        const maxWind = Math.max(...days.map(d => d.max_wind_kmh));
+        const maxGust = Math.max(...days.map(d => d.max_gust_kmh));
+
+        // Modern stats grid
+        const statsCard = `
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 20px;">
+                <div style="background: linear-gradient(135deg, #1a1f3a 0%, #111827 100%); border: 1px solid rgba(59,130,246,0.2); border-radius: 12px; padding: 18px; transition: all 0.3s ease; cursor: default;" onmouseover="this.style.borderColor='rgba(59,130,246,0.5)'; this.style.transform='translateY(-4px)'; this.style.boxShadow='0 15px 40px -10px rgba(59,130,246,0.25)'" onmouseout="this.style.borderColor='rgba(59,130,246,0.2)'; this.style.transform='translateY(0)'; this.style.boxShadow='none'">
+                    <div style="font-size: 10px; font-weight: 800; letter-spacing: 1px; color: #60a5fa; margin-bottom: 8px; text-transform: uppercase;">Max Temp</div>
+                    <div style="font-size: 28px; font-weight: 900; color: #ef4444; line-height: 1;">${maxTemp.toFixed(1)}°C</div>
+                </div>
+                <div style="background: linear-gradient(135deg, #1a1f3a 0%, #111827 100%); border: 1px solid rgba(59,130,246,0.2); border-radius: 12px; padding: 18px; transition: all 0.3s ease; cursor: default;" onmouseover="this.style.borderColor='rgba(59,130,246,0.5)'; this.style.transform='translateY(-4px)'; this.style.boxShadow='0 15px 40px -10px rgba(59,130,246,0.25)'" onmouseout="this.style.borderColor='rgba(59,130,246,0.2)'; this.style.transform='translateY(0)'; this.style.boxShadow='none'">
+                    <div style="font-size: 10px; font-weight: 800; letter-spacing: 1px; color: #60a5fa; margin-bottom: 8px; text-transform: uppercase;">Min Temp</div>
+                    <div style="font-size: 28px; font-weight: 900; color: #3b82f6; line-height: 1;">${minTemp.toFixed(1)}°C</div>
+                </div>
+                <div style="background: linear-gradient(135deg, #1a1f3a 0%, #111827 100%); border: 1px solid rgba(59,130,246,0.2); border-radius: 12px; padding: 18px; transition: all 0.3s ease; cursor: default;" onmouseover="this.style.borderColor='rgba(59,130,246,0.5)'; this.style.transform='translateY(-4px)'; this.style.boxShadow='0 15px 40px -10px rgba(59,130,246,0.25)'" onmouseout="this.style.borderColor='rgba(59,130,246,0.2)'; this.style.transform='translateY(0)'; this.style.boxShadow='none'">
+                    <div style="font-size: 10px; font-weight: 800; letter-spacing: 1px; color: #60a5fa; margin-bottom: 8px; text-transform: uppercase;">Total Rain</div>
+                    <div style="font-size: 28px; font-weight: 900; color: #06b6d4; line-height: 1;">${totalRain.toFixed(1)}</div>
+                    <div style="font-size: 11px; color: #94a3b8; margin-top: 3px;">mm</div>
+                </div>
+                <div style="background: linear-gradient(135deg, #1a1f3a 0%, #111827 100%); border: 1px solid rgba(59,130,246,0.2); border-radius: 12px; padding: 18px; transition: all 0.3s ease; cursor: default;" onmouseover="this.style.borderColor='rgba(59,130,246,0.5)'; this.style.transform='translateY(-4px)'; this.style.boxShadow='0 15px 40px -10px rgba(59,130,246,0.25)'" onmouseout="this.style.borderColor='rgba(59,130,246,0.2)'; this.style.transform='translateY(0)'; this.style.boxShadow='none'">
+                    <div style="font-size: 10px; font-weight: 800; letter-spacing: 1px; color: #60a5fa; margin-bottom: 8px; text-transform: uppercase;">Rainy Days</div>
+                    <div style="font-size: 28px; font-weight: 900; color: #8b5cf6; line-height: 1;">${rainyDays}</div>
+                    <div style="font-size: 11px; color: #94a3b8; margin-top: 3px;">≥2.5mm</div>
+                </div>
+                <div style="background: linear-gradient(135deg, #1a1f3a 0%, #111827 100%); border: 1px solid rgba(59,130,246,0.2); border-radius: 12px; padding: 18px; transition: all 0.3s ease; cursor: default;" onmouseover="this.style.borderColor='rgba(59,130,246,0.5)'; this.style.transform='translateY(-4px)'; this.style.boxShadow='0 15px 40px -10px rgba(59,130,246,0.25)'" onmouseout="this.style.borderColor='rgba(59,130,246,0.2)'; this.style.transform='translateY(0)'; this.style.boxShadow='none'">
+                    <div style="font-size: 10px; font-weight: 800; letter-spacing: 1px; color: #60a5fa; margin-bottom: 8px; text-transform: uppercase;">Max Wind</div>
+                    <div style="font-size: 28px; font-weight: 900; color: #f97316; line-height: 1;">${maxWind.toFixed(1)}</div>
+                    <div style="font-size: 11px; color: #94a3b8; margin-top: 3px;">km/h</div>
+                </div>
+                <div style="background: linear-gradient(135deg, #1a1f3a 0%, #111827 100%); border: 1px solid rgba(59,130,246,0.2); border-radius: 12px; padding: 18px; transition: all 0.3s ease; cursor: default;" onmouseover="this.style.borderColor='rgba(59,130,246,0.5)'; this.style.transform='translateY(-4px)'; this.style.boxShadow='0 15px 40px -10px rgba(59,130,246,0.25)'" onmouseout="this.style.borderColor='rgba(59,130,246,0.2)'; this.style.transform='translateY(0)'; this.style.boxShadow='none'">
+                    <div style="font-size: 10px; font-weight: 800; letter-spacing: 1px; color: #60a5fa; margin-bottom: 8px; text-transform: uppercase;">Max Gust</div>
+                    <div style="font-size: 28px; font-weight: 900; color: #ec4899; line-height: 1;">${maxGust.toFixed(1)}</div>
+                    <div style="font-size: 11px; color: #94a3b8; margin-top: 3px;">km/h</div>
+                </div>
+            </div>
+        `;
+
+        tableContainer.innerHTML = statsCard + `
             <div class="pro-summary-table" style="background: var(--card); border-radius: 15px; overflow: hidden; border: 1px solid var(--border);">
                 <div class="pro-row" style="background: var(--badge); font-weight: 800; font-size: 11px; text-transform: uppercase; display: flex; align-items: center; padding: 15px; border-bottom: 1px solid var(--border);">
                     <div style="width: 20%;">Date</div>
@@ -2272,28 +2314,29 @@ async function fetchMonthlySummary() {
                     <div style="width: 30%; text-align: center;">Wind / Gust</div>
                     <div style="width: 25%; text-align: right;">Rainfall</div>
                 </div>
-                \${days.map(function(d) {
-                    return \`
+                ${days.map(function(d) {
+                    return `
                     <div class="pro-row" style="display: flex; align-items: center; padding: 15px; border-bottom: 1px solid var(--border);">
-                        <div style="width: 20%; font-size: 16px;"><b>\${new Date(d.record_date).getDate()}</b></div>
+                        <div style="width: 20%; font-size: 16px;"><b>${new Date(d.record_date).getDate()}</b></div>
                         <div style="width: 25%; display: flex; justify-content: center; gap: 8px;">
-                            <span style="color:#ef4444; font-weight: 700;">\${parseFloat(d.max_temp_c).toFixed(1)}°</span>
-                            <span style="opacity: 0.3;">/</span>
-                            <span style="color:#0ea5e9; font-weight: 700;">\${parseFloat(d.min_temp_c).toFixed(1)}°</span>
+                            <span style="color:#ef4444; font-weight: 700;">${parseFloat(d.max_temp_c).toFixed(1)}°</span>
+                            <span style="color:#3b82f6; font-weight: 700;">${parseFloat(d.min_temp_c).toFixed(1)}°</span>
                         </div>
-                        <div style="width: 30%; font-size: 13px; text-align: center;">
-                            \${parseFloat(d.max_wind_kmh).toFixed(1)} <small style="opacity:0.4">/</small> \${parseFloat(d.max_gust_kmh).toFixed(1)} <small>km/h</small>
+                        <div style="width: 30%; display: flex; justify-content: center; gap: 8px;">
+                            <span style="color:#f97316;">${parseFloat(d.max_wind_kmh).toFixed(1)}</span>
+                            <span style="color:#ec4899;">${parseFloat(d.max_gust_kmh).toFixed(1)}</span>
                         </div>
-                        <div style="width: 25%; font-weight: 800; color: #3b82f6; text-align: right;">
-                            \${parseFloat(d.total_rain_mm).toFixed(1)} <small>mm</small>
-                        </div>
-                    </div>\`;
+                        <div style="width: 25%; text-align: right; color: #06b6d4; font-weight: 700;">${parseFloat(d.total_rain_mm).toFixed(1)} mm</div>
+                    </div>`;
                 }).join('')}
-            </div>\`;
+            </div>`;
+
     } catch (e) {
-        tableContainer.innerHTML = '<div class="card" style="color:#ef4444; padding:20px; text-align:center;">Error loading data.</div>';
+        console.error("Error fetching summary:", e);
+        tableContainer.innerHTML = '<div class="card" style="text-align:center; padding:60px; color: red;">Error loading data</div>';
     }
 }
+
 
 window.updateArchiveFilter = function() {
     selectedMonth = document.getElementById('monthSelect').value;
