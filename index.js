@@ -847,6 +847,33 @@ app.get('/api/historical-rain', async (req, res) => {
     }
 });
 
+app.get('/sw.js', (req, res) => {
+    res.type('application/javascript').send(`
+const CACHE_NAME = 'kk-nagar-weather-v1';
+const urlsToCache = [
+  '/',
+  '/manifest.json'
+];
+
+self.addEventListener('install', event => {
+  event.waitUntil(
+    caches.open(CACHE_NAME)
+      .then(cache => cache.addAll(urlsToCache))
+      .catch(err => console.log('Cache failed:', err))
+  );
+});
+
+self.addEventListener('fetch', event => {
+  event.respondWith(
+    caches.match(event.request)
+      .then(response => response || fetch(event.request))
+      .catch(() => caches.match('/'))
+  );
+});
+    `);
+});
+
+
 // 5. The User Interface (Your HTML)
 app.get("/", (req, res) => {
     res.send(`
@@ -860,6 +887,13 @@ app.get("/", (req, res) => {
     <link rel="icon" type="image/png" href="/icon-192.png">
     <link rel="apple-touch-icon" href="/icon-180.png">
     <link rel="manifest" href="/manifest.json">
+
+    <script>
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js').catch(err => console.log('SW registration failed:', err));
+  }
+</script>
+
 
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
