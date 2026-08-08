@@ -1697,6 +1697,88 @@ app.get("/", (req, res) => {
 
 
 </style>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        let deferredPrompt;
+
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            showInstallPrompt();
+        });
+
+        function showInstallPrompt() {
+            const banner = document.createElement('div');
+            banner.id = 'install-prompt';
+            banner.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                background: linear-gradient(135deg, #38bdf8 0%, #0284c7 100%);
+                color: white;
+                padding: 16px;
+                text-align: center;
+                z-index: 9999;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+                font-family: 'Outfit', sans-serif;
+            `;
+            
+            banner.innerHTML = `
+                <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px;">
+                    <div style="flex: 1;">
+                        <strong>⛅ Install Weather App</strong>
+                        <p style="margin: 4px 0 0 0; font-size: 12px;">Get live weather updates on your home screen</p>
+                    </div>
+                    <div style="display: flex; gap: 8px;">
+                        <button id="install-btn" style="
+                            background: white;
+                            color: #0284c7;
+                            border: none;
+                            padding: 8px 16px;
+                            border-radius: 6px;
+                            font-weight: 700;
+                            cursor: pointer;
+                            font-size: 12px;
+                        ">Install</button>
+                        <button id="dismiss-btn" style="
+                            background: rgba(255,255,255,0.2);
+                            color: white;
+                            border: none;
+                            padding: 8px 16px;
+                            border-radius: 6px;
+                            font-weight: 700;
+                            cursor: pointer;
+                            font-size: 12px;
+                        ">Later</button>
+                    </div>
+                </div>
+            `;
+            
+            document.body.insertBefore(banner, document.body.firstChild);
+            
+            document.getElementById('install-btn').addEventListener('click', async () => {
+                if (deferredPrompt) {
+                    deferredPrompt.prompt();
+                    const { outcome } = await deferredPrompt.userChoice;
+                    console.log(`User response: ${outcome}`);
+                    deferredPrompt = null;
+                    banner.remove();
+                }
+            });
+            
+            document.getElementById('dismiss-btn').addEventListener('click', () => {
+                banner.remove();
+            });
+        }
+
+        window.addEventListener('appinstalled', () => {
+            console.log('PWA was installed');
+            const banner = document.getElementById('install-prompt');
+            if (banner) banner.remove();
+        });
+    });
+    </script>
 </head>
 <body>
     <div class="container">
