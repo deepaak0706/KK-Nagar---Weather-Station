@@ -1811,63 +1811,54 @@ body {
         margin-bottom: 2px !important;
     }
 }
-/* ========== ANDROID CHROME EMERGENCY FIX ========== */
-/* This forces Android to render at iOS size */
-
-@media screen and (max-width: 600px) and (hover: none) and (pointer: coarse) {
-    /* Mobile Touch Device Override */
-    html {
-        font-size: 12px !important;
-    }
-    
+/* ========== ANDROID CHROME MOBILE FIX ========== */
+@media screen and (max-width: 480px) {
     body {
-        transform: scale(0.85);
-        transform-origin: top center;
-        width: 117.65%;
+        font-size: 14px !important;
+        transform: scale(0.9);
+        transform-origin: top left;
+        width: 111%;
     }
     
     .card {
-        padding: 12px !important;
-        gap: 10px !important;
+        padding: 10px !important;
+        gap: 8px !important;
+        border-radius: 16px !important;
     }
     
     .main-val {
-        font-size: 36px !important;
-        letter-spacing: -1px !important;
+        font-size: 32px !important;
     }
     
     .label {
-        font-size: 10px !important;
-        margin-bottom: 6px !important;
-    }
-    
-    .cell-lbl {
-        font-size: 8px !important;
+        font-size: 9px !important;
     }
     
     .cell-val {
-        font-size: 12px !important;
-    }
-    
-    .sub-pill {
         font-size: 11px !important;
     }
     
-    .nav-pill {
-        padding: 3px !important;
-    }
-    
-    .tab-pill {
-        padding: 6px 12px !important;
-        font-size: 10px !important;
-    }
-    
-    .modular-cell {
-        padding: 8px !important;
-    }
-    
     .pro-summary-table {
-        padding: 12px !important;
+        padding: 10px !important;
+        gap: 8px !important;
+    }
+    
+    h1 {
+        font-size: 16px !important;
+    }
+}
+
+@media screen and (max-width: 600px) {
+    body {
+        padding: 10px 6px 120px 6px !important;
+    }
+    
+    .grid-system {
+        gap: 8px !important;
+    }
+    
+    .container {
+        max-width: 100% !important;
     }
 }
 </style>
