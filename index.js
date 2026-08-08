@@ -2690,7 +2690,6 @@ function updateRainGlow() {
 // Auto-check every 30 seconds
 setInterval(updateRainGlow, 30000);
 
-
 </script>
 </body>
 </html>
