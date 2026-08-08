@@ -1013,7 +1013,7 @@ app.get("/", (req, res) => {
     background: var(--bg); 
     color: var(--text); 
     /* 👇 FIX: Tight side margins on mobile so elements stretch across the screen nicely */
-    padding: 16px 10px 120px 10px; 
+    padding: 12px 8px 120px 8px;
     transition: background 0.4s ease, color 0.4s ease; 
     min-height: 100vh; 
     overflow-x: hidden; 
@@ -1032,7 +1032,13 @@ app.get("/", (req, res) => {
 
     *, *:before, *:after { box-sizing: inherit; }
 
-    .container { width: 100%; max-width: 1340px; margin: 0 auto; }
+    .container { 
+    width: 100%; 
+    max-width: 1340px; 
+    margin: 0 auto;
+    box-sizing: border-box;
+    padding: 0;
+}
     
     /* 🎯 #1: ENHANCED HEADER WITH GRADIENT */
     .header { margin-bottom: 28px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; }
@@ -1125,7 +1131,25 @@ app.get("/", (req, res) => {
         }
     }
     @media (min-width: 1100px) {
-        .grid-system { grid-template-columns: repeat(4, 1fr); }
+        .grid-system { 
+    display: grid; 
+    grid-template-columns: 1fr;
+    gap: 12px;
+}
+
+@media (min-width: 768px) {
+    .grid-system { 
+        grid-template-columns: repeat(2, 1fr);
+        gap: 16px;
+    }
+}
+
+@media (min-width: 1100px) {
+    .grid-system { 
+        grid-template-columns: repeat(4, 1fr);
+        gap: 20px;
+    }
+}
     }
 
     /* 🎯 #3: COLORED TOP BORDERS ON CARDS */
