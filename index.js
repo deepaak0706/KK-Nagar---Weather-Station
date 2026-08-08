@@ -870,31 +870,6 @@ app.get('/manifest.json', (req, res) => {
     });
 });
 
-app.get('/sw.js', (req, res) => {
-    res.type('application/javascript').send(`
-const CACHE_NAME = 'kk-nagar-weather-v1';
-const urlsToCache = [
-  '/',
-  '/manifest.json'
-];
-
-self.addEventListener('install', event => {
-  event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then(cache => cache.addAll(urlsToCache))
-      .catch(err => console.log('Cache failed:', err))
-  );
-});
-
-self.addEventListener('fetch', event => {
-  event.respondWith(
-    caches.match(event.request)
-      .then(response => response || fetch(event.request))
-      .catch(() => caches.match('/'))
-  );
-});
-    `);
-});
 
 
 app.get('/sw.js', (req, res) => {
@@ -921,6 +896,56 @@ self.addEventListener('fetch', event => {
   );
 });
     `);
+});
+
+// Icon routes
+app.get('/icon-192.png', (req, res) => {
+    const svg = `
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192">
+    <defs>
+        <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" style="stop-color:#38bdf8;stop-opacity:1" />
+            <stop offset="100%" style="stop-color:#0284c7;stop-opacity:1" />
+        </linearGradient>
+    </defs>
+    <rect width="192" height="192" fill="url(#grad)"/>
+    <text x="96" y="120" font-size="80" font-weight="bold" text-anchor="middle" fill="white" font-family="Arial">W</text>
+</svg>`;
+    res.type('image/svg+xml').send(svg);
+});
+
+app.get('/icon-512.png', (req, res) => {
+    const svg = `
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+    <defs>
+        <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" style="stop-color:#38bdf8;stop-opacity:1" />
+            <stop offset="100%" style="stop-color:#0284c7;stop-opacity:1" />
+        </linearGradient>
+    </defs>
+    <rect width="512" height="512" fill="url(#grad)"/>
+    <text x="256" y="340" font-size="220" font-weight="bold" text-anchor="middle" fill="white" font-family="Arial">W</text>
+</svg>`;
+    res.type('image/svg+xml').send(svg);
+});
+
+// Screenshot routes
+app.get('/screenshot-540.png', (req, res) => {
+    const svg = `
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 540 720">
+    <rect width="540" height="720" fill="#090d16"/>
+    <text x="270" y="360" font-size="40" text-anchor="middle" fill="#38bdf8" font-weight="bold">KK Nagar Weather</text>
+</svg>`;
+    res.type('image/svg+xml').send(svg);
+});
+
+app.get('/screenshot-1280.png', (req, res) => {
+    const svg = `
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720">
+    <rect width="1280" height="720" fill="#090d16"/>
+    <text x="640" y="360" font-size="60" text-anchor="middle" fill="#38bdf8" font-weight="bold">KK Nagar Weather Hub</text>
+</svg>`;
+    res.type('image/svg+xml').send(svg);
 });
 
 
