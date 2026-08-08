@@ -955,6 +955,23 @@ app.get("/", (req, res) => {
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<!-- CRITICAL: Force Android Chrome to 100% zoom, not 125% -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=auto, user-scalable=no, maximum-scale=1.0, minimum-scale=1.0">
+    <style>
+        /* ANDROID CHROME FIX: Disable automatic text size adjustment */
+        html {
+            font-size: 16px;
+            -webkit-text-size-adjust: 100%;
+            -moz-text-size-adjust: 100%;
+            -ms-text-size-adjust: 100%;
+        }
+        
+        /* FORCE: Ensure all cards and text are exactly sized */
+        body * {
+            -webkit-text-size-adjust: 100% !important;
+            text-size-adjust: 100% !important;
+        }
+    </style>
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="KK Nagar Weather">
@@ -991,6 +1008,42 @@ app.get("/", (req, res) => {
         --glow: 0 4px 15px -3px rgba(15, 23, 42, 0.08); /* Deeper, softer shadow to anchor the UI */
         --line: #e2e8f0;                 /* Inner dividers match the background */
     }
+    /* ANDROID CHROME SCALE FIX: Reduce everything by 15% on phones */
+@media screen and (max-width: 600px) {
+    :root {
+        font-size: 14px;
+    }
+    
+    html, body {
+        font-size: 14px;
+    }
+    
+    .card {
+        padding: 12px;
+        gap: 10px;
+    }
+    
+    .main-val {
+        font-size: 40px;
+    }
+    
+    .label {
+        font-size: 11px;
+    }
+    
+    .cell-val {
+        font-size: 12px;
+    }
+    
+    h1 {
+        font-size: 18px !important;
+    }
+    
+    .tab-pill {
+        padding: 8px 14px;
+        font-size: 11px;
+    }
+}
     /* ========================================== */
     /* 🌙 PREMIUM DARK MODE (OLED Obsidian)       */
     /* ========================================== */
