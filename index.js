@@ -1811,7 +1811,65 @@ body {
         margin-bottom: 2px !important;
     }
 }
+/* ========== ANDROID CHROME EMERGENCY FIX ========== */
+/* This forces Android to render at iOS size */
 
+@media screen and (max-width: 600px) and (hover: none) and (pointer: coarse) {
+    /* Mobile Touch Device Override */
+    html {
+        font-size: 12px !important;
+    }
+    
+    body {
+        transform: scale(0.85);
+        transform-origin: top center;
+        width: 117.65%;
+    }
+    
+    .card {
+        padding: 12px !important;
+        gap: 10px !important;
+    }
+    
+    .main-val {
+        font-size: 36px !important;
+        letter-spacing: -1px !important;
+    }
+    
+    .label {
+        font-size: 10px !important;
+        margin-bottom: 6px !important;
+    }
+    
+    .cell-lbl {
+        font-size: 8px !important;
+    }
+    
+    .cell-val {
+        font-size: 12px !important;
+    }
+    
+    .sub-pill {
+        font-size: 11px !important;
+    }
+    
+    .nav-pill {
+        padding: 3px !important;
+    }
+    
+    .tab-pill {
+        padding: 6px 12px !important;
+        font-size: 10px !important;
+    }
+    
+    .modular-cell {
+        padding: 8px !important;
+    }
+    
+    .pro-summary-table {
+        padding: 12px !important;
+    }
+}
 </style>
 </head>
 <body>
