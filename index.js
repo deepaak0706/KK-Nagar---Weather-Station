@@ -971,7 +971,7 @@ app.get("/", (req, res) => {
 
 
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=auto">
     <title>KK Nagar Weather Station</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
@@ -1007,32 +1007,57 @@ app.get("/", (req, res) => {
     }
 
      
-    body { 
+body { 
     margin: 0; 
     font-family: 'Outfit', sans-serif; 
     background: var(--bg); 
     color: var(--text); 
-    /* 👇 FIX: Tight side margins on mobile so elements stretch across the screen nicely */
-    padding: 16px 10px 120px 10px; 
+    padding: 12px 8px 120px 8px;
     transition: background 0.4s ease, color 0.4s ease; 
     min-height: 100vh; 
     overflow-x: hidden; 
     box-sizing: border-box;
-    padding-top: calc(16px + env(safe-area-inset-top, 0px));
-    padding-left: calc(10px + env(safe-area-inset-left, 0px));
-    padding-right: calc(10px + env(safe-area-inset-right, 0px));
 }
 
-/* 👇 RESTORES ORIGINAL SPACING ON DESKTOP SCREENS */
+@supports (padding: max(0px)) {
+    body {
+        padding-top: max(12px, env(safe-area-inset-top, 0px));
+        padding-left: max(8px, env(safe-area-inset-left, 0px));
+        padding-right: max(8px, env(safe-area-inset-right, 0px));
+        padding-bottom: 120px;
+    }
+}
+
 @media screen and (min-width: 768px) {
     body { 
-        padding: 24px 24px 120px 24px; 
+        padding: 20px 20px 120px 20px; 
+    }
+    
+    @supports (padding: max(0px)) {
+        body {
+            padding-top: max(20px, env(safe-area-inset-top, 0px));
+            padding-left: max(20px, env(safe-area-inset-left, 0px));
+            padding-right: max(20px, env(safe-area-inset-right, 0px));
+            padding-bottom: 120px;
+        }
     }
 }
 
     *, *:before, *:after { box-sizing: inherit; }
 
-    .container { width: 100%; max-width: 1340px; margin: 0 auto; }
+    .container { 
+    width: 100%; 
+    max-width: 100%;
+    margin: 0 auto;
+    box-sizing: border-box;
+    padding: 0;
+}
+
+@media screen and (min-width: 1100px) {
+    .container {
+        max-width: 1340px;
+    }
+}
     
     /* 🎯 #1: ENHANCED HEADER WITH GRADIENT */
     .header { margin-bottom: 28px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; }
