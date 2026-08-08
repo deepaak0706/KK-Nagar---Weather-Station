@@ -971,7 +971,7 @@ app.get("/", (req, res) => {
 
 
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=auto">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=auto, user-scalable=no, maximum-scale=1.0">
     <title>KK Nagar Weather Station</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
@@ -1006,6 +1006,47 @@ app.get("/", (req, res) => {
         --line: #1f2937;                 /* Laser-etched internal dividers */
     }
 
+/* ANDROID FIX: Prevent zoom and scale properly */
+html {
+    font-size: 16px;
+    -webkit-text-size-adjust: 100%;
+    -moz-text-size-adjust: 100%;
+    -ms-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+}
+
+* {
+    -webkit-tap-highlight-color: transparent;
+}
+
+/* ANDROID FIX: Make sure cards are compact like iOS */
+@media screen and (max-width: 500px) {
+    :root {
+        --card-padding: 16px;
+    }
+    
+    .card {
+        padding: 14px !important;
+        gap: 12px !important;
+    }
+    
+    .label {
+        font-size: 12px !important;
+        margin-bottom: 8px !important;
+    }
+    
+    .main-val {
+        font-size: 42px !important;
+    }
+    
+    .cell-val {
+        font-size: 13px !important;
+    }
+    
+    .grid-system {
+        gap: 10px !important;
+    }
+}
      
 body { 
     margin: 0; 
@@ -1696,6 +1737,27 @@ body {
     }
 }
 
+/* ANDROID FIX: Make nav tabs smaller */
+@media screen and (max-width: 600px) {
+    .nav-pill {
+        padding: 4px !important;
+        gap: 0 !important;
+    }
+    
+    .tab-pill {
+        padding: 8px 16px !important;
+        font-size: 11px !important;
+    }
+    
+    .modular-cell {
+        padding: 8px !important;
+    }
+    
+    .cell-lbl {
+        font-size: 8px !important;
+        margin-bottom: 2px !important;
+    }
+}
 
 </style>
 </head>
