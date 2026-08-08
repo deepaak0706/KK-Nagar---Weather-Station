@@ -898,9 +898,10 @@ self.addEventListener('fetch', event => {
     `);
 });
 
-// Icon routes
-app.get('/icon-192.png', (req, res) => {
-    const svg = `
+// Icon routes - Generate PNG from SVG
+app.get('/icon-192.png', async (req, res) => {
+    try {
+        const svg = `
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192">
     <defs>
         <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -911,11 +912,16 @@ app.get('/icon-192.png', (req, res) => {
     <rect width="192" height="192" fill="url(#grad)"/>
     <text x="96" y="120" font-size="80" font-weight="bold" text-anchor="middle" fill="white" font-family="Arial">W</text>
 </svg>`;
-    res.type('image/svg+xml').send(svg);
+        const png = await sharp(Buffer.from(svg)).png().toBuffer();
+        res.type('image/png').send(png);
+    } catch (err) {
+        res.status(500).send('Icon generation failed');
+    }
 });
 
-app.get('/icon-512.png', (req, res) => {
-    const svg = `
+app.get('/icon-512.png', async (req, res) => {
+    try {
+        const svg = `
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
     <defs>
         <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -926,7 +932,11 @@ app.get('/icon-512.png', (req, res) => {
     <rect width="512" height="512" fill="url(#grad)"/>
     <text x="256" y="340" font-size="220" font-weight="bold" text-anchor="middle" fill="white" font-family="Arial">W</text>
 </svg>`;
-    res.type('image/svg+xml').send(svg);
+        const png = await sharp(Buffer.from(svg)).png().toBuffer();
+        res.type('image/png').send(png);
+    } catch (err) {
+        res.status(500).send('Icon generation failed');
+    }
 });
 
 // Screenshot routes
