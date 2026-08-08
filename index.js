@@ -874,13 +874,13 @@ app.get('/manifest.json', (req, res) => {
 
 app.get('/sw.js', (req, res) => {
     res.type('application/javascript').send(`
-const CACHE_NAME = 'kk-nagar-weather-v4';
+const CACHE_NAME = 'kk-nagar-weather-v1';
 const urlsToCache = [
+  '/',
   '/manifest.json'
 ];
 
 self.addEventListener('install', event => {
-  self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then(cache => cache.addAll(urlsToCache))
@@ -888,22 +888,14 @@ self.addEventListener('install', event => {
   );
 });
 
-self.addEventListener('activate', event => {
-  event.waitUntil(
-    caches.keys().then(keys =>
-      Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k)))
-    ).then(() => self.clients.claim())
+self.addEventListener('fetch', event => {
+  event.respondWith(
+    caches.match(event.request)
+      .then(response => response || fetch(event.request))
+      .catch(() => caches.match('/'))
   );
 });
-
-self.addEventListener('fetch', event => {
-  if (event.request.url.includes('/')) {
-    event.respondWith(fetch(event.request).catch(() => caches.match(event.request)));
-  } else {
-    event.respondWith(
-      caches.match(event.request).then(response => response || fetch(event.request))
-    );
-  }
+    `);
 });
 
 // Icon routes - Use SVG directly (no sharp conversion needed)
@@ -963,8 +955,6 @@ app.get("/", (req, res) => {
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- CRITICAL: Force Android Chrome to 100% zoom, not 125% -->
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=auto, user-scalable=no, maximum-scale=1.0, minimum-scale=1.0">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="KK Nagar Weather">
@@ -981,6 +971,7 @@ app.get("/", (req, res) => {
 
 
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>KK Nagar Weather Station</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
@@ -1000,36 +991,6 @@ app.get("/", (req, res) => {
         --glow: 0 4px 15px -3px rgba(15, 23, 42, 0.08); /* Deeper, softer shadow to anchor the UI */
         --line: #e2e8f0;                 /* Inner dividers match the background */
     }
-/* ANDROID CHROME SCALE FIX */
-@media screen and (max-width: 600px) {
-    html, body {
-        font-size: 14px;
-    }
-    .card {
-        padding: 12px;
-        gap: 10px;
-    }
-    .main-val {
-        font-size: 40px;
-    }
-    .label {
-        font-size: 11px;
-        margin-bottom: 8px;
-    }
-    .cell-val {
-        font-size: 12px;
-    }
-    h1 {
-        font-size: 18px !important;
-    }
-    .tab-pill {
-        padding: 8px 14px;
-        font-size: 11px;
-    }
-    .grid-system {
-        gap: 10px;
-    }
-}
     /* ========================================== */
     /* 🌙 PREMIUM DARK MODE (OLED Obsidian)       */
     /* ========================================== */
@@ -1045,70 +1006,33 @@ app.get("/", (req, res) => {
         --line: #1f2937;                 /* Laser-etched internal dividers */
     }
 
-/* ANDROID FIX: Prevent zoom and scale properly */
-html {
-    font-size: 16px;
-    -webkit-text-size-adjust: 100%;
-    -moz-text-size-adjust: 100%;
-    -ms-text-size-adjust: 100%;
-    text-size-adjust: 100%;
-}
-
-* {
-    -webkit-tap-highlight-color: transparent;
-}
-
-body { 
+     
+    body { 
     margin: 0; 
     font-family: 'Outfit', sans-serif; 
     background: var(--bg); 
     color: var(--text); 
-    padding: 12px 8px 120px 8px;
+    /* 👇 FIX: Tight side margins on mobile so elements stretch across the screen nicely */
+    padding: 16px 10px 120px 10px; 
     transition: background 0.4s ease, color 0.4s ease; 
     min-height: 100vh; 
     overflow-x: hidden; 
     box-sizing: border-box;
+    padding-top: calc(16px + env(safe-area-inset-top, 0px));
+    padding-left: calc(10px + env(safe-area-inset-left, 0px));
+    padding-right: calc(10px + env(safe-area-inset-right, 0px));
 }
 
-@supports (padding: max(0px)) {
-    body {
-        padding-top: max(12px, env(safe-area-inset-top, 0px));
-        padding-left: max(8px, env(safe-area-inset-left, 0px));
-        padding-right: max(8px, env(safe-area-inset-right, 0px));
-        padding-bottom: 120px;
-    }
-}
-
+/* 👇 RESTORES ORIGINAL SPACING ON DESKTOP SCREENS */
 @media screen and (min-width: 768px) {
     body { 
-        padding: 20px 20px 120px 20px; 
-    }
-    
-    @supports (padding: max(0px)) {
-        body {
-            padding-top: max(20px, env(safe-area-inset-top, 0px));
-            padding-left: max(20px, env(safe-area-inset-left, 0px));
-            padding-right: max(20px, env(safe-area-inset-right, 0px));
-            padding-bottom: 120px;
-        }
+        padding: 24px 24px 120px 24px; 
     }
 }
 
     *, *:before, *:after { box-sizing: inherit; }
 
-    .container { 
-    width: 100%; 
-    max-width: 100%;
-    margin: 0 auto;
-    box-sizing: border-box;
-    padding: 0;
-}
-
-@media screen and (min-width: 1100px) {
-    .container {
-        max-width: 1340px;
-    }
-}
+    .container { width: 100%; max-width: 1340px; margin: 0 auto; }
     
     /* 🎯 #1: ENHANCED HEADER WITH GRADIENT */
     .header { margin-bottom: 28px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; }
@@ -1495,13 +1419,13 @@ body {
     .trend-up { color: #ef4444; font-weight: bold; } .trend-down { color: #0ea5e9; font-weight: bold; }
 
     .pro-summary-table { background: var(--card); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border: 1px solid var(--border); border-radius: 24px; box-shadow: var(--glow); overflow: hidden; display: flex; flex-direction: column; width: 100%; }
-    .pro-row { display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; border-bottom: 1px solid var(--border); gap: 12px; width: 100%; box-sizing: border-box; }
+    .pro-row { display: flex; justify-content: space-between; align-items: center; padding: 22px 24px; border-bottom: 1px solid var(--border); gap: 16px; width: 100%; box-sizing: border-box; }
     .pro-row:last-child { border-bottom: none; }
-    .pro-label { font-size: 13px; font-weight: 700; color: var(--text); flex: 0 0 auto; min-width: 0; max-width: 38%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .pro-data-group { display: flex; align-items: center; gap: 16px; flex: 1; justify-content: flex-end; min-width: 0; }
-    .pro-data-item { display: flex; flex-direction: column; align-items: flex-end; min-width: 0; }
+    .pro-label { font-size: 14px; font-weight: 700; color: var(--text); flex: 0 0 120px; min-width: 120px; }
+    .pro-data-group { display: flex; align-items: center; gap: 24px; flex: 1; justify-content: flex-end; min-width: 0; }
+    .pro-data-item { display: flex; flex-direction: column; align-items: flex-end; min-width: 95px; }
     .pro-sub { font-size: 9px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); font-weight: 700; margin-bottom: 4px; white-space: nowrap; }
-    .pro-val { font-size: 18px; font-weight: 800; line-height: 1; white-space: nowrap; }
+    .pro-val { font-size: 20px; font-weight: 800; line-height: 1; white-space: nowrap; }
     .pro-divider { width: 1px; height: 24px; background: var(--border); opacity: 0.5; flex-shrink: 0; }
     
     .glass-select { background: var(--card) !important; border: 1px solid var(--border); border-radius: 12px; padding: 8px 12px; font-family: inherit; font-weight: 600; color: var(--text) !important; outline: none; cursor: pointer; appearance: none; -webkit-appearance: none; background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e"); background-repeat: no-repeat; background-position: right 10px center; background-size: 1em; padding-right: 40px; }
@@ -1747,77 +1671,7 @@ body {
     }
 }
 
-/* ANDROID FIX: Make nav tabs smaller */
-@media screen and (max-width: 600px) {
-    .nav-pill {
-        padding: 4px !important;
-        gap: 0 !important;
-    }
-    
-    .tab-pill {
-        padding: 8px 16px !important;
-        font-size: 11px !important;
-    }
-    
-    .modular-cell {
-        padding: 8px !important;
-    }
-    
-    .cell-lbl {
-        font-size: 8px !important;
-        margin-bottom: 2px !important;
-    }
-}
-/* ========== ANDROID CHROME MOBILE FIX ========== */
-@media screen and (max-width: 480px) {
-    body {
-        font-size: 14px !important;
-        transform: scale(0.9);
-        transform-origin: top left;
-        width: 111%;
-    }
-    
-    .card {
-        padding: 10px !important;
-        gap: 8px !important;
-        border-radius: 16px !important;
-    }
-    
-    .main-val {
-        font-size: 32px !important;
-    }
-    
-    .label {
-        font-size: 9px !important;
-    }
-    
-    .cell-val {
-        font-size: 11px !important;
-    }
-    
-    .pro-summary-table {
-        padding: 10px !important;
-        gap: 8px !important;
-    }
-    
-    h1 {
-        font-size: 16px !important;
-    }
-}
 
-@media screen and (max-width: 600px) {
-    body {
-        padding: 10px 6px 120px 6px !important;
-    }
-    
-    .grid-system {
-        gap: 8px !important;
-    }
-    
-    .container {
-        max-width: 100% !important;
-    }
-}
 </style>
 </head>
 <body>
