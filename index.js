@@ -1013,7 +1013,7 @@ app.get("/", (req, res) => {
     background: var(--bg); 
     color: var(--text); 
     /* 👇 FIX: Tight side margins on mobile so elements stretch across the screen nicely */
-    padding: 12px 8px 120px 8px;
+    padding: 16px 10px 120px 10px; 
     transition: background 0.4s ease, color 0.4s ease; 
     min-height: 100vh; 
     overflow-x: hidden; 
@@ -1032,13 +1032,7 @@ app.get("/", (req, res) => {
 
     *, *:before, *:after { box-sizing: inherit; }
 
-    .container { 
-    width: 100%; 
-    max-width: 1340px; 
-    margin: 0 auto;
-    box-sizing: border-box;
-    padding: 0;
-}
+    .container { width: 100%; max-width: 1340px; margin: 0 auto; }
     
     /* 🎯 #1: ENHANCED HEADER WITH GRADIENT */
     .header { margin-bottom: 28px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; }
@@ -1131,25 +1125,7 @@ app.get("/", (req, res) => {
         }
     }
     @media (min-width: 1100px) {
-        .grid-system { 
-    display: grid; 
-    grid-template-columns: 1fr;
-    gap: 12px;
-}
-
-@media (min-width: 768px) {
-    .grid-system { 
-        grid-template-columns: repeat(2, 1fr);
-        gap: 16px;
-    }
-}
-
-@media (min-width: 1100px) {
-    .grid-system { 
-        grid-template-columns: repeat(4, 1fr);
-        gap: 20px;
-    }
-}
+        .grid-system { grid-template-columns: repeat(4, 1fr); }
     }
 
     /* 🎯 #3: COLORED TOP BORDERS ON CARDS */
@@ -1697,92 +1673,6 @@ app.get("/", (req, res) => {
 
 
 </style>
-let deferredPrompt;
-
-window.addEventListener('beforeinstallprompt', (e) => {
-    // Prevent the mini-infobar from appearing
-    e.preventDefault();
-    // Stash the event for later use
-    deferredPrompt = e;
-    
-    // Show your custom install button/prompt
-    showInstallPrompt();
-});
-
-function showInstallPrompt() {
-    // Create a custom modal/banner
-    const banner = document.createElement('div');
-    banner.id = 'install-prompt';
-    banner.style.cssText = `
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        background: linear-gradient(135deg, #38bdf8 0%, #0284c7 100%);
-        color: white;
-        padding: 16px;
-        text-align: center;
-        z-index: 9999;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-        font-family: 'Outfit', sans-serif;
-    `;
-    
-    banner.innerHTML = `
-        <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px;">
-            <div style="flex: 1;">
-                <strong>⛅ Install Weather App</strong>
-                <p style="margin: 4px 0 0 0; font-size: 12px;">Get live weather updates on your home screen</p>
-            </div>
-            <div style="display: flex; gap: 8px;">
-                <button id="install-btn" style="
-                    background: white;
-                    color: #0284c7;
-                    border: none;
-                    padding: 8px 16px;
-                    border-radius: 6px;
-                    font-weight: 700;
-                    cursor: pointer;
-                    font-size: 12px;
-                ">Install</button>
-                <button id="dismiss-btn" style="
-                    background: rgba(255,255,255,0.2);
-                    color: white;
-                    border: none;
-                    padding: 8px 16px;
-                    border-radius: 6px;
-                    font-weight: 700;
-                    cursor: pointer;
-                    font-size: 12px;
-                ">Later</button>
-            </div>
-        </div>
-    `;
-    
-    document.body.insertBefore(banner, document.body.firstChild);
-    
-    // Install button click
-    document.getElementById('install-btn').addEventListener('click', async () => {
-        if (deferredPrompt) {
-            deferredPrompt.prompt();
-            const { outcome } = await deferredPrompt.userChoice;
-            console.log(`User response to the install prompt: ${outcome}`);
-            deferredPrompt = null;
-            banner.remove();
-        }
-    });
-    
-    // Dismiss button click
-    document.getElementById('dismiss-btn').addEventListener('click', () => {
-        banner.remove();
-    });
-}
-
-// Hide prompt if already installed
-window.addEventListener('appinstalled', () => {
-    console.log('PWA was installed');
-    const banner = document.getElementById('install-prompt');
-    if (banner) banner.remove();
-});
 </head>
 <body>
     <div class="container">
