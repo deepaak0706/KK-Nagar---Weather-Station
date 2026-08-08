@@ -971,7 +971,7 @@ app.get("/", (req, res) => {
 
 
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, minimum-scale=1, viewport-fit=cover, user-scalable=no">
     <title>KK Nagar Weather Station</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
@@ -1007,6 +1007,11 @@ app.get("/", (req, res) => {
     }
 
      
+    html {
+        -webkit-text-size-adjust: 100%;
+        text-size-adjust: 100%;
+    }
+
     body { 
     margin: 0; 
     font-family: 'Outfit', sans-serif; 
@@ -1021,6 +1026,67 @@ app.get("/", (req, res) => {
     padding-top: calc(16px + env(safe-area-inset-top, 0px));
     padding-left: calc(10px + env(safe-area-inset-left, 0px));
     padding-right: calc(10px + env(safe-area-inset-right, 0px));
+}
+
+/* Android / compact UI sizing guardrails */
+@media (max-width: 420px) {
+    body {
+        padding: 8px 8px 96px 8px;
+    }
+
+    .container {
+        max-width: 100%;
+    }
+
+    .grid-system {
+        grid-template-columns: 1fr !important;
+        gap: 12px;
+    }
+
+    .card {
+        padding: 12px 10px !important;
+        border-radius: 16px !important;
+    }
+
+    .row-block {
+        grid-template-columns: 1fr !important;
+        gap: 10px;
+    }
+
+    .v-line {
+        display: none;
+    }
+
+    .left-panel,
+    .right-panel {
+        width: 100%;
+        padding: 0;
+        justify-content: flex-start;
+        align-items: flex-start;
+    }
+
+    .main-val {
+        font-size: clamp(28px, 9vw, 44px) !important;
+        line-height: 1 !important;
+        letter-spacing: -1px !important;
+        white-space: nowrap;
+    }
+
+    .label {
+        font-size: 10px;
+        margin-bottom: 8px;
+    }
+
+    .cell-val,
+    .pod-val,
+    .limit-row-pod,
+    .pro-val {
+        font-size: 15px;
+    }
+
+    .modular-inline-stack {
+        grid-template-columns: 1fr !important;
+    }
 }
 
 /* 👇 RESTORES ORIGINAL SPACING ON DESKTOP SCREENS */
@@ -1185,7 +1251,7 @@ app.get("/", (req, res) => {
     
     /* 🎯 #4 & #5: SMOOTH TRANSITIONS + MAIN VALUES WITH PREMIUM DEPTH */
     .main-val { 
-        font-size: 52px; 
+        font-size: clamp(28px, 4.8vw, 52px); 
         font-weight: 800; 
         margin: 0; 
         
@@ -1193,8 +1259,9 @@ app.get("/", (req, res) => {
         letter-spacing: -2px; 
         display: flex; 
         align-items: baseline; 
-        line-height: 1; 
+        line-height: 0.95; 
         font-variant-numeric: tabular-nums;
+        white-space: nowrap;
         
         /* Subtle text shadow for depth */
         text-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
@@ -1230,10 +1297,10 @@ app.get("/", (req, res) => {
     /* EQUAL COMPACT GRID PANELS */
     .row-block { 
     display: grid; 
-    /* This locks the layout mathematically: 52% left, 1px line, remaining space right. ZERO wobble. */
-    grid-template-columns: 52% 1px 1fr; 
+    grid-template-columns: minmax(140px, 1fr) 1px minmax(150px, 1fr); 
     align-items: center; 
     width: 100%; 
+    gap: 10px; 
 }
 
 .left-panel { 
@@ -1241,7 +1308,7 @@ app.get("/", (req, res) => {
     flex-direction: column; 
     justify-content: center; 
     align-items: flex-start; 
-    padding-right: 16px; /* Keeps text away from the line */
+    padding-right: 8px; /* Keeps text away from the line */
     box-sizing: border-box;
     min-width: 0; /* Prevents wide numbers from breaking the grid */
 }
