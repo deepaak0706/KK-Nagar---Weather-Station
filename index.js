@@ -1325,8 +1325,39 @@ body.is-night .modular-cell::after {
         align-items: flex-end;
     }
 }
-</style>
+/* 🤖 ANDROID-ONLY OVERLAPPING FIX */
+html.is-android .pro-row {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 8px !important;
+    padding: 14px 16px !important;
+}
 
+html.is-android .pro-label {
+    width: 100% !important;
+    margin-bottom: 4px !important;
+}
+
+html.is-android .pro-data-group {
+    width: 100% !important;
+    justify-content: space-between !important;
+    flex: none !important;
+}
+
+html.is-android .pro-data-item {
+    align-items: flex-start !important;
+}
+
+html.is-android .pro-data-item:last-child {
+    align-items: flex-end !important;
+}
+
+</style>
+<script>
+  if (/android/i.test(navigator.userAgent)) {
+    document.documentElement.classList.add('is-android');
+  }
+</script>
 
 </head>
 <body>
