@@ -3,6 +3,7 @@ const fetch = require("node-fetch");
 const { Pool } = require('pg');
 const path = require("path");
 const app = express();
+app.use(express.static('public'));
 
 const pool = new Pool({
     connectionString: process.env.POSTGRES_URL,
