@@ -1289,7 +1289,28 @@ body.is-night .modular-cell::after {
 }
 
 /* GRAPHS */
-.graphs-wrapper { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; margin-top: 20px; }
+.graphs-wrapper { 
+    display: grid; 
+    grid-template-columns: 1fr;
+    gap: 12px; 
+    margin-top: 16px;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+@media screen and (min-width: 640px) {
+    .graphs-wrapper { 
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media screen and (min-width: 1100px) {
+    .graphs-wrapper { 
+        grid-template-columns: repeat(4, 1fr);
+        gap: 20px;
+    }
+}
+
 .graph-card { background: var(--card); padding: 20px; border-radius: 24px; border: 1px solid var(--border); height: 300px; box-shadow: var(--glow); display: flex; flex-direction: column; }
 .graph-card canvas { flex-grow: 1; width: 100% !important; height: 100% !important; }
 
@@ -1329,33 +1350,109 @@ body.is-night .modular-cell::after {
 .pro-divider { width: 1px; height: 20px; background: var(--border); opacity: 0.5; flex-shrink: 0; }
 
 /* MOBILE BREAKPOINT - EXPANDED TO 600px FOR ALL ANDROID MOBILE SCREENS */
-@media screen and (max-width: 600px) {
+@media screen and (max-width: 768px) {
     body {
-        background: var(--bg) !important;
-        padding-left: 12px;
-        padding-right: 12px;
+        padding: 10px 8px 100px 8px !important;
     }
 
+    .container {
+        padding: 0 !important;
+        width: 100% !important;
+        overflow-x: hidden !important;
+    }
+
+    .header {
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        gap: 8px !important;
+        margin-bottom: 16px !important;
+    }
+
+    .header-actions {
+        width: 100% !important;
+        justify-content: space-between !important;
+    }
+
+    .card {
+        padding: 14px !important;
+        gap: 12px !important;
+        border-radius: 16px !important;
+    }
+
+    .main-val {
+        font-size: 38px !important;
+        letter-spacing: -1px !important;
+    }
+
+    .label {
+        font-size: 10px !important;
+        margin-bottom: 8px !important;
+    }
+
+    .cell-val {
+        font-size: 12px !important;
+    }
+
+    .cell-lbl {
+        font-size: 8px !important;
+    }
+
+    .unit {
+        font-size: 14px !important;
+    }
+
+    .sub-pill {
+        font-size: 10px !important;
+    }
+
+    .nav-tabs {
+        gap: 4px !important;
+        width: 100% !important;
+    }
+
+    .tab-btn {
+        padding: 8px 10px !important;
+        font-size: 11px !important;
+        flex: 1 !important;
+        text-align: center !important;
+    }
+
+    /* SUMMARY TABLE FIX */
     .pro-row {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 10px;
-        padding: 14px 16px;
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        gap: 8px !important;
+        padding: 12px 14px !important;
+    }
+
+    .pro-label {
+        font-size: 13px !important;
+        flex: none !important;
+        width: 100% !important;
+        min-width: unset !important;
     }
 
     .pro-data-group {
-        width: 100%;
-        justify-content: space-between;
+        width: 100% !important;
+        justify-content: space-between !important;
+        gap: 8px !important;
     }
 
     .pro-data-item {
-        align-items: flex-start;
+        align-items: flex-start !important;
+        min-width: 0 !important;
     }
 
     .pro-data-item:last-child {
-        align-items: flex-end;
+        align-items: flex-end !important;
+    }
+
+    .pro-val {
+        font-size: 16px !important;
+        white-space: nowrap !important;
     }
 }
+
 /* 🤖 ANDROID-ONLY OVERLAPPING FIX */
 html.is-android .pro-row {
     flex-direction: column !important;
