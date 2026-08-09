@@ -1035,79 +1035,44 @@ app.get("/", (req, res) => {
     .container { width: 100%; max-width: 1340px; margin: 0 auto; }
     
     /* 🎯 #1: ENHANCED HEADER WITH GRADIENT */
-    .header { margin-bottom: 28px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; }
-    
-    .header h1 { 
-        font-size: 28px; 
-        font-weight: 900; 
-        margin: 0; 
-        letter-spacing: -1px;
-        
-        /* 🎨 NEW: Premium gradient text effect */
-        background: linear-gradient(135deg, var(--text) 0%, var(--text) 100%);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
-        transition: all 0.4s ease;
+    /* ===== ROW 1: title + clock, same baseline ===== */
+    .header { margin-bottom: 14px; display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+
+    .header h1 {
+        font-size: 19px;
+        font-weight: 700;
+        margin: 0;
+        letter-spacing: -0.2px;
+        line-height: 1;
+        color: var(--text);
     }
 
-    body.is-night .header h1 {
-        text-shadow: 0 2px 12px rgba(56, 189, 248, 0.15);
-    }
-    
-    .header-actions { display: flex; align-items: center; gap: 12px; }
-    
-    .theme-toggle { background: var(--card); border: 1px solid var(--border); padding: 4px; border-radius: 14px; display: flex; gap: 4px; box-shadow: var(--glow); cursor: pointer; backdrop-filter: blur(20px); }
-    .theme-btn { padding: 5px 12px; border-radius: 10px; font-size: 11px; font-weight: 700; transition: 0.2s ease; color: var(--muted); }
+    /* ===== ROW 2: sliding tabs (left) + theme toggle (right) ===== */
+    .header-actions { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 20px; }
+
+    .theme-toggle { background: var(--card); border: 1px solid var(--border); padding: 3px; border-radius: 10px; display: flex; gap: 2px; cursor: pointer; flex-shrink: 0; }
+    .theme-btn { width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; border-radius: 7px; font-size: 13px; transition: 0.2s ease; color: var(--muted); }
     .theme-btn.active { background: var(--accent); color: white; }
 
-    /* 🎯 #2: PREMIUM STATUS BAR WITH GLOW */
-    .status-bar { 
-        display: flex; 
-        align-items: center; 
-        gap: 8px; 
-        background: var(--card); 
-        padding: 8px 16px; 
-        border-radius: 100px; 
-        
-        /* 🎨 ENHANCED: Multi-layer shadow + glow */
-        border: 1.5px solid var(--border);
-        box-shadow: 
-            0 4px 12px -2px rgba(3, 105, 161, 0.1),
-            inset 0 1px 0 rgba(255, 255, 255, 0.5);
-        backdrop-filter: blur(20px);
-        -webkit-backdrop-filter: blur(20px);
-        
-        font-size: 12px; 
-        font-weight: 600; 
-        letter-spacing: 0.3px;
-        transition: all 0.3s ease;
+    /* ===== Modern monospace clock, no floating dot ===== */
+    .status-bar {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        flex-shrink: 0;
     }
 
-    body.is-night .status-bar {
-        box-shadow: 
-            0 4px 16px -2px rgba(0, 0, 0, 0.4),
-            inset 0 1px 0 rgba(56, 189, 248, 0.1);
+    .status-bar .timestamp {
+        font-family: 'SF Mono', 'JetBrains Mono', 'Courier New', monospace;
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--text);
+        letter-spacing: 0.2px;
+        line-height: 1;
     }
 
-    /* Hover lift effect */
-    @media (hover: hover) {
-        .status-bar:hover {
-            transform: translateY(-2px);
-            box-shadow: 
-                0 8px 20px -4px rgba(3, 105, 161, 0.15),
-                inset 0 1px 0 rgba(255, 255, 255, 0.6);
-        }
-
-        body.is-night .status-bar:hover {
-            box-shadow: 
-                0 8px 24px -4px rgba(56, 189, 248, 0.2),
-                inset 0 1px 0 rgba(56, 189, 248, 0.15);
-        }
-    }
-    
-    .live-dot { width: 6px; height: 6px; background: #10b981; border-radius: 50%; animation: blink 2s infinite; box-shadow: 0 0 8px #10b981; }
-    @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+    .live-dot { width: 6px; height: 6px; background: #10b981; border-radius: 50%; animation: blink 2s infinite; box-shadow: 0 0 8px #10b981; flex-shrink: 0; }
+    @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
     
 
     .grid-system { 
@@ -1371,44 +1336,74 @@ app.get("/", (req, res) => {
 
     .time-mark { font-size: 9px; color: var(--muted); font-weight: 500; display: inline-block; margin-left: 4px; opacity: 0.75; }
     
-    .nav-tabs { display: flex; gap: 8px; margin-bottom: 24px; }
-    
-    /* 🎯 BONUS: TAB BUTTON ENHANCEMENTS */
-    .tab-btn {
-        background: var(--card);
-        border: 1px solid var(--border);
-        padding: 12px 24px;
-        border-radius: 14px;
-        color: var(--text);
-        font-weight: 700;
-        cursor: pointer;
-        transition: all 0.25s cubic-bezier(0.22, 1, 0.36, 1);
-        backdrop-filter: blur(20px);
-        font-size: 13px;
-        letter-spacing: 0.2px;
+    /* 🎯 MODERN GLASS SLIDING TAB BAR (main nav only) */
+    .nav-tabs {
+        position: relative;
+        display: flex;
+        background: transparent;
+        border-radius: 12px;
+        padding: 0;
+        flex: 1;
+        margin-bottom: 0;
     }
 
-    .tab-btn.active {
-        background: var(--accent);
-        color: white;
-        border-color: var(--accent);
-        box-shadow: 
-            0 4px 12px -2px rgba(3, 105, 161, 0.3),
-            inset 0 1px 0 rgba(255, 255, 255, 0.2);
-        transform: translateY(-2px);
-    }
-
-    body.is-night .tab-btn.active {
+    .nav-tabs .slider {
+        position: absolute;
+        top: 0; left: 0;
+        height: 100%;
+        width: calc(33.333% - 2.66px);
+        background: linear-gradient(135deg, rgba(56, 189, 248, 0.22), rgba(56, 189, 248, 0.08));
+        border-radius: 10px;
         box-shadow:
-            0 4px 16px -2px rgba(56, 189, 248, 0.4),
-            inset 0 1px 0 rgba(56, 189, 248, 0.3);
+            0 4px 16px -4px rgba(56, 189, 248, 0.4),
+            inset 0 1px 0 rgba(255, 255, 255, 0.12),
+            inset 0 0 0 1px rgba(56, 189, 248, 0.25);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        transition: transform 0.35s cubic-bezier(0.65, 0, 0.35, 1);
+    }
+
+    .nav-tabs[data-active="summary"] .slider { transform: translateX(calc(100% + 4px)); }
+    .nav-tabs[data-active="historical"] .slider { transform: translateX(calc(200% + 8px)); }
+
+    .nav-tabs .tab-btn {
+        position: relative;
+        z-index: 1;
+        flex: 1;
+        text-align: center;
+        background: transparent;
+        border: none;
+        padding: 9px 4px;
+        color: var(--muted);
+        font-weight: 600;
+        font-size: 11.5px;
+        cursor: pointer;
+        transition: color 0.25s ease;
+        border-radius: 0;
+        backdrop-filter: none;
+        box-shadow: none;
+        transform: none;
+        letter-spacing: 0.1px;
+    }
+
+    .nav-tabs .tab-btn.active {
+        background: transparent;
+        color: #7dd8ff;
+        border-color: transparent;
+        box-shadow: none;
+        transform: none;
+    }
+
+    body.is-night .nav-tabs .tab-btn.active {
+        box-shadow: none;
     }
 
     @media (hover: hover) {
-        .tab-btn:hover:not(.active) {
-            background: var(--card);
-            border-color: var(--accent);
-            box-shadow: 0 4px 8px -2px rgba(3, 105, 161, 0.1);
+        .nav-tabs .tab-btn:hover:not(.active) {
+            background: transparent;
+            border-color: transparent;
+            box-shadow: none;
+            color: var(--text);
         }
     }
 
@@ -1544,10 +1539,10 @@ app.get("/", (req, res) => {
 .title-trigger {
     display: inline-flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
     background: transparent;
     border: none;
-    padding: 4px 0;
+    padding: 2px 0;
     margin: 0;
     cursor: pointer;
     font-family: inherit;
@@ -1555,27 +1550,28 @@ app.get("/", (req, res) => {
     max-width: 100%;
 }
 .title-trigger h1 {
-    font-size: 21px;
-    font-weight: 900;
-    letter-spacing: -0.4px;
+    font-size: 19px;
+    font-weight: 700;
+    letter-spacing: -0.2px;
+    line-height: 1;
     margin: 0;
     color: var(--text);
 }
 .pin-toggle {
     flex-shrink: 0;
-    width: 24px;
-    height: 24px;
-    border-radius: 8px;
-    background: rgba(56,189,248,0.12);
-    color: var(--accent);
+    width: 16px;
+    height: 16px;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--muted);
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 12px;
-    transition: transform 0.2s ease, background 0.2s ease;
+    font-size: 10px;
+    transition: transform 0.2s ease, color 0.2s ease;
 }
 .title-trigger.open .pin-toggle {
-    background: var(--accent);
+    color: var(--accent);
     transform: scale(0.92);
 }
 
@@ -1621,7 +1617,7 @@ app.get("/", (req, res) => {
 .station-menu-item:active { background: rgba(3, 105, 161, 0.12); }
 
 @media screen and (max-width: 400px) {
-    .header h1 { font-size: 19px; }
+    .header h1 { font-size: 17px; }
 }
 
 /* 🌧️ RAINFALL GLOW & PULSE ANIMATIONS */
@@ -1699,17 +1695,10 @@ app.get("/", (req, res) => {
 @supports not (-webkit-touch-callout: none) {
     @media screen and (max-width: 767px) {
 
-        /* ── TABS: shrink + allow wrap so they never overflow ── */
-        .nav-tabs {
-            flex-wrap: wrap;
-            gap: 6px;
-        }
-        .tab-btn {
-            font-size: clamp(10px, 3vw, 13px);
-            padding: 9px clamp(10px, 3.5vw, 20px);
-            border-radius: 12px;
-            flex: 1 1 auto;
-            text-align: center;
+        /* ── TABS: glass slider stays intact, just tighten padding ── */
+        .nav-tabs .tab-btn {
+            font-size: clamp(10px, 3vw, 11.5px);
+            padding: 8px 4px;
             white-space: nowrap;
             min-width: 0;
         }
@@ -1828,27 +1817,28 @@ app.get("/", (req, res) => {
             font-size: clamp(1rem, 3.5vw, 1.4rem) !important;
         }
 
-        /* ── HEADER: keep station title + controls on one row ── */
+        /* ── HEADER: keep station title + clock on one row ── */
         .header {
-            gap: 10px;
-            margin-bottom: 18px;
+            gap: 8px;
+            margin-bottom: 12px;
         }
         .title-trigger h1 {
-            font-size: clamp(16px, 5vw, 21px);
+            font-size: clamp(15px, 4.5vw, 19px);
         }
         .header-actions {
             gap: 8px;
+            margin-bottom: 16px;
         }
         .theme-toggle {
-            padding: 3px;
+            padding: 2px;
         }
         .theme-btn {
-            padding: 4px 8px;
-            font-size: 10px;
-        }
-        .status-bar {
+            width: 24px;
+            height: 24px;
             font-size: 11px;
-            padding: 6px 12px;
+        }
+        .status-bar .timestamp {
+            font-size: 11px;
         }
 
         /* ── GLASS SELECT (year/month pickers) ── */
@@ -1888,20 +1878,21 @@ app.get("/", (req, res) => {
             </div>
         </div>
 
-        <div class="header-actions">
-            <div class="status-bar"><div class="live-dot"></div><div class="timestamp"><span id="ts">--:--:--</span></div></div>
-            <div class="theme-toggle" id="themeToggle">
-                <div class="theme-btn" id="btn-light">LIGHT</div>
-                <div class="theme-btn" id="btn-dark">DARK</div>
-                <div class="theme-btn active" id="btn-auto">AUTO</div>
-            </div>
-        </div>
+        <div class="status-bar"><div class="live-dot"></div><div class="timestamp"><span id="ts">--:--:--</span></div></div>
     </div>
 
-    <div class="nav-tabs">
-        <button onclick="showPage('dashboard')" id="tab-dash" class="tab-btn active">Live Dashboard</button>
-        <button onclick="showPage('summary')" id="tab-sum" class="tab-btn">Monthly Summary</button>
-        <button onclick="showPage('historical')" id="tab-hist" class="tab-btn">Historical Data</button>
+    <div class="header-actions">
+        <div class="nav-tabs">
+            <div class="slider" id="tabSlider"></div>
+            <button onclick="showPage('dashboard')" id="tab-dash" class="tab-btn active">Live</button>
+            <button onclick="showPage('summary')" id="tab-sum" class="tab-btn">Monthly</button>
+            <button onclick="showPage('historical')" id="tab-hist" class="tab-btn">Historical</button>
+        </div>
+        <div class="theme-toggle" id="themeToggle">
+            <div class="theme-btn" id="btn-light">☀︎</div>
+            <div class="theme-btn" id="btn-dark">☾</div>
+            <div class="theme-btn active" id="btn-auto">◐</div>
+        </div>
     </div>
 
 
@@ -2488,6 +2479,9 @@ document.addEventListener('click', function(e) {
     document.getElementById('tab-dash').classList.toggle('active', pageId === 'dashboard');
     document.getElementById('tab-sum').classList.toggle('active', pageId === 'summary');
     document.getElementById('tab-hist').classList.toggle('active', pageId === 'historical'); // Added this
+
+    // 2b. Slide the glass pill to the active tab
+    document.querySelector('.nav-tabs').setAttribute('data-active', pageId === 'dashboard' ? 'dashboard' : pageId);
 
     // 3. Trigger UI generation
     if (pageId === 'summary') {
