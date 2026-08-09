@@ -971,7 +971,7 @@ app.get("/", (req, res) => {
 
 
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>KK Nagar Weather Station</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
@@ -1029,7 +1029,15 @@ body {
     body { padding: 24px 24px 120px 24px; }
 }
 
-.container { width: 100%; max-width: 1340px; margin: 0 auto; }
+.container { 
+    width: 100%; 
+    max-width: 1340px; 
+    margin: 0 auto;
+    box-sizing: border-box;
+    padding: 0;
+    overflow-x: hidden;
+}
+
 
 /* HEADER */
 .header { margin-bottom: 28px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; }
@@ -1091,7 +1099,30 @@ body.is-night .status-bar {
 @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
 
 /* GRID SYSTEM */
-.grid-system { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; margin-bottom: 32px; }
+.grid-system { 
+    display: grid; 
+    grid-template-columns: 1fr;
+    gap: 12px; 
+    margin-bottom: 24px;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+@media screen and (min-width: 640px) {
+    .grid-system { 
+        grid-template-columns: repeat(2, 1fr);
+        gap: 16px;
+    }
+}
+
+@media screen and (min-width: 1100px) {
+    .grid-system { 
+        grid-template-columns: repeat(4, 1fr);
+        gap: 20px;
+        margin-bottom: 32px;
+    }
+}
+
 
 .card { 
     background: var(--card); 
