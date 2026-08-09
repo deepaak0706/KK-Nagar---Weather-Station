@@ -1129,7 +1129,6 @@ body.is-night .status-bar {
     padding: 20px; 
     border-radius: 24px; 
     border: 1px solid var(--border); 
-    border-top: 3px solid var(--accent);
     backdrop-filter: blur(30px); 
     -webkit-backdrop-filter: blur(30px); 
     box-shadow: var(--glow); 
@@ -1145,6 +1144,7 @@ body.is-night .status-bar {
 .grid-system .card:nth-child(2) { border-top-color: #f97316; }
 .grid-system .card:nth-child(3) { border-top-color: #3b82f6; }
 .grid-system .card:nth-child(4) { border-top-color: #06b6d4; }
+
 
 #windCanvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; border-radius: 24px; }
 .card > *:not(canvas) { position: relative; z-index: 5; }
@@ -1190,11 +1190,32 @@ body.is-night .main-val {
     display: flex; 
     justify-content: space-between; 
     align-items: center; 
-    width: 100%; 
+    width: 100%;
+    min-width: 0;
+    overflow: hidden;
 }
 
-.left-panel { display: flex; flex-direction: column; justify-content: center; align-items: flex-start; min-width: 0; }
-.right-panel { display: flex; flex-direction: column; gap: 10px; justify-content: center; align-items: flex-start; min-width: 0; }
+.left-panel { 
+    flex: 1 1 0;
+    display: flex; 
+    flex-direction: column; 
+    justify-content: center; 
+    align-items: flex-start; 
+    min-width: 0;
+    overflow: hidden;
+}
+
+.right-panel { 
+    flex: 0 0 auto;
+    display: flex; 
+    flex-direction: column; 
+    gap: 10px; 
+    justify-content: center; 
+    align-items: flex-start; 
+    min-width: 0;
+    padding-left: 12px;
+}
+
 
 .v-line { 
     width: 1px; 
@@ -1342,7 +1363,15 @@ body.is-night .modular-cell::after {
 }
 
 .pro-row:last-child { border-bottom: none; }
-.pro-label { font-size: 14px; font-weight: 700; color: var(--text); flex: 0 0 auto; }
+.pro-label { 
+    font-size: 14px; 
+    font-weight: 700; 
+    color: var(--text); 
+    flex: 0 0 100px;
+    min-width: 100px;
+    max-width: 120px;
+}
+
 .pro-data-group { display: flex; align-items: center; gap: 16px; flex: 1; justify-content: flex-end; min-width: 0; }
 .pro-data-item { display: flex; flex-direction: column; align-items: flex-end; min-width: 0; }
 .pro-sub { font-size: 9px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); font-weight: 700; margin-bottom: 4px; white-space: nowrap; }
