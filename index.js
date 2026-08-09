@@ -971,7 +971,7 @@ app.get("/", (req, res) => {
 
 
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, shrink-to-fit=no, viewport-fit=cover">
     <title>KK Nagar Weather Station</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
@@ -1671,6 +1671,193 @@ app.get("/", (req, res) => {
     }
 }
 
+
+/* ============================================================
+   📱 ANDROID / CHROME FIX LAYER
+   Target: Non-Safari mobile browsers (Android Chrome, Firefox
+   for Android, Samsung Internet, etc.)
+   Method: Safari sets -webkit-touch-callout on its elements;
+   we detect its absence to safely scope every rule here.
+   iOS Safari and ALL desktop browsers are untouched.
+   ============================================================ */
+
+/* Step 1 — Force correct text sizing on Android.
+   Android Chrome can apply a "font boosting" algorithm on
+   overflow containers. This kills it globally for our app. */
+@supports not (-webkit-touch-callout: none) {
+    * {
+        text-size-adjust: none;
+        -webkit-text-size-adjust: none;
+    }
+}
+
+/* Step 2 — Mobile-only Android rules (max-width: 767px).
+   All rules below are double-gated:
+   (a) @supports not (-webkit-touch-callout: none)  → non-Safari
+   (b) @media (max-width: 767px)                    → mobile only
+   Desktop and iOS Safari are completely unaffected. */
+@supports not (-webkit-touch-callout: none) {
+    @media screen and (max-width: 767px) {
+
+        /* ── TABS: shrink + allow wrap so they never overflow ── */
+        .nav-tabs {
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+        .tab-btn {
+            font-size: clamp(10px, 3vw, 13px);
+            padding: 9px clamp(10px, 3.5vw, 20px);
+            border-radius: 12px;
+            flex: 1 1 auto;
+            text-align: center;
+            white-space: nowrap;
+            min-width: 0;
+        }
+
+        /* ── MAIN VALUE: scale down for smaller screens ── */
+        .main-val {
+            font-size: clamp(36px, 11vw, 52px);
+            letter-spacing: -1px;
+        }
+
+        /* ── UNIT LABEL beside main value ── */
+        .unit {
+            font-size: clamp(13px, 4vw, 18px);
+        }
+
+        /* ── RIGHT PANEL (MAX / MIN temps, rain rates) ── */
+        #mx, #mn {
+            font-size: clamp(16px, 5.5vw, 22px) !important;
+        }
+        #r_rate, #mr {
+            font-size: clamp(18px, 6vw, 28px) !important;
+        }
+
+        /* ── CARD INTERNAL LAYOUT: prevent overflow ── */
+        .card {
+            overflow: hidden;
+        }
+        .row-block {
+            /* Shift left column to 48% so right panel has more room */
+            grid-template-columns: 48% 1px 1fr;
+            gap: 0;
+        }
+        .left-panel {
+            padding-right: 10px;
+            min-width: 0;
+            overflow: hidden;
+        }
+        .right-panel {
+            padding-left: 10px;
+            min-width: 0;
+            overflow: hidden;
+        }
+
+        /* ── 24H SUMMARY TABLE: the main broken section ──
+           Switch from a horizontal flex row to a compact
+           two-line stacked layout so nothing overlaps. */
+        .pro-summary-table {
+            width: 100%;
+            overflow: hidden;
+        }
+        .pro-row {
+            flex-direction: column;
+            align-items: flex-start;
+            padding: 14px 16px;
+            gap: 8px;
+        }
+        .pro-label {
+            font-size: 13px;
+            flex: none;
+            min-width: 0;
+        }
+        .pro-data-group {
+            width: 100%;
+            justify-content: flex-start;
+            gap: 0;
+            /* Use equal columns so each item gets the same space */
+            display: grid;
+            grid-template-columns: 1fr auto 1fr;
+            align-items: center;
+        }
+        .pro-data-item {
+            align-items: flex-start;
+            min-width: 0;
+        }
+        .pro-val {
+            font-size: clamp(15px, 5vw, 20px);
+            white-space: nowrap;
+        }
+        .pro-sub {
+            font-size: 8px;
+            white-space: nowrap;
+        }
+        .pro-divider {
+            width: 1px;
+            height: 28px;
+            margin: 0 12px;
+            flex-shrink: 0;
+        }
+
+        /* ── MODULAR CELLS (Feels Like / Humidity / Dew) ── */
+        .cell-val {
+            font-size: clamp(12px, 4vw, 15px);
+        }
+        .cell-lbl {
+            font-size: 8px;
+        }
+
+        /* ── GRAPH CARDS ── */
+        .graph-card {
+            height: 260px;
+            padding: 16px;
+        }
+
+        /* ── HISTORICAL DATA CARDS ── */
+        /* Seasonal summary row: 3-col grid with smaller text */
+        .archive-container [style*="grid-template-columns: repeat(3, 1fr)"] > div {
+            padding: 12px 4px !important;
+        }
+        .archive-container [style*="font-size: 1.7rem"] {
+            font-size: clamp(1.1rem, 4.5vw, 1.7rem) !important;
+        }
+        .archive-container [style*="font-size: 3rem"] {
+            font-size: clamp(2rem, 8vw, 3rem) !important;
+        }
+        .archive-container [style*="font-size: 1.4rem"] {
+            font-size: clamp(1rem, 3.5vw, 1.4rem) !important;
+        }
+
+        /* ── HEADER: keep station title + controls on one row ── */
+        .header {
+            gap: 10px;
+            margin-bottom: 18px;
+        }
+        .title-trigger h1 {
+            font-size: clamp(16px, 5vw, 21px);
+        }
+        .header-actions {
+            gap: 8px;
+        }
+        .theme-toggle {
+            padding: 3px;
+        }
+        .theme-btn {
+            padding: 4px 8px;
+            font-size: 10px;
+        }
+        .status-bar {
+            font-size: 11px;
+            padding: 6px 12px;
+        }
+
+        /* ── GLASS SELECT (year/month pickers) ── */
+        .glass-select {
+            font-size: 13px;
+            padding: 6px 32px 6px 10px;
+        }
+    }
+}
 
 </style>
 </head>
