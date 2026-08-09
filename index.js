@@ -987,6 +987,8 @@ app.get("/", (req, res) => {
         
         /* Muting the accents to stop them from looking "neon" */
         --accent: #0369a1;               /* A deeper, calmer ocean blue instead of bright royal blue */
+        --accent-bright: #2563eb;        /* Brighter blue reserved for elements needing pop in light mode (slider, live clock) */
+        --accent-rgb: 37, 99, 235;       /* RGB triplet of accent-bright, for use in rgba() */
         --lbl-color: #475569;            /* Soft slate for headings */
         --glow: 0 4px 15px -3px rgba(15, 23, 42, 0.08); /* Deeper, softer shadow to anchor the UI */
         --line: #e2e8f0;                 /* Inner dividers match the background */
@@ -1001,6 +1003,8 @@ app.get("/", (req, res) => {
         --text: #f8fafc !important;      /* Soft off-white cloud text to prevent neon glowing/bleeding */
         --muted: #94a3b8;                /* Soft metallic gray for secondary metrics */
         --accent: #38bdf8;               /* Radiant sky blue accents for premium highlight tracking */
+        --accent-bright: #38bdf8;        /* Already vivid in dark mode, same as accent */
+        --accent-rgb: 56, 189, 248;      /* RGB triplet of accent-bright, for use in rgba() */
         --lbl-color: #60a5fa;            /* Perfectly balanced luminous light blue for high title visibility */
         --glow: 0 20px 40px -15px rgba(0, 0, 0, 0.5); /* Heavy deep canvas room shadow */
         --line: #1f2937;                 /* Laser-etched internal dividers */
@@ -1035,43 +1039,47 @@ app.get("/", (req, res) => {
     .container { width: 100%; max-width: 1340px; margin: 0 auto; }
     
     /* 🎯 #1: ENHANCED HEADER WITH GRADIENT */
-    /* ===== ROW 1: title + clock, same baseline ===== */
-    .header { margin-bottom: 14px; display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+    /* ===== ROW 1: title + clock + theme toggle, one row ===== */
+    .header { margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center; gap: 10px; }
 
     .header h1 {
-        font-size: 19px;
-        font-weight: 700;
+        font-size: 24px;
+        font-weight: 800;
         margin: 0;
-        letter-spacing: -0.2px;
+        letter-spacing: -0.4px;
         line-height: 1;
         color: var(--text);
     }
 
-    /* ===== ROW 2: sliding tabs (left) + theme toggle (right) ===== */
-    .header-actions { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 20px; }
+    /* ===== ROW 2: sliding tabs, full width ===== */
+    .header-actions { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; }
 
     .theme-toggle { background: var(--card); border: 1px solid var(--border); padding: 3px; border-radius: 10px; display: flex; gap: 2px; cursor: pointer; flex-shrink: 0; }
     .theme-btn { width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; border-radius: 7px; font-size: 13px; transition: 0.2s ease; color: var(--muted); }
-    .theme-btn.active { background: var(--accent); color: white; }
+    .theme-btn.active { background: var(--accent-bright); color: white; }
 
-    /* ===== Modern monospace clock, no floating dot ===== */
+    /* ===== Prominent monospace clock ===== */
     .status-bar {
         display: flex;
         align-items: center;
-        gap: 6px;
+        gap: 7px;
         flex-shrink: 0;
+        background: var(--card);
+        border: 1px solid var(--border);
+        padding: 6px 12px;
+        border-radius: 10px;
     }
 
     .status-bar .timestamp {
         font-family: 'SF Mono', 'JetBrains Mono', 'Courier New', monospace;
-        font-size: 13px;
-        font-weight: 600;
-        color: var(--text);
-        letter-spacing: 0.2px;
+        font-size: 15px;
+        font-weight: 700;
+        color: var(--accent-bright);
+        letter-spacing: 0.3px;
         line-height: 1;
     }
 
-    .live-dot { width: 6px; height: 6px; background: #10b981; border-radius: 50%; animation: blink 2s infinite; box-shadow: 0 0 8px #10b981; flex-shrink: 0; }
+    .live-dot { width: 7px; height: 7px; background: #10b981; border-radius: 50%; animation: blink 2s infinite; box-shadow: 0 0 8px #10b981; flex-shrink: 0; }
     @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
     
 
@@ -1335,8 +1343,35 @@ app.get("/", (req, res) => {
     #needle { width: 3px; height: 46px; background: linear-gradient(to bottom, #ef4444 50%, var(--muted) 50%); clip-path: polygon(50% 0%, 100% 100%, 50% 85%, 0% 100%); transition: transform 2s cubic-bezier(0.1, 0.9, 0.2, 1); z-index: 2; }
 
     .time-mark { font-size: 9px; color: var(--muted); font-weight: 500; display: inline-block; margin-left: 4px; opacity: 0.75; }
-    
-    /* 🎯 MODERN GLASS SLIDING TAB BAR (main nav only) */
+
+    /* 🎯 BASE TAB BUTTON — used by 24H Summary/Graphs sub-tabs and any other plain .tab-btn */
+    .tab-btn {
+        background: var(--card);
+        border: 1px solid var(--border);
+        padding: 12px 24px;
+        border-radius: 14px;
+        color: var(--text);
+        font-weight: 700;
+        cursor: pointer;
+        transition: all 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+        font-size: 13px;
+        letter-spacing: 0.2px;
+    }
+
+    .tab-btn.active {
+        background: var(--accent-bright);
+        color: white;
+        border-color: var(--accent-bright);
+        box-shadow: 0 4px 12px -2px rgba(var(--accent-rgb), 0.35);
+    }
+
+    @media (hover: hover) {
+        .tab-btn:hover:not(.active) {
+            border-color: var(--accent-bright);
+        }
+    }
+
+    /* 🎯 MODERN GLASS SLIDING TAB BAR (main nav only — overrides base .tab-btn above) */
     .nav-tabs {
         position: relative;
         display: flex;
@@ -1352,14 +1387,11 @@ app.get("/", (req, res) => {
         top: 0; left: 0;
         height: 100%;
         width: calc(33.333% - 2.66px);
-        background: linear-gradient(135deg, rgba(56, 189, 248, 0.22), rgba(56, 189, 248, 0.08));
+        background: linear-gradient(135deg, rgba(var(--accent-rgb), 0.9), rgba(var(--accent-rgb), 0.75));
         border-radius: 10px;
         box-shadow:
-            0 4px 16px -4px rgba(56, 189, 248, 0.4),
-            inset 0 1px 0 rgba(255, 255, 255, 0.12),
-            inset 0 0 0 1px rgba(56, 189, 248, 0.25);
-        backdrop-filter: blur(10px);
-        -webkit-backdrop-filter: blur(10px);
+            0 4px 16px -4px rgba(var(--accent-rgb), 0.5),
+            inset 0 1px 0 rgba(255, 255, 255, 0.25);
         transition: transform 0.35s cubic-bezier(0.65, 0, 0.35, 1);
     }
 
@@ -1388,10 +1420,11 @@ app.get("/", (req, res) => {
 
     .nav-tabs .tab-btn.active {
         background: transparent;
-        color: #7dd8ff;
+        color: #ffffff;
         border-color: transparent;
         box-shadow: none;
         transform: none;
+        font-weight: 700;
     }
 
     body.is-night .nav-tabs .tab-btn.active {
@@ -1550,9 +1583,9 @@ app.get("/", (req, res) => {
     max-width: 100%;
 }
 .title-trigger h1 {
-    font-size: 19px;
-    font-weight: 700;
-    letter-spacing: -0.2px;
+    font-size: 24px;
+    font-weight: 800;
+    letter-spacing: -0.4px;
     line-height: 1;
     margin: 0;
     color: var(--text);
@@ -1617,7 +1650,7 @@ app.get("/", (req, res) => {
 .station-menu-item:active { background: rgba(3, 105, 161, 0.12); }
 
 @media screen and (max-width: 400px) {
-    .header h1 { font-size: 17px; }
+    .header h1 { font-size: 20px; }
 }
 
 /* 🌧️ RAINFALL GLOW & PULSE ANIMATIONS */
@@ -1817,13 +1850,14 @@ app.get("/", (req, res) => {
             font-size: clamp(1rem, 3.5vw, 1.4rem) !important;
         }
 
-        /* ── HEADER: keep station title + clock on one row ── */
+        /* ── HEADER: title + clock + theme toggle, tightened for mobile ── */
         .header {
-            gap: 8px;
+            gap: 6px;
             margin-bottom: 12px;
+            flex-wrap: wrap;
         }
         .title-trigger h1 {
-            font-size: clamp(15px, 4.5vw, 19px);
+            font-size: clamp(17px, 5.5vw, 22px);
         }
         .header-actions {
             gap: 8px;
@@ -1837,8 +1871,11 @@ app.get("/", (req, res) => {
             height: 24px;
             font-size: 11px;
         }
+        .status-bar {
+            padding: 5px 9px;
+        }
         .status-bar .timestamp {
-            font-size: 11px;
+            font-size: 12px;
         }
 
         /* ── GLASS SELECT (year/month pickers) ── */
@@ -1879,6 +1916,11 @@ app.get("/", (req, res) => {
         </div>
 
         <div class="status-bar"><div class="live-dot"></div><div class="timestamp"><span id="ts">--:--:--</span></div></div>
+        <div class="theme-toggle" id="themeToggle">
+            <div class="theme-btn" id="btn-light">☀︎</div>
+            <div class="theme-btn" id="btn-dark">☾</div>
+            <div class="theme-btn active" id="btn-auto">◐</div>
+        </div>
     </div>
 
     <div class="header-actions">
@@ -1887,11 +1929,6 @@ app.get("/", (req, res) => {
             <button onclick="showPage('dashboard')" id="tab-dash" class="tab-btn active">Live</button>
             <button onclick="showPage('summary')" id="tab-sum" class="tab-btn">Monthly</button>
             <button onclick="showPage('historical')" id="tab-hist" class="tab-btn">Historical</button>
-        </div>
-        <div class="theme-toggle" id="themeToggle">
-            <div class="theme-btn" id="btn-light">☀︎</div>
-            <div class="theme-btn" id="btn-dark">☾</div>
-            <div class="theme-btn active" id="btn-auto">◐</div>
         </div>
     </div>
 
