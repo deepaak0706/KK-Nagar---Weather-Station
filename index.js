@@ -1,3 +1,5 @@
+Stable before UI change
+
 const express = require("express");
 const fetch = require("node-fetch");
 const { Pool } = require('pg');
@@ -987,8 +989,6 @@ app.get("/", (req, res) => {
         
         /* Muting the accents to stop them from looking "neon" */
         --accent: #0369a1;               /* A deeper, calmer ocean blue instead of bright royal blue */
-        --accent-bright: #2563eb;        /* Brighter blue reserved for elements needing pop in light mode (slider, live clock) */
-        --accent-rgb: 37, 99, 235;       /* RGB triplet of accent-bright, for use in rgba() */
         --lbl-color: #475569;            /* Soft slate for headings */
         --glow: 0 4px 15px -3px rgba(15, 23, 42, 0.08); /* Deeper, softer shadow to anchor the UI */
         --line: #e2e8f0;                 /* Inner dividers match the background */
@@ -1003,8 +1003,6 @@ app.get("/", (req, res) => {
         --text: #f8fafc !important;      /* Soft off-white cloud text to prevent neon glowing/bleeding */
         --muted: #94a3b8;                /* Soft metallic gray for secondary metrics */
         --accent: #38bdf8;               /* Radiant sky blue accents for premium highlight tracking */
-        --accent-bright: #38bdf8;        /* Already vivid in dark mode, same as accent */
-        --accent-rgb: 56, 189, 248;      /* RGB triplet of accent-bright, for use in rgba() */
         --lbl-color: #60a5fa;            /* Perfectly balanced luminous light blue for high title visibility */
         --glow: 0 20px 40px -15px rgba(0, 0, 0, 0.5); /* Heavy deep canvas room shadow */
         --line: #1f2937;                 /* Laser-etched internal dividers */
@@ -1039,48 +1037,79 @@ app.get("/", (req, res) => {
     .container { width: 100%; max-width: 1340px; margin: 0 auto; }
     
     /* 🎯 #1: ENHANCED HEADER WITH GRADIENT */
-    /* ===== ROW 1: title + clock + theme toggle, one row ===== */
-    .header { margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center; gap: 10px; }
-
-    .header h1 {
-        font-size: 24px;
-        font-weight: 800;
-        margin: 0;
-        letter-spacing: -0.4px;
-        line-height: 1;
-        color: var(--text);
+    .header { margin-bottom: 28px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; }
+    
+    .header h1 { 
+        font-size: 28px; 
+        font-weight: 900; 
+        margin: 0; 
+        letter-spacing: -1px;
+        
+        /* 🎨 NEW: Premium gradient text effect */
+        background: linear-gradient(135deg, var(--text) 0%, var(--text) 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        transition: all 0.4s ease;
     }
 
-    /* ===== ROW 2: sliding tabs, full width ===== */
-    .header-actions { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; }
-
-    .theme-toggle { background: var(--card); border: 1px solid var(--border); padding: 3px; border-radius: 10px; display: flex; gap: 2px; cursor: pointer; flex-shrink: 0; }
-    .theme-btn { width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; border-radius: 7px; font-size: 13px; transition: 0.2s ease; color: var(--muted); }
-    .theme-btn.active { background: var(--accent-bright); color: white; }
-
-    /* ===== Prominent monospace clock ===== */
-    .status-bar {
-        display: flex;
-        align-items: center;
-        gap: 7px;
-        flex-shrink: 0;
-        background: var(--card);
-        border: 1px solid var(--border);
-        padding: 6px 12px;
-        border-radius: 10px;
+    body.is-night .header h1 {
+        text-shadow: 0 2px 12px rgba(56, 189, 248, 0.15);
     }
+    
+    .header-actions { display: flex; align-items: center; gap: 12px; }
+    
+    .theme-toggle { background: var(--card); border: 1px solid var(--border); padding: 4px; border-radius: 14px; display: flex; gap: 4px; box-shadow: var(--glow); cursor: pointer; backdrop-filter: blur(20px); }
+    .theme-btn { padding: 5px 12px; border-radius: 10px; font-size: 11px; font-weight: 700; transition: 0.2s ease; color: var(--muted); }
+    .theme-btn.active { background: var(--accent); color: white; }
 
-    .status-bar .timestamp {
-        font-family: 'SF Mono', 'JetBrains Mono', 'Courier New', monospace;
-        font-size: 15px;
-        font-weight: 700;
-        color: var(--accent-bright);
+    /* 🎯 #2: PREMIUM STATUS BAR WITH GLOW */
+    .status-bar { 
+        display: flex; 
+        align-items: center; 
+        gap: 8px; 
+        background: var(--card); 
+        padding: 8px 16px; 
+        border-radius: 100px; 
+        
+        /* 🎨 ENHANCED: Multi-layer shadow + glow */
+        border: 1.5px solid var(--border);
+        box-shadow: 
+            0 4px 12px -2px rgba(3, 105, 161, 0.1),
+            inset 0 1px 0 rgba(255, 255, 255, 0.5);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        
+        font-size: 12px; 
+        font-weight: 600; 
         letter-spacing: 0.3px;
-        line-height: 1;
+        transition: all 0.3s ease;
     }
 
-    .live-dot { width: 7px; height: 7px; background: #10b981; border-radius: 50%; animation: blink 2s infinite; box-shadow: 0 0 8px #10b981; flex-shrink: 0; }
-    @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+    body.is-night .status-bar {
+        box-shadow: 
+            0 4px 16px -2px rgba(0, 0, 0, 0.4),
+            inset 0 1px 0 rgba(56, 189, 248, 0.1);
+    }
+
+    /* Hover lift effect */
+    @media (hover: hover) {
+        .status-bar:hover {
+            transform: translateY(-2px);
+            box-shadow: 
+                0 8px 20px -4px rgba(3, 105, 161, 0.15),
+                inset 0 1px 0 rgba(255, 255, 255, 0.6);
+        }
+
+        body.is-night .status-bar:hover {
+            box-shadow: 
+                0 8px 24px -4px rgba(56, 189, 248, 0.2),
+                inset 0 1px 0 rgba(56, 189, 248, 0.15);
+        }
+    }
+    
+    .live-dot { width: 6px; height: 6px; background: #10b981; border-radius: 50%; animation: blink 2s infinite; box-shadow: 0 0 8px #10b981; }
+    @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
     
 
     .grid-system { 
@@ -1343,8 +1372,10 @@ app.get("/", (req, res) => {
     #needle { width: 3px; height: 46px; background: linear-gradient(to bottom, #ef4444 50%, var(--muted) 50%); clip-path: polygon(50% 0%, 100% 100%, 50% 85%, 0% 100%); transition: transform 2s cubic-bezier(0.1, 0.9, 0.2, 1); z-index: 2; }
 
     .time-mark { font-size: 9px; color: var(--muted); font-weight: 500; display: inline-block; margin-left: 4px; opacity: 0.75; }
-
-    /* 🎯 BASE TAB BUTTON — used by 24H Summary/Graphs sub-tabs and any other plain .tab-btn */
+    
+    .nav-tabs { display: flex; gap: 8px; margin-bottom: 24px; }
+    
+    /* 🎯 BONUS: TAB BUTTON ENHANCEMENTS */
     .tab-btn {
         background: var(--card);
         border: 1px solid var(--border);
@@ -1354,89 +1385,32 @@ app.get("/", (req, res) => {
         font-weight: 700;
         cursor: pointer;
         transition: all 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+        backdrop-filter: blur(20px);
         font-size: 13px;
         letter-spacing: 0.2px;
     }
 
     .tab-btn.active {
-        background: var(--accent-bright);
+        background: var(--accent);
         color: white;
-        border-color: var(--accent-bright);
-        box-shadow: 0 4px 12px -2px rgba(var(--accent-rgb), 0.35);
+        border-color: var(--accent);
+        box-shadow: 
+            0 4px 12px -2px rgba(3, 105, 161, 0.3),
+            inset 0 1px 0 rgba(255, 255, 255, 0.2);
+        transform: translateY(-2px);
+    }
+
+    body.is-night .tab-btn.active {
+        box-shadow:
+            0 4px 16px -2px rgba(56, 189, 248, 0.4),
+            inset 0 1px 0 rgba(56, 189, 248, 0.3);
     }
 
     @media (hover: hover) {
         .tab-btn:hover:not(.active) {
-            border-color: var(--accent-bright);
-        }
-    }
-
-    /* 🎯 MODERN GLASS SLIDING TAB BAR (main nav only — overrides base .tab-btn above) */
-    .nav-tabs {
-        position: relative;
-        display: flex;
-        background: transparent;
-        border-radius: 12px;
-        padding: 0;
-        flex: 1;
-        margin-bottom: 0;
-    }
-
-    .nav-tabs .slider {
-        position: absolute;
-        top: 0; left: 0;
-        height: 100%;
-        width: calc(33.333% - 2.66px);
-        background: linear-gradient(135deg, rgba(var(--accent-rgb), 0.9), rgba(var(--accent-rgb), 0.75));
-        border-radius: 10px;
-        box-shadow:
-            0 4px 16px -4px rgba(var(--accent-rgb), 0.5),
-            inset 0 1px 0 rgba(255, 255, 255, 0.25);
-        transition: transform 0.35s cubic-bezier(0.65, 0, 0.35, 1);
-    }
-
-    .nav-tabs[data-active="summary"] .slider { transform: translateX(calc(100% + 4px)); }
-    .nav-tabs[data-active="historical"] .slider { transform: translateX(calc(200% + 8px)); }
-
-    .nav-tabs .tab-btn {
-        position: relative;
-        z-index: 1;
-        flex: 1;
-        text-align: center;
-        background: transparent;
-        border: none;
-        padding: 9px 4px;
-        color: var(--muted);
-        font-weight: 600;
-        font-size: 11.5px;
-        cursor: pointer;
-        transition: color 0.25s ease;
-        border-radius: 0;
-        backdrop-filter: none;
-        box-shadow: none;
-        transform: none;
-        letter-spacing: 0.1px;
-    }
-
-    .nav-tabs .tab-btn.active {
-        background: transparent;
-        color: #ffffff;
-        border-color: transparent;
-        box-shadow: none;
-        transform: none;
-        font-weight: 700;
-    }
-
-    body.is-night .nav-tabs .tab-btn.active {
-        box-shadow: none;
-    }
-
-    @media (hover: hover) {
-        .nav-tabs .tab-btn:hover:not(.active) {
-            background: transparent;
-            border-color: transparent;
-            box-shadow: none;
-            color: var(--text);
+            background: var(--card);
+            border-color: var(--accent);
+            box-shadow: 0 4px 8px -2px rgba(3, 105, 161, 0.1);
         }
     }
 
@@ -1572,10 +1546,10 @@ app.get("/", (req, res) => {
 .title-trigger {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
+    gap: 8px;
     background: transparent;
     border: none;
-    padding: 2px 0;
+    padding: 4px 0;
     margin: 0;
     cursor: pointer;
     font-family: inherit;
@@ -1583,28 +1557,27 @@ app.get("/", (req, res) => {
     max-width: 100%;
 }
 .title-trigger h1 {
-    font-size: 24px;
-    font-weight: 800;
+    font-size: 21px;
+    font-weight: 900;
     letter-spacing: -0.4px;
-    line-height: 1;
     margin: 0;
     color: var(--text);
 }
 .pin-toggle {
     flex-shrink: 0;
-    width: 16px;
-    height: 16px;
-    border-radius: 6px;
-    background: transparent;
-    color: var(--muted);
+    width: 24px;
+    height: 24px;
+    border-radius: 8px;
+    background: rgba(56,189,248,0.12);
+    color: var(--accent);
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 10px;
-    transition: transform 0.2s ease, color 0.2s ease;
+    font-size: 12px;
+    transition: transform 0.2s ease, background 0.2s ease;
 }
 .title-trigger.open .pin-toggle {
-    color: var(--accent);
+    background: var(--accent);
     transform: scale(0.92);
 }
 
@@ -1650,7 +1623,7 @@ app.get("/", (req, res) => {
 .station-menu-item:active { background: rgba(3, 105, 161, 0.12); }
 
 @media screen and (max-width: 400px) {
-    .header h1 { font-size: 20px; }
+    .header h1 { font-size: 19px; }
 }
 
 /* 🌧️ RAINFALL GLOW & PULSE ANIMATIONS */
@@ -1728,10 +1701,17 @@ app.get("/", (req, res) => {
 @supports not (-webkit-touch-callout: none) {
     @media screen and (max-width: 767px) {
 
-        /* ── TABS: glass slider stays intact, just tighten padding ── */
-        .nav-tabs .tab-btn {
-            font-size: clamp(10px, 3vw, 11.5px);
-            padding: 8px 4px;
+        /* ── TABS: shrink + allow wrap so they never overflow ── */
+        .nav-tabs {
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+        .tab-btn {
+            font-size: clamp(10px, 3vw, 13px);
+            padding: 9px clamp(10px, 3.5vw, 20px);
+            border-radius: 12px;
+            flex: 1 1 auto;
+            text-align: center;
             white-space: nowrap;
             min-width: 0;
         }
@@ -1850,32 +1830,27 @@ app.get("/", (req, res) => {
             font-size: clamp(1rem, 3.5vw, 1.4rem) !important;
         }
 
-        /* ── HEADER: title + clock + theme toggle, tightened for mobile ── */
+        /* ── HEADER: keep station title + controls on one row ── */
         .header {
-            gap: 6px;
-            margin-bottom: 12px;
-            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 18px;
         }
         .title-trigger h1 {
-            font-size: clamp(17px, 5.5vw, 22px);
+            font-size: clamp(16px, 5vw, 21px);
         }
         .header-actions {
             gap: 8px;
-            margin-bottom: 16px;
         }
         .theme-toggle {
-            padding: 2px;
+            padding: 3px;
         }
         .theme-btn {
-            width: 24px;
-            height: 24px;
-            font-size: 11px;
+            padding: 4px 8px;
+            font-size: 10px;
         }
         .status-bar {
-            padding: 5px 9px;
-        }
-        .status-bar .timestamp {
-            font-size: 12px;
+            font-size: 11px;
+            padding: 6px 12px;
         }
 
         /* ── GLASS SELECT (year/month pickers) ── */
@@ -1915,21 +1890,20 @@ app.get("/", (req, res) => {
             </div>
         </div>
 
-        <div class="status-bar"><div class="live-dot"></div><div class="timestamp"><span id="ts">--:--:--</span></div></div>
-        <div class="theme-toggle" id="themeToggle">
-            <div class="theme-btn" id="btn-light">☀︎</div>
-            <div class="theme-btn" id="btn-dark">☾</div>
-            <div class="theme-btn active" id="btn-auto">◐</div>
+        <div class="header-actions">
+            <div class="status-bar"><div class="live-dot"></div><div class="timestamp"><span id="ts">--:--:--</span></div></div>
+            <div class="theme-toggle" id="themeToggle">
+                <div class="theme-btn" id="btn-light">LIGHT</div>
+                <div class="theme-btn" id="btn-dark">DARK</div>
+                <div class="theme-btn active" id="btn-auto">AUTO</div>
+            </div>
         </div>
     </div>
 
-    <div class="header-actions">
-        <div class="nav-tabs">
-            <div class="slider" id="tabSlider"></div>
-            <button onclick="showPage('dashboard')" id="tab-dash" class="tab-btn active">Live</button>
-            <button onclick="showPage('summary')" id="tab-sum" class="tab-btn">Monthly</button>
-            <button onclick="showPage('historical')" id="tab-hist" class="tab-btn">Historical</button>
-        </div>
+    <div class="nav-tabs">
+        <button onclick="showPage('dashboard')" id="tab-dash" class="tab-btn active">Live Dashboard</button>
+        <button onclick="showPage('summary')" id="tab-sum" class="tab-btn">Monthly Summary</button>
+        <button onclick="showPage('historical')" id="tab-hist" class="tab-btn">Historical Data</button>
     </div>
 
 
@@ -2516,9 +2490,6 @@ document.addEventListener('click', function(e) {
     document.getElementById('tab-dash').classList.toggle('active', pageId === 'dashboard');
     document.getElementById('tab-sum').classList.toggle('active', pageId === 'summary');
     document.getElementById('tab-hist').classList.toggle('active', pageId === 'historical'); // Added this
-
-    // 2b. Slide the glass pill to the active tab
-    document.querySelector('.nav-tabs').setAttribute('data-active', pageId === 'dashboard' ? 'dashboard' : pageId);
 
     // 3. Trigger UI generation
     if (pageId === 'summary') {
