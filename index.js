@@ -1,3 +1,5 @@
+Stable 
+
 const express = require("express");
 const fetch = require("node-fetch");
 const { Pool } = require('pg');
@@ -701,6 +703,7 @@ try {
             wind: { speed: liveWind, gust: liveGust, maxS: mx_w, maxSTime: mx_w_t, maxG: mx_g, maxGTime: mx_g_t, deg: r.windDeg, card: getCard(r.windDeg) },
             rain: (() => {
     let yearlyMm = Math.round(r.yearlyIn * 2540) / 100 + (station.id === 'kknagar' ? 494.8 : station.id === 'ayyapakkam' ? 257.02 : 0);
+    return {
         total:   Math.round(r.dailyIn  * 2540) / 100,
         rate:    liveRR,
         maxR:    mx_r,
@@ -2404,7 +2407,7 @@ document.addEventListener('click', function(e) {
                 
                 document.getElementById('r_week').innerText = d.rain.weekly + ' mm';
                 document.getElementById('r_month').innerText = d.rain.monthly + ' mm';
-                document.getElementById('r_year').innerText = parseFloat(d.rain.yearly).toFixed(2) + ' mm';
+                document.getElementById('r_year').innerText = d.rain.yearly + ' mm';
                 document.getElementById('mr').innerHTML = d.rain.maxR > 0 
     ? d.rain.maxR.toFixed(1) + '<span style="font-size:11px; font-weight:600; color:var(--muted); margin-left:3px;">mm/h</span> <span style="font-size:9px; color:var(--muted); font-weight:500; opacity:0.75;">' + d.rain.maxRTime + '</span>' 
     : '0<span style="font-size:11px; font-weight:600; color:var(--muted); margin-left:3px;">mm/h</span>';
