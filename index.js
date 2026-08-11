@@ -700,32 +700,14 @@ try {
             atmo: { hum: liveHum, hTrend: humRate, press: livePress, pTrend: pressRate, sol: r.solar, uv: r.uv },
             wind: { speed: liveWind, gust: liveGust, maxS: mx_w, maxSTime: mx_w_t, maxG: mx_g, maxGTime: mx_g_t, deg: r.windDeg, card: getCard(r.windDeg) },
             rain: (() => {
-    let yearlyMm = Math.round(r.yearlyIn * 25.4);
-    
-    if (station.id === 'kknagar' && station.yearlyBaseline > 0) {
-        // If snapshot doesn't exist yet, capture it now
-        if (st.yearlyMidnightSnapshot === null || st.yearlyMidnightSnapshot === undefined) {
-            st.yearlyMidnightSnapshot = yearlyMm;
-            console.log(`📸 Initial yearly snapshot [${station.id}]: ${yearlyMm}mm`);
-        }
-        
-        // At midnight, recapture the snapshot for next day
-        if (hour === 0 && minute < 5) {
-            st.yearlyMidnightSnapshot = yearlyMm;
-            console.log(`📸 Midnight yearly snapshot [${station.id}]: ${yearlyMm}mm`);
-        }
-        
-        // Always calculate using snapshot
-        yearlyMm = station.yearlyBaseline + (yearlyMm - st.yearlyMidnightSnapshot);
-    }  // ← CLOSE THE IF HERE (only one brace)
-    
+    let yearlyMm = Math.round(r.yearlyIn * 2540) / 100 + (station.id === 'kknagar' ? 494.8 : 0);
     return {
         total:   Math.round(r.dailyIn  * 2540) / 100,
         rate:    liveRR,
         maxR:    mx_r,
         maxRTime: mx_r_t,
         weekly:  Math.round(r.weeklyIn  * 2540) / 100,
-        monthly: Math.round(r.monthlyIn * 2540) / 100,
+        monthly: Math.round(r.monthlyIn * 2540) / 100 + (station.id === 'kknagar' ? 119.8 : 0),
         yearly:  yearlyMm,
     };
 })(),
