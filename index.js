@@ -700,7 +700,7 @@ try {
             atmo: { hum: liveHum, hTrend: humRate, press: livePress, pTrend: pressRate, sol: r.solar, uv: r.uv },
             wind: { speed: liveWind, gust: liveGust, maxS: mx_w, maxSTime: mx_w_t, maxG: mx_g, maxGTime: mx_g_t, deg: r.windDeg, card: getCard(r.windDeg) },
             rain: (() => {
-    let yearlyMm = Math.round((r.yearlyIn * 2540 + (station.id === 'kknagar' ? 494.8 * 100 : station.id === 'ayyapakkam' ? 257.02 * 100 : 0)) / 100);
+    let yearlyMm = Math.round((r.yearlyIn * 2540 + (station.id === 'kknagar' ? 494.9 * 100 : station.id === 'ayyapakkam' ? 257.02 * 100 : 0)) / 100);
 
     return {
         total:   Math.round(r.dailyIn  * 2540) / 100,
