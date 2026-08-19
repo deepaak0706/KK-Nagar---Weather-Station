@@ -2524,6 +2524,10 @@ window.showMonthlySummaryUI = function() {
 // 2. Updated data fetcher that targets only the table container
 async function fetchMonthlySummary() {
     const tableContainer = document.getElementById('archive-data-table');
+
+// 2. Updated data fetcher with ULTRA-MODERN UI + DYNAMIC CALCULATIONS
+async function fetchMonthlySummary() {
+    const tableContainer = document.getElementById('archive-data-table');
     if (!tableContainer) return;
     
     tableContainer.innerHTML = '<div class="card" style="text-align:center; padding:40px;">Querying Database...</div>';
@@ -2531,43 +2535,80 @@ async function fetchMonthlySummary() {
     try {
         const res = await fetch('/api/summary?station=' + currentStation);
         const groups = await res.json();
-        const currentKey = \`\${selectedMonth} \${selectedYear}\`;
+        const currentKey = `${selectedMonth} ${selectedYear}`;
         const days = groups[currentKey] || [];
+        
+        // CALCULATE RAINY DAYS & MONTHLY TOTAL (DYNAMIC)
+        let rainyDaysCount = 0;
+        let monthlyTotalRain = 0;
+        
+        days.forEach(function(d) {
+            const rainfall = parseFloat(d.total_rain_mm);
+            monthlyTotalRain += rainfall;
+            if (rainfall > 2.5) {
+                rainyDaysCount++;
+            }
+        });
 
         if (days.length === 0) {
-            tableContainer.innerHTML = \`
+            tableContainer.innerHTML = `
                 <div class="card" style="text-align:center; padding:60px; color: var(--muted); font-weight: 600;">
-                    No data recorded for \${currentKey}
-                </div>\`;
+                    No data recorded for ${currentKey}
+                </div>`;
             return;
         }
 
-        tableContainer.innerHTML = \`
-            <div class="pro-summary-table" style="background: var(--card); border-radius: 15px; overflow: hidden; border: 1px solid var(--border);">
-                <div class="pro-row" style="background: var(--badge); font-weight: 800; font-size: 11px; text-transform: uppercase; display: flex; align-items: center; padding: 15px; border-bottom: 1px solid var(--border);">
-                    <div style="width: 20%;">Date</div>
-                    <div style="width: 25%; text-align: center;">Temp (H/L)</div>
-                    <div style="width: 30%; text-align: center;">Wind / Gust</div>
-                    <div style="width: 25%; text-align: right;">Rainfall</div>
+        tableContainer.innerHTML = `
+            <div style="background: rgba(30, 41, 59, 0.5); backdrop-filter: blur(10px); border: 1px solid rgba(56, 189, 248, 0.1); border-radius: 16px; padding: 18px; overflow: hidden;">
+                
+                <!-- ULTRA MODERN MODULAR STATS -->
+                <div style="display: flex; align-items: center; justify-content: center; gap: 0; padding: 12px 0; margin-bottom: 16px; border-bottom: 1px solid rgba(56, 189, 248, 0.08);">
+                    <div style="flex: 1; text-align: center; position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 0 12px;">
+                        <div style="font-size: 9px; font-weight: 600; letter-spacing: 0.8px; color: #94a3b8; text-transform: uppercase; margin-bottom: 4px;">🌧️ Rainy Days</div>
+                        <div style="font-size: 22px; font-weight: 800; color: #38bdf8;">${rainyDaysCount}</div>
+                    </div>
+                    <div style="width: 1px; height: 32px; background: linear-gradient(180deg, transparent, rgba(56, 189, 248, 0.25) 20%, rgba(56, 189, 248, 0.25) 80%, transparent);"></div>
+                    <div style="flex: 1; text-align: center; position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 0 12px;">
+                        <div style="font-size: 9px; font-weight: 600; letter-spacing: 0.8px; color: #94a3b8; text-transform: uppercase; margin-bottom: 4px;">📊 Monthly Total</div>
+                        <div style="font-size: 22px; font-weight: 800; color: #38bdf8;">${monthlyTotalRain.toFixed(1)}mm</div>
+                    </div>
                 </div>
-                \${days.map(function(d) {
-                    return \`
-                    <div class="pro-row" style="display: flex; align-items: center; padding: 15px; border-bottom: 1px solid var(--border);">
-                        <div style="width: 20%; font-size: 16px;"><b>\${new Date(d.record_date).getDate()}</b></div>
-                        <div style="width: 25%; display: flex; justify-content: center; gap: 8px;">
-                            <span style="color:#ef4444; font-weight: 700;">\${parseFloat(d.max_temp_c).toFixed(1)}°</span>
-                            <span style="opacity: 0.3;">/</span>
-                            <span style="color:#0ea5e9; font-weight: 700;">\${parseFloat(d.min_temp_c).toFixed(1)}°</span>
-                        </div>
-                        <div style="width: 30%; font-size: 13px; text-align: center;">
-                            \${parseFloat(d.max_wind_kmh).toFixed(1)} <small style="opacity:0.4">/</small> \${parseFloat(d.max_gust_kmh).toFixed(1)} <small>km/h</small>
-                        </div>
-                        <div style="width: 25%; font-weight: 800; color: #3b82f6; text-align: right;">
-                            \${parseFloat(d.total_rain_mm).toFixed(1)} <small>mm</small>
-                        </div>
-                    </div>\`;
-                }).join('')}
-            </div>\`;
+
+                <!-- ULTRA MODERN COMPACT TABLE -->
+                <div style="border-radius: 12px; overflow: hidden; border: 1px solid rgba(56, 189, 248, 0.08); background: rgba(15, 23, 42, 0.2);">
+                    <div style="display: grid; grid-template-columns: 45px 1fr 1fr 100px; gap: 0; padding: 10px 12px; background: linear-gradient(90deg, rgba(56, 189, 248, 0.06), rgba(56, 189, 248, 0.01)); border-bottom: 1px solid rgba(56, 189, 248, 0.1); font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: #94a3b8;">
+                        <div style="text-align: center;">Date</div>
+                        <div style="text-align: center; border-right: 1px solid rgba(56, 189, 248, 0.06);">Temp (H/L)</div>
+                        <div style="text-align: center; border-right: 1px solid rgba(56, 189, 248, 0.06);">Wind / Gust</div>
+                        <div style="text-align: right;">Rainfall</div>
+                    </div>
+                    ${days.map(function(d) {
+                        const tempHigh = parseFloat(d.max_temp_c).toFixed(1);
+                        const tempLow = parseFloat(d.min_temp_c).toFixed(1);
+                        const windSustained = parseFloat(d.max_wind_kmh).toFixed(1);
+                        const windGust = parseFloat(d.max_gust_kmh).toFixed(1);
+                        const rain = parseFloat(d.total_rain_mm).toFixed(1);
+                        const date = new Date(d.record_date).getDate();
+                        
+                        return `
+                        <div style="display: grid; grid-template-columns: 45px 1fr 1fr 100px; gap: 0; padding: 10px 12px; border-bottom: 1px solid rgba(56, 189, 248, 0.06); align-items: center; transition: all 0.2s ease;" onmouseover="this.style.background='rgba(56, 189, 248, 0.06)'" onmouseout="this.style.background='transparent'">
+                            <div style="text-align: center; font-size: 14px; font-weight: 700; color: #38bdf8;"><b>${date}</b></div>
+                            <div style="text-align: center; border-right: 1px solid rgba(56, 189, 248, 0.04); font-size: 12px;">
+                                <span style="color: #ef4444; font-weight: 700;">${tempHigh}°</span>
+                                <span style="color: #64748b; opacity: 0.5; font-weight: 400;">/</span>
+                                <span style="color: #0ea5e9; font-weight: 700;">${tempLow}°</span>
+                            </div>
+                            <div style="text-align: center; border-right: 1px solid rgba(56, 189, 248, 0.04); font-size: 12px; color: #f59e0b;">
+                                <span style="font-weight: 700;">${windSustained}</span>
+                                <span style="color: #64748b; opacity: 0.5; font-weight: 400;">/</span>
+                                <span style="font-weight: 700;">${windGust}</span>
+                            </div>
+                            <div style="text-align: right; font-size: 12px; font-weight: 700; color: #3b82f6;">${rain}mm</div>
+                        </div>`;
+                    }).join('')}
+                </div>
+            </div>`;
+        
     } catch (e) {
         tableContainer.innerHTML = '<div class="card" style="color:#ef4444; padding:20px; text-align:center;">Error loading data.</div>';
     }
@@ -2578,13 +2619,7 @@ window.updateArchiveFilter = function() {
     selectedYear = document.getElementById('yearSelect').value;
     fetchMonthlySummary();
 };
-/* --- END CHIP CHOP --- */
 
-
-window.showHistoricalUI = function() {
-    var content = document.getElementById('historical-content');
-    var years = [2019, 2020, 2021, 2022, 2023, 2024, 2025, 2026];
-    var yearOptions = "";
     for (var i = 0; i < years.length; i++) {
         yearOptions += '<option value="' + years[i] + '">' + years[i] + '</option>';
     }
