@@ -1179,12 +1179,15 @@ app.get("/", (req, res) => {
         font-variant-numeric: tabular-nums;
         
         /* Subtle text shadow for depth */
-        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        text-shadow: none;
         transition: all 0.4s ease;
     }
 
+    
     body.is-night .main-val {
-        text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    text-shadow: none;
+}
+
     }
     
     .unit { font-size: 18px; font-weight: 600; color: var(--muted); margin-left: 3px; }
