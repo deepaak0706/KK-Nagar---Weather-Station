@@ -2079,7 +2079,7 @@ app.get("/", (req, res) => {
         
         <div class="pro-row">
             <div class="pro-label">
-                <span style="color:#ef4444; margin-right:10px; font-size:18px;">●</span>Temperature
+                <span style="color:#ef4444; margin-right:10px; font-size:18px;">●</span>Temp
             </div>
             <div class="pro-data-group">
                 <div class="pro-data-item">
