@@ -1131,7 +1131,7 @@ app.get("/", (req, res) => {
         justify-content: space-between;
         gap: 24px;
         width: 100%;
-        transition: all 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+        transition: none;
     }
 
     /* Individual card color themes */
@@ -1180,7 +1180,7 @@ app.get("/", (req, res) => {
         
         /* Subtle text shadow for depth */
         text-shadow: none;
-        transition: all 0.4s ease;
+        transition: none;
     }
 
     
@@ -1203,13 +1203,13 @@ app.get("/", (req, res) => {
     #r_week, #r_month, #r_year,
     #sol, #uv {
         /* 🎨 SMOOTH: Transition animation on value changes */
-        transition: all 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+        transition: none;
         font-variant-numeric: tabular-nums; /* Prevents width jumping */
     }
 
     /* Special smooth transition for trend indicators */
     #tTrendBox {
-        transition: all 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+        transition: none;
     }
 
     /* EQUAL COMPACT GRID PANELS */
@@ -1500,7 +1500,7 @@ app.get("/", (req, res) => {
         -webkit-backdrop-filter: blur(30px) !important;
         padding: 28px !important;
         position: relative;
-        transition: all 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+        transition: none;
     }
 
     /* Hover elevation effect */
