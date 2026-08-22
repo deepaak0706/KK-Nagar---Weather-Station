@@ -2668,29 +2668,14 @@ function updateRainGlow() {
     const currentRRElem = document.getElementById('r_rate');
     const maxRRElem = document.getElementById('mr');
 
-    // Main rain value: glow only if > 0
-    if (rainTotal === 0 || rainTotal === null || isNaN(rainTotal)) {
-        rainTotElem.style.animation = 'none';
-        rainTotElem.style.textShadow = 'none';
-    } else {
-        rainTotElem.style.animation = 'rain-pulse-glow 2.5s ease-in-out infinite';
-    }
+        // No animations for rain values - plain static text
+    rainTotElem.style.animation = 'none';
+    rainTotElem.style.textShadow = 'none';
+    currentRRElem.style.animation = 'none';
+    currentRRElem.style.textShadow = 'none';
+    maxRRElem.style.animation = 'none';
+    maxRRElem.style.textShadow = 'none';
 
-    // Current RR: glow only if > 0.1
-    if (currentRR === 0 || currentRR < 0.1 || isNaN(currentRR)) {
-        currentRRElem.style.animation = 'none';
-        currentRRElem.style.textShadow = 'none';
-    } else {
-        currentRRElem.style.animation = 'current-rr-glow 2s ease-in-out infinite';
-    }
-
-    // Max RR: glow only if > 0.1
-    if (maxRR === 0 || maxRR < 0.1 || isNaN(maxRR)) {
-        maxRRElem.style.animation = 'none';
-        maxRRElem.style.textShadow = 'none';
-    } else {
-        maxRRElem.style.animation = 'max-rr-glow 2s ease-in-out infinite';
-    }
 }
 
 // Auto-check every 30 seconds
