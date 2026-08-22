@@ -1956,7 +1956,7 @@ app.get("/", (req, res) => {
             <span style="font-size:12px; font-weight:900; letter-spacing:1.5px; color:#2563eb;">Current RR</span>
         </div>
         <div style="display:flex; align-items:baseline; gap:3px;">
-            <span id="r_rate" style="font-size:28px; font-weight:800; color:#2563eb; line-height:1.1; font-variant-numeric:tabular-nums;">--</span>
+            <span id="r_rate" style="font-size:28px; font-weight:800; color:#2563eb; line-height:1.1; font-variant-numeric:tabular-nums; text-shadow: none !important; filter: none !important;">--</span>
             <span style="font-size:11px; font-weight:600; color:var(--muted);"></span>
         </div>
     </div>
@@ -1966,7 +1966,7 @@ app.get("/", (req, res) => {
             <span style="font-size:12px; font-weight:900; letter-spacing:1.5px; color:#7c3aed;">Max RR</span>
         </div>
         <div style="display:flex; align-items:baseline; gap:3px;">
-            <span id="mr" style="font-size:28px; font-weight:800; color:#7c3aed; line-height:1.1; font-variant-numeric:tabular-nums;">--</span>
+            <span id="mr" style="font-size:28px; font-weight:800; color:#7c3aed; line-height:1.1; font-variant-numeric:tabular-nums; text-shadow: none !important; filter: none !important;">--</span>
             <span style="font-size:11px; font-weight:600; color:var(--muted);"></span>
         </div>
     </div>
