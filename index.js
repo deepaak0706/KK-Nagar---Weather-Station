@@ -1609,53 +1609,6 @@ app.get("/", (req, res) => {
     .header h1 { font-size: 19px; }
 }
 
-/* 🌧️ RAINFALL GLOW & PULSE ANIMATIONS */
-
-@keyframes rain-pulse-glow {
-    0% { 
-        text-shadow: 0 2px 8px rgba(6, 182, 212, 0.3);
-        transform: scale(1);
-    }
-    50% { 
-        text-shadow: 0 0 20px rgba(6, 182, 212, 0.8), 0 0 30px rgba(6, 182, 212, 0.4);
-        transform: scale(1.02);
-    }
-    100% { 
-        text-shadow: 0 2px 8px rgba(6, 182, 212, 0.3);
-        transform: scale(1);
-    }
-}
-
-@keyframes current-rr-glow {
-    0% { 
-        text-shadow: 0 2px 8px rgba(6, 182, 212, 0.4);
-        color: #06b6d4;
-    }
-    50% { 
-        text-shadow: 0 0 16px rgba(6, 182, 212, 0.9), 0 0 24px rgba(6, 182, 212, 0.5);
-        color: #22d3ee;
-    }
-    100% { 
-        text-shadow: 0 2px 8px rgba(6, 182, 212, 0.4);
-        color: #06b6d4;
-    }
-}
-
-@keyframes max-rr-glow {
-    0% { 
-        text-shadow: 0 2px 8px rgba(125, 58, 237, 0.4);
-        color: #1d4ed8;
-    }
-    50% { 
-        text-shadow: 0 0 16px rgba(168, 85, 247, 0.9), 0 0 24px rgba(168, 85, 247, 0.5);
-        color: #a78bfa;
-    }
-    100% { 
-        text-shadow: 0 2px 8px rgba(125, 58, 237, 0.4);
-        color: #1d4ed8;
-    }
-}
-
 
 /* ============================================================
    📱 ANDROID / CHROME FIX LAYER
@@ -2307,18 +2260,10 @@ document.addEventListener('click', function(e) {
     const val = newValue !== undefined && newValue !== null ? newValue : 0;
     const formattedValue = parseFloat(val).toFixed(decimals) + suffix;
 
-    if (obj.innerText !== formattedValue) {
-        obj.style.transition = 'none';
-        obj.style.opacity = "0";
-        obj.style.transform = "translateY(6px)";
-        
-        setTimeout(() => {
-            obj.innerHTML = '<span class="num-flip">' + formattedValue + '</span>';
-            obj.style.transition = 'opacity 0.3s ease, transform 0.3s cubic-bezier(0.22, 1, 0.36, 1)';
-            obj.style.opacity = "1";
-            obj.style.transform = "translateY(0)";
-        }, 50);
+        if (obj.innerText !== formattedValue) {
+        obj.innerHTML = formattedValue;
     }
+
 }
 
 
@@ -2386,10 +2331,9 @@ document.addEventListener('click', function(e) {
 
                 updateValueWithFade('t', d.temp.current, 1);
                 updateValueWithFade('w', d.wind.speed, 1);
-                updateValueWithFade('r_tot', d.rain.total, 1);
+                document.getElementById('r_tot').innerHTML = d.rain.total.toFixed(1);
                 document.getElementById('r_rate').innerHTML = d.rain.rate.toFixed(1) + '<span style="font-size:11px; font-weight:600; color:var(--muted); margin-left:3px;">mm/h</span>';
                 updateValueWithFade('wg', d.wind.gust, 1, ' km/h'); 
-
                 document.getElementById('tTrendBox').innerHTML = d.temp.rate > 0 ? '<span class="trend-up">▲</span> +' + d.temp.rate + '°C /hr' : d.temp.rate < 0 ? '<span class="trend-down">▼</span> ' + d.temp.rate + '°C /hr' : '● Steady';
                 document.getElementById('mx').innerHTML = d.temp.max + '°C <span class="time-mark">' + d.temp.maxTime + '</span>';
                 document.getElementById('mn').innerHTML = d.temp.min + '°C <span class="time-mark">' + d.temp.minTime + '</span>';
