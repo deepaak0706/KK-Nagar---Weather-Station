@@ -1815,9 +1815,59 @@ if ('serviceWorker' in navigator) {
     }
 }
 
+#pwa-install-banner[hidden] {
+    display: none;
+}
+
+#pwa-install-banner {
+    position: fixed;
+    left: 16px;
+    right: 16px;
+    bottom: 16px;
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 16px;
+    border: 1px solid rgba(56, 189, 248, 0.55);
+    border-radius: 16px;
+    background: #111827;
+    color: #f8fafc;
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+}
+
+#pwa-install-text {
+    flex: 1;
+    font-size: 13px;
+    line-height: 1.35;
+}
+
+#pwa-install-button {
+    border: 0;
+    border-radius: 10px;
+    padding: 9px 13px;
+    background: #38bdf8;
+    color: #082f49;
+    font-weight: 800;
+    cursor: pointer;
+}
+
+#pwa-install-close {
+    border: 0;
+    background: transparent;
+    color: #94a3b8;
+    font-size: 22px;
+    cursor: pointer;
+}
+
 </style>
 </head>
 <body>
+<div id="pwa-install-banner" hidden>
+    <div id="pwa-install-text"></div>
+    <button id="pwa-install-button" type="button">Install</button>
+    <button id="pwa-install-close" type="button" aria-label="Close">×</button>
+</div>
     <div class="container">
     <div class="header">
         <div class="station-picker" id="stationPicker">
@@ -2682,6 +2732,67 @@ window.fetchHistoricalData = async function() {
         resultsTable.innerHTML = '<div style="text-align:center; padding:40px; color: #ef4444;">Connection failed.</div>';
     }
 };
+let deferredInstallPrompt = null;
+
+const installBanner = document.getElementById('pwa-install-banner');
+const installText = document.getElementById('pwa-install-text');
+const installButton = document.getElementById('pwa-install-button');
+const installClose = document.getElementById('pwa-install-close');
+
+const isStandalone =
+    window.matchMedia('(display-mode: standalone)').matches ||
+    window.navigator.standalone === true;
+
+const isIOS =
+    /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
+function showInstallBanner(message, buttonLabel = 'Install') {
+    if (isStandalone) return;
+    installText.innerHTML = message;
+    installButton.textContent = buttonLabel;
+    installBanner.hidden = false;
+}
+
+/* Chrome, Edge, Android, and supported desktop browsers */
+window.addEventListener('beforeinstallprompt', (event) => {
+    event.preventDefault();
+    deferredInstallPrompt = event;
+
+    showInstallBanner(
+        '<strong>Install Weather Hub</strong><br>Get quick access from your home screen.'
+    );
+});
+
+/* iPhone/iPad: Safari installation is manual */
+if (isIOS && !isStandalone) {
+    showInstallBanner(
+        '<strong>Install Weather Hub</strong><br>Tap Share, then choose <strong>Add to Home Screen</strong>.',
+        'Got it'
+    );
+}
+
+installButton.addEventListener('click', async () => {
+    if (isIOS) {
+        installBanner.hidden = true;
+        return;
+    }
+
+    if (!deferredInstallPrompt) return;
+
+    await deferredInstallPrompt.prompt();
+    deferredInstallPrompt = null;
+    installBanner.hidden = true;
+});
+
+installClose.addEventListener('click', () => {
+    installBanner.hidden = true;
+});
+
+window.addEventListener('appinstalled', () => {
+    installBanner.hidden = true;
+    deferredInstallPrompt = null;
+});
 
 </script>
 </body>
