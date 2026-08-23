@@ -2007,51 +2007,96 @@ if ('serviceWorker' in navigator) {
 #station-summary-view {
     display: none;
     width: 100%;
-    max-width: 480px;
-    margin: 0 auto;
-    padding: 24px 16px 100px;
+    padding: 20px 0 100px;
+}
+
+.summary-header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 0 16px;
+    margin-bottom: 24px;
+}
+
+.summary-header #app-menu-button {
+    position: static !important;
+    flex-shrink: 0;
+}
+
+.summary-header-text h1 {
+    margin: 0;
+    color: var(--text);
+    font-size: 24px;
+    font-weight: 800;
+}
+
+.summary-header-text p {
+    margin: 4px 0 0;
+    color: var(--muted);
+    font-size: 12px;
 }
 
 .station-summary-title {
     margin: 0;
     color: var(--text);
-    font-size: 23px;
+    font-size: 24px;
+    font-weight: 800;
 }
 
 .station-summary-subtitle {
-    margin: 5px 0 12px;
+    margin: 4px 0 12px;
     color: var(--muted);
     font-size: 12px;
+}
+
+#station-summary-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 16px;
+    padding: 0 16px;
+}
+
+@media (min-width: 1024px) {
+    #station-summary-list {
+        grid-template-columns: repeat(2, 1fr);
+        max-width: 1000px;
+        margin: 0 auto;
+        padding: 0 24px;
+    }
+}
+
+@media (max-width: 768px) {
+    #station-summary-list {
+        grid-template-columns: 1fr;
+    }
+    
+    .summary-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
 }
 
 .station-summary-row {
     position: relative;
     width: 100%;
-    padding: 15px 3px 17px;
-    border: 0;
-    background: transparent;
+    padding: 18px;
+    border: 1px solid var(--border);
+    background: var(--card);
     color: var(--text);
     font: inherit;
     text-align: left;
     cursor: pointer;
+    border-radius: 12px;
+    transition: all 0.2s ease;
+}
+
+.station-summary-row:hover {
+    border-color: var(--accent);
+    box-shadow: 0 4px 12px rgba(56, 189, 248, 0.15);
 }
 
 .station-summary-row::after {
-    position: absolute;
-    right: 0;
-    bottom: 0;
-    left: 0;
-    height: 1px;
-    content: "";
-    background: linear-gradient(
-        90deg,
-        transparent,
-        var(--border) 14%,
-        var(--accent) 50%,
-        var(--border) 86%,
-        transparent
-    );
-    opacity: 0.65;
+    display: none;
 }
 
 .station-summary-row:last-child::after {
@@ -2490,10 +2535,19 @@ if ('serviceWorker' in navigator) {
     </div>
 
     <div id="station-summary-view">
-    <h1 class="station-summary-title">Station Summary</h1>
-    <p class="station-summary-subtitle">Live essentials from all four stations.</p>
-    <div id="station-summary-list"></div>
-</div>
+        <div class="summary-header">
+            <button id="app-menu-button" onclick="toggleAppMenu()" style="position: static;">
+                <span></span>
+                <span></span>
+                <span></span>
+            </button>
+            <div class="summary-header-text">
+                <h1 class="station-summary-title">Station Summary</h1>
+                <p class="station-summary-subtitle">Live essentials from all four stations.</p>
+            </div>
+        </div>
+        <div id="station-summary-list"></div>
+    </div>
 
 <div id="app-menu-overlay" onclick="closeAppMenu()"></div>
 
