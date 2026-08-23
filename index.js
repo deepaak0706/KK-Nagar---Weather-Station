@@ -855,25 +855,38 @@ app.get('/manifest.json', (req, res) => {
 
 
 app.get('/sw.js', (req, res) => {
+    res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
     res.type('application/javascript').send(`
-const CACHE_NAME = 'kk-nagar-weather-v1';
-const urlsToCache = [
-  '/',
-  '/manifest.json'
-];
+const CACHE_NAME = 'kk-nagar-weather-v2';
 
 self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CACHE_NAME)
-      .then(cache => cache.addAll(urlsToCache))
-      .catch(err => console.log('Cache failed:', err))
+      .then(cache => cache.addAll(['/', '/manifest.json']))
+      .then(() => self.skipWaiting())
   );
 });
 
+self.addEventListener('activate', event => {
+  event.waitUntil(
+    caches.keys()
+      .then(keys => Promise.all(
+        keys
+          .filter(key => key !== CACHE_NAME)
+          .map(key => caches.delete(key))
+      ))
+      .then(() => self.clients.claim())
+  );
+});
+
+/* Always load the newest version when online.
+   Use the cached page only when the device is offline. */
 self.addEventListener('fetch', event => {
+  if (event.request.method !== 'GET') return;
+
   event.respondWith(
-    caches.match(event.request)
-      .then(response => response || fetch(event.request))
+    fetch(event.request)
+      .catch(() => caches.match(event.request))
       .catch(() => caches.match('/'))
   );
 });
@@ -946,9 +959,18 @@ app.get("/", (req, res) => {
     <link rel="manifest" href="/manifest.json">
 
     <script>
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('/sw.js').catch(err => console.log('SW registration failed:', err));
-  }
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' })
+    .then(registration => registration.update())
+    .catch(err => console.log('SW registration failed:', err));
+
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (!window.swReloaded) {
+      window.swReloaded = true;
+      window.location.reload();
+    }
+  });
+}
 </script>
 
 
