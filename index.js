@@ -700,7 +700,7 @@ try {
             atmo: { hum: liveHum, hTrend: humRate, press: livePress, pTrend: pressRate, sol: r.solar, uv: r.uv },
             wind: { speed: liveWind, gust: liveGust, maxS: mx_w, maxSTime: mx_w_t, maxG: mx_g, maxGTime: mx_g_t, deg: r.windDeg, card: getCard(r.windDeg) },
             rain: (() => {
-    let yearlyMm = parseFloat(((r.yearlyIn * 2540 + (station.id === 'kknagar' ? 494.8 * 100 : station.id === 'ayyapakkam' ? 257.02 * 100 : 0)) / 100).toFixed(1));
+    let yearlyMm = Math.round(r.yearlyIn * 2540) / 100 + (station.id === 'kknagar' ? 494.8 : 0);
     return {
         total:   Math.round(r.dailyIn  * 2540) / 100,
         rate:    liveRR,
@@ -1131,7 +1131,7 @@ app.get("/", (req, res) => {
         justify-content: space-between;
         gap: 24px;
         width: 100%;
-        transition: none;
+        transition: all 0.35s cubic-bezier(0.22, 1, 0.36, 1);
     }
 
     /* Individual card color themes */
@@ -1179,15 +1179,12 @@ app.get("/", (req, res) => {
         font-variant-numeric: tabular-nums;
         
         /* Subtle text shadow for depth */
-        text-shadow: none;
-        transition: none;
+        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        transition: all 0.4s ease;
     }
 
-    
     body.is-night .main-val {
-    text-shadow: none;
-}
-
+        text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
     }
     
     .unit { font-size: 18px; font-weight: 600; color: var(--muted); margin-left: 3px; }
@@ -1203,13 +1200,13 @@ app.get("/", (req, res) => {
     #r_week, #r_month, #r_year,
     #sol, #uv {
         /* 🎨 SMOOTH: Transition animation on value changes */
-        transition: none;
+        transition: all 0.35s cubic-bezier(0.22, 1, 0.36, 1);
         font-variant-numeric: tabular-nums; /* Prevents width jumping */
     }
 
     /* Special smooth transition for trend indicators */
     #tTrendBox {
-        transition: none;
+        transition: all 0.4s cubic-bezier(0.22, 1, 0.36, 1);
     }
 
     /* EQUAL COMPACT GRID PANELS */
@@ -1500,7 +1497,7 @@ app.get("/", (req, res) => {
         -webkit-backdrop-filter: blur(30px) !important;
         padding: 28px !important;
         position: relative;
-        transition: none;
+        transition: all 0.35s cubic-bezier(0.22, 1, 0.36, 1);
     }
 
     /* Hover elevation effect */
@@ -1607,6 +1604,53 @@ app.get("/", (req, res) => {
 
 @media screen and (max-width: 400px) {
     .header h1 { font-size: 19px; }
+}
+
+/* 🌧️ RAINFALL GLOW & PULSE ANIMATIONS */
+
+@keyframes rain-pulse-glow {
+    0% { 
+        text-shadow: 0 2px 8px rgba(6, 182, 212, 0.3);
+        transform: scale(1);
+    }
+    50% { 
+        text-shadow: 0 0 20px rgba(6, 182, 212, 0.8), 0 0 30px rgba(6, 182, 212, 0.4);
+        transform: scale(1.02);
+    }
+    100% { 
+        text-shadow: 0 2px 8px rgba(6, 182, 212, 0.3);
+        transform: scale(1);
+    }
+}
+
+@keyframes current-rr-glow {
+    0% { 
+        text-shadow: 0 2px 8px rgba(6, 182, 212, 0.4);
+        color: #06b6d4;
+    }
+    50% { 
+        text-shadow: 0 0 16px rgba(6, 182, 212, 0.9), 0 0 24px rgba(6, 182, 212, 0.5);
+        color: #22d3ee;
+    }
+    100% { 
+        text-shadow: 0 2px 8px rgba(6, 182, 212, 0.4);
+        color: #06b6d4;
+    }
+}
+
+@keyframes max-rr-glow {
+    0% { 
+        text-shadow: 0 2px 8px rgba(125, 58, 237, 0.4);
+        color: #1d4ed8;
+    }
+    50% { 
+        text-shadow: 0 0 16px rgba(168, 85, 247, 0.9), 0 0 24px rgba(168, 85, 247, 0.5);
+        color: #a78bfa;
+    }
+    100% { 
+        text-shadow: 0 2px 8px rgba(125, 58, 237, 0.4);
+        color: #1d4ed8;
+    }
 }
 
 
@@ -1956,7 +2000,7 @@ app.get("/", (req, res) => {
             <span style="font-size:12px; font-weight:900; letter-spacing:1.5px; color:#2563eb;">Current RR</span>
         </div>
         <div style="display:flex; align-items:baseline; gap:3px;">
-            <span id="r_rate" style="font-size:28px; font-weight:800; color:#00d9ff; line-height:1.1; font-variant-numeric:tabular-nums; text-shadow: none !important; filter: none !important; animation: none !important;">--</span>
+            <span id="r_rate" style="font-size:28px; font-weight:800; color:#2563eb; line-height:1.1; font-variant-numeric:tabular-nums;">--</span>
             <span style="font-size:11px; font-weight:600; color:var(--muted);"></span>
         </div>
     </div>
@@ -1966,7 +2010,7 @@ app.get("/", (req, res) => {
             <span style="font-size:12px; font-weight:900; letter-spacing:1.5px; color:#7c3aed;">Max RR</span>
         </div>
         <div style="display:flex; align-items:baseline; gap:3px;">
-            <span id="mr" style="font-size:28px; font-weight:800; color:#a78bfa; line-height:1.1; font-variant-numeric:tabular-nums; text-shadow: none !important; filter: none !important; animation: none !important;">--</span>
+            <span id="mr" style="font-size:28px; font-weight:800; color:#7c3aed; line-height:1.1; font-variant-numeric:tabular-nums;">--</span>
             <span style="font-size:11px; font-weight:600; color:var(--muted);"></span>
         </div>
     </div>
@@ -2035,7 +2079,7 @@ app.get("/", (req, res) => {
         
         <div class="pro-row">
             <div class="pro-label">
-                <span style="color:#ef4444; margin-right:10px; font-size:18px;">●</span>Temp
+                <span style="color:#ef4444; margin-right:10px; font-size:18px;">●</span>Temperature
             </div>
             <div class="pro-data-group">
                 <div class="pro-data-item">
@@ -2260,10 +2304,18 @@ document.addEventListener('click', function(e) {
     const val = newValue !== undefined && newValue !== null ? newValue : 0;
     const formattedValue = parseFloat(val).toFixed(decimals) + suffix;
 
-        if (obj.innerText !== formattedValue) {
-        obj.innerHTML = formattedValue;
+    if (obj.innerText !== formattedValue) {
+        obj.style.transition = 'none';
+        obj.style.opacity = "0";
+        obj.style.transform = "translateY(6px)";
+        
+        setTimeout(() => {
+            obj.innerHTML = '<span class="num-flip">' + formattedValue + '</span>';
+            obj.style.transition = 'opacity 0.3s ease, transform 0.3s cubic-bezier(0.22, 1, 0.36, 1)';
+            obj.style.opacity = "1";
+            obj.style.transform = "translateY(0)";
+        }, 50);
     }
-
 }
 
 
@@ -2331,9 +2383,10 @@ document.addEventListener('click', function(e) {
 
                 updateValueWithFade('t', d.temp.current, 1);
                 updateValueWithFade('w', d.wind.speed, 1);
-                document.getElementById('r_tot').innerHTML = d.rain.total.toFixed(1);
+                updateValueWithFade('r_tot', d.rain.total, 1);
                 document.getElementById('r_rate').innerHTML = d.rain.rate.toFixed(1) + '<span style="font-size:11px; font-weight:600; color:var(--muted); margin-left:3px;">mm/h</span>';
                 updateValueWithFade('wg', d.wind.gust, 1, ' km/h'); 
+
                 document.getElementById('tTrendBox').innerHTML = d.temp.rate > 0 ? '<span class="trend-up">▲</span> +' + d.temp.rate + '°C /hr' : d.temp.rate < 0 ? '<span class="trend-down">▼</span> ' + d.temp.rate + '°C /hr' : '● Steady';
                 document.getElementById('mx').innerHTML = d.temp.max + '°C <span class="time-mark">' + d.temp.maxTime + '</span>';
                 document.getElementById('mn').innerHTML = d.temp.min + '°C <span class="time-mark">' + d.temp.minTime + '</span>';
@@ -2352,7 +2405,7 @@ document.addEventListener('click', function(e) {
                 
                 document.getElementById('r_week').innerText = d.rain.weekly + ' mm';
                 document.getElementById('r_month').innerText = d.rain.monthly + ' mm';
-                document.getElementById('r_year').innerText = parseFloat(d.rain.yearly).toFixed(1) + ' mm';
+                document.getElementById('r_year').innerText = d.rain.yearly + ' mm';
                 document.getElementById('mr').innerHTML = d.rain.maxR > 0 
     ? d.rain.maxR.toFixed(1) + '<span style="font-size:11px; font-weight:600; color:var(--muted); margin-left:3px;">mm/h</span> <span style="font-size:9px; color:var(--muted); font-weight:500; opacity:0.75;">' + d.rain.maxRTime + '</span>' 
     : '0<span style="font-size:11px; font-weight:600; color:var(--muted); margin-left:3px;">mm/h</span>';
@@ -2377,6 +2430,8 @@ document.addEventListener('click', function(e) {
                     document.getElementById('s-mg').innerText = (d.wind.maxG || d.wind.maxS) + ' km/h';
                     document.getElementById('s-rt').innerText = d.rain.total + ' mm';
                 }
+
+                updateRainGlow();  // 🌧️ Activate glow animation
 
                 // IF GRAPHS TAB IS OPEN, RE-FETCH GRAPH DATA TO UPDATE
                 if (graphDataLoaded && document.getElementById('sub-view-graphs').style.display === 'block') {
@@ -2666,14 +2721,29 @@ function updateRainGlow() {
     const currentRRElem = document.getElementById('r_rate');
     const maxRRElem = document.getElementById('mr');
 
-        // No animations for rain values - plain static text
-    rainTotElem.style.animation = 'none';
-    rainTotElem.style.textShadow = 'none';
-    currentRRElem.style.animation = 'none';
-    currentRRElem.style.textShadow = 'none';
-    maxRRElem.style.animation = 'none';
-    maxRRElem.style.textShadow = 'none';
+    // Main rain value: glow only if > 0
+    if (rainTotal === 0 || rainTotal === null || isNaN(rainTotal)) {
+        rainTotElem.style.animation = 'none';
+        rainTotElem.style.textShadow = 'none';
+    } else {
+        rainTotElem.style.animation = 'rain-pulse-glow 2.5s ease-in-out infinite';
+    }
 
+    // Current RR: glow only if > 0.1
+    if (currentRR === 0 || currentRR < 0.1 || isNaN(currentRR)) {
+        currentRRElem.style.animation = 'none';
+        currentRRElem.style.textShadow = 'none';
+    } else {
+        currentRRElem.style.animation = 'current-rr-glow 2s ease-in-out infinite';
+    }
+
+    // Max RR: glow only if > 0.1
+    if (maxRR === 0 || maxRR < 0.1 || isNaN(maxRR)) {
+        maxRRElem.style.animation = 'none';
+        maxRRElem.style.textShadow = 'none';
+    } else {
+        maxRRElem.style.animation = 'max-rr-glow 2s ease-in-out infinite';
+    }
 }
 
 // Auto-check every 30 seconds
