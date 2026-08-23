@@ -1891,7 +1891,7 @@ if ('serviceWorker' in navigator) {
 #app-menu-button {
     position: fixed;
     left: 0;
-    top: 50%;
+    top: 20px;
     z-index: 10001;
     display: grid;
     gap: 4px;
@@ -1904,7 +1904,6 @@ if ('serviceWorker' in navigator) {
     background: var(--card);
     box-shadow: var(--glow);
     cursor: pointer;
-    transform: translateY(-50%);
 }
 
 #app-menu-button span {
@@ -2055,7 +2054,8 @@ if ('serviceWorker' in navigator) {
 
 .station-summary-metrics {
     display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 12px;
     margin-top: 11px;
 }
 
@@ -2114,6 +2114,22 @@ if ('serviceWorker' in navigator) {
 .summary-rain { color: #38bdf8; }
 .summary-rate { color: #22d3ee; }
 .summary-max { color: #a78bfa; }
+
+@media (max-width: 768px) {
+    #page-summary .station-summary-container {
+        grid-template-columns: repeat(2, 1fr) !important;
+    }
+    
+    .station-summary-metric {
+        padding: 0 4px !important;
+    }
+}
+
+@media (max-width: 480px) {
+    #page-summary .station-summary-container {
+        grid-template-columns: 1fr !important;
+    }
+}
 
 </style>
 </head>
