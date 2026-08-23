@@ -857,7 +857,7 @@ app.get('/manifest.json', (req, res) => {
 app.get('/sw.js', (req, res) => {
     res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
     res.type('application/javascript').send(`
-const CACHE_NAME = 'kk-nagar-weather-v2';
+const CACHE_NAME = 'kk-nagar-weather-v3';
 
 self.addEventListener('install', event => {
   event.waitUntil(
@@ -2053,7 +2053,7 @@ if ('serviceWorker' in navigator) {
         
         <div class="pro-row">
             <div class="pro-label">
-                <span style="color:#ef4444; margin-right:10px; font-size:18px;">●</span>Temperature
+                <span style="color:#ef4444; margin-right:10px; font-size:18px;">●</span>Temp
             </div>
             <div class="pro-data-group">
                 <div class="pro-data-item">
