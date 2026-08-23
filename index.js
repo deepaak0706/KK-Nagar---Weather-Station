@@ -2198,322 +2198,299 @@ document.addEventListener('click', function(e) {
                 const point = meta.data[maxIndex];
                 if (point && maxVal > -50) { 
                     ctx.save(); ctx.beginPath(); ctx.arc(point.x, point.y, 5, 0, 2 * Math.PI); ctx.strokeStyle = dataset.borderColor; ctx.lineWidth = 2; ctx.stroke();
+                    ctx.beginPath(); ctx.arc(point.x, point.y, 2, 0, 2 * Math.PI); ctx.fillStyle = '#fff'; ctx.fill();
+                    ctx.fillStyle = document.body.classList.contains('is-night') ? '#94a3b8' : '#475569'; ctx.font = 'bold 10px Outfit'; ctx.textAlign = 'center'; ctx.fillText('MAX', point.x, point.y - 12); ctx.restore();
+                }
+            }
+        });
 
-// ===== STITCH UI HTML RESPONSE =====
-app.get('/', (req, res) => {
-    res.send(`<!DOCTYPE html>
-<html class="dark" lang="en">
-<head>
-<meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Weather Station - Stitch UI</title>
-<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
-<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet"/>
-<script id="tailwind-config">
-  tailwind.config = {
-    darkMode: "class",
-    theme: {
-      extend: {
-        colors: {
-          background: "#090d16",
-          surface: "#0f1623",
-          "surface-container": "#151b23",
-          "surface-container-high": "#1e293b",
-          "surface-variant": "#1f2937",
-          "on-surface": "#f3f4f6",
-          "on-surface-variant": "#9ca3af",
-          primary: "#38bdf8",
-          "on-primary": "#00344d",
-          error: "#ef4444",
-          outline: "#4b5563",
-        },
-      },
-    },
-  }
-</script>
-<style>
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  
-  body {
-    background: linear-gradient(135deg, #090d16 0%, #0f1623 100%);
-    color: #f3f4f6;
-    font-family: 'Outfit', sans-serif;
-  }
+        function applyTheme() {
+            const hour = new Date().getHours();
+            const isDark = currentMode === 'dark' || (currentMode === 'auto' && (hour >= 18 || hour < 6));
+            
+            if (isDark) {
+                document.body.classList.add('is-night');
+            } else {
+                document.body.classList.remove('is-night');
+            }
 
-  .card {
-    background: rgba(15, 22, 35, 0.4);
-    border: 1px solid rgba(56, 189, 248, 0.1);
-    border-radius: 12px;
-    backdrop-filter: blur(10px);
-    padding: 1.5rem;
-  }
+            document.querySelectorAll('#themeToggle .theme-btn').forEach(btn => btn.classList.remove('active'));
+            if (currentMode === 'light') document.getElementById('btn-light').classList.add('active');
+            else if (currentMode === 'dark') document.getElementById('btn-dark').classList.add('active');
+            else document.getElementById('btn-auto').classList.add('active');
 
-  .main-val {
-    font-size: 48px;
-    font-weight: 900;
-    color: #38bdf8;
-    text-shadow: none;
-    transition: none;
-  }
+            if (charts.cT) updateChartColors();
+        }
 
-  .unit {
-    font-size: 18px;
-    font-weight: 600;
-    color: #94a3b8;
-    margin-left: 3px;
-  }
+        document.getElementById('btn-light').onclick = () => { currentMode = 'light'; localStorage.setItem('weatherMode', 'light'); applyTheme(); };
+        document.getElementById('btn-dark').onclick = () => { currentMode = 'dark'; localStorage.setItem('weatherMode', 'dark'); applyTheme(); };
+        document.getElementById('btn-auto').onclick = () => { currentMode = 'auto'; localStorage.setItem('weatherMode', 'auto'); applyTheme(); };
 
-  .live-dot {
-    width: 6px;
-    height: 6px;
-    background: #10b981;
-    border-radius: 50%;
-    box-shadow: 0 0 8px #10b981;
-  }
+        function updateChartColors() {
+            const gridColor = document.body.classList.contains('is-night') ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)';
+            const textColor = document.body.classList.contains('is-night') ? '#94a3b8' : '#64748b';
+            Object.values(charts).forEach(chart => {
+                chart.options.scales.y.grid.color = gridColor;
+                chart.options.scales.y.ticks.color = textColor;
+                chart.options.scales.x.ticks.color = textColor;
+                chart.update('none');
+            });
+        }
 
-  .hamburger-btn {
-    position: fixed;
-    top: 20px;
-    left: 20px;
-    width: 40px;
-    height: 40px;
-    background: rgba(56, 189, 248, 0.1);
-    border: 1px solid rgba(56, 189, 248, 0.2);
-    border-radius: 8px;
-    cursor: pointer;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    gap: 5px;
-    transition: all 0.2s;
-    z-index: 100;
-  }
+        function setupChart(id, label, color, minVal = null) {
+            const canvas = document.getElementById(id);
+            const ctx = canvas.getContext('2d');
+            const gradient = ctx.createLinearGradient(0, 0, 0, 300);
+            gradient.addColorStop(0, color + '40'); gradient.addColorStop(1, color + '00');
+            return new Chart(ctx, { 
+                type: 'line', 
+                data: { labels: [], datasets: [{ label: label, data: [], borderColor: color, backgroundColor: gradient, fill: true, tension: 0.4, pointRadius: 0, borderWidth: 2 }] }, 
+                options: { 
+                    responsive: true, maintainAspectRatio: false, 
+                    interaction: { intersect: false, mode: 'index' },
+                    plugins: { tooltip: { enabled: true }, legend: { display: false } }, 
+                    scales: { y: { min: minVal }, x: { ticks: { maxTicksLimit: 8 } } } 
+                } 
+            });
+        }
+        
+        function updateValueWithFade(id, newValue, decimals = 1, suffix = "") {
+    const obj = document.getElementById(id);
+    if (!obj) return;
+    const val = newValue !== undefined && newValue !== null ? newValue : 0;
+    const formattedValue = parseFloat(val).toFixed(decimals) + suffix;
 
-  .hamburger-line {
-    width: 20px;
-    height: 2px;
-    background: #38bdf8;
-    border-radius: 1px;
-  }
-
-  .sidebar {
-    position: fixed;
-    left: -350px;
-    top: 0;
-    width: 350px;
-    height: 100vh;
-    background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
-    border-right: 1px solid rgba(56, 189, 248, 0.2);
-    backdrop-filter: blur(20px);
-    transition: left 0.4s cubic-bezier(0.22, 1, 0.36, 1);
-    z-index: 1000;
-    overflow-y: auto;
-    padding: 20px;
-  }
-
-  .sidebar.active {
-    left: 0;
-  }
-
-  .overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.5);
-    display: none;
-    z-index: 999;
-  }
-
-  .overlay.active {
-    display: block;
-  }
-
-  .station-card {
-    background: rgba(56, 189, 248, 0.08);
-    border: 1px solid rgba(56, 189, 248, 0.15);
-    border-radius: 10px;
-    padding: 12px;
-    margin-bottom: 10px;
-  }
-
-  .stat-row {
-    display: flex;
-    justify-content: space-between;
-    font-size: 10px;
-    margin-bottom: 3px;
-    color: #cbd5e1;
-  }
-
-  .stat-value {
-    font-weight: 700;
-    color: #38bdf8;
-  }
-</style>
-</head>
-<body>
-
-<!-- Hamburger Button -->
-<button class="hamburger-btn" onclick="toggleSidebar()">
-  <div class="hamburger-line"></div>
-  <div class="hamburger-line"></div>
-  <div class="hamburger-line"></div>
-</button>
-
-<!-- Sidebar - All 4 Stations -->
-<div class="sidebar" id="sidebar">
-  <div style="font-size: 14px; font-weight: 800; letter-spacing: 1px; color: #38bdf8; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px solid rgba(56, 189, 248, 0.15);">
-    📍 WEATHER STATIONS
-  </div>
-  
-  <div class="station-card">
-    <div style="font-size: 11px; font-weight: 700; color: #38bdf8; text-transform: uppercase; margin-bottom: 6px;">KK Nagar</div>
-    <div class="stat-row"><span>Temp:</span><span class="stat-value" id="sb-kk-t">--°C</span></div>
-    <div class="stat-row"><span>Rain:</span><span class="stat-value" id="sb-kk-r">--mm</span></div>
-    <div class="stat-row"><span>Max RR:</span><span class="stat-value" id="sb-kk-m">--</span></div>
-    <div class="stat-row"><span>Wind:</span><span class="stat-value" id="sb-kk-w">--km</span></div>
-  </div>
-
-  <div class="station-card">
-    <div style="font-size: 11px; font-weight: 700; color: #38bdf8; text-transform: uppercase; margin-bottom: 6px;">Ayyapakkam</div>
-    <div class="stat-row"><span>Temp:</span><span class="stat-value" id="sb-ay-t">--°C</span></div>
-    <div class="stat-row"><span>Rain:</span><span class="stat-value" id="sb-ay-r">--mm</span></div>
-    <div class="stat-row"><span>Max RR:</span><span class="stat-value" id="sb-ay-m">--</span></div>
-    <div class="stat-row"><span>Wind:</span><span class="stat-value" id="sb-ay-w">--km</span></div>
-  </div>
-
-  <div class="station-card">
-    <div style="font-size: 11px; font-weight: 700; color: #38bdf8; text-transform: uppercase; margin-bottom: 6px;">Neelangarai</div>
-    <div class="stat-row"><span>Temp:</span><span class="stat-value" id="sb-nl-t">--°C</span></div>
-    <div class="stat-row"><span>Rain:</span><span class="stat-value" id="sb-nl-r">--mm</span></div>
-    <div class="stat-row"><span>Max RR:</span><span class="stat-value" id="sb-nl-m">--</span></div>
-    <div class="stat-row"><span>Wind:</span><span class="stat-value" id="sb-nl-w">--km</span></div>
-  </div>
-
-  <div class="station-card">
-    <div style="font-size: 11px; font-weight: 700; color: #38bdf8; text-transform: uppercase; margin-bottom: 6px;">Sanatorium</div>
-    <div class="stat-row"><span>Temp:</span><span class="stat-value" id="sb-san-t">--°C</span></div>
-    <div class="stat-row"><span>Rain:</span><span class="stat-value" id="sb-san-r">--mm</span></div>
-    <div class="stat-row"><span>Max RR:</span><span class="stat-value" id="sb-san-m">--</span></div>
-    <div class="stat-row"><span>Wind:</span><span class="stat-value" id="sb-san-w">--km</span></div>
-  </div>
-</div>
-
-<div class="overlay" id="overlay" onclick="closeSidebar()"></div>
-
-<!-- Main Content -->
-<main class="w-full p-6 md:p-8 max-w-7xl mx-auto pt-24 md:pt-8">
-  
-  <div class="mb-8">
-    <h1 class="text-3xl md:text-4xl font-bold text-white mb-2">Weather Station</h1>
-    <div class="flex items-center gap-3 text-on-surface-variant">
-      <span class="flex items-center gap-1.5 bg-green-500/10 text-green-400 px-3 py-1 rounded-full border border-green-500/20 text-xs font-medium">
-        <span class="live-dot"></span> Live
-      </span>
-      <span id="timestamp" class="text-sm">Loading...</span>
-    </div>
-  </div>
-
-  <!-- Main Grid - 4 Cards -->
-  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-    <div class="card">
-      <div class="text-sm font-semibold text-on-surface-variant mb-4">🌡️ TEMPERATURE</div>
-      <div class="flex items-baseline"><span class="main-val" id="temp">--</span><span class="unit">°C</span></div>
-    </div>
-    <div class="card">
-      <div class="text-sm font-semibold text-on-surface-variant mb-4">💧 HUMIDITY</div>
-      <div class="flex items-baseline"><span class="main-val" id="humidity">--</span><span class="unit">%</span></div>
-    </div>
-    <div class="card">
-      <div class="text-sm font-semibold text-on-surface-variant mb-4">💨 RAIN RATE</div>
-      <div class="flex items-baseline"><span class="main-val" id="r_rate">--</span><span class="unit">mm/h</span></div>
-    </div>
-    <div class="card">
-      <div class="text-sm font-semibold text-on-surface-variant mb-4">💨 WIND SPEED</div>
-      <div class="flex items-baseline"><span class="main-val" id="wind">--</span><span class="unit">km/h</span></div>
-    </div>
-  </div>
-
-  <!-- Details Grid -->
-  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-    <div class="card">
-      <div class="text-sm font-semibold text-on-surface-variant mb-4">📊 MAX RAIN RATE</div>
-      <div class="flex items-baseline"><span class="main-val" id="mr">--</span><span class="unit">mm/h</span></div>
-    </div>
-    <div class="card">
-      <div class="text-sm font-semibold text-on-surface-variant mb-4">☀️ SOLAR RADIATION</div>
-      <div class="flex items-baseline"><span class="main-val" id="sol">--</span><span class="unit">W/m²</span></div>
-    </div>
-    <div class="card">
-      <div class="text-sm font-semibold text-on-surface-variant mb-4">🔆 UV INDEX</div>
-      <div class="flex items-baseline"><span class="main-val" id="uv">--</span><span class="unit"></span></div>
-    </div>
-  </div>
-
-</main>
-
-<script>
-async function updateAllStations() {
-  const stations = ['kknagar', 'ayyapakkam', 'neelangarai', 'sanatorium'];
-  
-  for (const station of stations) {
-    try {
-      const res = await fetch(\`/api/live?station=\${station}\`);
-      const data = await res.json();
-      const tempC = ((data.tempF - 32) * 5) / 9;
-      
-      // Update main display for first station
-      if (station === 'kknagar') {
-        document.getElementById('temp').textContent = tempC.toFixed(1);
-        document.getElementById('humidity').textContent = data.humidity.toFixed(0);
-        document.getElementById('r_rate').textContent = data.rainRate.toFixed(1);
-        document.getElementById('wind').textContent = data.windSpeed.toFixed(1);
-        document.getElementById('mr').textContent = data.rainDay.toFixed(1);
-        document.getElementById('sol').textContent = data.solarRadiation.toFixed(1);
-        document.getElementById('uv').textContent = data.uvIndex.toFixed(1);
-        document.getElementById('timestamp').textContent = new Date().toLocaleTimeString();
-      }
-
-      // Update sidebar
-      const prefix = station === 'kknagar' ? 'kk' : station === 'ayyapakkam' ? 'ay' : station === 'neelangarai' ? 'nl' : 'san';
-      document.getElementById(\`sb-\${prefix}-t\`).textContent = tempC.toFixed(1) + '°C';
-      document.getElementById(\`sb-\${prefix}-r\`).textContent = data.rainDay.toFixed(1) + 'mm';
-      document.getElementById(\`sb-\${prefix}-m\`).textContent = data.rainRate.toFixed(1);
-      document.getElementById(\`sb-\${prefix}-w\`).textContent = data.windSpeed.toFixed(1) + 'km';
-    } catch (error) {
-      console.error('Error:', error);
+        if (obj.innerText !== formattedValue) {
+        obj.innerHTML = formattedValue;
     }
-  }
+
 }
 
-function toggleSidebar() {
-  document.getElementById('sidebar').classList.toggle('active');
-  document.getElementById('overlay').classList.toggle('active');
+
+        // NEW 24H SUB TAB LOGIC (FIXED)
+        async function switchSubView(type) {
+            document.getElementById('sub-view-summary').style.display = type === 'summary' ? 'block' : 'none';
+            document.getElementById('sub-view-graphs').style.display = type === 'graphs' ? 'block' : 'none';
+            
+            document.getElementById('btn-sub-sum').classList.toggle('active', type === 'summary');
+            document.getElementById('btn-sub-graph').classList.toggle('active', type === 'graphs');
+
+            if (type === 'graphs' && !graphDataLoaded) {
+                document.getElementById('graphs-loading').style.display = 'block';
+                document.getElementById('graphs-error').style.display = 'none';
+                document.getElementById('graphs-wrapper-inner').style.display = 'none';
+                await fetchGraphDataFromDB();
+            } else if (type === 'graphs' && graphDataLoaded) {
+                document.getElementById('graphs-wrapper-inner').style.display = 'grid';
+            }
+        }
+
+        async function fetchGraphDataFromDB() {
+            try {
+                const res = await fetch('/api/history_graphs?station=' + currentStation);
+                if (!res.ok) throw new Error("Failed response");
+                const history = await res.json();
+                
+                document.getElementById('graphs-loading').style.display = 'none';
+                
+                if (history && history.length > 0) {
+                    document.getElementById('graphs-wrapper-inner').style.display = 'grid';
+                    
+                    // Delay slightly to allow the browser to paint the grid before Chart.js calculates sizes
+                    setTimeout(() => {
+                        const labels = history.map(h => new Date(h.time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: false }));       
+                        if(!charts.cT) { 
+                            charts.cT = setupChart('cT', 'Temp °C', '#ef4444'); 
+                            charts.cH = setupChart('cH', 'Humidity %', '#10b981'); 
+                            charts.cW = setupChart('cW', 'Wind km/h', '#f59e0b'); 
+                            charts.cR = setupChart('cR', 'Rain mm', '#3b82f6', 0); 
+                            applyTheme(); 
+                        }
+                        charts.cT.data.labels = labels; charts.cT.data.datasets[0].data = history.map(h => h.temp); charts.cT.update('none');
+                        charts.cH.data.labels = labels; charts.cH.data.datasets[0].data = history.map(h => h.hum); charts.cH.update('none');
+                        charts.cW.data.labels = labels; charts.cW.data.datasets[0].data = history.map(h => h.wind); charts.cW.update('none');
+                        charts.cR.data.labels = labels; charts.cR.data.datasets[0].data = history.map(h => h.rain); charts.cR.update('none');
+                        graphDataLoaded = true;
+                    }, 50); 
+                } else {
+                    document.getElementById('graphs-error').innerText = "No graph data available for today yet.";
+                    document.getElementById('graphs-error').style.display = 'block';
+                }
+            } catch (err) { 
+                console.error("Error drawing graphs:", err); 
+                document.getElementById('graphs-loading').style.display = 'none';
+                document.getElementById('graphs-error').style.display = 'block';
+            }
+        }
+
+        async function update() {
+            try {
+                const res = await fetch('/weather?station=' + currentStation + '&v=' + Date.now()); 
+                const d = await res.json(); 
+                if (!d || d.error) return;
+
+                updateValueWithFade('t', d.temp.current, 1);
+                updateValueWithFade('w', d.wind.speed, 1);
+                document.getElementById('r_tot').innerHTML = d.rain.total.toFixed(1);
+                document.getElementById('r_rate').innerHTML = d.rain.rate.toFixed(1) + '<span style="font-size:11px; font-weight:600; color:var(--muted); margin-left:3px;">mm/h</span>';
+                updateValueWithFade('wg', d.wind.gust, 1, ' km/h'); 
+                document.getElementById('tTrendBox').innerHTML = d.temp.rate > 0 ? '<span class="trend-up">▲</span> +' + d.temp.rate + '°C /hr' : d.temp.rate < 0 ? '<span class="trend-down">▼</span> ' + d.temp.rate + '°C /hr' : '● Steady';
+                document.getElementById('mx').innerHTML = d.temp.max + '°C <span class="time-mark">' + d.temp.maxTime + '</span>';
+                document.getElementById('mn').innerHTML = d.temp.min + '°C <span class="time-mark">' + d.temp.minTime + '</span>';
+                const feels = d.temp.realFeel;
+                const heatColor = feels >= 54 ? '#ef4444' : feels >= 41 ? '#f97316' : feels >= 32 ? '#eab308' : 'var(--text)';
+                document.getElementById('rf').style.color = heatColor;
+                document.getElementById('rf').innerText = feels + '°C';
+                document.getElementById('h_val').innerHTML = d.atmo.hum + '% ' + (d.atmo.hTrend > 0 ? '▲' : d.atmo.hTrend < 0 ? '▼' : '●');
+                document.getElementById('d_val').innerText = d.temp.dew + '°C';
+                
+                document.getElementById('wd_bracket').innerText = '(' + d.wind.card + ')';
+                document.getElementById('mw').innerHTML = d.wind.maxS + ' km/h <span class="time-mark">' + d.wind.maxSTime + '</span>';
+                document.getElementById('mg').innerHTML = d.wind.maxG + ' km/h <span class="time-mark">' + d.wind.maxGTime + '</span>';
+                document.getElementById('needle').style.transform = 'rotate(' + d.wind.deg + 'deg)';
+                liveWindSpeed = d.wind.speed; liveWindDeg = d.wind.deg;
+                
+                document.getElementById('r_week').innerText = d.rain.weekly + ' mm';
+                document.getElementById('r_month').innerText = d.rain.monthly + ' mm';
+                document.getElementById('r_year').innerText = parseFloat(d.rain.yearly).toFixed(1) + ' mm';
+                document.getElementById('mr').innerHTML = d.rain.maxR > 0 
+    ? d.rain.maxR.toFixed(1) + '<span style="font-size:11px; font-weight:600; color:var(--muted); margin-left:3px;">mm/h</span> <span style="font-size:9px; color:var(--muted); font-weight:500; opacity:0.75;">' + d.rain.maxRTime + '</span>' 
+    : '0<span style="font-size:11px; font-weight:600; color:var(--muted); margin-left:3px;">mm/h</span>';
+
+
+                const pTrend = d.atmo.pTrend;
+                if (pTrend >= 0.1) document.getElementById('pIcon').innerHTML = '<span style="color:#ef4444; font-size:14px;">▲</span>';
+                else if (pTrend <= -0.1) document.getElementById('pIcon').innerHTML = '<span style="color:#0ea5e9; font-size:14px;">▼</span>';
+                else document.getElementById('pIcon').innerHTML = '<span style="color:var(--muted); font-size:12px;">●</span>';
+
+                
+                document.getElementById('pr').innerText = d.atmo.press;
+                document.getElementById('sol').innerText = d.atmo.sol + ' W/m²'; 
+                document.getElementById('uv').innerText = d.atmo.uv;
+                document.getElementById('ts').innerText = new Date(d.lastSync).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                
+                // POPULATE THE MODERNIZED 24H SUMMARY CARDS
+                if(document.getElementById('s-mx')) {
+                    document.getElementById('s-mx').innerText = d.temp.max + '°C';
+                    document.getElementById('s-mn').innerText = d.temp.min + '°C';
+                    document.getElementById('s-mw').innerText = d.wind.maxS + ' km/h';
+                    document.getElementById('s-mg').innerText = (d.wind.maxG || d.wind.maxS) + ' km/h';
+                    document.getElementById('s-rt').innerText = d.rain.total + ' mm';
+                }
+
+                // IF GRAPHS TAB IS OPEN, RE-FETCH GRAPH DATA TO UPDATE
+                if (graphDataLoaded && document.getElementById('sub-view-graphs').style.display === 'block') {
+                    fetchGraphDataFromDB();
+                }
+
+            } catch (e) { console.error(e); }
+        }
+
+        function animateWind() {
+            wCanvas.width = wCanvas.offsetWidth; wCanvas.height = wCanvas.offsetHeight;
+            ctxW.clearRect(0, 0, wCanvas.width, wCanvas.height);
+            const rad = (liveWindDeg - 90) * (Math.PI / 180);
+            const dx = -Math.cos(rad) * Math.max(0.5, liveWindSpeed * 0.5);
+            const dy = -Math.sin(rad) * Math.max(0.5, liveWindSpeed * 0.5);
+            ctxW.strokeStyle = document.body.classList.contains('is-night') ? 'rgba(255,255,255,0.1)' : 'rgba(2,132,199,0.08)';
+            ctxW.beginPath();
+            particles.forEach(p => {
+                p.x += dx * p.s; p.y += dy * p.s;
+                if (p.x > wCanvas.width) p.x = 0; else if (p.x < 0) p.x = wCanvas.width;
+                if (p.y > wCanvas.height) p.y = 0; else if (p.y < 0) p.y = wCanvas.height;
+                ctxW.moveTo(p.x, p.y); ctxW.lineTo(p.x - dx, p.y - dy);
+            });
+            ctxW.stroke(); requestAnimationFrame(animateWind);
+        }
+
+        applyTheme(); animateWind(); setInterval(update, 30000);
+
+        function showPage(pageId) {
+    // 1. Toggle visibility of the three pages
+    document.getElementById('page-dashboard').style.display = pageId === 'dashboard' ? 'block' : 'none';
+    document.getElementById('page-summary').style.display = pageId === 'summary' ? 'block' : 'none';
+    document.getElementById('page-historical').style.display = pageId === 'historical' ? 'block' : 'none'; // Added this
+    
+    // 2. Update the active class for the three buttons
+    document.getElementById('tab-dash').classList.toggle('active', pageId === 'dashboard');
+    document.getElementById('tab-sum').classList.toggle('active', pageId === 'summary');
+    document.getElementById('tab-hist').classList.toggle('active', pageId === 'historical'); // Added this
+
+    // 3. Trigger UI generation
+    if (pageId === 'summary') {
+        showMonthlySummaryUI(); 
+    } 
+    else if (pageId === 'historical') {
+        showHistoricalUI(); // We will define this function next
+    }
 }
 
-function closeSidebar() {
-  document.getElementById('sidebar').classList.remove('active');
-  document.getElementById('overlay').classList.remove('active');
-}
+/* --- START CHIP CHOP --- */
+let selectedMonth = new Date().toLocaleDateString('en-IN', { month: 'long' });
+let selectedYear = new Date().getFullYear().toString();
 
-// Initial load
-updateAllStations();
+// 1. Function to show the UI (dropdowns) immediately
+window.showMonthlySummaryUI = function() {
+    const content = document.getElementById('summary-content');
+    const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+    
+    let monthOptions = months.map(function(m) {
+        var sel = (selectedMonth === m) ? 'selected' : '';
+        return '<option value="' + m + '" ' + sel + '>' + m + '</option>';
+    }).join('');
 
-// Update every 10 seconds
-setInterval(updateAllStations, 10000);
-</script>
+    let yearOptions = "";
+    const startYear = 2026;
+    const endYear = 2032; // Next 7 years from now
+    
+    for (var y = startYear; y <= endYear; y++) {
+        var ySel = (selectedYear == y) ? 'selected' : '';
+        yearOptions += '<option value="' + y + '" ' + ySel + '>' + y + '</option>';
+    }
 
-</body>
-</html>\`);
-});
+    content.innerHTML = \`
+        <div class="archive-container" style="animation: fadeIn 0.5s ease;">
+            <div style="margin-bottom: 20px; padding: 15px 25px; display: flex; justify-content: space-between; align-items: center; background: var(--card); border-radius: 20px; border: 1px solid var(--border);">
+                <div style="font-weight: 800; letter-spacing: 0.5px; color: var(--accent);">MONTHLY ARCHIVES</div>
+                <div style="display: flex; gap: 10px;">
+                    <select id="monthSelect" class="glass-select">\${monthOptions}</select>
+                    <select id="yearSelect" class="glass-select">\${yearOptions}</select>
+                    <button onclick="updateArchiveFilter()" style="padding: 6px 12px; margin-left: 8px; background: var(--accent); color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">Get Data</button>
+                </div>
+            </div>
+            <div id="archive-data-table">
+                <div class="card" style="text-align:center; padding:60px; color: var(--muted);">
+                    Select a month and click "Get Data" to load records.
+                </div>
+            </div>
+        </div>\`;
+};
 
-// Start Server
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-    console.log(\`Weather Station running on port \${PORT}\`);
-});
+// 2. Updated data fetcher that targets only the table container
+async function fetchMonthlySummary() {
+    const tableContainer = document.getElementById('archive-data-table');
+    if (!tableContainer) return;
+    
+    tableContainer.innerHTML = '<div class="card" style="text-align:center; padding:40px;">Querying Database...</div>';
+    
+    try {
+        const res = await fetch('/api/summary?station=' + currentStation);
+        const groups = await res.json();
+        const currentKey = \`\${selectedMonth} \${selectedYear}\`;
+        const days = groups[currentKey] || [];
+
+        if (days.length === 0) {
+            tableContainer.innerHTML = \`
+                <div class="card" style="text-align:center; padding:60px; color: var(--muted); font-weight: 600;">
+                    No data recorded for \${currentKey}
+                </div>\`;
+            return;
+        }
+
+        tableContainer.innerHTML = \`
+            <div class="pro-summary-table" style="background: var(--card); border-radius: 15px; overflow: hidden; border: 1px solid var(--border);">
+                <div class="pro-row" style="background: var(--badge); font-weight: 800; font-size: 11px; text-transform: uppercase; display: flex; align-items: center; padding: 15px; border-bottom: 1px solid var(--border);">
+                    <div style="width: 20%;">Date</div>
                     <div style="width: 25%; text-align: center;">Temp (H/L)</div>
                     <div style="width: 30%; text-align: center;">Wind / Gust</div>
                     <div style="width: 25%; text-align: right;">Rainfall</div>
