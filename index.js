@@ -1890,8 +1890,8 @@ if ('serviceWorker' in navigator) {
 /* ── Global hamburger: does not affect the existing dashboard layout ── */
 #app-menu-button {
     position: fixed;
-    left: 0;
-    top: 20px;
+    left: 16px;
+    top: 132px;
     z-index: 10001;
     display: grid;
     gap: 4px;
@@ -1899,8 +1899,8 @@ if ('serviceWorker' in navigator) {
     height: 48px;
     padding: 0 12px;
     border: 1px solid var(--border);
-    border-left: 0;
-    border-radius: 0 14px 14px 0;
+    border-left: none;
+    border-radius: 8px;
     background: var(--card);
     box-shadow: var(--glow);
     cursor: pointer;
@@ -1912,6 +1912,31 @@ if ('serviceWorker' in navigator) {
     height: 2px;
     border-radius: 2px;
     background: var(--accent);
+}
+
+/* Mobile responsive hamburger */
+@media (max-width: 768px) {
+    #app-menu-button {
+        left: 16px !important;
+        top: 120px !important;
+        width: 48px !important;
+        height: 48px !important;
+        padding: 0 14px !important;
+    }
+    
+    #app-menu-button span {
+        width: 20px !important;
+        height: 2.5px !important;
+    }
+}
+
+@media (max-width: 480px) {
+    #app-menu-button {
+        left: 12px !important;
+        top: 115px !important;
+        width: 50px !important;
+        height: 50px !important;
+    }
 }
 
 #app-menu-overlay {
