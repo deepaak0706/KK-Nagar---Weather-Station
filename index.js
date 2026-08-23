@@ -1655,39 +1655,43 @@ if ('serviceWorker' in navigator) {
 @supports not (-webkit-touch-callout: none) {
     @media screen and (max-width: 767px) {
 
-        /* ── TABS: shrink + allow wrap so they never overflow ── */
-        .nav-tabs {
-            flex-wrap: wrap;
-            gap: 6px;
-        }
-        .tab-btn {
-            font-size: clamp(10px, 3vw, 13px);
-            padding: 9px clamp(10px, 3.5vw, 20px);
-            border-radius: 12px;
-            flex: 1 1 auto;
-            text-align: center;
-            white-space: nowrap;
-            min-width: 0;
-        }
+        /* Keep all three main tabs on one compact row on Android */
+.container > .nav-tabs {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 5px;
+    width: 100%;
+    margin-bottom: 18px;
+}
 
-        /* ── MAIN VALUE: scale down for smaller screens ── */
+.container > .nav-tabs .tab-btn {
+    width: 100%;
+    min-width: 0;
+    padding: 8px 2px;
+    font-size: clamp(9px, 2.7vw, 11px);
+    line-height: 1.15;
+    letter-spacing: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
         .main-val {
-            font-size: clamp(36px, 11vw, 52px);
-            letter-spacing: -1px;
-        }
+    font-size: clamp(32px, 9vw, 40px);
+    letter-spacing: -1px;
+}
 
-        /* ── UNIT LABEL beside main value ── */
-        .unit {
-            font-size: clamp(13px, 4vw, 18px);
-        }
+.unit {
+    font-size: clamp(12px, 3.5vw, 15px);
+}
 
-        /* ── RIGHT PANEL (MAX / MIN temps, rain rates) ── */
-        #mx, #mn {
-            font-size: clamp(16px, 5.5vw, 22px) !important;
-        }
-        #r_rate, #mr {
-            font-size: clamp(18px, 6vw, 28px) !important;
-        }
+#mx, #mn {
+    font-size: clamp(15px, 4.8vw, 20px) !important;
+}
+
+#r_rate, #mr {
+    font-size: clamp(16px, 5vw, 22px) !important;
+}
 
         /* ── CARD INTERNAL LAYOUT: prevent overflow ── */
         .card {
