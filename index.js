@@ -1713,51 +1713,72 @@ if ('serviceWorker' in navigator) {
             overflow: hidden;
         }
 
-        /* ── 24H SUMMARY TABLE: the main broken section ──
-           Switch from a horizontal flex row to a compact
-           two-line stacked layout so nothing overlaps. */
-        .pro-summary-table {
-            width: 100%;
-            overflow: hidden;
-        }
-        .pro-row {
-            flex-direction: column;
-            align-items: flex-start;
-            padding: 14px 16px;
-            gap: 8px;
-        }
-        .pro-label {
-            font-size: 13px;
-            flex: none;
-            min-width: 0;
-        }
-        .pro-data-group {
-            width: 100%;
-            justify-content: flex-start;
-            gap: 0;
-            /* Use equal columns so each item gets the same space */
-            display: grid;
-            grid-template-columns: 1fr auto 1fr;
-            align-items: center;
-        }
-        .pro-data-item {
-            align-items: flex-start;
-            min-width: 0;
-        }
-        .pro-val {
-            font-size: clamp(15px, 5vw, 20px);
-            white-space: nowrap;
-        }
-        .pro-sub {
-            font-size: 8px;
-            white-space: nowrap;
-        }
-        .pro-divider {
-            width: 1px;
-            height: 28px;
-            margin: 0 12px;
-            flex-shrink: 0;
-        }
+        /* ── 24H SUMMARY: compact horizontal rows on Android ── */
+.pro-summary-table {
+    width: 100%;
+    overflow: hidden;
+}
+
+.pro-row {
+    display: grid;
+    grid-template-columns: 64px minmax(0, 1fr);
+    align-items: center;
+    padding: 12px 10px;
+    gap: 8px;
+}
+
+.pro-label {
+    font-size: 12px;
+    min-width: 0;
+    white-space: nowrap;
+}
+
+/* Smaller coloured dot beside Temp, Wind, and Rainfall */
+.pro-label span[style] {
+    margin-right: 4px !important;
+    font-size: 13px !important;
+}
+
+.pro-data-group {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 1px minmax(0, 1fr);
+    align-items: center;
+    width: 100%;
+    min-width: 0;
+    gap: 7px;
+}
+
+.pro-data-item {
+    align-items: flex-start;
+    min-width: 0;
+}
+
+.pro-sub {
+    font-size: 7px;
+    letter-spacing: 0.4px;
+    white-space: nowrap;
+}
+
+.pro-val {
+    font-size: clamp(13px, 4.2vw, 17px);
+    white-space: nowrap;
+}
+
+.pro-divider {
+    width: 1px;
+    height: 26px;
+    margin: 0;
+}
+
+/* Rainfall has one value, so give it the full right section */
+.pro-row:nth-child(3) .pro-data-group {
+    grid-template-columns: 1fr;
+}
+
+.pro-row:nth-child(3) .pro-divider,
+.pro-row:nth-child(3) .pro-data-item[style*="visibility"] {
+    display: none !important;
+}
 
         /* ── MODULAR CELLS (Feels Like / Humidity / Dew) ── */
         .cell-val {
