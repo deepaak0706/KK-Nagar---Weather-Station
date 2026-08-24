@@ -1945,6 +1945,12 @@ if ('serviceWorker' in navigator) {
 .dashboard-nav-link.active { color: white; background: var(--accent); border-color: var(--accent); }
 .dashboard-nav-link:active { transform: scale(0.98); }
 body.dashboard-nav-open { overflow: hidden; }
+.station-summary-page-title { display: none; align-items: center; min-width: 0; color: var(--text); font-size: 28px; font-weight: 900; letter-spacing: -0.8px; }
+body.station-summary-active .station-picker,
+body.station-summary-active .header-actions,
+body.station-summary-active .nav-tabs { display: none; }
+body.station-summary-active .station-summary-page-title { display: flex; }
+body.station-summary-active .header { justify-content: flex-start; margin-bottom: 28px; }
 
 /* Additive Station Summary page — all selectors are intentionally namespaced. */
 .station-summary-shell { width: 100%; animation: station-summary-enter 0.22s ease both; }
@@ -1975,6 +1981,30 @@ body.dashboard-nav-open { overflow: hidden; }
     .station-summary-value { font-size: 14px; }
 }
 
+/* Dedicated Station Summary sizing: large 2×2 desktop cards and readable mobile scrolling. */
+@media screen and (min-width: 768px) {
+    .station-summary-grid {
+        min-height: min(720px, calc(100vh - 150px));
+        grid-template-rows: repeat(2, minmax(270px, 1fr));
+        gap: 18px;
+    }
+    .station-summary-card { padding: 28px; border-radius: 22px; }
+    .station-summary-name { font-size: 21px; }
+    .station-summary-metrics { gap: 26px 18px; margin-top: 32px; }
+    .station-summary-label { font-size: 11px; letter-spacing: 0.7px; }
+    .station-summary-value { margin-top: 7px; font-size: clamp(23px, 2vw, 31px); }
+}
+
+@media screen and (max-width: 767px) {
+    .station-summary-page-title { font-size: clamp(22px, 7vw, 28px); }
+    .station-summary-grid { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+    .station-summary-card { min-height: 184px; padding: 20px; border-radius: 18px; }
+    .station-summary-name { font-size: 20px; }
+    .station-summary-metrics { gap: 20px 12px; margin-top: 20px; }
+    .station-summary-label { font-size: 10px; letter-spacing: 0.45px; }
+    .station-summary-value { margin-top: 6px; font-size: 23px; }
+}
+
 </style>
 </head>
 <body>
@@ -1998,6 +2028,7 @@ body.dashboard-nav-open { overflow: hidden; }
                 <svg viewBox="0 0 24 24" fill="none" stroke-width="2.2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
             </button>
         </div>
+        <div class="station-summary-page-title">Station Summary</div>
         <div class="station-picker" id="stationPicker">
          <button class="title-trigger" id="titleTrigger" onclick="toggleStationMenu()">
     <h1 id="station-title">KK Nagar Weather Station</h1>
@@ -2422,6 +2453,7 @@ async function updateStationSummary() {
 }
 
 function showStationSummaryPage() {
+    document.body.classList.add('station-summary-active');
     document.getElementById('page-dashboard').style.display = 'none';
     document.getElementById('page-summary').style.display = 'none';
     document.getElementById('page-historical').style.display = 'none';
@@ -2741,6 +2773,7 @@ document.addEventListener('click', function(e) {
         applyTheme(); animateWind(); setInterval(update, 30000);
 
         function showPage(pageId) {
+    document.body.classList.remove('station-summary-active');
     // 1. Toggle visibility of the three pages
     document.getElementById('page-dashboard').style.display = pageId === 'dashboard' ? 'block' : 'none';
     document.getElementById('page-summary').style.display = pageId === 'summary' ? 'block' : 'none';
