@@ -1959,21 +1959,24 @@ body.station-summary-active .header { justify-content: flex-start; margin-bottom
     min-width: 0; padding: 16px; border: 1px solid var(--border); border-radius: 18px;
     background: var(--card); box-shadow: var(--glow); position: relative; overflow: hidden;
 }
-.station-summary-name { overflow: hidden; color: var(--accent); font-size: 15px; font-weight: 800; letter-spacing: -0.2px; text-overflow: ellipsis; white-space: nowrap; }
+.station-summary-card-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.station-summary-name { overflow: hidden; color: var(--accent); font-size: 15px; font-weight: 900; letter-spacing: -0.2px; text-overflow: ellipsis; white-space: nowrap; }
 .station-summary-name::before { content: ''; display: inline-block; width: 8px; height: 8px; margin: 0 8px 1px 0; border-radius: 50%; background: currentColor; box-shadow: 0 0 0 4px rgba(56, 189, 248, 0.12); }
+.station-summary-live { display: inline-flex; align-items: center; flex: 0 0 auto; gap: 5px; color: var(--muted); font-size: 9px; font-weight: 800; letter-spacing: 0.7px; }
+.station-summary-live::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: #34d399; box-shadow: 0 0 8px rgba(52, 211, 153, 0.7); }
 .station-summary-metrics { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 8px; margin-top: 15px; }
 .station-summary-metric { min-width: 0; position: relative; }
 .station-summary-label { display: block; overflow: hidden; color: var(--muted); font-size: 9px; font-weight: 800; letter-spacing: 0.45px; text-overflow: ellipsis; text-transform: uppercase; white-space: nowrap; }
 .station-summary-value { display: block; overflow: hidden; margin-top: 4px; color: var(--text); font-size: clamp(15px, 2.1vw, 21px); font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: -0.6px; text-overflow: ellipsis; white-space: nowrap; }
 .station-summary-metric:nth-child(odd)::after { content: ''; position: absolute; top: 2px; right: -5px; bottom: 2px; width: 1px; background: linear-gradient(to bottom, transparent, var(--border) 18%, var(--border) 82%, transparent); }
 .station-summary-metric:nth-child(-n+2)::before { content: ''; position: absolute; right: 0; bottom: -7px; left: 0; height: 1px; background: linear-gradient(to right, transparent, var(--border) 14%, var(--border) 86%, transparent); }
-.station-summary-card:nth-child(1) .station-summary-name { color: #dc2626; }
-.station-summary-card:nth-child(2) .station-summary-name { color: #d97706; }
-.station-summary-card:nth-child(3) .station-summary-name { color: #0284c7; }
-.station-summary-card:nth-child(4) .station-summary-name { color: #7c3aed; }
-.station-summary-metric:nth-child(2) .station-summary-value { color: #0284c7; }
-.station-summary-metric:nth-child(3) .station-summary-value { color: #0891b2; }
-.station-summary-metric:nth-child(4) .station-summary-value { color: #7c3aed; }
+.station-summary-card:nth-child(1) .station-summary-name { color: #fb7185; }
+.station-summary-card:nth-child(2) .station-summary-name { color: #fbbf24; }
+.station-summary-card:nth-child(3) .station-summary-name { color: #22d3ee; }
+.station-summary-card:nth-child(4) .station-summary-name { color: #a78bfa; }
+.station-summary-metric:nth-child(2) .station-summary-value { color: #38bdf8; }
+.station-summary-metric:nth-child(3) .station-summary-value { color: #2dd4bf; }
+.station-summary-metric:nth-child(4) .station-summary-value { color: #f472b6; }
 .station-summary-unavailable { margin: 15px 0 1px; color: var(--muted); font-size: 12px; font-weight: 700; }
 @media screen and (max-width: 430px) {
     .dashboard-nav-toggle { width: 40px; height: 40px; }
@@ -2424,16 +2427,16 @@ function renderStationSummaryCards(records) {
     grid.innerHTML = stationSummaryStations.map(function(station) {
         const record = byId[station.id];
         if (record && record.available === false) {
-            return '<article class="station-summary-card"><div class="station-summary-name">' + station.name + '</div><p class="station-summary-unavailable">Temporarily unavailable</p></article>';
+            return '<article class="station-summary-card"><div class="station-summary-card-header"><div class="station-summary-name">' + station.name + '</div></div><p class="station-summary-unavailable">Temporarily unavailable</p></article>';
         }
         const data = record || {};
         return '<article class="station-summary-card">' +
-            '<div class="station-summary-name">' + station.name + '</div>' +
+            '<div class="station-summary-card-header"><div class="station-summary-name">' + station.name + '</div><div class="station-summary-live">LIVE</div></div>' +
             '<div class="station-summary-metrics">' +
-                '<div class="station-summary-metric"><span class="station-summary-label">🌡 Temperature</span><span class="station-summary-value">' + formatStationSummaryValue(data.temperature, '°C') + '</span></div>' +
-                '<div class="station-summary-metric"><span class="station-summary-label">🌧 Today’s Rainfall</span><span class="station-summary-value">' + formatStationSummaryValue(data.rainfall, ' mm') + '</span></div>' +
-                '<div class="station-summary-metric"><span class="station-summary-label">💧 Current Rain Rate</span><span class="station-summary-value">' + formatStationSummaryValue(data.rainRate, ' mm/h') + '</span></div>' +
-                '<div class="station-summary-metric"><span class="station-summary-label">📈 Maximum Rain Rate</span><span class="station-summary-value">' + formatStationSummaryValue(data.maxRainRate, ' mm/h') + '</span></div>' +
+                '<div class="station-summary-metric"><span class="station-summary-label">🌡 Temp</span><span class="station-summary-value">' + formatStationSummaryValue(data.temperature, '°C') + '</span></div>' +
+                '<div class="station-summary-metric"><span class="station-summary-label">🌧 Rain</span><span class="station-summary-value">' + formatStationSummaryValue(data.rainfall, ' mm') + '</span></div>' +
+                '<div class="station-summary-metric"><span class="station-summary-label">💧 RR</span><span class="station-summary-value">' + formatStationSummaryValue(data.rainRate, ' mm/h') + '</span></div>' +
+                '<div class="station-summary-metric"><span class="station-summary-label">📈 Max RR</span><span class="station-summary-value">' + formatStationSummaryValue(data.maxRainRate, ' mm/h') + '</span></div>' +
             '</div></article>';
     }).join('');
 }
