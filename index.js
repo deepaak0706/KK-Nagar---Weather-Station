@@ -886,7 +886,7 @@ app.get('/manifest.json', (req, res) => {
 app.get('/sw.js', (req, res) => {
     res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
     res.type('application/javascript').send(`
-const CACHE_NAME = 'kk-nagar-weather-v5';
+const CACHE_NAME = 'kk-nagar-weather-v4';
 
 self.addEventListener('install', event => {
   event.waitUntil(
@@ -2435,7 +2435,7 @@ function renderStationSummaryCards(records) {
             '<div class="station-summary-metrics">' +
                 '<div class="station-summary-metric"><span class="station-summary-label">🌡 Temp</span><span class="station-summary-value">' + formatStationSummaryValue(data.temperature, '°C') + '</span></div>' +
                 '<div class="station-summary-metric"><span class="station-summary-label">🌧 Rain</span><span class="station-summary-value">' + formatStationSummaryValue(data.rainfall, ' mm') + '</span></div>' +
-                '<div class="station-summary-metric"><span class="station-summary-label">💧 Current RR</span><span class="station-summary-value">' + formatStationSummaryValue(data.rainRate, ' mm/h') + '</span></div>' +
+                '<div class="station-summary-metric"><span class="station-summary-label">💧 RR</span><span class="station-summary-value">' + formatStationSummaryValue(data.rainRate, ' mm/h') + '</span></div>' +
                 '<div class="station-summary-metric"><span class="station-summary-label">📈 Max RR</span><span class="station-summary-value">' + formatStationSummaryValue(data.maxRainRate, ' mm/h') + '</span></div>' +
             '</div></article>';
     }).join('');
