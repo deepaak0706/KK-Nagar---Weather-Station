@@ -763,6 +763,33 @@ app.get("/weather", async (req, res) => {
     res.json(await syncWithEcowitt(s, false));
 });
 
+// Additive compact-data view. It reuses the existing per-station sync/cache path
+// and deliberately exposes only the four values needed by Station Summary.
+app.get("/api/station-summary", async (req, res) => {
+    const stationIds = ['kknagar', 'neelangarai', 'ayyapakkam', 'sanatorium'];
+    const stations = await Promise.all(stationIds.map(async (stationId) => {
+        const station = STATIONS[stationId];
+        try {
+            const data = await syncWithEcowitt(station, false);
+            if (!data) return { id: station.id, name: station.name, available: false };
+            return {
+                id: station.id,
+                name: station.name,
+                available: true,
+                temperature: data.temp.current,
+                rainfall: data.rain.total,
+                rainRate: data.rain.rate,
+                maxRainRate: data.rain.maxR,
+                lastSync: data.lastSync
+            };
+        } catch (error) {
+            console.error(`Station summary unavailable [${station.id}]:`, error.message);
+            return { id: station.id, name: station.name, available: false };
+        }
+    }));
+    res.json({ lastSync: new Date().toISOString(), stations });
+});
+
 app.get("/api/summary", async (req, res) => {
     const s = getStation(req);
     res.json(await getWeatherSummary(s));
@@ -859,7 +886,7 @@ app.get('/manifest.json', (req, res) => {
 app.get('/sw.js', (req, res) => {
     res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
     res.type('application/javascript').send(`
-const CACHE_NAME = 'kk-nagar-weather-v3';
+const CACHE_NAME = 'kk-nagar-weather-v4';
 
 self.addEventListener('install', event => {
   event.waitUntil(
@@ -947,8 +974,7 @@ app.get('/screenshot-1280.png', (req, res) => {
 
 
 // 5. The User Interface (Your HTML)
-app.get("/", (req, res) => {
-    res.send(`
+const renderWeatherApp = () => `
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -1887,6 +1913,68 @@ if ('serviceWorker' in navigator) {
     cursor: pointer;
 }
 
+/* Additive application navigation — isolated from the existing dashboard UI. */
+.dashboard-nav-host { flex: 0 0 auto; display: flex; align-items: center; }
+.dashboard-nav-toggle {
+    width: 42px; height: 42px; padding: 0; border: 1px solid var(--border);
+    border-radius: 13px; background: var(--card); color: var(--text); cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center; box-shadow: var(--glow);
+    -webkit-tap-highlight-color: transparent;
+}
+.dashboard-nav-toggle svg { width: 20px; height: 20px; stroke: currentColor; }
+.dashboard-nav-toggle:focus-visible, .dashboard-nav-link:focus-visible { outline: 3px solid rgba(56, 189, 248, 0.5); outline-offset: 3px; }
+.dashboard-nav-overlay {
+    position: fixed; inset: 0; z-index: 10000; background: rgba(2, 6, 23, 0.42);
+    opacity: 0; pointer-events: none; transition: opacity 0.2s ease;
+}
+.dashboard-nav-overlay.is-open { opacity: 1; pointer-events: auto; }
+.dashboard-nav-drawer {
+    position: fixed; z-index: 10001; top: 0; bottom: 0; left: 0; width: min(310px, calc(100vw - 46px));
+    padding: calc(22px + env(safe-area-inset-top, 0px)) 16px 24px calc(16px + env(safe-area-inset-left, 0px));
+    background: var(--card); border-right: 1px solid var(--border); box-shadow: 18px 0 42px rgba(2, 6, 23, 0.25);
+    transform: translateX(-105%); transition: transform 0.24s cubic-bezier(0.22, 1, 0.36, 1);
+    display: flex; flex-direction: column; gap: 18px;
+}
+.dashboard-nav-drawer.is-open { transform: translateX(0); }
+.dashboard-nav-heading { color: var(--muted); font-size: 11px; font-weight: 800; letter-spacing: 1.4px; text-transform: uppercase; }
+.dashboard-nav-links { display: grid; gap: 8px; }
+.dashboard-nav-link {
+    min-height: 48px; width: 100%; border: 1px solid transparent; border-radius: 13px; background: transparent;
+    color: var(--text); cursor: pointer; font: 700 15px/1 'Outfit', sans-serif; text-align: left; padding: 0 14px;
+}
+.dashboard-nav-link.active { color: white; background: var(--accent); border-color: var(--accent); }
+.dashboard-nav-link:active { transform: scale(0.98); }
+body.dashboard-nav-open { overflow: hidden; }
+
+/* Additive Station Summary page — all selectors are intentionally namespaced. */
+.station-summary-shell { width: 100%; animation: station-summary-enter 0.22s ease both; }
+.station-summary-heading { margin: 0 0 16px; color: var(--lbl-color); font-size: 13px; font-weight: 800; letter-spacing: 1.3px; text-transform: uppercase; }
+.station-summary-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; width: 100%; }
+.station-summary-card {
+    min-width: 0; padding: 16px; border: 1px solid var(--border); border-top: 3px solid var(--accent);
+    border-radius: 18px; background: var(--card); box-shadow: var(--glow);
+}
+.station-summary-name { overflow: hidden; color: var(--text); font-size: 15px; font-weight: 800; letter-spacing: -0.2px; text-overflow: ellipsis; white-space: nowrap; }
+.station-summary-metrics { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 8px; margin-top: 15px; }
+.station-summary-metric { min-width: 0; }
+.station-summary-label { display: block; overflow: hidden; color: var(--muted); font-size: 9px; font-weight: 800; letter-spacing: 0.45px; text-overflow: ellipsis; text-transform: uppercase; white-space: nowrap; }
+.station-summary-value { display: block; overflow: hidden; margin-top: 4px; color: var(--text); font-size: clamp(15px, 2.1vw, 21px); font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: -0.6px; text-overflow: ellipsis; white-space: nowrap; }
+.station-summary-card:nth-child(1) { border-top-color: #ef4444; }
+.station-summary-card:nth-child(2) { border-top-color: #f59e0b; }
+.station-summary-card:nth-child(3) { border-top-color: #0ea5e9; }
+.station-summary-card:nth-child(4) { border-top-color: #8b5cf6; }
+.station-summary-unavailable { margin: 15px 0 1px; color: var(--muted); font-size: 12px; font-weight: 700; }
+@keyframes station-summary-enter { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+@media screen and (max-width: 430px) {
+    .dashboard-nav-toggle { width: 40px; height: 40px; }
+    .station-summary-grid { gap: 8px; }
+    .station-summary-card { padding: 12px 10px; border-radius: 15px; }
+    .station-summary-name { font-size: 13px; }
+    .station-summary-metrics { gap: 10px 5px; margin-top: 12px; }
+    .station-summary-label { font-size: 8px; letter-spacing: 0.2px; }
+    .station-summary-value { font-size: 14px; }
+}
+
 </style>
 </head>
 <body>
@@ -1895,8 +1983,21 @@ if ('serviceWorker' in navigator) {
     <button id="pwa-install-button" type="button">Install</button>
     <button id="pwa-install-close" type="button" aria-label="Close">×</button>
 </div>
+<div class="dashboard-nav-overlay" id="dashboardNavOverlay" onclick="closeDashboardNav()"></div>
+<aside class="dashboard-nav-drawer" id="dashboardNavDrawer" aria-label="Application navigation" aria-hidden="true">
+    <div class="dashboard-nav-heading">Navigate</div>
+    <div class="dashboard-nav-links">
+        <button class="dashboard-nav-link" id="dashboardNavMain" type="button" onclick="navigateDashboardNav('dashboard')">Main Dashboard</button>
+        <button class="dashboard-nav-link" id="dashboardNavSummary" type="button" onclick="navigateDashboardNav('summary')">Station Summary</button>
+    </div>
+</aside>
     <div class="container">
     <div class="header">
+        <div class="dashboard-nav-host">
+            <button class="dashboard-nav-toggle" id="dashboardNavToggle" type="button" aria-label="Open navigation" aria-controls="dashboardNavDrawer" aria-expanded="false" onclick="toggleDashboardNav()">
+                <svg viewBox="0 0 24 24" fill="none" stroke-width="2.2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+            </button>
+        </div>
         <div class="station-picker" id="stationPicker">
          <button class="title-trigger" id="titleTrigger" onclick="toggleStationMenu()">
     <h1 id="station-title">KK Nagar Weather Station</h1>
@@ -2214,12 +2315,134 @@ if ('serviceWorker' in navigator) {
             <div id="historical-content"></div>
         </div>
 
+        <div id="page-station-summary" style="display: none;">
+            <div class="station-summary-shell">
+                <h2 class="station-summary-heading">Station Summary</h2>
+                <div class="station-summary-grid" id="stationSummaryGrid" aria-live="polite"></div>
+            </div>
+        </div>
+
     </div>
 
 
     <script>
         let currentMode = localStorage.getItem('weatherMode') || 'auto';
         let currentStation = localStorage.getItem('weatherStation') || 'kknagar';
+
+const stationSummaryStations = [
+    { id: 'kknagar', name: 'KK Nagar' },
+    { id: 'neelangarai', name: 'Neelangarai' },
+    { id: 'ayyapakkam', name: 'Ayyapakkam' },
+    { id: 'sanatorium', name: 'Sanatorium' }
+];
+let stationSummaryUpdating = false;
+
+function isStationSummaryRoute() {
+    return window.location.pathname.replace(/\\/+$/, '') === '/station-summary';
+}
+
+function toggleDashboardNav() {
+    const drawer = document.getElementById('dashboardNavDrawer');
+    if (drawer.classList.contains('is-open')) closeDashboardNav();
+    else openDashboardNav();
+}
+
+function openDashboardNav() {
+    document.getElementById('dashboardNavDrawer').classList.add('is-open');
+    document.getElementById('dashboardNavOverlay').classList.add('is-open');
+    document.getElementById('dashboardNavDrawer').setAttribute('aria-hidden', 'false');
+    document.getElementById('dashboardNavToggle').setAttribute('aria-expanded', 'true');
+    document.body.classList.add('dashboard-nav-open');
+}
+
+function closeDashboardNav() {
+    document.getElementById('dashboardNavDrawer').classList.remove('is-open');
+    document.getElementById('dashboardNavOverlay').classList.remove('is-open');
+    document.getElementById('dashboardNavDrawer').setAttribute('aria-hidden', 'true');
+    document.getElementById('dashboardNavToggle').setAttribute('aria-expanded', 'false');
+    document.body.classList.remove('dashboard-nav-open');
+}
+
+function updateDashboardNavState() {
+    const summaryOpen = isStationSummaryRoute();
+    document.getElementById('dashboardNavMain').classList.toggle('active', !summaryOpen);
+    document.getElementById('dashboardNavSummary').classList.toggle('active', summaryOpen);
+}
+
+function navigateDashboardNav(destination) {
+    const target = destination === 'summary' ? '/station-summary' : '/';
+    closeDashboardNav();
+    if (window.location.pathname !== target) window.history.pushState({}, '', target);
+    renderCurrentRoute();
+}
+
+function formatStationSummaryValue(value, unit) {
+    const numeric = Number(value);
+    return value === null || value === undefined || !Number.isFinite(numeric) ? '—' : numeric.toFixed(1) + unit;
+}
+
+function renderStationSummaryCards(records) {
+    const byId = {};
+    (records || []).forEach(function(record) { byId[record.id] = record; });
+    const grid = document.getElementById('stationSummaryGrid');
+    if (!grid) return;
+
+    grid.innerHTML = stationSummaryStations.map(function(station) {
+        const record = byId[station.id];
+        if (record && record.available === false) {
+            return '<article class="station-summary-card"><div class="station-summary-name">' + station.name + '</div><p class="station-summary-unavailable">Temporarily unavailable</p></article>';
+        }
+        const data = record || {};
+        return '<article class="station-summary-card">' +
+            '<div class="station-summary-name">' + station.name + '</div>' +
+            '<div class="station-summary-metrics">' +
+                '<div class="station-summary-metric"><span class="station-summary-label">🌡 Temperature</span><span class="station-summary-value">' + formatStationSummaryValue(data.temperature, '°C') + '</span></div>' +
+                '<div class="station-summary-metric"><span class="station-summary-label">🌧 Today’s Rainfall</span><span class="station-summary-value">' + formatStationSummaryValue(data.rainfall, ' mm') + '</span></div>' +
+                '<div class="station-summary-metric"><span class="station-summary-label">💧 Current Rain Rate</span><span class="station-summary-value">' + formatStationSummaryValue(data.rainRate, ' mm/h') + '</span></div>' +
+                '<div class="station-summary-metric"><span class="station-summary-label">📈 Maximum Rain Rate</span><span class="station-summary-value">' + formatStationSummaryValue(data.maxRainRate, ' mm/h') + '</span></div>' +
+            '</div></article>';
+    }).join('');
+}
+
+async function updateStationSummary() {
+    if (stationSummaryUpdating || !isStationSummaryRoute()) return;
+    stationSummaryUpdating = true;
+    try {
+        const response = await fetch('/api/station-summary');
+        if (!response.ok) throw new Error('Summary request failed');
+        const data = await response.json();
+        renderStationSummaryCards(data.stations);
+    } catch (error) {
+        renderStationSummaryCards(stationSummaryStations.map(function(station) {
+            return { id: station.id, available: false };
+        }));
+    } finally {
+        stationSummaryUpdating = false;
+    }
+}
+
+function showStationSummaryPage() {
+    document.getElementById('page-dashboard').style.display = 'none';
+    document.getElementById('page-summary').style.display = 'none';
+    document.getElementById('page-historical').style.display = 'none';
+    document.getElementById('page-station-summary').style.display = 'block';
+    document.getElementById('tab-dash').classList.remove('active');
+    document.getElementById('tab-sum').classList.remove('active');
+    document.getElementById('tab-hist').classList.remove('active');
+    renderStationSummaryCards();
+    updateStationSummary();
+}
+
+function renderCurrentRoute() {
+    if (isStationSummaryRoute()) showStationSummaryPage();
+    else showPage('dashboard');
+    updateDashboardNavState();
+}
+
+window.addEventListener('popstate', renderCurrentRoute);
+document.addEventListener('keydown', function(event) {
+    if (event.key === 'Escape') closeDashboardNav();
+});
 
 function switchStation(id) {
     currentStation = id;
@@ -2238,6 +2461,10 @@ function switchStation(id) {
 
     closeStationMenu();
     graphDataLoaded = false;
+    if (isStationSummaryRoute()) {
+        updateStationSummary();
+        return;
+    }
     update();
 }
 
@@ -2427,6 +2654,10 @@ document.addEventListener('click', function(e) {
         }
 
         async function update() {
+            if (isStationSummaryRoute()) {
+                updateStationSummary();
+                return;
+            }
             try {
                 const res = await fetch('/weather?station=' + currentStation + '&v=' + Date.now()); 
                 const d = await res.json(); 
@@ -2514,6 +2745,7 @@ document.addEventListener('click', function(e) {
     document.getElementById('page-dashboard').style.display = pageId === 'dashboard' ? 'block' : 'none';
     document.getElementById('page-summary').style.display = pageId === 'summary' ? 'block' : 'none';
     document.getElementById('page-historical').style.display = pageId === 'historical' ? 'block' : 'none'; // Added this
+    document.getElementById('page-station-summary').style.display = 'none';
     
     // 2. Update the active class for the three buttons
     document.getElementById('tab-dash').classList.toggle('active', pageId === 'dashboard');
@@ -2821,10 +3053,15 @@ window.addEventListener('appinstalled', () => {
     deferredInstallPrompt = null;
 });
 
+renderCurrentRoute();
+
 </script>
 </body>
 </html>
-    `);
+    `;
+
+app.get(["/", "/station-summary"], (req, res) => {
+    res.send(renderWeatherApp());
 });
 
 if (process.env.NODE_ENV !== 'production') {
