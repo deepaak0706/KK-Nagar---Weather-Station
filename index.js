@@ -1962,20 +1962,17 @@ body.station-summary-active .header { justify-content: flex-start; margin-bottom
 .station-summary-name { overflow: hidden; color: var(--accent); font-size: 15px; font-weight: 800; letter-spacing: -0.2px; text-overflow: ellipsis; white-space: nowrap; }
 .station-summary-name::before { content: ''; display: inline-block; width: 8px; height: 8px; margin: 0 8px 1px 0; border-radius: 50%; background: currentColor; box-shadow: 0 0 0 4px rgba(56, 189, 248, 0.12); }
 .station-summary-metrics { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 8px; margin-top: 15px; }
-.station-summary-metric { min-width: 0; }
+.station-summary-metric { min-width: 0; position: relative; }
 .station-summary-label { display: block; overflow: hidden; color: var(--muted); font-size: 9px; font-weight: 800; letter-spacing: 0.45px; text-overflow: ellipsis; text-transform: uppercase; white-space: nowrap; }
 .station-summary-value { display: block; overflow: hidden; margin-top: 4px; color: var(--text); font-size: clamp(15px, 2.1vw, 21px); font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: -0.6px; text-overflow: ellipsis; white-space: nowrap; }
+.station-summary-metric:nth-child(odd)::after { content: ''; position: absolute; top: 2px; right: -5px; bottom: 2px; width: 1px; background: linear-gradient(to bottom, transparent, var(--border) 18%, var(--border) 82%, transparent); }
+.station-summary-metric:nth-child(-n+2)::before { content: ''; position: absolute; right: 0; bottom: -7px; left: 0; height: 1px; background: linear-gradient(to right, transparent, var(--border) 14%, var(--border) 86%, transparent); }
 .station-summary-card:nth-child(1) .station-summary-name { color: #dc2626; }
 .station-summary-card:nth-child(2) .station-summary-name { color: #d97706; }
 .station-summary-card:nth-child(3) .station-summary-name { color: #0284c7; }
 .station-summary-card:nth-child(4) .station-summary-name { color: #7c3aed; }
-.station-summary-metric:nth-child(1) .station-summary-label,
-.station-summary-metric:nth-child(1) .station-summary-value { color: #dc2626; }
-.station-summary-metric:nth-child(2) .station-summary-label,
 .station-summary-metric:nth-child(2) .station-summary-value { color: #0284c7; }
-.station-summary-metric:nth-child(3) .station-summary-label,
 .station-summary-metric:nth-child(3) .station-summary-value { color: #0891b2; }
-.station-summary-metric:nth-child(4) .station-summary-label,
 .station-summary-metric:nth-child(4) .station-summary-value { color: #7c3aed; }
 .station-summary-unavailable { margin: 15px 0 1px; color: var(--muted); font-size: 12px; font-weight: 700; }
 @media screen and (max-width: 430px) {
