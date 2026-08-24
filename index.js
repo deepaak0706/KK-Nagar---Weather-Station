@@ -1953,24 +1953,31 @@ body.station-summary-active .station-summary-page-title { display: flex; }
 body.station-summary-active .header { justify-content: flex-start; margin-bottom: 28px; }
 
 /* Additive Station Summary page — all selectors are intentionally namespaced. */
-.station-summary-shell { width: 100%; animation: station-summary-enter 0.22s ease both; }
-.station-summary-heading { margin: 0 0 16px; color: var(--lbl-color); font-size: 13px; font-weight: 800; letter-spacing: 1.3px; text-transform: uppercase; }
+.station-summary-shell { width: 100%; }
 .station-summary-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; width: 100%; }
 .station-summary-card {
-    min-width: 0; padding: 16px; border: 1px solid var(--border); border-top: 3px solid var(--accent);
-    border-radius: 18px; background: var(--card); box-shadow: var(--glow);
+    min-width: 0; padding: 16px; border: 1px solid var(--border); border-radius: 18px;
+    background: var(--card); box-shadow: var(--glow); position: relative; overflow: hidden;
 }
-.station-summary-name { overflow: hidden; color: var(--text); font-size: 15px; font-weight: 800; letter-spacing: -0.2px; text-overflow: ellipsis; white-space: nowrap; }
+.station-summary-name { overflow: hidden; color: var(--accent); font-size: 15px; font-weight: 800; letter-spacing: -0.2px; text-overflow: ellipsis; white-space: nowrap; }
+.station-summary-name::before { content: ''; display: inline-block; width: 8px; height: 8px; margin: 0 8px 1px 0; border-radius: 50%; background: currentColor; box-shadow: 0 0 0 4px rgba(56, 189, 248, 0.12); }
 .station-summary-metrics { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 8px; margin-top: 15px; }
 .station-summary-metric { min-width: 0; }
 .station-summary-label { display: block; overflow: hidden; color: var(--muted); font-size: 9px; font-weight: 800; letter-spacing: 0.45px; text-overflow: ellipsis; text-transform: uppercase; white-space: nowrap; }
 .station-summary-value { display: block; overflow: hidden; margin-top: 4px; color: var(--text); font-size: clamp(15px, 2.1vw, 21px); font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: -0.6px; text-overflow: ellipsis; white-space: nowrap; }
-.station-summary-card:nth-child(1) { border-top-color: #ef4444; }
-.station-summary-card:nth-child(2) { border-top-color: #f59e0b; }
-.station-summary-card:nth-child(3) { border-top-color: #0ea5e9; }
-.station-summary-card:nth-child(4) { border-top-color: #8b5cf6; }
+.station-summary-card:nth-child(1) .station-summary-name { color: #dc2626; }
+.station-summary-card:nth-child(2) .station-summary-name { color: #d97706; }
+.station-summary-card:nth-child(3) .station-summary-name { color: #0284c7; }
+.station-summary-card:nth-child(4) .station-summary-name { color: #7c3aed; }
+.station-summary-metric:nth-child(1) .station-summary-label,
+.station-summary-metric:nth-child(1) .station-summary-value { color: #dc2626; }
+.station-summary-metric:nth-child(2) .station-summary-label,
+.station-summary-metric:nth-child(2) .station-summary-value { color: #0284c7; }
+.station-summary-metric:nth-child(3) .station-summary-label,
+.station-summary-metric:nth-child(3) .station-summary-value { color: #0891b2; }
+.station-summary-metric:nth-child(4) .station-summary-label,
+.station-summary-metric:nth-child(4) .station-summary-value { color: #7c3aed; }
 .station-summary-unavailable { margin: 15px 0 1px; color: var(--muted); font-size: 12px; font-weight: 700; }
-@keyframes station-summary-enter { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
 @media screen and (max-width: 430px) {
     .dashboard-nav-toggle { width: 40px; height: 40px; }
     .station-summary-grid { gap: 8px; }
@@ -2348,7 +2355,6 @@ body.station-summary-active .header { justify-content: flex-start; margin-bottom
 
         <div id="page-station-summary" style="display: none;">
             <div class="station-summary-shell">
-                <h2 class="station-summary-heading">Station Summary</h2>
                 <div class="station-summary-grid" id="stationSummaryGrid" aria-live="polite"></div>
             </div>
         </div>
