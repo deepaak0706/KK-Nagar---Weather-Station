@@ -366,6 +366,13 @@ async function syncWithEcowitt(station, forceWrite = false) {
         st.cachedData = null;
     }
 
+    // Daily extrema live in the database. Refresh them on the same 30-second
+    // cadence as the dashboard so a warm visitor cache cannot hide a DB write.
+    const shouldRefreshDailyExtremes =
+        !st.cachedData ||
+        st.dataChangedSinceLastRead ||
+        (now - (st.lastDailyExtremesFetchTime || 0) >= 30000);
+
     // ── FETCH RAW DATA FROM API ──────────────────────────────
     const fetchLiveData = async () => {
         if (station.type === 'ecowitt') {
@@ -422,7 +429,7 @@ async function syncWithEcowitt(station, forceWrite = false) {
     };
 
     // ── VISITOR PATH (cache < 9 min) ─────────────────────────
-    if (!forceWrite && st.cachedData && (now - st.lastFetchTime < 540000)) {
+    if (!forceWrite && st.cachedData && (now - st.lastFetchTime < 540000) && !shouldRefreshDailyExtremes) {
         try {
             const r = await fetchLiveData();
             const buf = await loadBufferState(station);
@@ -624,7 +631,7 @@ try {
         let mx_t = -999, mn_t = 999, mx_w = 0, mx_g = 0, mx_r = 0;
         let mx_t_time = null, mn_t_time = null, mx_w_t = null, mx_g_t = null, mx_r_t = null;
 
-        if (st.dataChangedSinceLastRead || !st.cachedData) {
+        if (shouldRefreshDailyExtremes) {
             try {
                 const historyRes = await pool.query(`
                     SELECT * FROM weather_history
@@ -668,6 +675,7 @@ try {
                     }
                 }
                 st.dataChangedSinceLastRead = false;
+                st.lastDailyExtremesFetchTime = now;
             } catch (dbError) { console.error("DB Prep Error:", dbError); }
         }
 
@@ -703,13 +711,14 @@ try {
     let yearlyMm = Math.round((Math.round(r.yearlyIn * 2540) / 100 +
     (station.id === 'kknagar' ? 494.8 :
      station.id === 'ayyapakkam' ? 257.02 : 0)) * 100) / 100;
+    const monthlyAdjustment = station.id === 'kknagar' ? 119.8 : 0;
     return {
         total:   Math.round(r.dailyIn  * 2540) / 100,
         rate:    liveRR,
         maxR:    mx_r,
         maxRTime: mx_r_t,
         weekly:  Math.round(r.weeklyIn  * 2540) / 100,
-        monthly: Math.round(r.monthlyIn * 2540) / 100 + (station.id === 'kknagar' ? 119.8 : 0),
+        monthly: Math.round((r.monthlyIn * 25.4 + monthlyAdjustment) * 10) / 10,
         yearly:  yearlyMm,
     };
 })(),
