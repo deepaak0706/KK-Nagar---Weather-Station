@@ -1957,7 +1957,8 @@ body.dashboard-nav-open { overflow: hidden; }
 .station-summary-page-title { display: none; align-items: center; min-width: 0; color: var(--text); font-size: 28px; font-weight: 900; letter-spacing: -0.8px; }
 body.station-summary-active .station-picker,
 body.station-summary-active .header-actions,
-body.station-summary-active .nav-tabs { display: none; }
+body.station-summary-active .nav-tabs,
+body.station-summary-active .dashboard-live-strip { display: none; }
 body.station-summary-active .station-summary-page-title { display: flex; }
 body.station-summary-active .header { justify-content: flex-start; margin-bottom: 28px; }
 
@@ -2021,6 +2022,31 @@ body.station-summary-active .header { justify-content: flex-start; margin-bottom
     .station-summary-value { margin-top: 6px; font-size: 23px; }
 }
 
+/* Precision Pro dashboard refinement — visual only; existing data and layout remain unchanged. */
+.dashboard-live-strip {
+    display: flex; align-items: center; gap: 8px; width: fit-content; max-width: 100%;
+    margin: -8px 0 20px; padding: 8px 11px; color: var(--muted); background: var(--card);
+    border: 1px solid var(--border); border-radius: 10px; box-shadow: var(--glow);
+    font-size: 10px; font-weight: 700; letter-spacing: 0.3px;
+}
+.dashboard-live-strip .live-dot { flex: 0 0 auto; }
+.grid-system .card { overflow: hidden; }
+.grid-system .card .label { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+.grid-system .card .label::after {
+    padding: 5px 8px; color: var(--muted); background: color-mix(in srgb, var(--bg) 72%, transparent);
+    border: 1px solid var(--border); border-radius: 999px; font-size: 8px; font-weight: 800; letter-spacing: 0.7px;
+}
+.grid-system .card:nth-child(1) .label::after { content: 'RISING'; color: #f87171; }
+.grid-system .card:nth-child(2) .label::after { content: 'CALM'; color: #38bdf8; }
+.grid-system .card:nth-child(3) .label::after { content: 'DRY NOW'; color: #2dd4bf; }
+.grid-system .card:nth-child(4) .label::after { content: 'STABLE'; color: var(--muted); }
+.grid-system .card .modular-inline-stack { margin-top: 2px; padding-top: 14px; border-top: 1px solid var(--line); }
+.grid-system .card .row-block + .mod-divider + .modular-inline-stack { border-top: 0; }
+@media screen and (max-width: 767px) {
+    .dashboard-live-strip { width: 100%; margin: -4px 0 14px; padding: 8px 10px; box-shadow: none; }
+    .grid-system .card .label { margin-bottom: 14px; }
+    .grid-system .card .label::after { padding: 4px 7px; font-size: 7px; }
+}
 </style>
 </head>
 <body>
@@ -2084,6 +2110,8 @@ body.station-summary-active .header { justify-content: flex-start; margin-bottom
         <button onclick="showPage('summary')" id="tab-sum" class="tab-btn">Monthly Summary</button>
         <button onclick="showPage('historical')" id="tab-hist" class="tab-btn">Historical Data</button>
     </div>
+
+    <div class="dashboard-live-strip" id="dashboardLiveStrip"><div class="live-dot"></div><span>Live monitoring · last refresh <span id="dashboard-live-time">--:--:--</span></span></div>
 
 
         <div id="page-dashboard">
@@ -2750,6 +2778,7 @@ document.addEventListener('click', function(e) {
                 document.getElementById('sol').innerText = d.atmo.sol + ' W/m²'; 
                 document.getElementById('uv').innerText = d.atmo.uv;
                 document.getElementById('ts').innerText = new Date(d.lastSync).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                document.getElementById('dashboard-live-time').innerText = new Date(d.lastSync).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
                 
                 // POPULATE THE MODERNIZED 24H SUMMARY CARDS
                 if(document.getElementById('s-mx')) {
@@ -2789,6 +2818,7 @@ document.addEventListener('click', function(e) {
 
         function showPage(pageId) {
     document.body.classList.remove('station-summary-active');
+    document.getElementById('dashboardLiveStrip').style.display = pageId === 'dashboard' ? 'flex' : 'none';
     // 1. Toggle visibility of the three pages
     document.getElementById('page-dashboard').style.display = pageId === 'dashboard' ? 'block' : 'none';
     document.getElementById('page-summary').style.display = pageId === 'summary' ? 'block' : 'none';
