@@ -2021,11 +2021,40 @@ body.station-summary-active .header { justify-content: flex-start; margin-bottom
     .station-summary-value { margin-top: 6px; font-size: 23px; }
 }
 
-/* Precision Pro dashboard refinement — visual only; existing data and layout remain unchanged. */
-.grid-system .card { overflow: hidden; }
+/* Precision Pro dashboard refinement — visual only; no additional dashboard rows. */
+.grid-system .card {
+    --section-tone: var(--accent);
+    overflow: hidden;
+    border-top-color: var(--border) !important;
+    background: linear-gradient(135deg, color-mix(in srgb, var(--card) 96%, var(--section-tone)), var(--card)) !important;
+    transition: none !important;
+}
+.grid-system .card::before {
+    content: '';
+    position: absolute;
+    z-index: 6;
+    top: 26px;
+    bottom: 26px;
+    left: 0;
+    width: 4px;
+    border-radius: 0 99px 99px 0;
+    background: var(--section-tone);
+    box-shadow: 0 0 16px color-mix(in srgb, var(--section-tone) 45%, transparent);
+}
+.grid-system .card .label { padding-left: 10px; }
+.grid-system .card:nth-child(1) { --section-tone: #fb7185; }
+.grid-system .card:nth-child(2) { --section-tone: #f59e0b; }
+.grid-system .card:nth-child(3) { --section-tone: #22c55e; }
+.grid-system .card:nth-child(4) { --section-tone: #38bdf8; }
 .grid-system .card .modular-inline-stack { margin-top: 2px; padding-top: 14px; border-top: 1px solid var(--line); }
 .grid-system .card .row-block + .mod-divider + .modular-inline-stack { border-top: 0; }
 @media screen and (max-width: 767px) {
+    .grid-system .card {
+        padding-left: 14px !important;
+        background: linear-gradient(90deg, color-mix(in srgb, var(--section-tone) 7%, transparent), transparent 42%) !important;
+    }
+    .grid-system .card::before { top: 18px; bottom: 18px; width: 3px; }
+    .grid-system .card .label { padding-left: 0; }
     .grid-system .card .modular-inline-stack { padding-top: 12px; }
 }
 </style>
