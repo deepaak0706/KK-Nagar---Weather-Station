@@ -711,16 +711,15 @@ try {
     let yearlyMm = Math.round((Math.round(r.yearlyIn * 2540) / 100 +
     (station.id === 'kknagar' ? 494.8 :
      station.id === 'ayyapakkam' ? 257.02 : 0)) * 100) / 100;
-    const monthlyAdjustment = station.id === 'kknagar' ? 119.8 : 0;
     return {
-        total:   Math.round(r.dailyIn  * 2540) / 100,
-        rate:    liveRR,
-        maxR:    mx_r,
-        maxRTime: mx_r_t,
-        weekly:  Math.round(r.weeklyIn  * 2540) / 100,
-        monthly: Math.round((r.monthlyIn * 25.4 + monthlyAdjustment) * 10) / 10,
-        yearly:  yearlyMm,
-    };
+    total:   Math.round(r.dailyIn  * 2540) / 100,
+    rate:    liveRR,
+    maxR:    mx_r,
+    maxRTime: mx_r_t,
+    weekly:  Math.round(r.weeklyIn  * 2540) / 100,
+    monthly: Math.round(r.monthlyIn * 2540) / 100,
+    yearly:  yearlyMm,
+};
 })(),
             lastSync: new Date().toISOString()
         };
