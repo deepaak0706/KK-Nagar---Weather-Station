@@ -2099,6 +2099,67 @@ body:not(.is-night) .dashboard-nav-drawer { background: #ffffff; }
     .station-summary-metric:nth-child(4) .station-summary-value { font-size: 21px; }
 }
 
+/* Summary data emphasis — colour is reserved for rainfall and rain-rate values. */
+.station-summary-metric { padding-left: 10px; }
+.station-summary-metric:nth-child(1) { border-left-color: #94a3b8; }
+.station-summary-metric:nth-child(2) { border-left-color: #38bdf8; }
+.station-summary-metric:nth-child(3) { border-left-color: #2dd4bf; }
+.station-summary-metric:nth-child(4) { border-left-color: #a78bfa; }
+.station-summary-metric:nth-child(odd)::after {
+    display: block !important;
+    content: '';
+    position: absolute;
+    top: 3px;
+    right: -9px;
+    bottom: 3px;
+    width: 1px;
+    background: linear-gradient(to bottom, transparent, var(--border) 18%, var(--border) 82%, transparent);
+}
+.station-summary-metric:nth-child(n+3)::before {
+    display: block !important;
+    content: '';
+    position: absolute;
+    top: -9px;
+    right: 0;
+    left: 0;
+    height: 1px;
+    background: linear-gradient(to right, transparent, var(--border) 10%, var(--border) 90%, transparent);
+}
+.station-summary-metric:nth-child(2) .station-summary-label,
+.station-summary-metric:nth-child(2) .station-summary-value { color: #38bdf8; }
+.station-summary-metric:nth-child(3) .station-summary-label,
+.station-summary-metric:nth-child(3) .station-summary-value { color: #2dd4bf; }
+.station-summary-metric:nth-child(4) .station-summary-label,
+.station-summary-metric:nth-child(4) .station-summary-value { color: #a78bfa; }
+body:not(.is-night) .station-summary-metric:nth-child(2) .station-summary-label,
+body:not(.is-night) .station-summary-metric:nth-child(2) .station-summary-value { color: #0284c7; }
+body:not(.is-night) .station-summary-metric:nth-child(3) .station-summary-label,
+body:not(.is-night) .station-summary-metric:nth-child(3) .station-summary-value { color: #0f766e; }
+body:not(.is-night) .station-summary-metric:nth-child(4) .station-summary-label,
+body:not(.is-night) .station-summary-metric:nth-child(4) .station-summary-value { color: #6d28d9; }
+
+@media screen and (max-width: 767px) {
+    .station-summary-grid { gap: 14px; }
+    .station-summary-card { min-height: 204px; padding: 22px; border-radius: 20px; }
+    .station-summary-name { font-size: 21px; }
+    .station-summary-metrics { gap: 22px 16px; margin-top: 24px; }
+    .station-summary-label { font-size: 10px; font-weight: 600; }
+    .station-summary-value,
+    .station-summary-metric:nth-child(2) .station-summary-value,
+    .station-summary-metric:nth-child(3) .station-summary-value,
+    .station-summary-metric:nth-child(4) .station-summary-value { font-size: 25px; }
+}
+
+@media screen and (max-width: 430px) {
+    .station-summary-card { min-height: 198px; padding: 20px; }
+    .station-summary-name { font-size: 20px; }
+    .station-summary-metrics { gap: 20px 14px; margin-top: 22px; }
+    .station-summary-value,
+    .station-summary-metric:nth-child(2) .station-summary-value,
+    .station-summary-metric:nth-child(3) .station-summary-value,
+    .station-summary-metric:nth-child(4) .station-summary-value { font-size: 23px; }
+}
+
 </style>
 </head>
 <body>
