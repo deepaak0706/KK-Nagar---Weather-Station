@@ -2020,6 +2020,85 @@ body.station-summary-active .header { justify-content: flex-start; margin-bottom
     .station-summary-value { margin-top: 6px; font-size: 23px; }
 }
 
+/* Station Summary polish: restrained data hierarchy and a compact navigation sheet. */
+.dashboard-nav-drawer {
+    top: 12px;
+    bottom: 12px;
+    width: min(264px, 68vw);
+    padding: calc(18px + env(safe-area-inset-top, 0px)) 14px 18px calc(14px + env(safe-area-inset-left, 0px));
+    border: 1px solid var(--border);
+    border-left: 0;
+    border-radius: 0 20px 20px 0;
+    box-shadow: 14px 10px 34px rgba(2, 6, 23, 0.22);
+    gap: 14px;
+}
+.dashboard-nav-heading { padding-left: 4px; font-size: 10px; letter-spacing: 1.2px; }
+.dashboard-nav-links { gap: 5px; }
+.dashboard-nav-link { min-height: 44px; border-radius: 11px; font-size: 14px; font-weight: 600; padding: 0 12px; }
+.dashboard-nav-link.active { box-shadow: 0 8px 18px rgba(3, 105, 161, 0.18); }
+
+.station-summary-grid { gap: 14px; }
+.station-summary-card {
+    padding: 20px;
+    border-color: color-mix(in srgb, var(--border) 88%, transparent);
+    border-radius: 20px;
+    background: var(--card);
+    box-shadow: 0 12px 28px -24px rgba(15, 23, 42, 0.45);
+}
+.station-summary-name { color: var(--text) !important; font-size: 18px; font-weight: 700; letter-spacing: -0.35px; }
+.station-summary-name::before { width: 7px; height: 7px; margin-right: 9px; box-shadow: none; }
+.station-summary-card:nth-child(1) .station-summary-name::before { background: #fb7185; }
+.station-summary-card:nth-child(2) .station-summary-name::before { background: #f59e0b; }
+.station-summary-card:nth-child(3) .station-summary-name::before { background: #22b8cf; }
+.station-summary-card:nth-child(4) .station-summary-name::before { background: #8b7cf6; }
+.station-summary-live { color: var(--muted); font-size: 8px; font-weight: 700; letter-spacing: 0.8px; }
+.station-summary-live::before { width: 5px; height: 5px; box-shadow: none; }
+.station-summary-metrics { gap: 16px 18px; margin-top: 20px; }
+.station-summary-metric { padding-left: 9px; }
+.station-summary-metric::after, .station-summary-metric::before { display: none !important; }
+.station-summary-metric:nth-child(1) { border-left: 2px solid #94a3b8; }
+.station-summary-metric:nth-child(2) { border-left: 2px solid #60a5fa; }
+.station-summary-metric:nth-child(3) { border-left: 2px solid #2dd4bf; }
+.station-summary-metric:nth-child(4) { border-left: 2px solid #a78bfa; }
+.station-summary-label { color: var(--muted); font-size: 9px; font-weight: 600; letter-spacing: 0.8px; }
+.station-summary-value,
+.station-summary-metric:nth-child(2) .station-summary-value,
+.station-summary-metric:nth-child(3) .station-summary-value,
+.station-summary-metric:nth-child(4) .station-summary-value {
+    color: var(--text);
+    margin-top: 5px;
+    font-family: 'Outfit', sans-serif;
+    font-size: clamp(19px, 2.1vw, 26px);
+    font-weight: 600;
+    letter-spacing: -0.8px;
+    line-height: 1;
+    font-variant-numeric: tabular-nums lining-nums;
+}
+body:not(.is-night) .station-summary-card { background: #ffffff; border-color: #d8e1ea; box-shadow: 0 12px 25px -24px rgba(15, 23, 42, 0.42); }
+body:not(.is-night) .dashboard-nav-drawer { background: #ffffff; }
+
+@media screen and (min-width: 768px) {
+    .station-summary-grid { gap: 18px; }
+    .station-summary-card { padding: 28px; }
+    .station-summary-name { font-size: 21px; }
+    .station-summary-metrics { gap: 30px 24px; margin-top: 34px; }
+    .station-summary-value,
+    .station-summary-metric:nth-child(2) .station-summary-value,
+    .station-summary-metric:nth-child(3) .station-summary-value,
+    .station-summary-metric:nth-child(4) .station-summary-value { font-size: clamp(24px, 2vw, 30px); }
+}
+
+@media screen and (max-width: 430px) {
+    .dashboard-nav-drawer { width: min(248px, 66vw); }
+    .station-summary-card { padding: 18px; border-radius: 18px; }
+    .station-summary-name { font-size: 18px; }
+    .station-summary-metrics { gap: 16px 12px; margin-top: 18px; }
+    .station-summary-value,
+    .station-summary-metric:nth-child(2) .station-summary-value,
+    .station-summary-metric:nth-child(3) .station-summary-value,
+    .station-summary-metric:nth-child(4) .station-summary-value { font-size: 21px; }
+}
+
 </style>
 </head>
 <body>
@@ -2441,10 +2520,10 @@ function renderStationSummaryCards(records) {
         return '<article class="station-summary-card">' +
             '<div class="station-summary-card-header"><div class="station-summary-name">' + station.name + '</div><div class="station-summary-live">LIVE</div></div>' +
             '<div class="station-summary-metrics">' +
-                '<div class="station-summary-metric"><span class="station-summary-label">🌡 Temp</span><span class="station-summary-value">' + formatStationSummaryValue(data.temperature, '°C') + '</span></div>' +
-                '<div class="station-summary-metric"><span class="station-summary-label">🌧 Rain</span><span class="station-summary-value">' + formatStationSummaryValue(data.rainfall, ' mm') + '</span></div>' +
-                '<div class="station-summary-metric"><span class="station-summary-label">💧 RR</span><span class="station-summary-value">' + formatStationSummaryValue(data.rainRate, ' mm/h') + '</span></div>' +
-                '<div class="station-summary-metric"><span class="station-summary-label">📈 Max RR</span><span class="station-summary-value">' + formatStationSummaryValue(data.maxRainRate, ' mm/h') + '</span></div>' +
+                '<div class="station-summary-metric"><span class="station-summary-label">Temp</span><span class="station-summary-value">' + formatStationSummaryValue(data.temperature, '°C') + '</span></div>' +
+                '<div class="station-summary-metric"><span class="station-summary-label">Rain</span><span class="station-summary-value">' + formatStationSummaryValue(data.rainfall, ' mm') + '</span></div>' +
+                '<div class="station-summary-metric"><span class="station-summary-label">RR</span><span class="station-summary-value">' + formatStationSummaryValue(data.rainRate, ' mm/h') + '</span></div>' +
+                '<div class="station-summary-metric"><span class="station-summary-label">Max RR</span><span class="station-summary-value">' + formatStationSummaryValue(data.maxRainRate, ' mm/h') + '</span></div>' +
             '</div></article>';
     }).join('');
 }
