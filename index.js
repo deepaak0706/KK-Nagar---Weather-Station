@@ -1014,7 +1014,7 @@ if ('serviceWorker' in navigator) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0, shrink-to-fit=no, viewport-fit=cover">
     <title>KK Nagar Weather Station</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Sora:wght@400;500;600&display=swap" rel="stylesheet">
     <style>
     /* ☁️ E-INK LIGHT MODE (Anti-Glare / Matte)    */
     /* ========================================== */
@@ -2207,6 +2207,10 @@ body:not(.is-night) .station-summary-metric:nth-child(4) .station-summary-value 
 .station-summary-card:nth-child(3) .station-summary-name { color: #22d3ee !important; }
 .station-summary-card:nth-child(4) .station-summary-name { color: #a78bfa !important; }
 .station-summary-name { font-weight: 700; }
+.station-summary-value,
+.station-summary-metric:nth-child(2) .station-summary-value,
+.station-summary-metric:nth-child(3) .station-summary-value,
+.station-summary-metric:nth-child(4) .station-summary-value { font-family: 'Sora', 'Outfit', sans-serif; }
 .station-summary-metric:nth-child(2) { border-left-color: #38bdf8; }
 .station-summary-metric:nth-child(3) { border-left-color: #2dd4bf; }
 .station-summary-metric:nth-child(4) { border-left-color: #f472b6; }
