@@ -2201,6 +2201,28 @@ body:not(.is-night) .station-summary-metric:nth-child(4) .station-summary-value 
     .station-summary-metric:nth-child(4) .station-summary-value { font-size: clamp(20px, 6vw, 24px); }
 }
 
+/* Hybrid Station Summary: the reference palette with the current fluid, lighter layout. */
+.station-summary-card:nth-child(1) .station-summary-name { color: #fb7185 !important; }
+.station-summary-card:nth-child(2) .station-summary-name { color: #fbbf24 !important; }
+.station-summary-card:nth-child(3) .station-summary-name { color: #22d3ee !important; }
+.station-summary-card:nth-child(4) .station-summary-name { color: #a78bfa !important; }
+.station-summary-name { font-weight: 700; }
+.station-summary-metric:nth-child(2) { border-left-color: #38bdf8; }
+.station-summary-metric:nth-child(3) { border-left-color: #2dd4bf; }
+.station-summary-metric:nth-child(4) { border-left-color: #f472b6; }
+.station-summary-metric:nth-child(2) .station-summary-label,
+.station-summary-metric:nth-child(2) .station-summary-value { color: #38bdf8; }
+.station-summary-metric:nth-child(3) .station-summary-label,
+.station-summary-metric:nth-child(3) .station-summary-value { color: #2dd4bf; }
+.station-summary-metric:nth-child(4) .station-summary-label,
+.station-summary-metric:nth-child(4) .station-summary-value { color: #f472b6; }
+body:not(.is-night) .station-summary-card:nth-child(1) .station-summary-name { color: #e11d48 !important; }
+body:not(.is-night) .station-summary-card:nth-child(2) .station-summary-name { color: #b45309 !important; }
+body:not(.is-night) .station-summary-card:nth-child(3) .station-summary-name { color: #0891b2 !important; }
+body:not(.is-night) .station-summary-card:nth-child(4) .station-summary-name { color: #7c3aed !important; }
+body:not(.is-night) .station-summary-metric:nth-child(4) .station-summary-label,
+body:not(.is-night) .station-summary-metric:nth-child(4) .station-summary-value { color: #db2777; }
+
 </style>
 </head>
 <body>
