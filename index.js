@@ -149,6 +149,19 @@ function resetStateBuffers(station) {
     s.tW = null; s.tG = null; s.tMaxT = null; s.tMinT = null; s.tRR = null;
 }
 
+function toMillimetresPerHour(rateInches) {
+    const rate = Number(rateInches);
+    return Number.isFinite(rate) ? parseFloat((rate * 25.4).toFixed(1)) : 0;
+}
+
+function keepHigherRainPeak(currentPeakMm, currentPeakTime, candidatePeakMm, candidatePeakTime) {
+    const current = Number(currentPeakMm) || 0;
+    const candidate = Number(candidatePeakMm) || 0;
+    return candidate > current
+        ? { value: candidate, time: candidatePeakTime || currentPeakTime }
+        : { value: current, time: currentPeakTime };
+}
+
 async function loadBufferState(station) {
     const res = await pool.query(
         'SELECT * FROM buffer_state WHERE station_id = $1',
@@ -433,7 +446,7 @@ async function syncWithEcowitt(station, forceWrite = false) {
         try {
             const r = await fetchLiveData();
             const buf = await loadBufferState(station);
-            const liveRR = parseFloat((buf.lastCalculatedRate * 25.4).toFixed(1));
+            const liveRR = toMillimetresPerHour(buf.lastCalculatedRate);
 
             const liveTemp = parseFloat(((r.tempF - 32) * 5 / 9).toFixed(1));
             const liveWind = parseFloat((r.windMph * 1.60934).toFixed(1));
@@ -680,7 +693,7 @@ try {
         }
 
         const writerBufForRR = await loadBufferState(station);
-        const liveRR = parseFloat((writerBufForRR.lastCalculatedRate * 25.4).toFixed(1));
+        const liveRR = toMillimetresPerHour(writerBufForRR.lastCalculatedRate);
 
         const fmtIso = (iso) => iso ? new Date(iso).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' }) : fmtL();
 
@@ -696,7 +709,26 @@ try {
         if (liveGust > mx_g) { mx_g = liveGust; mx_g_t    = fmtL(); }
         if (liveRR   > mx_r) { mx_r = liveRR;   mx_r_t    = fmtL(); }
 
-        const source = (forceWrite && typeof snap !== 'undefined') ? snap : st;
+        // Merge database, cache, and cron buffer peaks before rebuilding the
+        // response. This guarantees a visitor refresh cannot downgrade Max RR.
+        const cachedRainPeak = st.cachedData?.rain?.maxR || 0;
+        const cachedRainPeakTime = st.cachedData?.rain?.maxRTime || null;
+        let resolvedRainPeak = keepHigherRainPeak(mx_r, mx_r_t, cachedRainPeak, cachedRainPeakTime);
+        resolvedRainPeak = keepHigherRainPeak(
+            resolvedRainPeak.value,
+            resolvedRainPeak.time,
+            toMillimetresPerHour(writerBufForRR.bufRR),
+            fmtIso(writerBufForRR.tRR)
+        );
+        mx_r = resolvedRainPeak.value;
+        mx_r_t = resolvedRainPeak.time;
+
+        const source = (forceWrite && typeof snap !== 'undefined') ? snap : {
+            maxT: writerBufForRR.bufMaxT, minT: writerBufForRR.bufMinT,
+            w: writerBufForRR.bufW, g: writerBufForRR.bufG, rr: writerBufForRR.bufRR,
+            tMaxT: writerBufForRR.tMaxT, tMinT: writerBufForRR.tMinT,
+            tW: writerBufForRR.tW, tG: writerBufForRR.tG, tRR: writerBufForRR.tRR
+        };
         if (source.maxT !== -999 && source.maxT !== undefined) { const v = parseFloat(((source.maxT-32)*5/9).toFixed(1)); if (v > mx_t) { mx_t = v; mx_t_time = fmtIso(source.tMaxT); } }
         if (source.minT !==  999 && source.minT !== undefined) { const v = parseFloat(((source.minT-32)*5/9).toFixed(1)); if (v < mn_t) { mn_t = v; mn_t_time = fmtIso(source.tMinT); } }
         if (source.w > 0) { const v = parseFloat((source.w*1.60934).toFixed(1)); if (v > mx_w) { mx_w = v; mx_w_t = fmtIso(source.tW); } }
@@ -755,6 +787,52 @@ async function getWeatherSummary(station) {
     } catch (err) { return { error: err.message }; }
 }
 
+// Lightweight rain-only snapshot for visible dashboards. It reads the durable
+// cron buffer and today's stored peak, never the weather-provider API.
+async function getRainStatus(station) {
+    const st = stationState[station.id];
+    const now = Date.now();
+    if (st.rainStatusCache && now - st.rainStatusCacheAt < 4000) return st.rainStatusCache;
+    if (st.rainStatusPromise) return st.rainStatusPromise;
+
+    st.rainStatusPromise = (async () => {
+        const todayISTStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+        const [buffer, historyRes] = await Promise.all([
+            loadBufferState(station),
+            pool.query(`
+                SELECT rain_rate_in, max_r_time
+                FROM weather_history
+                WHERE station_id = $1
+                  AND (time AT TIME ZONE 'Asia/Kolkata')::date = $2::date
+                  AND rain_rate_in IS NOT NULL
+                ORDER BY rain_rate_in DESC, time ASC
+                LIMIT 1
+            `, [station.id, todayISTStr])
+        ]);
+
+        const formatTime = (iso) => iso ? new Date(iso).toLocaleTimeString('en-IN', {
+            hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Kolkata'
+        }) : null;
+        const currentRate = toMillimetresPerHour(buffer.lastCalculatedRate);
+        const dbPeak = historyRes.rows[0];
+        let peak = keepHigherRainPeak(0, null, toMillimetresPerHour(dbPeak?.rain_rate_in), formatTime(dbPeak?.max_r_time));
+        peak = keepHigherRainPeak(peak.value, peak.time, st.cachedData?.rain?.maxR, st.cachedData?.rain?.maxRTime);
+        peak = keepHigherRainPeak(peak.value, peak.time, toMillimetresPerHour(buffer.bufRR), formatTime(buffer.tRR));
+        peak = keepHigherRainPeak(peak.value, peak.time, currentRate, null);
+
+        const status = { rate: currentRate, maxRate: peak.value, maxRateTime: peak.time, lastSync: new Date().toISOString() };
+        st.rainStatusCache = status;
+        st.rainStatusCacheAt = Date.now();
+        return status;
+    })();
+
+    try {
+        return await st.rainStatusPromise;
+    } finally {
+        st.rainStatusPromise = null;
+    }
+}
+
 // Routes
 
 /**
@@ -769,6 +847,17 @@ function getStation(req) {
 app.get("/weather", async (req, res) => {
     const s = getStation(req);
     res.json(await syncWithEcowitt(s, false));
+});
+
+app.get("/api/rain-status", async (req, res) => {
+    const s = getStation(req);
+    res.set('Cache-Control', 'no-store, max-age=0');
+    try {
+        res.json(await getRainStatus(s));
+    } catch (error) {
+        console.error(`Rain status unavailable [${s.id}]:`, error.message);
+        res.status(503).json({ error: 'Rain status temporarily unavailable' });
+    }
 });
 
 // Additive compact-data view. It reuses the existing per-station sync/cache path
@@ -2906,6 +2995,37 @@ document.addEventListener('click', function(e) {
             }
         }
 
+        let rainStatusRequestInFlight = false;
+
+        function renderRainRateValues(rate, maxRate, maxRateTime) {
+            const current = Number(rate) || 0;
+            const peak = Number(maxRate) || 0;
+            const rateElement = document.getElementById('r_rate');
+            const maxElement = document.getElementById('mr');
+            if (rateElement) rateElement.innerHTML = current.toFixed(1) + '<span style="font-size:11px; font-weight:600; color:var(--muted); margin-left:3px;">mm/h</span>';
+            if (maxElement) {
+                maxElement.innerHTML = peak > 0
+                    ? peak.toFixed(1) + '<span style="font-size:11px; font-weight:600; color:var(--muted); margin-left:3px;">mm/h</span> <span style="font-size:9px; color:var(--muted); font-weight:500; opacity:0.75;">' + (maxRateTime || '') + '</span>'
+                    : '0<span style="font-size:11px; font-weight:600; color:var(--muted); margin-left:3px;">mm/h</span>';
+            }
+        }
+
+        async function refreshRainRateOnly() {
+            if (rainStatusRequestInFlight || document.visibilityState !== 'visible' || isStationSummaryRoute()) return;
+            rainStatusRequestInFlight = true;
+            try {
+                const response = await fetch('/api/rain-status?station=' + currentStation, { cache: 'no-store' });
+                if (!response.ok) return;
+                const status = await response.json();
+                if (!status || status.error) return;
+                renderRainRateValues(status.rate, status.maxRate, status.maxRateTime);
+            } catch (error) {
+                console.error('Rain status refresh failed:', error);
+            } finally {
+                rainStatusRequestInFlight = false;
+            }
+        }
+
         async function update() {
             if (isStationSummaryRoute()) {
                 updateStationSummary();
@@ -2919,7 +3039,7 @@ document.addEventListener('click', function(e) {
                 updateValueWithFade('t', d.temp.current, 1);
                 updateValueWithFade('w', d.wind.speed, 1);
                 updateValueWithFade('r_tot', d.rain.total, 1);
-                document.getElementById('r_rate').innerHTML = d.rain.rate.toFixed(1) + '<span style="font-size:11px; font-weight:600; color:var(--muted); margin-left:3px;">mm/h</span>';
+                renderRainRateValues(d.rain.rate, d.rain.maxR, d.rain.maxRTime);
                 updateValueWithFade('wg', d.wind.gust, 1, ' km/h'); 
 
                 document.getElementById('tTrendBox').innerHTML = d.temp.rate > 0 ? '<span class="trend-up">▲</span> +' + d.temp.rate + '°C /hr' : d.temp.rate < 0 ? '<span class="trend-down">▼</span> ' + d.temp.rate + '°C /hr' : '● Steady';
@@ -2941,11 +3061,6 @@ document.addEventListener('click', function(e) {
                 document.getElementById('r_week').innerText = d.rain.weekly + ' mm';
                 document.getElementById('r_month').innerText = d.rain.monthly + ' mm';
                 document.getElementById('r_year').innerText = d.rain.yearly + ' mm';
-                document.getElementById('mr').innerHTML = d.rain.maxR > 0 
-    ? d.rain.maxR.toFixed(1) + '<span style="font-size:11px; font-weight:600; color:var(--muted); margin-left:3px;">mm/h</span> <span style="font-size:9px; color:var(--muted); font-weight:500; opacity:0.75;">' + d.rain.maxRTime + '</span>' 
-    : '0<span style="font-size:11px; font-weight:600; color:var(--muted); margin-left:3px;">mm/h</span>';
-
-
                 const pTrend = d.atmo.pTrend;
                 if (pTrend >= 0.1) document.getElementById('pIcon').innerHTML = '<span style="color:#ef4444; font-size:14px;">▲</span>';
                 else if (pTrend <= -0.1) document.getElementById('pIcon').innerHTML = '<span style="color:#0ea5e9; font-size:14px;">▼</span>';
@@ -2991,7 +3106,14 @@ document.addEventListener('click', function(e) {
             ctxW.stroke(); requestAnimationFrame(animateWind);
         }
 
-        applyTheme(); animateWind(); setInterval(update, 30000);
+        applyTheme(); animateWind();
+        setInterval(update, 30000);
+        // Five-second checks happen only in a visible dashboard tab and use the
+        // local buffer/database endpoint above, not the external weather APIs.
+        setInterval(refreshRainRateOnly, 5000);
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible') refreshRainRateOnly();
+        });
 
         function showPage(pageId) {
     document.body.classList.remove('station-summary-active');
