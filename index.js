@@ -241,33 +241,24 @@ function calculateRealFeel(tempC, humidity) {
  * Decay is now handled externally by the Cron.
  */
 
- function processRainLogic(buf, newDailyInches, observationTimeMs, isCron = false) {
-     // Only the cron advances the durable rain baseline. The timestamp is the
-    // station/API observation time, never the time at which the cron arrived.
+ function processRainLogic(buf, newDailyInches, currentTimeStamp, isCron = false) {
+     // If a user refresh happens, don't update the baseline or time
+    // Only the Cron should advance the "lastRainRaw" and "lastRainTime"
     if (!isCron) {
         return buf; 
     }
-    const observationTime = Number(observationTimeMs);
-    if (!Number.isFinite(newDailyInches) || !Number.isFinite(observationTime) || observationTime <= 0) {
-        throw new Error('Missing or invalid rain observation timestamp');
-    }
+    const now = Date.now();
     
     if (buf.lastRainRaw === null) {
         buf.lastRainRaw = newDailyInches;
-        buf.lastRainTime = observationTime;
+        buf.lastRainTime = now;
         return buf;
     }
-
-    // The provider can return the same observation more than once. It is not
-    // a new measurement, so it must not create another rain-rate calculation.
-    if (observationTime <= buf.lastRainTime) return buf;
 
     // --- MIDNIGHT RESET FIX ---
     // If the API resets the daily total back to 0 (or a lower number)
     if (newDailyInches < buf.lastRainRaw) {
-        buf.lastRainRaw = newDailyInches;
-        buf.lastRainTime = observationTime;
-        buf.lastCalculatedRate = 0;
+        buf.lastRainRaw = newDailyInches; // Reset our baseline tracker
         return buf;    // Exit without calculating a rate
     }
     // --------------------------
@@ -275,7 +266,7 @@ function calculateRealFeel(tempC, humidity) {
     const deltaRain = newDailyInches - buf.lastRainRaw;
 
         if (deltaRain > 0.0001) { 
-        let timeSinceLastTipSec = (observationTime - buf.lastRainTime) / 1000;
+        let timeSinceLastTipSec = (now - buf.lastRainTime) / 1000;
 
         // Fresh event: if gap > 5 min, treat as new rain (60 sec baseline)
         if (timeSinceLastTipSec > 300) {
@@ -287,13 +278,13 @@ function calculateRealFeel(tempC, humidity) {
         buf.lastCalculatedRate = deltaRain * (3600 / effectiveTime);
         
         buf.lastRainRaw = newDailyInches;
-        buf.lastRainTime = observationTime; 
+        buf.lastRainTime = now; 
     }
 
 
     if (buf.lastCalculatedRate > (buf.bufRR || 0)) { 
         buf.bufRR = buf.lastCalculatedRate; 
-        buf.tRR = new Date(observationTime).toISOString(); 
+        buf.tRR = currentTimeStamp; 
     }
     
     return buf;
@@ -308,10 +299,11 @@ function calculateRealFeel(tempC, humidity) {
 
 async function bufferOnlyUpdate(station) {
     const now = Date.now();
+    const currentTimeStamp = new Date().toISOString();
     const st = stationState[station.id];
 
     try {
-        let apiW, apiG, apiT, dailyRainInches, observationTimeMs;
+        let apiW, apiG, apiT, dailyRainInches;
 
         if (station.type === 'ecowitt') {
             const url = `https://api.ecowitt.net/api/v3/device/real_time?application_key=${station.appKey}&api_key=${station.apiKey}&mac=${station.mac}&rainfall_unitid=12`;
@@ -324,7 +316,6 @@ async function bufferOnlyUpdate(station) {
             apiG = parseFloat(d.wind.wind_gust.value);
             apiT = parseFloat(d.outdoor.temperature.value);
             dailyRainInches = parseFloat(d.rainfall.daily.value) / 25.4;
-            observationTimeMs = Number(d.rainfall.daily.time) * 1000;
 
         } else if (station.type === 'ambient') {
             const url = `https://api.ambientweather.net/v1/devices?applicationKey=${station.appKey}&apiKey=${station.apiKey}&limit=1`;
@@ -341,18 +332,12 @@ async function bufferOnlyUpdate(station) {
             apiG = parseFloat(d.windgustmph);
             apiT = parseFloat(tempf);
             dailyRainInches = parseFloat(d.dailyrainin);
-            observationTimeMs = Number(d.dateutc);
         }
-
-        if (!Number.isFinite(observationTimeMs) || observationTimeMs <= 0) {
-            throw new Error(`Missing rain observation timestamp [${station.id}]`);
-        }
-        const currentTimeStamp = new Date(observationTimeMs).toISOString();
 
         let buf = await loadBufferState(station);
 
-        // 1. Calculate RR from the provider's observation interval, not cron timing.
-        buf = processRainLogic(buf, dailyRainInches, observationTimeMs, true);
+        // 1. Process rain tips
+        buf = processRainLogic(buf, dailyRainInches, currentTimeStamp, true);
 
         // Zero out rain rate if no rain for 5+ minutes
         const secondsSinceLastTip = (now - buf.lastRainTime) / 1000;
