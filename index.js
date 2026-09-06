@@ -17,7 +17,6 @@ const APPLICATION_KEY = process.env.APPLICATION_KEY;
 const API_KEY = process.env.API_KEY;
 const MAC = process.env.MAC;
 
-
 // New — Neelangarai
 const NL_APPLICATION_KEY = process.env.NL_APPLICATION_KEY;
 const NL_API_KEY = process.env.NL_API_KEY;
