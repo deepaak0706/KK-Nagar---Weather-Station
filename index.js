@@ -418,7 +418,6 @@ async function syncWithEcowitt(station, forceWrite = false) {
                 gustMph:    parseFloat(d.wind.wind_gust.value),
                 windDeg:    parseFloat(d.wind.wind_direction.value),
                 dailyIn:    parseFloat(d.rainfall.daily.value) / 25.4,
-                weeklyIn:   parseFloat(d.rainfall.weekly.value) / 25.4,
                 monthlyIn:  parseFloat(d.rainfall.monthly.value) / 25.4,
                 yearlyIn:   parseFloat(d.rainfall.yearly.value) / 25.4,
                 solar:      d.solar_and_uvi?.solar?.value || 0,
@@ -446,7 +445,6 @@ async function syncWithEcowitt(station, forceWrite = false) {
         gustMph:    parseFloat(d.windgustmph),
         windDeg:    parseFloat(d.winddir),
         dailyIn:    parseFloat(d.dailyrainin),
-        weeklyIn:   parseFloat(d.weeklyrainin),
         monthlyIn:  parseFloat(d.monthlyrainin),
         yearlyIn:   parseFloat(d.yearlyrainin),
         solar:      parseFloat(d.solarradiation) || 0,
@@ -758,13 +756,33 @@ try {
     let yearlyMm = Math.round((Math.round(r.yearlyIn * 2540) / 100 +
     (station.id === 'kknagar' ? 494.8 :
      station.id === 'ayyapakkam' ? 257.02 : 0)) * 100) / 100;
+
+    const swmBaseline = {
+        kknagar: 506.2,
+        ayyapakkam: 642.3,
+        neelangarai: 410.1,
+        sanatorium: 405.2
+    };
+
+    const yearlyBaseline = {
+        kknagar: 709.2,
+        ayyapakkam: 804.4,
+        neelangarai: 593.7,
+        sanatorium: 523.9
+    };
+
+    // SWM = station SWM baseline + raw yearly API rainfall - station yearly baseline.
+    // This is independent from, and does not modify, the existing yearlyMm calculation above.
+    const rawYearlyMm = Math.round(r.yearlyIn * 2540) / 100;
+    const swmMm = Math.round((swmBaseline[station.id] + rawYearlyMm - yearlyBaseline[station.id]) * 100) / 100;
+
     return {
     total:   Math.round(r.dailyIn  * 2540) / 100,
     rate:    liveRR,
     maxR:    mx_r,
     maxRTime: mx_r_t,
-    weekly:  Math.round(r.weeklyIn  * 2540) / 100,
     monthly: Math.round(r.monthlyIn * 2540) / 100,
+    swm:     swmMm,
     yearly:  yearlyMm,
 };
 })(),
@@ -1359,7 +1377,7 @@ if ('serviceWorker' in navigator) {
     #t, #w, #r_tot, #pr,
     #mx, #mn, #mw, #mg,
     #r_rate, #mr, #rf, #h_val, #d_val,
-    #r_week, #r_month, #r_year,
+    #r_month, #r_swm, #r_year,
     #sol, #uv {
         /* 🎨 SMOOTH: Transition animation on value changes */
         transition: all 0.35s cubic-bezier(0.22, 1, 0.36, 1);
@@ -2532,12 +2550,12 @@ body:not(.is-night) .station-summary-metric:nth-child(4) .station-summary-value 
                     
                     <div class="modular-inline-stack">
                         <div class="modular-cell">
-                            <span class="cell-lbl">Weekly</span>
-                            <span id="r_week" class="cell-val">--</span>
-                        </div>
-                        <div class="modular-cell">
                             <span class="cell-lbl">Monthly</span>
                             <span id="r_month" class="cell-val">--</span>
+                        </div>
+                        <div class="modular-cell">
+                            <span class="cell-lbl">SWM</span>
+                            <span id="r_swm" class="cell-val">--</span>
                         </div>
                         <div class="modular-cell">
                             <span class="cell-lbl">Yearly</span>
@@ -3073,8 +3091,8 @@ document.addEventListener('click', function(e) {
                 document.getElementById('needle').style.transform = 'rotate(' + d.wind.deg + 'deg)';
                 liveWindSpeed = d.wind.speed; liveWindDeg = d.wind.deg;
                 
-                document.getElementById('r_week').innerText = d.rain.weekly + ' mm';
                 document.getElementById('r_month').innerText = d.rain.monthly + ' mm';
+                document.getElementById('r_swm').innerText = d.rain.swm + ' mm';
                 document.getElementById('r_year').innerText = d.rain.yearly + ' mm';
                 const pTrend = d.atmo.pTrend;
                 if (pTrend >= 0.1) document.getElementById('pIcon').innerHTML = '<span style="color:#ef4444; font-size:14px;">▲</span>';
