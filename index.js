@@ -46,8 +46,8 @@ const STATIONS = {
         appKey: APPLICATION_KEY,
         apiKey: API_KEY,
         mac: MAC,
-        yearlyBaseline: 375.0,
-        // ← ADD THESE 4 LINES:
+        yearlyBaseline: 695.7,
+        swmBaseline: 506.2,
         dataStartYear: 2019,
         dataEndYear: 2026,
         summaryStartYear: 2026,
@@ -56,12 +56,12 @@ const STATIONS = {
     neelangarai: {
         id: 'neelangarai',
         name: 'Neelangarai',
-        type: 'ambient',
+        type: 'ecowitt',
         appKey: NL_APPLICATION_KEY,
         apiKey: NL_API_KEY,
         mac: NL_MAC,
-        yearlyBaseline: 0,
-        // ← ADD THESE 4 LINES:
+        yearlyBaseline: 593.7,
+        swmBaseline: 410.1,
         dataStartYear: 2020,
         dataEndYear: 2026,
         summaryStartYear: 2026,
@@ -75,21 +75,23 @@ const STATIONS = {
         appKey: AYYA_APPLICATION_KEY,
         apiKey: AYYA_API_KEY,
         mac: AYYA_MAC,
-        yearlyBaseline: 0,
+        yearlyBaseline: 804.4,
+        swmBaseline: 642.3,
         dataStartYear: 2020,
         dataEndYear: 2026,
         summaryStartYear: 2026,
         summaryEndYear: 2032,
     },
 
-        sanatorium: {
+    sanatorium: {
         id: 'sanatorium',
         name: 'Sanatorium',
         type: 'ecowitt',
         appKey: SANATORIUM_APPLICATION_KEY,
         apiKey: SANATORIUM_API_KEY,
         mac: SANATORIUM_MAC,
-        yearlyBaseline: 0,
+        yearlyBaseline: 523.9,
+        swmBaseline: 405.2,
         dataStartYear: 2020,
         dataEndYear: 2026,
         summaryStartYear: 2026,
@@ -755,15 +757,20 @@ try {
             atmo: { hum: liveHum, hTrend: humRate, press: livePress, pTrend: pressRate, sol: r.solar, uv: r.uv },
             wind: { speed: liveWind, gust: liveGust, maxS: mx_w, maxSTime: mx_w_t, maxG: mx_g, maxGTime: mx_g_t, deg: r.windDeg, card: getCard(r.windDeg) },
             rain: (() => {
-    let yearlyMm = Math.round((Math.round(r.yearlyIn * 2540) / 100 +
-    (station.id === 'kknagar' ? 494.8 :
-     station.id === 'ayyapakkam' ? 257.02 : 0)) * 100) / 100;
+    let yearlyMm = Math.round(r.yearlyIn * 2540) / 100;
+    
+    // Calculate SWM (Southwest Monsoon)
+    // Formula: SWM = SWM_Baseline + (API_Yearly - Yearly_Baseline)
+    let swmValue = station.swmBaseline + (yearlyMm - station.yearlyBaseline);
+    swmValue = Math.round(swmValue * 100) / 100; // Round to 2 decimals
+    
     return {
     total:   Math.round(r.dailyIn  * 2540) / 100,
     rate:    liveRR,
     maxR:    mx_r,
     maxRTime: mx_r_t,
-    weekly:  Math.round(r.weeklyIn  * 2540) / 100,
+    // weekly:  Math.round(r.weeklyIn  * 2540) / 100,  // ← COMMENTED OUT
+    swm:     swmValue,  // ← ADDED: SWM instead of weekly
     monthly: Math.round(r.monthlyIn * 2540) / 100,
     yearly:  yearlyMm,
 };
@@ -2532,8 +2539,8 @@ body:not(.is-night) .station-summary-metric:nth-child(4) .station-summary-value 
                     
                     <div class="modular-inline-stack">
                         <div class="modular-cell">
-                            <span class="cell-lbl">Weekly</span>
-                            <span id="r_week" class="cell-val">--</span>
+                            <span class="cell-lbl">SWM</span>
+                            <span id="r_swm" class="cell-val">--</span>
                         </div>
                         <div class="modular-cell">
                             <span class="cell-lbl">Monthly</span>
@@ -3073,7 +3080,7 @@ document.addEventListener('click', function(e) {
                 document.getElementById('needle').style.transform = 'rotate(' + d.wind.deg + 'deg)';
                 liveWindSpeed = d.wind.speed; liveWindDeg = d.wind.deg;
                 
-                document.getElementById('r_week').innerText = d.rain.weekly + ' mm';
+                document.getElementById('r_swm').innerText = d.rain.swm + ' mm';
                 document.getElementById('r_month').innerText = d.rain.monthly + ' mm';
                 document.getElementById('r_year').innerText = d.rain.yearly + ' mm';
                 const pTrend = d.atmo.pTrend;
