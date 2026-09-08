@@ -758,17 +758,17 @@ try {
      station.id === 'ayyapakkam' ? 257.02 : 0)) * 100) / 100;
 
     const swmBaseline = {
-        kknagar: 506.2,
+        kknagar: 519.7,
         ayyapakkam: 642.3,
         neelangarai: 410.1,
         sanatorium: 405.2
     };
 
     const yearlyBaseline = {
-        kknagar: 709.2,
-        ayyapakkam: 804.4,
-        neelangarai: 593.7,
-        sanatorium: 523.9
+        kknagar: 214.4,
+        ayyapakkam: 547.37,
+        neelangarai: 593.6,
+        sanatorium: 529.3
     };
 
     // SWM = station SWM baseline + raw yearly API rainfall - station yearly baseline.
