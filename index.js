@@ -363,7 +363,7 @@ async function bufferOnlyUpdate(station) {
         // 2. Wind & temp peak buffering
         if (buf.tW === null || apiW > buf.bufW) { buf.bufW = apiW; buf.tW = currentTimeStamp; }
         if (buf.tG === null || apiG > buf.bufG) { buf.bufG = apiG; buf.tG = currentTimeStamp; }
-        if (buf.tMaxT === null || apiT > buf.bufMaxT) { buf.bufMaxT = apiT; buf.tMaxT = currentTimeStamp; }
+        if (buf.tMaxT === null || apiT > buf.bufMaxT) { buf.bufMaxT = apiT; buf.tMaxT = currentTimeStamp; }  // ← Now stores in Celsius
         if (buf.tMinT === null || apiT < buf.bufMinT) { buf.bufMinT = apiT; buf.tMinT = currentTimeStamp; }
 
         await saveBufferState(station, buf);
@@ -485,7 +485,7 @@ async function syncWithEcowitt(station, forceWrite = false) {
             if (liveGust > st.cachedData.wind.maxG) { st.cachedData.wind.maxG = liveGust; st.cachedData.wind.maxGTime = fmtL(); }
             if (liveRR > st.cachedData.rain.maxR) { st.cachedData.rain.maxR = liveRR; st.cachedData.rain.maxRTime = fmtL(); }
 
-            if (buf.bufMaxT !== -999) { const v = parseFloat(((buf.bufMaxT-32)*5/9).toFixed(1)); if (v > st.cachedData.temp.max) { st.cachedData.temp.max = v; st.cachedData.temp.maxTime = fmtIso(buf.tMaxT); } }
+            if (buf.bufMaxT !== -999) { if (buf.bufMaxT > st.cachedData.temp.max) { st.cachedData.temp.max = buf.bufMaxT; st.cachedData.temp.maxTime = fmtIso(buf.tMaxT); } }
             if (buf.bufMinT !== 999)  { const v = parseFloat(((buf.bufMinT-32)*5/9).toFixed(1)); if (v < st.cachedData.temp.min) { st.cachedData.temp.min = v; st.cachedData.temp.minTime = fmtIso(buf.tMinT); } }
             if (buf.bufW > 0) { const v = parseFloat((buf.bufW*1.60934).toFixed(1)); if (v > st.cachedData.wind.maxS) { st.cachedData.wind.maxS = v; st.cachedData.wind.maxSTime = fmtIso(buf.tW); } }
             if (buf.bufG > 0) { const v = parseFloat((buf.bufG*1.60934).toFixed(1)); if (v > st.cachedData.wind.maxG) { st.cachedData.wind.maxG = v; st.cachedData.wind.maxGTime = fmtIso(buf.tG); } }
@@ -742,8 +742,8 @@ try {
             tMaxT: writerBufForRR.tMaxT, tMinT: writerBufForRR.tMinT,
             tW: writerBufForRR.tW, tG: writerBufForRR.tG, tRR: writerBufForRR.tRR
         };
-        if (source.maxT !== -999 && source.maxT !== undefined) { const v = parseFloat(((source.maxT-32)*5/9).toFixed(1)); if (v > mx_t) { mx_t = v; mx_t_time = fmtIso(source.tMaxT); } }
-        if (source.minT !==  999 && source.minT !== undefined) { const v = parseFloat(((source.minT-32)*5/9).toFixed(1)); if (v < mn_t) { mn_t = v; mn_t_time = fmtIso(source.tMinT); } }
+        if (source.maxT !== -999 && source.maxT !== undefined) { if (source.maxT > mx_t) { mx_t = source.maxT; mx_t_time = fmtIso(source.tMaxT); } }
+        if (source.minT !==  999 && source.minT !== undefined) { if (source.minT < mn_t) { mn_t = source.minT; mn_t_time = fmtIso(source.tMinT); } }
         if (source.w > 0) { const v = parseFloat((source.w*1.60934).toFixed(1)); if (v > mx_w) { mx_w = v; mx_w_t = fmtIso(source.tW); } }
         if (source.g > 0) { const v = parseFloat((source.g*1.60934).toFixed(1)); if (v > mx_g) { mx_g = v; mx_g_t = fmtIso(source.tG); } }
         if (source.rr > 0) { const v = parseFloat((source.rr*25.4).toFixed(1)); if (v > mx_r) { mx_r = v; mx_r_t = fmtIso(source.tRR); } }
