@@ -2388,9 +2388,15 @@ body:not(.is-night) .station-summary-metric:nth-child(4) .station-summary-value 
     white-space: nowrap;
     opacity: 0.7;
 }
+
+/* Restore hierarchy for daily extremes and the 24H Summary without returning
+   the whole dashboard to the former heavy-weight look. */
+#mx, #mn { font-size: 22px !important; font-weight: 600 !important; }
+.pro-val { font-size: 22px; font-weight: 600 !important; }
 @media screen and (max-width: 767px) {
     .main-val { font-size: clamp(34px, 10vw, 42px); }
-    #mx, #mn { font-size: clamp(15px, 4.5vw, 19px) !important; }
+    #mx, #mn { font-size: clamp(16px, 5.1vw, 21px) !important; }
+    .pro-val { font-size: clamp(15px, 4.8vw, 19px); }
     .time-mark { margin-left: 7px; font-size: 9px; }
 }
 
