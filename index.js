@@ -384,7 +384,7 @@ async function bufferOnlyUpdate(station) {
 async function syncWithEcowitt(station, forceWrite = false) {
     const now = Date.now();
     const st = stationState[station.id];
-    const fmtL = () => new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' });
+    const fmtL = () => new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' });
     const nowIST = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" }));
     const todayISTStr = nowIST.toLocaleDateString('en-CA');
     const hour = nowIST.getHours();
@@ -477,7 +477,7 @@ async function syncWithEcowitt(station, forceWrite = false) {
             st.cachedData.rain.total = Math.round(r.dailyIn * 2540) / 100;
             st.cachedData.rain.rate = liveRR;
 
-            const fmtIso = (iso) => iso ? new Date(iso).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' }) : fmtL();
+            const fmtIso = (iso) => iso ? new Date(iso).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' }) : fmtL();
 
             if (liveTemp > st.cachedData.temp.max) { st.cachedData.temp.max = liveTemp; st.cachedData.temp.maxTime = fmtL(); }
             if (liveTemp < st.cachedData.temp.min) { st.cachedData.temp.min = liveTemp; st.cachedData.temp.minTime = fmtL(); }
@@ -671,7 +671,7 @@ try {
                 let closestDiff = Infinity;
 
                 historyRes.rows.forEach(row => {
-                    const fmt = (iso) => new Date(iso || row.time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' });
+                    const fmt = (iso) => new Date(iso || row.time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' });
                     const r_max_t = parseFloat(((row.temp_f - 32) * 5/9).toFixed(1));
                     const r_min_t = parseFloat(((row.temp_min_f - 32) * 5/9).toFixed(1));
                     const r_w    = parseFloat((row.wind_speed_mph * 1.60934).toFixed(1));
@@ -708,7 +708,7 @@ try {
         const writerBufForRR = await loadBufferState(station);
         const liveRR = toMillimetresPerHour(writerBufForRR.lastCalculatedRate);
 
-        const fmtIso = (iso) => iso ? new Date(iso).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' }) : fmtL();
+        const fmtIso = (iso) => iso ? new Date(iso).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' }) : fmtL();
 
         if (mx_t === -999) { mx_t = liveTemp; mx_t_time = fmtL(); }
         if (mn_t ===  999) { mn_t = liveTemp; mn_t_time = fmtL(); }
@@ -844,7 +844,7 @@ async function getRainStatus(station) {
         ]);
 
         const formatTime = (iso) => iso ? new Date(iso).toLocaleTimeString('en-IN', {
-            hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Kolkata'
+            hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Kolkata'
         }) : null;
         const currentRate = toMillimetresPerHour(buffer.lastCalculatedRate);
         const dbPeak = historyRes.rows[0];
@@ -2358,6 +2358,40 @@ body:not(.is-night) .station-summary-metric:nth-child(4) .station-summary-value 
 #tab-hist[hidden] { display: none !important; }
 @media screen and (max-width: 767px) {
     .container > .nav-tabs.history-unavailable { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+/* Summary-inspired live values: lighter, calmer, and easier to scan. */
+.main-val,
+.main-val span,
+.cell-val,
+.pod-val,
+.pro-val,
+#mx, #mn, #mw, #mg,
+#r_rate, #mr, #rf, #h_val, #d_val,
+#r_month, #r_swm, #r_year,
+#sol, #uv {
+    font-family: 'Sora', 'Outfit', sans-serif !important;
+    font-weight: 500 !important;
+    letter-spacing: -1.1px;
+}
+.main-val { font-size: clamp(44px, 4.2vw, 52px); letter-spacing: -2.5px; }
+.unit { font-family: 'Sora', 'Outfit', sans-serif; font-weight: 500; }
+#mx, #mn { font-size: 20px !important; }
+.cell-val { font-size: 14px; }
+
+/* Peak times retain hierarchy without crowding the measurement. */
+.time-mark {
+    margin-left: 9px;
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0;
+    white-space: nowrap;
+    opacity: 0.7;
+}
+@media screen and (max-width: 767px) {
+    .main-val { font-size: clamp(34px, 10vw, 42px); }
+    #mx, #mn { font-size: clamp(15px, 4.5vw, 19px) !important; }
+    .time-mark { margin-left: 7px; font-size: 9px; }
 }
 
 </style>
