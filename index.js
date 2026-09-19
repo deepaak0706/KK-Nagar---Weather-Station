@@ -975,6 +975,11 @@ app.get("/api/history_graphs", async (req, res) => {
 app.get('/api/historical-rain', async (req, res) => {
     const { year } = req.query;
     if (!year) return res.status(400).json({ error: "Year is required" });
+    // This archive table contains KK Nagar data only. Keep the data boundary
+    // explicit so another station can never be shown KK Nagar's history.
+    if ((req.query.station || 'kknagar').toLowerCase() !== 'kknagar') {
+        return res.status(404).json({ error: 'Historical rainfall is available for KK Nagar only.' });
+    }
 
     try {
         const result = await pool.query(
@@ -2349,6 +2354,61 @@ body:not(.is-night) .station-summary-card:nth-child(4) .station-summary-name { c
 body:not(.is-night) .station-summary-metric:nth-child(4) .station-summary-label,
 body:not(.is-night) .station-summary-metric:nth-child(4) .station-summary-value { color: #db2777; }
 
+/* Quiet glass dashboard — shared polish for Live, Monthly and Historical. */
+.card,
+.graph-card,
+.pro-summary-table,
+.archive-container > div:first-child,
+#historical-content .archive-container > div:first-child {
+    background: linear-gradient(145deg, color-mix(in srgb, var(--card) 94%, white 6%), var(--card)) !important;
+    border: 1px solid color-mix(in srgb, var(--border) 82%, transparent) !important;
+    box-shadow: 0 18px 40px -30px rgba(15, 23, 42, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.42) !important;
+    backdrop-filter: blur(22px) saturate(118%);
+    -webkit-backdrop-filter: blur(22px) saturate(118%);
+}
+body.is-night .card,
+body.is-night .graph-card,
+body.is-night .pro-summary-table,
+body.is-night .archive-container > div:first-child,
+body.is-night #historical-content .archive-container > div:first-child {
+    background: linear-gradient(145deg, rgba(20, 30, 48, 0.92), rgba(14, 22, 37, 0.88)) !important;
+    border-color: rgba(148, 163, 184, 0.16) !important;
+    box-shadow: 0 22px 46px -34px rgba(0, 0, 0, 0.9), inset 0 1px 0 rgba(255, 255, 255, 0.045) !important;
+}
+.grid-system .card,
+.grid-system .card:nth-child(n) { border-top: 1px solid color-mix(in srgb, var(--border) 82%, transparent) !important; }
+.grid-system .card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    background: linear-gradient(125deg, rgba(56, 189, 248, 0.07), transparent 28%, transparent 72%, rgba(99, 102, 241, 0.05));
+    opacity: 0.75;
+}
+.grid-system .card:hover { transform: translateY(-2px) !important; }
+.header h1 { font-weight: 700; letter-spacing: -0.8px; }
+.label { font-weight: 700; letter-spacing: 1.35px; }
+.nav-tabs { gap: 10px; }
+.tab-btn { border-radius: 12px; font-weight: 600; box-shadow: none; }
+.tab-btn.active { transform: none; box-shadow: 0 10px 24px -18px rgba(14, 165, 233, 0.85); }
+.graphs-wrapper { gap: 16px; }
+.graph-card { border-radius: 20px; }
+.pro-summary-table { border-radius: 18px; }
+.pro-row { border-bottom-color: color-mix(in srgb, var(--border) 68%, transparent); }
+.archive-container { max-width: 1120px; margin: 0 auto; }
+.archive-container [style*="background: var(--card)"] { border-color: color-mix(in srgb, var(--border) 72%, transparent) !important; }
+.archive-container button { border-radius: 10px !important; font-family: inherit; font-weight: 600 !important; }
+#tab-hist[hidden] { display: none !important; }
+@media screen and (max-width: 767px) {
+    .container > .nav-tabs.history-unavailable { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .grid-system .card,
+    .grid-system .card:nth-child(n) { border-top: none !important; }
+    .grid-system .card::before { display: none; }
+    .archive-container > div:first-child,
+    #historical-content .archive-container > div:first-child { border-radius: 16px !important; }
+}
+
 </style>
 </head>
 <body>
@@ -2834,6 +2894,7 @@ function switchStation(id) {
     id === 'ayyapakkam' ? 'Ayyapakkam Weather Station' :
     'Sanatorium Weather Station';
 
+    updateHistoricalTabAvailability();
     closeStationMenu();
     graphDataLoaded = false;
     if (isStationSummaryRoute()) {
@@ -2841,6 +2902,24 @@ function switchStation(id) {
         return;
     }
     update();
+}
+
+function updateHistoricalTabAvailability() {
+    const historicalTab = document.getElementById('tab-hist');
+    const historicalPage = document.getElementById('page-historical');
+    const tabs = document.querySelector('.container > .nav-tabs');
+    const isKKNagar = currentStation === 'kknagar';
+    if (!historicalTab || !tabs) return;
+
+    historicalTab.hidden = !isKKNagar;
+    historicalTab.setAttribute('aria-hidden', String(!isKKNagar));
+    tabs.classList.toggle('history-unavailable', !isKKNagar);
+
+    // A station can be changed while this page is open. Return to the live
+    // dashboard instead of leaving an unavailable KK Nagar archive visible.
+    if (!isKKNagar && historicalPage && historicalPage.style.display !== 'none') {
+        showPage('dashboard');
+    }
 }
 
 function toggleStationMenu() {
@@ -3149,6 +3228,9 @@ document.addEventListener('click', function(e) {
         });
 
         function showPage(pageId) {
+    if (pageId === 'historical' && currentStation !== 'kknagar') {
+        pageId = 'dashboard';
+    }
     document.body.classList.remove('station-summary-active');
     // 1. Toggle visibility of the three pages
     document.getElementById('page-dashboard').style.display = pageId === 'dashboard' ? 'block' : 'none';
