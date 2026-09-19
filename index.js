@@ -2409,6 +2409,29 @@ body.is-night #historical-content .archive-container > div:first-child {
     #historical-content .archive-container > div:first-child { border-radius: 16px !important; }
 }
 
+/* Variant B: the Station Summary's quieter Sora numerals on the live dashboard. */
+.main-val,
+.main-val span,
+.cell-val,
+.pod-val,
+.pro-val,
+#mx, #mn, #mw, #mg,
+#r_rate, #mr, #rf, #h_val, #d_val,
+#r_month, #r_swm, #r_year,
+#sol, #uv {
+    font-family: 'Sora', 'Outfit', sans-serif !important;
+    font-weight: 500 !important;
+    letter-spacing: -1.1px;
+}
+.main-val { font-size: clamp(44px, 4.2vw, 52px); letter-spacing: -2.5px; }
+.unit { font-family: 'Sora', 'Outfit', sans-serif; font-weight: 500; }
+#mx, #mn { font-size: 20px !important; }
+.cell-val { font-size: 14px; }
+@media screen and (max-width: 767px) {
+    .main-val { font-size: clamp(34px, 10vw, 42px); }
+    #mx, #mn { font-size: clamp(15px, 4.5vw, 19px) !important; }
+}
+
 </style>
 </head>
 <body>
