@@ -975,8 +975,8 @@ app.get("/api/history_graphs", async (req, res) => {
 app.get('/api/historical-rain', async (req, res) => {
     const { year } = req.query;
     if (!year) return res.status(400).json({ error: "Year is required" });
-    // This archive table contains KK Nagar data only. Keep the data boundary
-    // explicit so another station can never be shown KK Nagar's history.
+    // Historical rainfall is currently a KK Nagar-only archive. Do not return
+    // KK Nagar records when another station is selected or requested directly.
     if ((req.query.station || 'kknagar').toLowerCase() !== 'kknagar') {
         return res.status(404).json({ error: 'Historical rainfall is available for KK Nagar only.' });
     }
@@ -2354,82 +2354,10 @@ body:not(.is-night) .station-summary-card:nth-child(4) .station-summary-name { c
 body:not(.is-night) .station-summary-metric:nth-child(4) .station-summary-label,
 body:not(.is-night) .station-summary-metric:nth-child(4) .station-summary-value { color: #db2777; }
 
-/* Quiet glass dashboard — shared polish for Live, Monthly and Historical. */
-.card,
-.graph-card,
-.pro-summary-table,
-.archive-container > div:first-child,
-#historical-content .archive-container > div:first-child {
-    background: linear-gradient(145deg, color-mix(in srgb, var(--card) 94%, white 6%), var(--card)) !important;
-    border: 1px solid color-mix(in srgb, var(--border) 82%, transparent) !important;
-    box-shadow: 0 18px 40px -30px rgba(15, 23, 42, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.42) !important;
-    backdrop-filter: blur(22px) saturate(118%);
-    -webkit-backdrop-filter: blur(22px) saturate(118%);
-}
-body.is-night .card,
-body.is-night .graph-card,
-body.is-night .pro-summary-table,
-body.is-night .archive-container > div:first-child,
-body.is-night #historical-content .archive-container > div:first-child {
-    background: linear-gradient(145deg, rgba(20, 30, 48, 0.92), rgba(14, 22, 37, 0.88)) !important;
-    border-color: rgba(148, 163, 184, 0.16) !important;
-    box-shadow: 0 22px 46px -34px rgba(0, 0, 0, 0.9), inset 0 1px 0 rgba(255, 255, 255, 0.045) !important;
-}
-.grid-system .card,
-.grid-system .card:nth-child(n) { border-top: 1px solid color-mix(in srgb, var(--border) 82%, transparent) !important; }
-.grid-system .card::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    border-radius: inherit;
-    pointer-events: none;
-    background: linear-gradient(125deg, rgba(56, 189, 248, 0.07), transparent 28%, transparent 72%, rgba(99, 102, 241, 0.05));
-    opacity: 0.75;
-}
-.grid-system .card:hover { transform: translateY(-2px) !important; }
-.header h1 { font-weight: 700; letter-spacing: -0.8px; }
-.label { font-weight: 700; letter-spacing: 1.35px; }
-.nav-tabs { gap: 10px; }
-.tab-btn { border-radius: 12px; font-weight: 600; box-shadow: none; }
-.tab-btn.active { transform: none; box-shadow: 0 10px 24px -18px rgba(14, 165, 233, 0.85); }
-.graphs-wrapper { gap: 16px; }
-.graph-card { border-radius: 20px; }
-.pro-summary-table { border-radius: 18px; }
-.pro-row { border-bottom-color: color-mix(in srgb, var(--border) 68%, transparent); }
-.archive-container { max-width: 1120px; margin: 0 auto; }
-.archive-container [style*="background: var(--card)"] { border-color: color-mix(in srgb, var(--border) 72%, transparent) !important; }
-.archive-container button { border-radius: 10px !important; font-family: inherit; font-weight: 600 !important; }
+/* Station-aware navigation: only KK Nagar has a historical archive today. */
 #tab-hist[hidden] { display: none !important; }
 @media screen and (max-width: 767px) {
     .container > .nav-tabs.history-unavailable { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-    .grid-system .card,
-    .grid-system .card:nth-child(n) { border-top: none !important; }
-    .grid-system .card::before { display: none; }
-    .archive-container > div:first-child,
-    #historical-content .archive-container > div:first-child { border-radius: 16px !important; }
-}
-
-/* Variant B: the Station Summary's quieter Sora numerals on the live dashboard. */
-.main-val,
-.main-val span,
-.cell-val,
-.pod-val,
-.pro-val,
-#mx, #mn, #mw, #mg,
-#r_rate, #mr, #rf, #h_val, #d_val,
-#r_month, #r_swm, #r_year,
-#sol, #uv {
-    font-family: 'Sora', 'Outfit', sans-serif !important;
-    font-weight: 500 !important;
-    letter-spacing: -1.1px;
-}
-.main-val { font-size: clamp(44px, 4.2vw, 52px); letter-spacing: -2.5px; }
-.unit { font-family: 'Sora', 'Outfit', sans-serif; font-weight: 500; }
-#mx, #mn { font-size: 20px !important; }
-.cell-val { font-size: 14px; }
-@media screen and (max-width: 767px) {
-    .main-val { font-size: clamp(34px, 10vw, 42px); }
-    #mx, #mn { font-size: clamp(15px, 4.5vw, 19px) !important; }
 }
 
 </style>
@@ -2938,8 +2866,8 @@ function updateHistoricalTabAvailability() {
     historicalTab.setAttribute('aria-hidden', String(!isKKNagar));
     tabs.classList.toggle('history-unavailable', !isKKNagar);
 
-    // A station can be changed while this page is open. Return to the live
-    // dashboard instead of leaving an unavailable KK Nagar archive visible.
+    // If a user changes station while viewing history, never leave the KK
+    // Nagar-only archive on screen for the newly selected station.
     if (!isKKNagar && historicalPage && historicalPage.style.display !== 'none') {
         showPage('dashboard');
     }
