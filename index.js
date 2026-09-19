@@ -2393,10 +2393,21 @@ body:not(.is-night) .station-summary-metric:nth-child(4) .station-summary-value 
    the whole dashboard to the former heavy-weight look. */
 #mx, #mn { font-size: 22px !important; font-weight: 600 !important; }
 .pro-val { font-size: 22px; font-weight: 600 !important; }
+
+/* Give secondary metrics a little more breathing room on compact screens. */
+.modular-inline-stack { gap: 8px; }
+.modular-cell { padding: 17px 10px; }
+.cell-lbl { margin-bottom: 6px; }
+#rf, #h_val, #d_val, #mw, #mg {
+    font-size: 16px;
+    font-weight: 600 !important;
+    letter-spacing: -0.55px;
+}
 @media screen and (max-width: 767px) {
     .main-val { font-size: clamp(34px, 10vw, 42px); }
     #mx, #mn { font-size: clamp(16px, 5.1vw, 21px) !important; }
     .pro-val { font-size: clamp(15px, 4.8vw, 19px); }
+    #rf, #h_val, #d_val, #mw, #mg { font-size: clamp(15px, 4.3vw, 17px); }
     .time-mark { margin-left: 7px; font-size: 9px; }
 }
 
