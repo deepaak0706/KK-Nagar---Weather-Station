@@ -2803,7 +2803,11 @@ function navigateDashboardNav(destination) {
 
 function formatStationSummaryValue(value, unit) {
     const numeric = Number(value);
-    return value === null || value === undefined || !Number.isFinite(numeric) ? '—' : numeric.toFixed(1) + unit;
+    if (value === null || value === undefined || !Number.isFinite(numeric)) return '—';
+    // Keep inactive rain-rate values visually quiet and consistent. Once rain
+    // starts, retain one decimal place for the actual calculated rate.
+    if (unit === ' mm/h' && numeric === 0) return '0' + unit;
+    return numeric.toFixed(1) + unit;
 }
 
 function renderStationSummaryCards(records) {
@@ -3105,7 +3109,8 @@ document.addEventListener('click', function(e) {
             const peak = Number(maxRate) || 0;
             const rateElement = document.getElementById('r_rate');
             const maxElement = document.getElementById('mr');
-            if (rateElement) rateElement.innerHTML = current.toFixed(1) + '<span style="font-size:11px; font-weight:600; color:var(--muted); margin-left:3px;">mm/h</span>';
+            const currentText = current > 0 ? current.toFixed(1) : '0';
+            if (rateElement) rateElement.innerHTML = currentText + '<span style="font-size:11px; font-weight:600; color:var(--muted); margin-left:3px;">mm/h</span>';
             if (maxElement) {
                 maxElement.innerHTML = peak > 0
                     ? peak.toFixed(1) + '<span style="font-size:11px; font-weight:600; color:var(--muted); margin-left:3px;">mm/h</span> <span style="font-size:9px; color:var(--muted); font-weight:500; opacity:0.75;">' + (maxRateTime || '') + '</span>'
