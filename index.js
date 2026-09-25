@@ -2567,16 +2567,23 @@ body:not(.is-night) .station-summary-radar-card.is-rain-leader { background: rad
     .station-summary-rain-core { width: 114px; }
 }
 
-/* Balanced rain radar: a compact centrepiece with a laser divider, not a detached capsule. */
+/* Option A: equal temperature and rain readings on one aligned, laser-guided grid. */
 .station-summary-radar-card { padding: clamp(19px, 2vw, 25px); }
 .station-summary-radar-main {
     grid-template-columns: minmax(0, 1fr) 1px minmax(0, 1fr);
     align-items: center;
-    min-height: 108px;
+    min-height: 94px;
     gap: clamp(18px, 2.6vw, 32px);
     margin: 18px 0 16px;
 }
-.station-summary-temp-readout { justify-content: center; }
+.station-summary-temp-readout,
+.station-summary-rain-core {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-self: stretch;
+    min-width: 0;
+}
 .station-summary-temp-rain-divider {
     align-self: stretch;
     width: 1px;
@@ -2584,36 +2591,76 @@ body:not(.is-night) .station-summary-radar-card.is-rain-leader { background: rad
     box-shadow: 0 0 11px rgba(56, 189, 248, 0.25);
 }
 .station-summary-rain-core {
-    justify-self: center;
-    width: 106px;
-    height: 106px;
+    position: static;
+    justify-self: stretch;
+    width: auto;
+    height: auto;
     overflow: visible;
     border: 0;
-    border-radius: 50%;
-    background: linear-gradient(145deg, #65e4ff, #278fea);
-    box-shadow: 0 0 0 1px rgba(105, 225, 255, 0.25), 0 0 22px rgba(56, 189, 248, 0.19);
+    border-radius: 0;
+    background: none;
+    box-shadow: none;
 }
-.station-summary-rain-core::before { content: ''; position: absolute; inset: 5px; border-radius: inherit; background: var(--card); }
-.station-summary-rain-core::after { content: ''; position: absolute; inset: 14px; border: 1px solid rgba(116, 223, 255, 0.17); border-radius: inherit; background: none; }
-.station-summary-rain-label { top: 29px; left: auto; color: #91c4df; }
-.station-summary-rain-value { margin: 14px 0 0; font-size: 32px; }
-.station-summary-rain-value small { display: block; margin-top: 3px; color: var(--muted); font-size: 10px; letter-spacing: .04em; text-align: center; }
-.station-summary-radar-rates { padding-top: 12px; }
-@media screen and (min-width: 768px) { .station-summary-radar-card { min-height: 276px; } }
+.station-summary-rain-core::before,
+.station-summary-rain-core::after { display: none; }
+.station-summary-rain-label {
+    position: static;
+    color: #91c4df;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+}
+.station-summary-rain-value {
+    position: static;
+    display: block;
+    margin: 7px 0 0;
+    color: #50d5ff;
+    font-size: clamp(36px, 3.4vw, 49px);
+    font-weight: 500;
+    letter-spacing: -2.8px;
+    line-height: .95;
+    white-space: nowrap;
+}
+.station-summary-rain-value small {
+    display: inline;
+    margin: 0 0 0 2px;
+    color: #9eb5ce;
+    font-size: 15px;
+    font-weight: 500;
+    letter-spacing: -.4px;
+    text-align: left;
+}
+.station-summary-radar-rates {
+    position: relative;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    margin-top: 0;
+    padding-top: 14px;
+    border-top: 1px solid rgba(119, 158, 198, .18);
+}
+.station-summary-radar-rates::after {
+    content: '';
+    position: absolute;
+    top: 14px;
+    bottom: 0;
+    left: 50%;
+    width: 1px;
+    background: linear-gradient(to bottom, rgba(113, 221, 255, .48), transparent);
+}
+.station-summary-radar-rate + .station-summary-radar-rate { padding-left: clamp(18px, 2.6vw, 32px); }
+@media screen and (min-width: 768px) { .station-summary-radar-card { min-height: 252px; } }
 @media screen and (max-width: 767px) {
     .station-summary-radar-card { padding: 16px 18px; }
-    .station-summary-radar-main { grid-template-columns: minmax(0, 1fr) 1px minmax(0, 1fr); min-height: 92px; gap: 14px; margin: 13px 0 11px; }
-    .station-summary-temp-value { font-size: clamp(34px, 9.4vw, 40px); }
-    .station-summary-rain-core { width: 90px; height: 90px; }
-    .station-summary-rain-label { top: 24px; }
-    .station-summary-rain-value { margin-top: 12px; font-size: 28px; }
+    .station-summary-radar-main { min-height: 78px; gap: 14px; margin: 13px 0 11px; }
+    .station-summary-temp-value,
+    .station-summary-rain-value { font-size: clamp(34px, 9.4vw, 40px); }
     .station-summary-radar-rates { padding-top: 10px; }
+    .station-summary-radar-rates::after { top: 10px; }
+    .station-summary-radar-rate + .station-summary-radar-rate { padding-left: 16px; }
 }
 @media screen and (max-width: 360px) {
     .station-summary-radar-main { gap: 10px; }
-    .station-summary-rain-core { width: 82px; height: 82px; }
-    .station-summary-rain-label { top: 21px; }
-    .station-summary-rain-value { margin-top: 10px; font-size: 25px; }
+    .station-summary-radar-rate + .station-summary-radar-rate { padding-left: 12px; }
 }
 
 /* Station-aware navigation: only KK Nagar has a historical archive today. */
