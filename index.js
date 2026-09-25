@@ -2593,6 +2593,7 @@ body:not(.is-night) .station-summary-radar-card.is-rain-leader { background: rad
 .station-summary-rain-core {
     position: static;
     justify-self: stretch;
+    align-items: flex-start;
     width: auto;
     height: auto;
     overflow: visible;
@@ -2605,6 +2606,7 @@ body:not(.is-night) .station-summary-radar-card.is-rain-leader { background: rad
 .station-summary-rain-core::after { display: none; }
 .station-summary-rain-label {
     position: static;
+    text-align: left;
     color: #91c4df;
     font-size: 10px;
     font-weight: 700;
@@ -2620,6 +2622,7 @@ body:not(.is-night) .station-summary-radar-card.is-rain-leader { background: rad
     font-weight: 500;
     letter-spacing: -2.8px;
     line-height: .95;
+    text-align: left;
     white-space: nowrap;
 }
 .station-summary-rain-value small {
@@ -2648,6 +2651,7 @@ body:not(.is-night) .station-summary-radar-card.is-rain-leader { background: rad
     background: linear-gradient(to bottom, rgba(113, 221, 255, .48), transparent);
 }
 .station-summary-radar-rate + .station-summary-radar-rate { padding-left: clamp(18px, 2.6vw, 32px); }
+.station-summary-radar-rate.max { border-left: 0; }
 @media screen and (min-width: 768px) { .station-summary-radar-card { min-height: 252px; } }
 @media screen and (max-width: 767px) {
     .station-summary-radar-card { padding: 16px 18px; }
