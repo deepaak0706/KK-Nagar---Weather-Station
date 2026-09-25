@@ -2533,6 +2533,40 @@ body:not(.is-night) .station-summary-radar-card.is-rain-leader { background: rad
     .station-summary-rain-value { font-size: 31px; }
 }
 
+/* Compact rainfall beacon: a quieter alternative to the oversized radar ring. */
+.station-summary-radar-card { padding: clamp(19px, 1.8vw, 24px); }
+.station-summary-radar-main { grid-template-columns: minmax(132px, 1fr) minmax(142px, .8fr); min-height: 96px; gap: clamp(22px, 3vw, 46px); margin: 18px 0 17px; }
+.station-summary-rain-core {
+    justify-self: end;
+    width: clamp(132px, 11vw, 156px);
+    height: 94px;
+    overflow: hidden;
+    border: 1px solid rgba(86, 214, 255, 0.27);
+    border-radius: 17px;
+    background: linear-gradient(135deg, rgba(31, 123, 202, 0.24), rgba(22, 41, 70, 0.78));
+    box-shadow: inset 0 1px 0 rgba(129, 232, 255, 0.12), 0 10px 22px -17px rgba(56, 189, 248, 0.6);
+}
+.station-summary-rain-core::before { content: ''; position: absolute; inset: 0; border-radius: inherit; background: linear-gradient(90deg, rgba(68, 213, 255, 0.2), transparent 48%); }
+.station-summary-rain-core::after { content: ''; position: absolute; right: 12px; bottom: 11px; left: 12px; height: 2px; border: 0; border-radius: 999px; background: linear-gradient(90deg, #2597e9, #62e3ff, rgba(98, 227, 255, 0.1)); }
+.station-summary-rain-label { top: 16px; left: 15px; color: #9ddaf0; }
+.station-summary-rain-value { margin: 27px 0 0; font-size: clamp(30px, 3vw, 39px); }
+.station-summary-rain-value small { display: inline; margin-left: 3px; color: #a7c7dc; font-size: 11px; letter-spacing: -.1px; }
+.station-summary-radar-rates { padding-top: 14px; }
+@media screen and (min-width: 768px) { .station-summary-radar-card { min-height: 274px; } }
+@media screen and (max-width: 767px) {
+    .station-summary-radar-card { padding: 16px 18px; }
+    .station-summary-radar-main { grid-template-columns: minmax(111px, 1fr) 124px; min-height: 84px; gap: 14px; margin: 14px 0 12px; }
+    .station-summary-rain-core { width: 124px; height: 84px; border-radius: 15px; }
+    .station-summary-rain-label { top: 13px; left: 13px; }
+    .station-summary-rain-value { margin-top: 24px; font-size: 33px; }
+    .station-summary-rain-core::after { right: 11px; bottom: 9px; left: 11px; }
+    .station-summary-radar-rates { padding-top: 11px; }
+}
+@media screen and (max-width: 360px) {
+    .station-summary-radar-main { grid-template-columns: minmax(100px, 1fr) 114px; gap: 10px; }
+    .station-summary-rain-core { width: 114px; }
+}
+
 /* Station-aware navigation: only KK Nagar has a historical archive today. */
 #tab-hist[hidden] { display: none !important; }
 @media screen and (max-width: 767px) {
