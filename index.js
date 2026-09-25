@@ -2495,6 +2495,44 @@ body:not(.is-night) .station-summary-radar-card { background: #fff; border-color
 body:not(.is-night) .station-summary-radar-card.is-rain-leader { background: radial-gradient(330px 180px at 100% 0%, rgba(56, 189, 248, 0.10), transparent 70%), #fff; border-color: #93d8f5; }
 @media screen and (max-width: 767px) { .station-summary-grid { grid-template-columns: 1fr; gap: 12px; } .station-summary-radar-card { padding: 18px; border-radius: 18px; cursor: default; } .station-summary-radar-main { grid-template-columns: 84px minmax(0, 1fr); gap: 15px; margin: 16px 0 14px; } .station-summary-temp-orb { width: 84px; height: 84px; } .station-summary-temp-orb-value { font-size: 20px; } .station-summary-temp-orb-label { top: 52px; } .station-summary-rain-value { font-size: 33px; } .station-summary-radar-rates { gap: 10px; padding-top: 12px; } }
 
+/* Final Radar composition: temperature is readable normally; rainfall owns the circle. */
+.station-summary-radar-card { padding: clamp(22px, 2.2vw, 30px); }
+.station-summary-radar-main { grid-template-columns: minmax(130px, 1fr) minmax(150px, .9fr); gap: clamp(28px, 4vw, 58px); min-height: 130px; margin: clamp(22px, 2.5vw, 32px) 0 22px; }
+.station-summary-temp-orb { display: none; }
+.station-summary-temp-readout { display: flex; flex-direction: column; justify-content: center; min-width: 0; align-self: stretch; }
+.station-summary-temp-label { color: var(--muted); font-size: 10px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; }
+.station-summary-temp-value { display: block; margin-top: 7px; color: var(--text); font-family: 'Sora', 'Outfit', sans-serif; font-size: clamp(36px, 3.4vw, 49px); font-weight: 500; letter-spacing: -2.8px; line-height: .95; white-space: nowrap; }
+.station-summary-temp-value small { color: var(--muted); font-size: 15px; font-weight: 500; letter-spacing: -.4px; }
+.station-summary-rain-core { display: grid; place-items: center; justify-self: end; position: relative; width: clamp(122px, 11vw, 142px); height: clamp(122px, 11vw, 142px); border-radius: 50%; background: linear-gradient(145deg, #65e4ff, #268ce7); box-shadow: 0 0 0 1px rgba(103, 228, 255, .23), 0 0 28px rgba(56, 189, 248, .18); }
+.station-summary-rain-core::before { content: ''; position: absolute; inset: 6px; border-radius: inherit; background: var(--card); }
+.station-summary-rain-core::after { content: ''; position: absolute; inset: 14px; border: 1px solid rgba(116, 223, 255, .16); border-radius: inherit; }
+.station-summary-rain-label { position: absolute; z-index: 1; top: 36px; color: #91c4df; font-size: 9px; font-weight: 700; letter-spacing: .13em; text-transform: uppercase; }
+.station-summary-rain-value { position: relative; z-index: 1; display: block; margin: 14px 0 0; color: #50d5ff; font-size: clamp(32px, 3.2vw, 43px); font-weight: 600; letter-spacing: -2.6px; line-height: 1; }
+.station-summary-rain-value small { display: block; margin-top: 3px; color: var(--muted); font-size: 10px; font-weight: 600; letter-spacing: .04em; text-align: center; }
+.station-summary-radar-rates { gap: clamp(14px, 3vw, 34px); padding-top: 18px; }
+.station-summary-radar-rate { padding-left: 13px; }
+.station-summary-radar-rate-label { font-size: 10px; }
+.station-summary-radar-rate-value { font-size: clamp(22px, 2.2vw, 27px); margin-top: 7px; }
+@media screen and (min-width: 768px) { .station-summary-radar-card { min-height: 338px; } }
+@media screen and (max-width: 767px) {
+    .station-summary-radar-card { padding: 20px; }
+    .station-summary-radar-main { grid-template-columns: minmax(106px, 1fr) 122px; min-height: 122px; gap: 14px; margin: 19px 0 18px; }
+    .station-summary-temp-label { font-size: 9px; }
+    .station-summary-temp-value { font-size: clamp(35px, 10vw, 43px); }
+    .station-summary-rain-core { width: 122px; height: 122px; }
+    .station-summary-rain-label { top: 31px; }
+    .station-summary-rain-value { font-size: 36px; }
+    .station-summary-radar-rates { gap: 12px; padding-top: 15px; }
+    .station-summary-radar-rate { padding-left: 11px; }
+    .station-summary-radar-rate-value { font-size: 22px; }
+}
+@media screen and (max-width: 360px) {
+    .station-summary-radar-main { grid-template-columns: minmax(94px, 1fr) 108px; gap: 9px; }
+    .station-summary-rain-core { width: 108px; height: 108px; }
+    .station-summary-rain-label { top: 27px; }
+    .station-summary-rain-value { font-size: 31px; }
+}
+
 /* Station-aware navigation: only KK Nagar has a historical archive today. */
 #tab-hist[hidden] { display: none !important; }
 @media screen and (max-width: 767px) {
@@ -2991,8 +3029,8 @@ function renderStationSummaryCards(records) {
         const maxRate = formatStationSummaryValue(data.maxRainRate, ' mm/h');
         return '<article class="station-summary-radar-card station-radar-' + data.id + (index === 0 ? ' is-rain-leader' : '') + '" data-station-id="' + data.id + '" role="button" tabindex="0" aria-label="Open ' + data.name + ' dashboard">' +
             '<div class="station-summary-radar-header"><span class="station-summary-rank">0' + (index + 1) + '</span><span class="station-summary-radar-name">' + data.name + '</span><span class="station-summary-radar-live">LIVE</span></div>' +
-            '<div class="station-summary-radar-main"><div class="station-summary-temp-orb"><span class="station-summary-temp-orb-value">' + temperature + '</span><span class="station-summary-temp-orb-label">TEMP</span></div>' +
-                '<div><span class="station-summary-rain-label">Rain</span><span class="station-summary-rain-value">' + rainfallValue.replace(' mm', ' <small>mm</small>') + '</span></div></div>' +
+            '<div class="station-summary-radar-main"><div class="station-summary-temp-readout"><span class="station-summary-temp-label">Temperature</span><span class="station-summary-temp-value">' + temperature.replace('°C', '<small>°C</small>') + '</span></div>' +
+                '<div class="station-summary-rain-core"><span class="station-summary-rain-label">Rain</span><span class="station-summary-rain-value">' + rainfallValue.replace(' mm', '<small>mm</small>') + '</span></div></div>' +
             '<div class="station-summary-radar-rates"><div class="station-summary-radar-rate"><span class="station-summary-radar-rate-label">Current RR</span><span class="station-summary-radar-rate-value">' + currentRate.replace(' mm/h', ' <small>mm/h</small>') + '</span></div>' +
             '<div class="station-summary-radar-rate max"><span class="station-summary-radar-rate-label">Max RR</span><span class="station-summary-radar-rate-value">' + maxRate.replace(' mm/h', ' <small>mm/h</small>') + '</span></div></div></article>';
     });
