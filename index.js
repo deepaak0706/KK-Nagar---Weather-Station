@@ -110,6 +110,7 @@ const stationState = {
         lastArchivedDate: null, dataChangedSinceLastRead: false,
         summaryCache: null, lastSummaryFetchDate: null, lastDateSeen: null,
         yearlyMidnightSnapshot: null,  // ← ADD THIS
+        nemBaseDate: null, nemBaseRainMm: 0,
     },
     neelangarai: { 
         cachedData: null, lastFetchTime: 0, lastDbWrite: 0,
@@ -118,6 +119,7 @@ const stationState = {
         tW: null, tG: null, tMaxT: null, tMinT: null, tRR: null,
         lastArchivedDate: null, dataChangedSinceLastRead: false,
         summaryCache: null, lastSummaryFetchDate: null, lastDateSeen: null,
+        nemBaseDate: null, nemBaseRainMm: 0,
 
     },
 
@@ -129,6 +131,7 @@ const stationState = {
         lastArchivedDate: null, dataChangedSinceLastRead: false,
         summaryCache: null, lastSummaryFetchDate: null, lastDateSeen: null,
         yearlyMidnightSnapshot: null,
+        nemBaseDate: null, nemBaseRainMm: 0,
     },
 
         sanatorium: { 
@@ -139,6 +142,7 @@ const stationState = {
         lastArchivedDate: null, dataChangedSinceLastRead: false,
         summaryCache: null, lastSummaryFetchDate: null, lastDateSeen: null,
         yearlyMidnightSnapshot: null,
+        nemBaseDate: null, nemBaseRainMm: 0,
     },
 };
 
@@ -160,6 +164,94 @@ function keepHigherRainPeak(currentPeakMm, currentPeakTime, candidatePeakMm, can
     return candidate > current
         ? { value: candidate, time: candidatePeakTime || currentPeakTime }
         : { value: current, time: currentPeakTime };
+}
+
+function istDateParts(istDate) {
+    const [year, month, day] = String(istDate).split('-').map(Number);
+    return { year, month, day };
+}
+
+function monthNameFromIstDate(istDate) {
+    const { year, month, day } = istDateParts(istDate);
+    return new Date(Date.UTC(year, month - 1, day)).toLocaleString('en-US', {
+        month: 'long', timeZone: 'UTC'
+    });
+}
+
+function previousIstDate(istDate) {
+    const { year, month, day } = istDateParts(istDate);
+    return new Date(Date.UTC(year, month - 1, day - 1)).toISOString().slice(0, 10);
+}
+
+// The historical_rainfall table is intentionally KK Nagar-only. The monthly
+// value comes from finalized daily records, so it is safe across the provider's
+// midnight reset and safe to run more than once.
+async function maintainKKNagarHistoricalRainfall(client, todayISTStr) {
+    const completedDate = previousIstDate(todayISTStr);
+    const completedParts = istDateParts(completedDate);
+    const completedMonth = monthNameFromIstDate(completedDate);
+    const currentParts = istDateParts(todayISTStr);
+    const currentMonth = monthNameFromIstDate(todayISTStr);
+
+    // Prevent two overlapping serverless requests from creating duplicate rows
+    // in a table that may not have a database unique constraint yet.
+    await client.query("SELECT pg_advisory_xact_lock(hashtext('kknagar-historical-rainfall'))");
+
+    const totalResult = await client.query(`
+        SELECT COALESCE(ROUND(SUM(total_rain_mm)::numeric, 1), 0) AS rainfall_mm
+        FROM daily_max_records
+        WHERE station_id = 'kknagar'
+          AND record_date >= date_trunc('month', $1::date)::date
+          AND record_date < (date_trunc('month', $1::date) + INTERVAL '1 month')::date
+    `, [completedDate]);
+    const rainfallMm = Number(totalResult.rows[0]?.rainfall_mm) || 0;
+
+    const updated = await client.query(`
+        UPDATE historical_rainfall
+        SET rainfall_mm = $3
+        WHERE year_val = $1 AND lower(month_val) = lower($2)
+    `, [completedParts.year, completedMonth, rainfallMm]);
+    if (updated.rowCount === 0) {
+        await client.query(
+            'INSERT INTO historical_rainfall (year_val, month_val, rainfall_mm) VALUES ($1, $2, $3)',
+            [completedParts.year, completedMonth, rainfallMm]
+        );
+    }
+
+    // A fresh month begins at 00:00 IST. Insert its initial 0.0 row now; the
+    // next nightly rollup will replace it with the month-to-date total.
+    const currentExists = await client.query(`
+        SELECT 1 FROM historical_rainfall
+        WHERE year_val = $1 AND lower(month_val) = lower($2)
+        LIMIT 1
+    `, [currentParts.year, currentMonth]);
+    if (currentExists.rowCount === 0) {
+        await client.query(
+            'INSERT INTO historical_rainfall (year_val, month_val, rainfall_mm) VALUES ($1, $2, 0)',
+            [currentParts.year, currentMonth]
+        );
+    }
+}
+
+async function getNEMRainfallMm(station, todayISTStr, currentDailyIn) {
+    const { year, month } = istDateParts(todayISTStr);
+    if (month < 10) return null;
+
+    const state = stationState[station.id];
+    if (state.nemBaseDate !== todayISTStr) {
+        const seasonStart = `${year}-10-01`;
+        const baseResult = await pool.query(`
+            SELECT COALESCE(SUM(total_rain_mm), 0) AS rainfall_mm
+            FROM daily_max_records
+            WHERE station_id = $1
+              AND record_date >= $2::date
+              AND record_date < $3::date
+        `, [station.id, seasonStart, todayISTStr]);
+        state.nemBaseDate = todayISTStr;
+        state.nemBaseRainMm = Number(baseResult.rows[0]?.rainfall_mm) || 0;
+    }
+
+    return Math.round((state.nemBaseRainMm + (Number(currentDailyIn) || 0) * 25.4) * 10) / 10;
 }
 
 async function loadBufferState(station) {
@@ -460,6 +552,7 @@ async function syncWithEcowitt(station, forceWrite = false) {
             const r = await fetchLiveData();
             const buf = await loadBufferState(station);
             const liveRR = toMillimetresPerHour(buf.lastCalculatedRate);
+            const nemMm = await getNEMRainfallMm(station, todayISTStr, r.dailyIn);
 
             const liveTemp = parseFloat(((r.tempF - 32) * 5 / 9).toFixed(1));
             const liveWind = parseFloat((r.windMph * 1.60934).toFixed(1));
@@ -476,6 +569,10 @@ async function syncWithEcowitt(station, forceWrite = false) {
             st.cachedData.wind.gust = liveGust;
             st.cachedData.rain.total = Math.round(r.dailyIn * 2540) / 100;
             st.cachedData.rain.rate = liveRR;
+            if (nemMm !== null) {
+                st.cachedData.rain.seasonLabel = 'NEM';
+                st.cachedData.rain.seasonTotal = nemMm;
+            }
 
             const fmtIso = (iso) => iso ? new Date(iso).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' }) : fmtL();
 
@@ -514,6 +611,7 @@ async function syncWithEcowitt(station, forceWrite = false) {
         }
 
         const r = await fetchLiveData();
+        const nemMm = await getNEMRainfallMm(station, todayISTStr, r.dailyIn);
 
         const liveTemp  = parseFloat(((r.tempF - 32) * 5 / 9).toFixed(1));
         const liveDewC  = parseFloat(((r.dewF - 32) * 5 / 9).toFixed(1));
@@ -622,6 +720,10 @@ try {
             WHERE station_id = $1 
               AND (time AT TIME ZONE 'Asia/Kolkata')::date < $2::date
         `, [station.id, todayISTStr]);
+
+        if (station.id === 'kknagar') {
+            await maintainKKNagarHistoricalRainfall(client, todayISTStr);
+        }
 
         didRollup = true;
     }
@@ -783,6 +885,8 @@ try {
     maxRTime: mx_r_t,
     monthly: Math.round(r.monthlyIn * 2540) / 100,
     swm:     swmMm,
+    seasonLabel: nemMm !== null ? 'NEM' : 'SWM',
+    seasonTotal: nemMm !== null ? nemMm : swmMm,
     yearly:  yearlyMm,
 };
 })(),
@@ -2618,7 +2722,7 @@ body:not(.is-night) .station-summary-metric:nth-child(4) .station-summary-value 
                             <span id="r_month" class="cell-val">--</span>
                         </div>
                         <div class="modular-cell">
-                            <span class="cell-lbl">SWM</span>
+                            <span class="cell-lbl" id="r_season_label">SWM</span>
                             <span id="r_swm" class="cell-val">--</span>
                         </div>
                         <div class="modular-cell">
@@ -3180,7 +3284,8 @@ document.addEventListener('click', function(e) {
                 liveWindSpeed = d.wind.speed; liveWindDeg = d.wind.deg;
                 
                 document.getElementById('r_month').innerText = d.rain.monthly + ' mm';
-                document.getElementById('r_swm').innerText = d.rain.swm + ' mm';
+                document.getElementById('r_season_label').innerText = d.rain.seasonLabel || 'SWM';
+                document.getElementById('r_swm').innerText = (d.rain.seasonTotal ?? d.rain.swm) + ' mm';
                 document.getElementById('r_year').innerText = d.rain.yearly + ' mm';
                 const pTrend = d.atmo.pTrend;
                 if (pTrend >= 0.1) document.getElementById('pIcon').innerHTML = '<span style="color:#ef4444; font-size:14px;">▲</span>';
