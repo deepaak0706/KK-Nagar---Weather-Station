@@ -2667,6 +2667,29 @@ body:not(.is-night) .station-summary-radar-card.is-rain-leader { background: rad
     .station-summary-radar-rate + .station-summary-radar-rate { padding-left: 12px; }
 }
 
+/* One shared grid prevents legacy RR accents and padding from shifting the values. */
+.station-summary-radar-rates {
+    grid-template-columns: minmax(0, 1fr) 1px minmax(0, 1fr);
+    column-gap: clamp(18px, 2.6vw, 32px);
+}
+.station-summary-radar-rate,
+.station-summary-radar-rate.max,
+.station-summary-radar-rate + .station-summary-radar-rate {
+    padding-left: 0;
+    border-left: 0;
+}
+.station-summary-radar-rate:first-child { grid-column: 1; }
+.station-summary-radar-rate.max { grid-column: 3; }
+@media screen and (max-width: 767px) {
+    .station-summary-radar-rates { column-gap: 14px; }
+    .station-summary-radar-rate,
+    .station-summary-radar-rate.max,
+    .station-summary-radar-rate + .station-summary-radar-rate { padding-left: 0; }
+}
+@media screen and (max-width: 360px) {
+    .station-summary-radar-rates { column-gap: 10px; }
+}
+
 /* Station-aware navigation: only KK Nagar has a historical archive today. */
 #tab-hist[hidden] { display: none !important; }
 @media screen and (max-width: 767px) {
