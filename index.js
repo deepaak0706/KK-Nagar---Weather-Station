@@ -2481,14 +2481,14 @@ body:not(.is-night) .station-summary-metric:nth-child(4) .station-summary-value 
 .station-summary-temp-orb-value { z-index: 1; color: var(--text); font-family: 'Sora', 'Outfit', sans-serif; font-size: 22px; font-weight: 500; letter-spacing: -1.3px; }
 .station-summary-temp-orb-label { position: absolute; z-index: 1; top: 61px; color: var(--muted); font-size: 8px; font-weight: 700; letter-spacing: 0.1em; }
 .station-summary-rain-label { color: #8ab4d2; font-size: 9px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; }
-.station-summary-rain-value { display: block; margin-top: 5px; color: #42cfff; font-family: 'Sora', 'Outfit', sans-serif; font-size: clamp(31px, 3.2vw, 40px); font-weight: 600; letter-spacing: -2px; line-height: 1; white-space: nowrap; }
+.station-summary-rain-value { display: block; margin-top: 5px; color: #42cfff; font-family: 'Sora', 'Outfit', sans-serif; font-size: clamp(26px, 2.8vw, 34px); font-weight: 600; letter-spacing: -2px; line-height: 1; white-space: nowrap; }
 .station-summary-rain-value small { color: var(--muted); font-size: 12px; font-weight: 500; letter-spacing: -0.3px; }
 .station-summary-radar-rates { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; padding-top: 14px; border-top: 1px solid var(--line); }
 .station-summary-radar-rate { min-width: 0; padding-left: 10px; border-left: 2px solid #2dd4bf; }
 .station-summary-radar-rate.max { border-left-color: #a78bfa; }
 .station-summary-radar-rate-label { display: block; color: #6ee7d4; font-size: 9px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; white-space: nowrap; }
 .station-summary-radar-rate.max .station-summary-radar-rate-label { color: #c4b5fd; }
-.station-summary-radar-rate-value { display: block; margin-top: 5px; color: #2dd4bf; font-family: 'Sora', 'Outfit', sans-serif; font-size: clamp(18px, 2vw, 23px); font-weight: 500; letter-spacing: -1px; white-space: nowrap; }
+.station-summary-radar-rate-value { display: block; margin-top: 5px; color: #2dd4bf; font-family: 'Sora', 'Outfit', sans-serif; font-size: clamp(22px, 2.4vw, 28px); font-weight: 500; letter-spacing: -1px; white-space: nowrap; }
 .station-summary-radar-rate.max .station-summary-radar-rate-value { color: #a78bfa; }
 .station-summary-radar-rate-value small { color: var(--muted); font-size: 10px; font-weight: 500; letter-spacing: 0; }
 body:not(.is-night) .station-summary-radar-card { background: #fff; border-color: #d7e2ed; }
@@ -3185,7 +3185,7 @@ function renderStationSummaryCards(records) {
         const currentRate = formatStationSummaryValue(data.rainRate, ' mm/h');
         const maxRate = formatStationSummaryValue(data.maxRainRate, ' mm/h');
         return '<article class="station-summary-radar-card station-radar-' + data.id + (index === 0 ? ' is-rain-leader' : '') + '" data-station-id="' + data.id + '" role="button" tabindex="0" aria-label="Open ' + data.name + ' dashboard">' +
-            '<div class="station-summary-radar-header"><span class="station-summary-rank">0' + (index + 1) + '</span><span class="station-summary-radar-name">' + data.name + '</span><span class="station-summary-radar-live">LIVE</span></div>' +
+            '<div class="station-summary-radar-header"><span class="station-summary-radar-name">' + data.name + '</span><span class="station-summary-radar-live">LIVE</span></div>' +
             '<div class="station-summary-radar-main"><div class="station-summary-temp-readout"><span class="station-summary-temp-label">Temperature</span><span class="station-summary-temp-value">' + temperature.replace('°C', '<small>°C</small>') + '</span></div><span class="station-summary-temp-rain-divider" aria-hidden="true"></span>' +
                 '<div class="station-summary-rain-core"><span class="station-summary-rain-label">Rain</span><span class="station-summary-rain-value">' + rainfallValue.replace(' mm', '<small>mm</small>') + '</span></div></div>' +
             '<div class="station-summary-radar-rates"><div class="station-summary-radar-rate"><span class="station-summary-radar-rate-label">Current RR</span><span class="station-summary-radar-rate-value">' + currentRate.replace(' mm/h', ' <small>mm/h</small>') + '</span></div>' +
