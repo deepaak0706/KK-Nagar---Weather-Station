@@ -3193,7 +3193,7 @@ function renderStationSummaryCards(records) {
     });
 
     const unavailableMarkup = unavailable.map(function(station) {
-        return '<article class="station-summary-radar-card station-radar-' + station.id + '"><div class="station-summary-radar-header"><span class="station-summary-radar-name">' + station.name + '</span></div><p class="station-summary-unavailable">Temporarily unavailable</p></article>';
+        return '<article class="station-summary-radar-card station-radar-' + station.id + ' loading-card"><div class="station-summary-radar-header"><span class="station-summary-radar-name">' + station.name + '</span></div><div class="loading-container"><div class="loading-spinner"></div><p class="loading-text">Fetching Weather Data</p><div class="loading-dots"><span>.</span><span>.</span><span>.</span></div></div></article>';
     });
     grid.innerHTML = cardMarkup.concat(unavailableMarkup).join('');
     grid.querySelectorAll('.station-summary-radar-card[data-station-id]').forEach(function(card) {
