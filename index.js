@@ -3400,7 +3400,10 @@ document.addEventListener('click', function(e) {
                 options: { 
                     responsive: true, maintainAspectRatio: false, 
                     interaction: { intersect: false, mode: 'index' },
-                    plugins: { tooltip: { enabled: true }, legend: { display: false } }, 
+                    plugins: { 
+                        tooltip: { enabled: true }, 
+                        legend: { display: true, position: 'top', labels: { boxWidth: 8, font: { size: 11 }, padding: 10 } } 
+                    }, 
                     scales: yScale
                 } 
             });
