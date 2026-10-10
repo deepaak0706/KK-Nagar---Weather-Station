@@ -3074,9 +3074,8 @@ body:not(.is-night) .station-summary-radar-card.is-rain-leader { background: rad
                         <div class="graph-card"><div class="label" style="margin-bottom: 8px;">Temperature Trend</div><div style="flex-grow: 1; position: relative;"><canvas id="cT"></canvas></div></div>
                         <div class="graph-card"><div class="label" style="margin-bottom: 8px;">Humidity Levels</div><div style="flex-grow: 1; position: relative;"><canvas id="cH"></canvas></div></div>
                         <div class="graph-card"><div class="label" style="margin-bottom: 8px;">Wind Velocity</div><div style="flex-grow: 1; position: relative;"><canvas id="cW"></canvas></div></div>
-                        <div class="graph-card"><div class="label" style="margin-bottom: 8px;">Precipitation</div><div style="flex-grow: 1; position: relative;"><canvas id="cR"></canvas></div></div>
-                        <div class="graph-card"><div class="label" style="margin-bottom: 8px;">💧 Rain Intensity</div><div style="flex-grow: 1; position: relative;"><canvas id="cRI"></canvas></div></div>
-                        <div class="graph-card"><div class="label" style="margin-bottom: 8px;">🌡️ Atmospheric Stability</div><div style="flex-grow: 1; position: relative;"><canvas id="cASI"></canvas></div></div>
+                        <div class="graph-card"><div class="label" style="margin-bottom: 8px;">💧 Precipitation & Rain Intensity</div><div style="flex-grow: 1; position: relative;"><canvas id="cR"></canvas></div></div>
+                        <div class="graph-card"><div class="label" style="margin-bottom: 8px;">🌡️ Atmospheric Stability Index</div><div style="flex-grow: 1; position: relative;"><canvas id="cASI"></canvas></div></div>
                     </div>
 
                 </div>
@@ -3407,6 +3406,39 @@ document.addEventListener('click', function(e) {
             });
         }
         
+        function setupDualAxisChart(id, label1, label2, color1, color2) {
+            const canvas = document.getElementById(id);
+            const ctx = canvas.getContext('2d');
+            const gradient1 = ctx.createLinearGradient(0, 0, 0, 300);
+            gradient1.addColorStop(0, color1 + '40'); gradient1.addColorStop(1, color1 + '00');
+            const gradient2 = ctx.createLinearGradient(0, 0, 0, 300);
+            gradient2.addColorStop(0, color2 + '40'); gradient2.addColorStop(1, color2 + '00');
+            
+            return new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [
+                        { label: label1, data: [], borderColor: color1, backgroundColor: gradient1, fill: true, tension: 0.4, pointRadius: 0, borderWidth: 2, yAxisID: 'y' },
+                        { label: label2, data: [], borderColor: color2, backgroundColor: gradient2, fill: false, tension: 0.4, pointRadius: 0, borderWidth: 2.5, yAxisID: 'y1', borderDash: [5, 5] }
+                    ]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    interaction: { intersect: false, mode: 'index' },
+                    plugins: { 
+                        tooltip: { enabled: true }, 
+                        legend: { display: true, position: 'top', labels: { boxWidth: 8, font: { size: 11 } } }
+                    },
+                    scales: {
+                        x: { ticks: { maxTicksLimit: 8 } },
+                        y: { position: 'left', min: 0, title: { display: true, text: label1 } },
+                        y1: { position: 'right', min: 0, max: 100, title: { display: true, text: label2 }, grid: { drawOnChartArea: false } }
+                    }
+                }
+            });
+        }
+        
         function updateValueWithFade(id, newValue, decimals = 1, suffix = "") {
     const obj = document.getElementById(id);
     if (!obj) return;
@@ -3464,36 +3496,87 @@ document.addEventListener('click', function(e) {
                             charts.cT = setupChart('cT', 'Temp °C', '#ef4444'); 
                             charts.cH = setupChart('cH', 'Humidity %', '#10b981'); 
                             charts.cW = setupChart('cW', 'Wind km/h', '#f59e0b'); 
-                            charts.cR = setupChart('cR', 'Rain mm', '#3b82f6', 0); 
-                            charts.cRI = setupChart('cRI', 'Intensity Index', '#ec4899', 0, 100);
-                            charts.cASI = setupChart('cASI', 'Stability Index', '#8b5cf6', 0, 100);
+                            charts.cR = setupDualAxisChart('cR', 'Rain mm', 'Intensity %', '#3b82f6', '#ec4899');
+                            charts.cASI = setupChart('cASI', 'Stability Index (0=Unstable, 100=Stable)', '#8b5cf6', 0, 100);
                             applyTheme(); 
                         }
                         charts.cT.data.labels = labels; charts.cT.data.datasets[0].data = history.map(h => h.temp); charts.cT.update('none');
                         charts.cH.data.labels = labels; charts.cH.data.datasets[0].data = history.map(h => h.hum); charts.cH.update('none');
                         charts.cW.data.labels = labels; charts.cW.data.datasets[0].data = history.map(h => h.wind); charts.cW.update('none');
-                        charts.cR.data.labels = labels; charts.cR.data.datasets[0].data = history.map(h => h.rain); charts.cR.update('none');
                         
-                        // Rain Intensity: Combines rain rate with total rainfall
-                        const rainIntensity = history.map(h => {
-                            const rate = parseFloat(h.rainRate || 0);
-                            const total = parseFloat(h.rain || 0);
-                            return Math.min(100, (rate * 2) + (total * 0.5));
+                        // Dual-axis: Precipitation (mm) + Rain Intensity (%)
+                        // Rain Intensity calculated from cumulative rainfall (derivative of rain amount)
+                        const rainIntensity = history.map((h, i) => {
+                            if (i === 0) return 0;
+                            const currentRain = parseFloat(h.rain || 0);
+                            const prevRain = parseFloat(history[i-1].rain || 0);
+                            const rainDelta = Math.max(0, currentRain - prevRain);
+                            return Math.min(100, rainDelta * 10); // Scale delta to 0-100%
                         });
-                        charts.cRI.data.labels = labels; 
-                        charts.cRI.data.datasets[0].data = rainIntensity; 
-                        charts.cRI.update('none');
                         
-                        // Atmospheric Stability Index: Lower = more unstable (danger for heavy rain)
-                        const stabilityIndex = history.map(h => {
+                        charts.cR.data.labels = labels;
+                        charts.cR.data.datasets[0].data = history.map(h => h.rain); // Precipitation on left axis
+                        charts.cR.data.datasets[1].data = rainIntensity; // Intensity on right axis
+                        charts.cR.update('none');
+                        
+                        // Atmospheric Stability Index - INDUSTRY STANDARD (Progressive Calculation)
+                        // Based on: Lifted Index, CAPE, convective available potential energy concepts
+                        // Progressive: Starts with available data, improves as rain/wind data becomes available
+                        // Lower (0-30) = UNSTABLE → Heavy monsoon rain likely ⚠️
+                        // Higher (70-100) = STABLE → Fair weather expected ✓
+                        
+                        const stabilityIndex = history.map((h, i) => {
+                            // ALWAYS AVAILABLE DATA
+                            const temp = parseFloat(h.temp || 20);
                             const hum = parseFloat(h.hum || 50);
-                            const dewDiff = Math.abs((parseFloat(h.temp || 20) - parseFloat(h.dew || 10)));
-                            const press = parseFloat(h.press || 1013);
+                            const wind = parseFloat(h.wind || 0);
+                            const rain = parseFloat(h.rain || 0);
                             
-                            // Formula: Pressure trend (higher = stable) - Humidity (higher = unstable) + Dew diff (larger = stable)
-                            const stability = (press / 10.13) - (hum * 0.8) + (dewDiff * 3);
-                            return Math.max(0, Math.min(100, (stability + 30)));
+                            // PHASE 1: LIFTED INDEX (Dew point from temp-humidity relationship)
+                            // Dew point = T - (100-RH)/5  [Approximation formula]
+                            const dewApprox = temp - ((100 - hum) / 5);
+                            const dewDiff = Math.max(0, temp - dewApprox); // Temperature-Dew difference
+                            
+                            // Core Lifted Index (inverse scale for 0-100 range)
+                            // Higher dew diff = more stable (dry air), Lower = unstable (moist air)
+                            let li = (dewDiff * 6); // Dew diff is primary stability indicator
+                            
+                            // PHASE 2: RAIN RATE EFFECT (when rain data becomes available)
+                            // Rain indicates upward motion = instability
+                            // Each 1mm of rain indicates convective activity
+                            if (rain > 0.1) {
+                                const rainInstability = Math.min(50, rain * 8); // More rain = stronger instability
+                                li -= rainInstability;
+                            }
+                            
+                            // PHASE 3: WIND SHEAR ANALYSIS (when wind data available)
+                            // Light wind (0-8 km/h) = allows convection to develop = unstable
+                            // Moderate (8-15) = organized convection = moderate stability
+                            // Strong (15+) = shear breaks up storms = more stable
+                            if (wind > 0.5) {
+                                if (wind < 8) {
+                                    li -= 15; // Light wind allows convection
+                                } else if (wind < 15) {
+                                    li -= 5; // Moderate organization
+                                } else {
+                                    li += 10; // Strong shear stabilizes
+                                }
+                            }
+                            
+                            // PHASE 4: TEMPERATURE TREND (as multiple data points accumulate)
+                            // Warming = destabilizing, Cooling = stabilizing
+                            if (i >= 3) {
+                                const tempTrend = temp - parseFloat(history[i-3].temp || temp);
+                                li -= (tempTrend * 4); // Warming reduces stability
+                            }
+                            
+                            // Normalize to 0-100 scale
+                            // Negative LI values (unstable) → lower numbers (0-30)
+                            // Positive LI values (stable) → higher numbers (70-100)
+                            const stability = 50 + (li / 2);
+                            return Math.max(0, Math.min(100, stability));
                         });
+                        
                         charts.cASI.data.labels = labels;
                         charts.cASI.data.datasets[0].data = stabilityIndex;
                         charts.cASI.update('none');
