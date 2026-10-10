@@ -3075,6 +3075,8 @@ body:not(.is-night) .station-summary-radar-card.is-rain-leader { background: rad
                         <div class="graph-card"><div class="label" style="margin-bottom: 8px;">Humidity Levels</div><div style="flex-grow: 1; position: relative;"><canvas id="cH"></canvas></div></div>
                         <div class="graph-card"><div class="label" style="margin-bottom: 8px;">Wind Velocity</div><div style="flex-grow: 1; position: relative;"><canvas id="cW"></canvas></div></div>
                         <div class="graph-card"><div class="label" style="margin-bottom: 8px;">Precipitation</div><div style="flex-grow: 1; position: relative;"><canvas id="cR"></canvas></div></div>
+                        <div class="graph-card"><div class="label" style="margin-bottom: 8px;">💧 Rain Intensity</div><div style="flex-grow: 1; position: relative;"><canvas id="cRI"></canvas></div></div>
+                        <div class="graph-card"><div class="label" style="margin-bottom: 8px;">🌡️ Atmospheric Stability</div><div style="flex-grow: 1; position: relative;"><canvas id="cASI"></canvas></div></div>
                     </div>
 
                 </div>
@@ -3383,11 +3385,16 @@ document.addEventListener('click', function(e) {
             });
         }
 
-        function setupChart(id, label, color, minVal = null) {
+        function setupChart(id, label, color, minVal = null, maxVal = null) {
             const canvas = document.getElementById(id);
             const ctx = canvas.getContext('2d');
             const gradient = ctx.createLinearGradient(0, 0, 0, 300);
             gradient.addColorStop(0, color + '40'); gradient.addColorStop(1, color + '00');
+            const yScale = { x: { ticks: { maxTicksLimit: 8 } } };
+            if (minVal !== null) yScale.y = yScale.y || {};
+            if (minVal !== null) yScale.y.min = minVal;
+            if (maxVal !== null) yScale.y = yScale.y || {};
+            if (maxVal !== null) yScale.y.max = maxVal;
             return new Chart(ctx, { 
                 type: 'line', 
                 data: { labels: [], datasets: [{ label: label, data: [], borderColor: color, backgroundColor: gradient, fill: true, tension: 0.4, pointRadius: 0, borderWidth: 2 }] }, 
@@ -3395,7 +3402,7 @@ document.addEventListener('click', function(e) {
                     responsive: true, maintainAspectRatio: false, 
                     interaction: { intersect: false, mode: 'index' },
                     plugins: { tooltip: { enabled: true }, legend: { display: false } }, 
-                    scales: { y: { min: minVal }, x: { ticks: { maxTicksLimit: 8 } } } 
+                    scales: yScale
                 } 
             });
         }
@@ -3458,12 +3465,38 @@ document.addEventListener('click', function(e) {
                             charts.cH = setupChart('cH', 'Humidity %', '#10b981'); 
                             charts.cW = setupChart('cW', 'Wind km/h', '#f59e0b'); 
                             charts.cR = setupChart('cR', 'Rain mm', '#3b82f6', 0); 
+                            charts.cRI = setupChart('cRI', 'Intensity Index', '#ec4899', 0, 100);
+                            charts.cASI = setupChart('cASI', 'Stability Index', '#8b5cf6', 0, 100);
                             applyTheme(); 
                         }
                         charts.cT.data.labels = labels; charts.cT.data.datasets[0].data = history.map(h => h.temp); charts.cT.update('none');
                         charts.cH.data.labels = labels; charts.cH.data.datasets[0].data = history.map(h => h.hum); charts.cH.update('none');
                         charts.cW.data.labels = labels; charts.cW.data.datasets[0].data = history.map(h => h.wind); charts.cW.update('none');
                         charts.cR.data.labels = labels; charts.cR.data.datasets[0].data = history.map(h => h.rain); charts.cR.update('none');
+                        
+                        // Rain Intensity: Combines rain rate with total rainfall
+                        const rainIntensity = history.map(h => {
+                            const rate = parseFloat(h.rainRate || 0);
+                            const total = parseFloat(h.rain || 0);
+                            return Math.min(100, (rate * 2) + (total * 0.5));
+                        });
+                        charts.cRI.data.labels = labels; 
+                        charts.cRI.data.datasets[0].data = rainIntensity; 
+                        charts.cRI.update('none');
+                        
+                        // Atmospheric Stability Index: Lower = more unstable (danger for heavy rain)
+                        const stabilityIndex = history.map(h => {
+                            const hum = parseFloat(h.hum || 50);
+                            const dewDiff = Math.abs((parseFloat(h.temp || 20) - parseFloat(h.dew || 10)));
+                            const press = parseFloat(h.press || 1013);
+                            
+                            // Formula: Pressure trend (higher = stable) - Humidity (higher = unstable) + Dew diff (larger = stable)
+                            const stability = (press / 10.13) - (hum * 0.8) + (dewDiff * 3);
+                            return Math.max(0, Math.min(100, (stability + 30)));
+                        });
+                        charts.cASI.data.labels = labels;
+                        charts.cASI.data.datasets[0].data = stabilityIndex;
+                        charts.cASI.update('none');
                         graphDataLoaded = true;
                     }, 50); 
                 } else {
