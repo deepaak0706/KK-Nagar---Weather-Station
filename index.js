@@ -3074,7 +3074,7 @@ body:not(.is-night) .station-summary-radar-card.is-rain-leader { background: rad
                         <div class="graph-card"><div class="label" style="margin-bottom: 8px;">Temperature Trend</div><div style="flex-grow: 1; position: relative;"><canvas id="cT"></canvas></div></div>
                         <div class="graph-card"><div class="label" style="margin-bottom: 8px;">Humidity Levels</div><div style="flex-grow: 1; position: relative;"><canvas id="cH"></canvas></div></div>
                         <div class="graph-card"><div class="label" style="margin-bottom: 8px;">Wind Velocity</div><div style="flex-grow: 1; position: relative;"><canvas id="cW"></canvas></div></div>
-                        <div class="graph-card"><div class="label" style="margin-bottom: 8px;">💧 Precipitation & Rain Intensity</div><div style="flex-grow: 1; position: relative;"><canvas id="cR"></canvas></div></div>
+                        <div class="graph-card"><div class="label" style="margin-bottom: 8px;">💧 Precipitation & Rain Rate</div><div style="flex-grow: 1; position: relative;"><canvas id="cR"></canvas></div></div>
                         <div class="graph-card"><div class="label" style="margin-bottom: 8px;">🌧️ Rain Formation Index (0=High Rain Chance, 100=No Rain)</div><div style="flex-grow: 1; position: relative;"><canvas id="cASI"></canvas></div></div>
                     </div>
 
@@ -3436,7 +3436,7 @@ document.addEventListener('click', function(e) {
                     scales: {
                         x: { ticks: { maxTicksLimit: 8 } },
                         y: { position: 'left', min: 0, title: { display: true, text: label1 } },
-                        y1: { position: 'right', min: 0, max: 100, title: { display: true, text: label2 }, grid: { drawOnChartArea: false } }
+                        y1: { position: 'right', min: 0, title: { display: true, text: label2 }, grid: { drawOnChartArea: false } }
                     }
                 }
             });
@@ -3499,7 +3499,7 @@ document.addEventListener('click', function(e) {
                             charts.cT = setupChart('cT', 'Temp °C', '#ef4444'); 
                             charts.cH = setupChart('cH', 'Humidity %', '#10b981'); 
                             charts.cW = setupChart('cW', 'Wind km/h', '#f59e0b'); 
-                            charts.cR = setupDualAxisChart('cR', 'Rain mm', 'Intensity %', '#3b82f6', '#ec4899');
+                            charts.cR = setupDualAxisChart('cR', 'Rain mm', 'Rain Rate (mm/h)', '#3b82f6', '#ec4899');
                             charts.cASI = setupChart('cASI', 'Stability Index (0=Unstable, 100=Stable)', '#8b5cf6', 0, 100);
                             applyTheme(); 
                         }
@@ -3508,28 +3508,24 @@ document.addEventListener('click', function(e) {
                         charts.cW.data.labels = labels; charts.cW.data.datasets[0].data = history.map(h => h.wind); charts.cW.update('none');
                         
                         // Dual-axis: Precipitation (mm) + Instantaneous Rain Rate (mm/h)
-                        // Rain Intensity = rate of change in rainfall (mm per 10-minute interval converted to mm/h)
+                        // Rain Rate = rate of change in rainfall (mm per 10-minute interval converted to mm/h)
                         const rainIntensity = history.map((h, i) => {
                             if (i === 0) return 0;
                             const currentRain = parseFloat(h.rain || 0);
                             const prevRain = parseFloat(history[i-1].rain || 0);
                             const rainDelta = Math.max(0, currentRain - prevRain); // mm in 10 minutes
                             const rainRatePerHour = rainDelta * 6; // Convert 10-min interval to hourly rate (×6)
-                            return rainRatePerHour; // Now in mm/h (instantaneous rain rate)
+                            return rainRatePerHour; // Now in mm/h
                         });
                         
                         charts.cR.data.labels = labels;
                         charts.cR.data.datasets[0].data = history.map(h => h.rain); // Precipitation on left axis
-                        charts.cR.data.datasets[1].data = rainIntensity; // Intensity on right axis
+                        charts.cR.data.datasets[1].data = rainIntensity; // Rain rate on right axis (auto-scaled)
                         charts.cR.update('none');
                         
-                        // COMPREHENSIVE RAIN FORMATION INDEX
-                        // Uses ALL available parameters: temp, real feel, wind, humidity, dew point, pressure, rain
-                        // Lower value (0-40) = HIGH RAIN PROBABILITY ⚠️
-                        // Higher value (60-100) = LOW RAIN PROBABILITY ✓
-                        
+                        // UNIVERSAL RAIN FORMATION INDEX (Monsoon-agnostic)
+                        // Uses pressure, dew point spread / moisture availability, wind dynamics, and thermal instability.
                         const rainFormationIndex = history.map((h, i) => {
-                            // Extract ALL parameters
                             const temp = parseFloat(h.temp || 20);
                             const realFeel = parseFloat(h.realFeel || temp);
                             const hum = parseFloat(h.hum || 50);
@@ -3537,61 +3533,32 @@ document.addEventListener('click', function(e) {
                             const pressure = parseFloat(h.press || 1013);
                             const rain = parseFloat(h.rain || 0);
                             
-                            // 1. INSTABILITY FACTOR (Temperature vs Real Feel)
-                            // Larger difference = more convection = unstable
+                            // 1. Thermal Instability Factor
                             const tempDiff = Math.abs(realFeel - temp);
-                            let instability = (tempDiff * 5); // Higher diff = lower stability
+                            let instability = (tempDiff * 4); 
                             
-                            // 2. MOISTURE AVAILABILITY FACTOR (Humidity + Dew Point approximation)
-                            // Dew Point ≈ T - (100-RH)/5
+                            // 2. Moisture Availability Factor (Dew Point Depression approximation)
                             const dewApprox = temp - ((100 - hum) / 5);
                             const dewDiff = Math.max(0, temp - dewApprox);
+                            const moistureFactor = hum - (dewDiff * 2.5); 
                             
-                            // High humidity + Small dew difference = LOTS of moisture = good for rain
-                            // Formula: (humidity) - (dew difference) indicates precipitable water
-                            const moistureFactor = hum - (dewDiff * 2); // High humidity, low dew diff = more moisture
-                            
-                            // 3. WIND DIRECTION & SPEED EFFECT (Moisture Transport)
-                            // SW-SE winds (monsoon) bring ocean moisture = GOOD for rain
-                            // Wind direction from 180-270 degrees (S to W) = brings moisture
-                            // Assumption: Higher wind speed × favorable direction = more moisture transport
-                            // Since we don't have explicit direction, assume monsoon season = generally favorable
-                            // Light winds slow moisture transport, strong winds aid it
-                            let windMoistureFactor = 0;
-                            if (wind > 2 && wind < 20) { // 2-20 km/h = good monsoon wind range
-                                windMoistureFactor = 20; // Favorable for moisture transport
-                            } else if (wind >= 20) {
-                                windMoistureFactor = 10; // Strong wind can scatter clouds
+                            // 3. Wind Dynamics Factor (Speed & Gustiness instead of direction)
+                            let windDynamics = 0;
+                            if (wind > 5 && wind < 25) {
+                                windDynamics = 15; // Active advection range
+                            } else if (wind >= 25) {
+                                windDynamics = 25; // Active convective squall/system
                             }
                             
-                            // 4. PRESSURE TREND (System Strength)
-                            // Lower pressure = stronger system = more rain potential
-                            // Normal ~1013 hPa, Low = <1010 hPa (weather system present)
-                            const pressureFactor = (1013 - pressure) * 2; // Negative pressure = lower stability
+                            // 4. Barometric Pressure Drop (System strength)
+                            const pressureFactor = (1013 - pressure) * 3; 
                             
-                            // 5. ACTUAL RAIN (Indicator of current convection)
-                            // If rain already falling = most direct indicator
-                            let actualRainFactor = 0;
-                            if (rain > 0.5) {
-                                actualRainFactor = -50; // Heavy penalty (reduction) for stability = high rain chance
-                            } else if (rain > 0.1) {
-                                actualRainFactor = -20;
-                            }
+                            // 5. Current Rain Convection Penalty
+                            let actualRainFactor = (rain > 0.1) ? -40 : 0;
                             
-                            // 6. TEMPERATURE TREND (System Development)
-                            // Rapid warming = destabilizing = good for afternoon storms
-                            let tempTrendFactor = 0;
-                            if (i >= 3) {
-                                const tempTrend = temp - parseFloat(history[i-3].temp || temp);
-                                tempTrendFactor = -tempTrend * 3; // Warming reduces stability
-                            }
+                            // Stability score: 0 = high rain probability, 100 = stable/clear
+                            const rainFormation = 100 - instability - (moistureFactor / 2) - pressureFactor - windDynamics + actualRainFactor;
                             
-                            // COMPREHENSIVE RAIN FORMATION SCORE
-                            // Formula combines all factors:
-                            // High moisture + Instability + Pressure drop + Wind transport + Actual rain = LOW SCORE (high rain chance)
-                            const rainFormation = 100 - instability - (moistureFactor / 2) - pressureFactor - windMoistureFactor + tempTrendFactor + actualRainFactor;
-                            
-                            // Normalize to 0-100
                             return Math.max(0, Math.min(100, rainFormation));
                         });
                         
