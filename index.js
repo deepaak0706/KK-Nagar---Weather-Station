@@ -3075,7 +3075,7 @@ body:not(.is-night) .station-summary-radar-card.is-rain-leader { background: rad
                         <div class="graph-card"><div class="label" style="margin-bottom: 8px;">Humidity Levels</div><div style="flex-grow: 1; position: relative;"><canvas id="cH"></canvas></div></div>
                         <div class="graph-card"><div class="label" style="margin-bottom: 8px;">Wind Velocity</div><div style="flex-grow: 1; position: relative;"><canvas id="cW"></canvas></div></div>
                         <div class="graph-card"><div class="label" style="margin-bottom: 8px;">💧 Precipitation & Rain Intensity</div><div style="flex-grow: 1; position: relative;"><canvas id="cR"></canvas></div></div>
-                        <div class="graph-card"><div class="label" style="margin-bottom: 8px;">🌡️ Atmospheric Stability Index</div><div style="flex-grow: 1; position: relative;"><canvas id="cASI"></canvas></div></div>
+                        <div class="graph-card"><div class="label" style="margin-bottom: 8px;">🌧️ Rain Formation Index (0=High Rain Chance, 100=No Rain)</div><div style="flex-grow: 1; position: relative;"><canvas id="cASI"></canvas></div></div>
                     </div>
 
                 </div>
@@ -3507,14 +3507,15 @@ document.addEventListener('click', function(e) {
                         charts.cH.data.labels = labels; charts.cH.data.datasets[0].data = history.map(h => h.hum); charts.cH.update('none');
                         charts.cW.data.labels = labels; charts.cW.data.datasets[0].data = history.map(h => h.wind); charts.cW.update('none');
                         
-                        // Dual-axis: Precipitation (mm) + Rain Intensity (%)
-                        // Rain Intensity calculated from cumulative rainfall (derivative of rain amount)
+                        // Dual-axis: Precipitation (mm) + Instantaneous Rain Rate (mm/h)
+                        // Rain Intensity = rate of change in rainfall (mm per 10-minute interval converted to mm/h)
                         const rainIntensity = history.map((h, i) => {
                             if (i === 0) return 0;
                             const currentRain = parseFloat(h.rain || 0);
                             const prevRain = parseFloat(history[i-1].rain || 0);
-                            const rainDelta = Math.max(0, currentRain - prevRain);
-                            return Math.min(100, rainDelta * 10); // Scale delta to 0-100%
+                            const rainDelta = Math.max(0, currentRain - prevRain); // mm in 10 minutes
+                            const rainRatePerHour = rainDelta * 6; // Convert 10-min interval to hourly rate (×6)
+                            return rainRatePerHour; // Now in mm/h (instantaneous rain rate)
                         });
                         
                         charts.cR.data.labels = labels;
@@ -3522,66 +3523,80 @@ document.addEventListener('click', function(e) {
                         charts.cR.data.datasets[1].data = rainIntensity; // Intensity on right axis
                         charts.cR.update('none');
                         
-                        // Atmospheric Stability Index - INDUSTRY STANDARD (Progressive Calculation)
-                        // Based on: Lifted Index, CAPE, convective available potential energy concepts
-                        // Progressive: Starts with available data, improves as rain/wind data becomes available
-                        // Lower (0-30) = UNSTABLE → Heavy monsoon rain likely ⚠️
-                        // Higher (70-100) = STABLE → Fair weather expected ✓
+                        // COMPREHENSIVE RAIN FORMATION INDEX
+                        // Uses ALL available parameters: temp, real feel, wind, humidity, dew point, pressure, rain
+                        // Lower value (0-40) = HIGH RAIN PROBABILITY ⚠️
+                        // Higher value (60-100) = LOW RAIN PROBABILITY ✓
                         
-                        const stabilityIndex = history.map((h, i) => {
-                            // ALWAYS AVAILABLE DATA
+                        const rainFormationIndex = history.map((h, i) => {
+                            // Extract ALL parameters
                             const temp = parseFloat(h.temp || 20);
+                            const realFeel = parseFloat(h.realFeel || temp);
                             const hum = parseFloat(h.hum || 50);
                             const wind = parseFloat(h.wind || 0);
+                            const pressure = parseFloat(h.press || 1013);
                             const rain = parseFloat(h.rain || 0);
                             
-                            // PHASE 1: LIFTED INDEX (Dew point from temp-humidity relationship)
-                            // Dew point = T - (100-RH)/5  [Approximation formula]
+                            // 1. INSTABILITY FACTOR (Temperature vs Real Feel)
+                            // Larger difference = more convection = unstable
+                            const tempDiff = Math.abs(realFeel - temp);
+                            let instability = (tempDiff * 5); // Higher diff = lower stability
+                            
+                            // 2. MOISTURE AVAILABILITY FACTOR (Humidity + Dew Point approximation)
+                            // Dew Point ≈ T - (100-RH)/5
                             const dewApprox = temp - ((100 - hum) / 5);
-                            const dewDiff = Math.max(0, temp - dewApprox); // Temperature-Dew difference
+                            const dewDiff = Math.max(0, temp - dewApprox);
                             
-                            // Core Lifted Index (inverse scale for 0-100 range)
-                            // Higher dew diff = more stable (dry air), Lower = unstable (moist air)
-                            let li = (dewDiff * 6); // Dew diff is primary stability indicator
+                            // High humidity + Small dew difference = LOTS of moisture = good for rain
+                            // Formula: (humidity) - (dew difference) indicates precipitable water
+                            const moistureFactor = hum - (dewDiff * 2); // High humidity, low dew diff = more moisture
                             
-                            // PHASE 2: RAIN RATE EFFECT (when rain data becomes available)
-                            // Rain indicates upward motion = instability
-                            // Each 1mm of rain indicates convective activity
-                            if (rain > 0.1) {
-                                const rainInstability = Math.min(50, rain * 8); // More rain = stronger instability
-                                li -= rainInstability;
+                            // 3. WIND DIRECTION & SPEED EFFECT (Moisture Transport)
+                            // SW-SE winds (monsoon) bring ocean moisture = GOOD for rain
+                            // Wind direction from 180-270 degrees (S to W) = brings moisture
+                            // Assumption: Higher wind speed × favorable direction = more moisture transport
+                            // Since we don't have explicit direction, assume monsoon season = generally favorable
+                            // Light winds slow moisture transport, strong winds aid it
+                            let windMoistureFactor = 0;
+                            if (wind > 2 && wind < 20) { // 2-20 km/h = good monsoon wind range
+                                windMoistureFactor = 20; // Favorable for moisture transport
+                            } else if (wind >= 20) {
+                                windMoistureFactor = 10; // Strong wind can scatter clouds
                             }
                             
-                            // PHASE 3: WIND SHEAR ANALYSIS (when wind data available)
-                            // Light wind (0-8 km/h) = allows convection to develop = unstable
-                            // Moderate (8-15) = organized convection = moderate stability
-                            // Strong (15+) = shear breaks up storms = more stable
-                            if (wind > 0.5) {
-                                if (wind < 8) {
-                                    li -= 15; // Light wind allows convection
-                                } else if (wind < 15) {
-                                    li -= 5; // Moderate organization
-                                } else {
-                                    li += 10; // Strong shear stabilizes
-                                }
+                            // 4. PRESSURE TREND (System Strength)
+                            // Lower pressure = stronger system = more rain potential
+                            // Normal ~1013 hPa, Low = <1010 hPa (weather system present)
+                            const pressureFactor = (1013 - pressure) * 2; // Negative pressure = lower stability
+                            
+                            // 5. ACTUAL RAIN (Indicator of current convection)
+                            // If rain already falling = most direct indicator
+                            let actualRainFactor = 0;
+                            if (rain > 0.5) {
+                                actualRainFactor = -50; // Heavy penalty (reduction) for stability = high rain chance
+                            } else if (rain > 0.1) {
+                                actualRainFactor = -20;
                             }
                             
-                            // PHASE 4: TEMPERATURE TREND (as multiple data points accumulate)
-                            // Warming = destabilizing, Cooling = stabilizing
+                            // 6. TEMPERATURE TREND (System Development)
+                            // Rapid warming = destabilizing = good for afternoon storms
+                            let tempTrendFactor = 0;
                             if (i >= 3) {
                                 const tempTrend = temp - parseFloat(history[i-3].temp || temp);
-                                li -= (tempTrend * 4); // Warming reduces stability
+                                tempTrendFactor = -tempTrend * 3; // Warming reduces stability
                             }
                             
-                            // Normalize to 0-100 scale
-                            // Negative LI values (unstable) → lower numbers (0-30)
-                            // Positive LI values (stable) → higher numbers (70-100)
-                            const stability = 50 + (li / 2);
-                            return Math.max(0, Math.min(100, stability));
+                            // COMPREHENSIVE RAIN FORMATION SCORE
+                            // Formula combines all factors:
+                            // High moisture + Instability + Pressure drop + Wind transport + Actual rain = LOW SCORE (high rain chance)
+                            const rainFormation = 100 - instability - (moistureFactor / 2) - pressureFactor - windMoistureFactor + tempTrendFactor + actualRainFactor;
+                            
+                            // Normalize to 0-100
+                            return Math.max(0, Math.min(100, rainFormation));
                         });
                         
                         charts.cASI.data.labels = labels;
-                        charts.cASI.data.datasets[0].data = stabilityIndex;
+                        charts.cASI.data.datasets[0].data = rainFormationIndex;
                         charts.cASI.update('none');
                         graphDataLoaded = true;
                     }, 50); 
