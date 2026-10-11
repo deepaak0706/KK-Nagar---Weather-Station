@@ -52,6 +52,9 @@ const STATIONS = {
         dataEndYear: 2026,
         summaryStartYear: 2026,
         summaryEndYear: 2032,
+        imdStation: 'Chennai Nungambakkam',
+        imdMonthlyNormal: 380,
+        imdYearlyNormal: 1397,
     },
     neelangarai: {
         id: 'neelangarai',
@@ -66,6 +69,9 @@ const STATIONS = {
         dataEndYear: 2026,
         summaryStartYear: 2026,
         summaryEndYear: 2032,
+        imdStation: 'Meenambakkam Airport',
+        imdMonthlyNormal: 370,
+        imdYearlyNormal: 1420,
     },
 
     ayyapakkam: {
@@ -80,6 +86,9 @@ const STATIONS = {
         dataEndYear: 2026,
         summaryStartYear: 2026,
         summaryEndYear: 2032,
+        imdStation: 'Chennai Nungambakkam',
+        imdMonthlyNormal: 380,
+        imdYearlyNormal: 1397,
     },
 
         sanatorium: {
@@ -94,6 +103,9 @@ const STATIONS = {
         dataEndYear: 2026,
         summaryStartYear: 2026,
         summaryEndYear: 2032,
+        imdStation: 'Meenambakkam Airport',
+        imdMonthlyNormal: 370,
+        imdYearlyNormal: 1420,
     },
 };
 
@@ -2954,14 +2966,43 @@ body:not(.is-night) .station-summary-radar-card.is-rain-leader { background: rad
                         <div class="modular-cell">
                             <span class="cell-lbl">Monthly</span>
                             <span id="r_month" class="cell-val">--</span>
+                            <span id="r_month_vs_imd" style="font-size: 10px; color: #9ca3af; margin-top: 3px; display: block;">-- vs IMD</span>
                         </div>
                         <div class="modular-cell">
                             <span class="cell-lbl" id="r_season_label">SWM</span>
                             <span id="r_swm" class="cell-val">--</span>
+                            <span id="r_swm_vs_imd" style="font-size: 10px; color: #9ca3af; margin-top: 3px; display: block;">-- vs IMD</span>
                         </div>
                         <div class="modular-cell">
                             <span class="cell-lbl">Yearly</span>
                             <span id="r_year" class="cell-val">--</span>
+                            <span id="r_year_vs_imd" style="font-size: 10px; color: #9ca3af; margin-top: 3px; display: block;">-- vs IMD</span>
+                        </div>
+                    </div>
+                    
+                    <div class="mod-divider"></div>
+                    
+                    <!-- NEW: Interesting Rain Metrics -->
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 8px;">
+                        <div style="background: rgba(6, 182, 212, 0.1); border: 1px solid rgba(6, 182, 212, 0.2); border-radius: 12px; padding: 12px;">
+                            <span style="font-size: 10px; font-weight: 700; letter-spacing: 1px; color: #06b6d4; text-transform: uppercase; display: block; margin-bottom: 6px;">Last 1 Hour</span>
+                            <span id="r_1hour" style="font-size: 20px; font-weight: 800; color: #06b6d4; display: block;">--</span>
+                            <span style="font-size: 9px; color: var(--muted); margin-top: 2px; display: block;">mm</span>
+                        </div>
+                        <div style="background: rgba(34, 197, 94, 0.1); border: 1px solid rgba(34, 197, 94, 0.2); border-radius: 12px; padding: 12px;">
+                            <span style="font-size: 10px; font-weight: 700; letter-spacing: 1px; color: #22c55e; text-transform: uppercase; display: block; margin-bottom: 6px;">Last 3 Days</span>
+                            <span id="r_3days" style="font-size: 20px; font-weight: 800; color: #22c55e; display: block;">--</span>
+                            <span style="font-size: 9px; color: var(--muted); margin-top: 2px; display: block;">mm</span>
+                        </div>
+                        <div style="background: rgba(168, 85, 247, 0.1); border: 1px solid rgba(168, 85, 247, 0.2); border-radius: 12px; padding: 12px;">
+                            <span style="font-size: 10px; font-weight: 700; letter-spacing: 1px; color: #a855f7; text-transform: uppercase; display: block; margin-bottom: 6px;">Intensity Index</span>
+                            <span id="r_intensity" style="font-size: 20px; font-weight: 800; color: #a855f7; display: block;">--</span>
+                            <span style="font-size: 9px; color: var(--muted); margin-top: 2px; display: block;">scale 0-100</span>
+                        </div>
+                        <div style="background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.2); border-radius: 12px; padding: 12px;">
+                            <span style="font-size: 10px; font-weight: 700; letter-spacing: 1px; color: #3b82f6; text-transform: uppercase; display: block; margin-bottom: 6px;">Daily Avg Rate</span>
+                            <span id="r_dailyavg" style="font-size: 20px; font-weight: 800; color: #3b82f6; display: block;">--</span>
+                            <span style="font-size: 9px; color: var(--muted); margin-top: 2px; display: block;">mm/h</span>
                         </div>
                     </div>
                 </div>
@@ -3678,10 +3719,65 @@ document.addEventListener('click', function(e) {
                 document.getElementById('needle').style.transform = 'rotate(' + d.wind.deg + 'deg)';
                 liveWindSpeed = d.wind.speed; liveWindDeg = d.wind.deg;
                 
+                // Get current station's IMD normal values
+                const station = STATIONS[currentStation];
+                const imdMonthly = station.imdMonthlyNormal || 380;
+                const imdYearly = station.imdYearlyNormal || 1397;
+                
+                // Calculate percentages vs IMD
+                const monthlyVal = parseFloat(d.rain.monthly || 0);
+                const yearlyVal = parseFloat(d.rain.yearly || 0);
+                const monthlyPercent = monthlyVal > 0 ? Math.round((monthlyVal / imdMonthly) * 100) : 0;
+                const yearlyPercent = yearlyVal > 0 ? Math.round((yearlyVal / imdYearly) * 100) : 0;
+                
+                // Calculate trend (up/down/neutral)
+                const monthlyTrend = monthlyPercent > 100 ? '▲ +' + (monthlyPercent - 100) + '%' : 
+                                     monthlyPercent < 100 ? '▼ -' + (100 - monthlyPercent) + '%' : '● =0%';
+                const yearlyTrend = yearlyPercent > 100 ? '▲ +' + (yearlyPercent - 100) + '%' : 
+                                    yearlyPercent < 100 ? '▼ -' + (100 - yearlyPercent) + '%' : '● =0%';
+                
                 document.getElementById('r_month').innerText = d.rain.monthly + ' mm';
+                document.getElementById('r_month_vs_imd').innerText = monthlyPercent + '% ' + monthlyTrend;
+                
                 document.getElementById('r_season_label').innerText = d.rain.seasonLabel || 'SWM';
                 document.getElementById('r_swm').innerText = (d.rain.seasonTotal ?? d.rain.swm) + ' mm';
+                document.getElementById('r_swm_vs_imd').innerText = monthlyPercent + '% ' + monthlyTrend;
+                
                 document.getElementById('r_year').innerText = d.rain.yearly + ' mm';
+                document.getElementById('r_year_vs_imd').innerText = yearlyPercent + '% ' + yearlyTrend;
+                
+                // NEW METRICS CALCULATIONS
+                // 1. Rain in last 1 hour = Current rain rate × 1 hour
+                const rainLast1hr = parseFloat(d.rain.rate || 0).toFixed(1);
+                document.getElementById('r_1hour').innerText = rainLast1hr + ' mm';
+                
+                // 2. Rain in last 3 days (estimate from daily total if available)
+                // Assuming daily_rain_3days is available, otherwise use current day × 1
+                const rainLast3days = parseFloat(d.rain.last3days || d.rain.total || 0).toFixed(1);
+                document.getElementById('r_3days').innerText = rainLast3days + ' mm';
+                
+                // 3. RAIN INTENSITY INDEX (0-100 scale)
+                // Combines: current rain rate + max rain rate today + total today
+                // Formula: (current_rate × 10) + (max_rate × 5) + (total_today × 0.5)
+                const currentRate = parseFloat(d.rain.rate || 0);
+                const maxRate = parseFloat(d.rain.maxR || 0);
+                const totalToday = parseFloat(d.rain.total || 0);
+                const intensityIndex = Math.min(100, Math.round((currentRate * 10) + (maxRate * 5) + (totalToday * 0.5)));
+                document.getElementById('r_intensity').innerText = intensityIndex;
+                
+                // Color code intensity
+                let intensityColor = '#a855f7'; // Purple default
+                if (intensityIndex >= 70) intensityColor = '#ef4444'; // Red - very intense
+                else if (intensityIndex >= 50) intensityColor = '#f97316'; // Orange - moderate
+                else if (intensityIndex >= 30) intensityColor = '#eab308'; // Yellow - light
+                else intensityColor = '#10b981'; // Green - minimal
+                document.getElementById('r_intensity').style.color = intensityColor;
+                
+                // 4. DAILY AVERAGE RAIN RATE (mm/h)
+                // Assumes weather data has been logging for ~12 hours so far, calculate average
+                const hoursSinceStart = 12; // Adjust based on your logging start time
+                const dailyAvgRate = totalToday > 0 ? (totalToday / hoursSinceStart).toFixed(2) : '0.00';
+                document.getElementById('r_dailyavg').innerText = dailyAvgRate + ' mm/h';
                 const pTrend = d.atmo.pTrend;
                 if (pTrend >= 0.1) document.getElementById('pIcon').innerHTML = '<span style="color:#ef4444; font-size:14px;">▲</span>';
                 else if (pTrend <= -0.1) document.getElementById('pIcon').innerHTML = '<span style="color:#0ea5e9; font-size:14px;">▼</span>';
