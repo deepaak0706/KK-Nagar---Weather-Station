@@ -1689,22 +1689,6 @@ if ('serviceWorker' in navigator) {
     .graph-card { background: var(--card); padding: 24px; border-radius: 24px; border: 1px solid var(--border); height: 320px; box-shadow: var(--glow); display: flex; flex-direction: column; overflow: hidden; }
     .graph-card canvas { flex-grow: 1; width: 100% !important; height: 100% !important; }
 
-    /* Desktop-only: one full-width graph per row, using the page's own
-       scroll (no separate inner scrollbar). Mobile/tablet (<1100px) keep
-       the existing auto-fit grid untouched. */
-    @media screen and (min-width: 1100px) {
-        .graphs-wrapper {
-            grid-template-columns: 1fr;
-            gap: 24px;
-            width: 100%;
-        }
-        .graph-card {
-            height: 380px;
-            padding: 28px;
-            overflow: visible;
-        }
-    }
-
     .trend-up { color: #ef4444; font-weight: bold; } .trend-down { color: #0ea5e9; font-weight: bold; }
 
     .pro-summary-table { background: var(--card); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border: 1px solid var(--border); border-radius: 24px; box-shadow: var(--glow); overflow: hidden; display: flex; flex-direction: column; width: 100%; }
@@ -3496,9 +3480,6 @@ document.addEventListener('click', function(e) {
                 await fetchGraphDataFromDB();
             } else if (type === 'graphs' && graphDataLoaded) {
                 document.getElementById('graphs-wrapper-inner').style.display = 'grid';
-                requestAnimationFrame(() => {
-                    Object.values(charts).forEach(c => c.resize());
-                });
             }
         }
 
@@ -3621,14 +3602,7 @@ document.addEventListener('click', function(e) {
                         charts.cASI.data.datasets[0].data = rainFormationIndex;
                         charts.cASI.update('none');
                         graphDataLoaded = true;
-
-                        // Force Chart.js to re-measure against the actual card size.
-                        // Needed because the desktop layout can render the canvas
-                        // before its container has settled into final height/width.
-                        requestAnimationFrame(() => {
-                            Object.values(charts).forEach(c => c.resize());
-                        });
-                    }, 50);
+                    }, 50); 
                 } else {
                     document.getElementById('graphs-error').innerText = "No graph data available for today yet.";
                     document.getElementById('graphs-error').style.display = 'block';
