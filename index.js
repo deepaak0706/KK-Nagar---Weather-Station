@@ -1701,6 +1701,7 @@ if ('serviceWorker' in navigator) {
         .graph-card {
             height: 380px;
             padding: 28px;
+            overflow: visible;
         }
     }
 
@@ -3495,6 +3496,9 @@ document.addEventListener('click', function(e) {
                 await fetchGraphDataFromDB();
             } else if (type === 'graphs' && graphDataLoaded) {
                 document.getElementById('graphs-wrapper-inner').style.display = 'grid';
+                requestAnimationFrame(() => {
+                    Object.values(charts).forEach(c => c.resize());
+                });
             }
         }
 
@@ -3617,7 +3621,14 @@ document.addEventListener('click', function(e) {
                         charts.cASI.data.datasets[0].data = rainFormationIndex;
                         charts.cASI.update('none');
                         graphDataLoaded = true;
-                    }, 50); 
+
+                        // Force Chart.js to re-measure against the actual card size.
+                        // Needed because the desktop layout can render the canvas
+                        // before its container has settled into final height/width.
+                        requestAnimationFrame(() => {
+                            Object.values(charts).forEach(c => c.resize());
+                        });
+                    }, 50);
                 } else {
                     document.getElementById('graphs-error').innerText = "No graph data available for today yet.";
                     document.getElementById('graphs-error').style.display = 'block';
