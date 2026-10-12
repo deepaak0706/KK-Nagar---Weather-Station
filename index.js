@@ -110,7 +110,6 @@ const stationState = {
         lastArchivedDate: null, dataChangedSinceLastRead: false,
         summaryCache: null, lastSummaryFetchDate: null, lastDateSeen: null,
         yearlyMidnightSnapshot: null,  // ← ADD THIS
-        nemBaseDate: null, nemBaseRainMm: 0,
     },
     neelangarai: { 
         cachedData: null, lastFetchTime: 0, lastDbWrite: 0,
@@ -119,7 +118,6 @@ const stationState = {
         tW: null, tG: null, tMaxT: null, tMinT: null, tRR: null,
         lastArchivedDate: null, dataChangedSinceLastRead: false,
         summaryCache: null, lastSummaryFetchDate: null, lastDateSeen: null,
-        nemBaseDate: null, nemBaseRainMm: 0,
 
     },
 
@@ -131,7 +129,6 @@ const stationState = {
         lastArchivedDate: null, dataChangedSinceLastRead: false,
         summaryCache: null, lastSummaryFetchDate: null, lastDateSeen: null,
         yearlyMidnightSnapshot: null,
-        nemBaseDate: null, nemBaseRainMm: 0,
     },
 
         sanatorium: { 
@@ -142,7 +139,6 @@ const stationState = {
         lastArchivedDate: null, dataChangedSinceLastRead: false,
         summaryCache: null, lastSummaryFetchDate: null, lastDateSeen: null,
         yearlyMidnightSnapshot: null,
-        nemBaseDate: null, nemBaseRainMm: 0,
     },
 };
 
@@ -151,107 +147,6 @@ function resetStateBuffers(station) {
     const s = stationState[station.id];
     s.bufW = 0; s.bufG = 0; s.bufMaxT = -999; s.bufMinT = 999; s.bufRR = 0;
     s.tW = null; s.tG = null; s.tMaxT = null; s.tMinT = null; s.tRR = null;
-}
-
-function toMillimetresPerHour(rateInches) {
-    const rate = Number(rateInches);
-    return Number.isFinite(rate) ? parseFloat((rate * 25.4).toFixed(1)) : 0;
-}
-
-function keepHigherRainPeak(currentPeakMm, currentPeakTime, candidatePeakMm, candidatePeakTime) {
-    const current = Number(currentPeakMm) || 0;
-    const candidate = Number(candidatePeakMm) || 0;
-    return candidate > current
-        ? { value: candidate, time: candidatePeakTime || currentPeakTime }
-        : { value: current, time: currentPeakTime };
-}
-
-function istDateParts(istDate) {
-    const [year, month, day] = String(istDate).split('-').map(Number);
-    return { year, month, day };
-}
-
-function monthNameFromIstDate(istDate) {
-    const { year, month, day } = istDateParts(istDate);
-    return new Date(Date.UTC(year, month - 1, day)).toLocaleString('en-US', {
-        month: 'long', timeZone: 'UTC'
-    });
-}
-
-function previousIstDate(istDate) {
-    const { year, month, day } = istDateParts(istDate);
-    return new Date(Date.UTC(year, month - 1, day - 1)).toISOString().slice(0, 10);
-}
-
-// The historical_rainfall table is intentionally KK Nagar-only. The monthly
-// value comes from finalized daily records, so it is safe across the provider's
-// midnight reset and safe to run more than once.
-async function maintainKKNagarHistoricalRainfall(client, todayISTStr) {
-    const completedDate = previousIstDate(todayISTStr);
-    const completedParts = istDateParts(completedDate);
-    const completedMonth = monthNameFromIstDate(completedDate);
-    const currentParts = istDateParts(todayISTStr);
-    const currentMonth = monthNameFromIstDate(todayISTStr);
-
-    // Prevent two overlapping serverless requests from creating duplicate rows
-    // in a table that may not have a database unique constraint yet.
-    await client.query("SELECT pg_advisory_xact_lock(hashtext('kknagar-historical-rainfall'))");
-
-    const totalResult = await client.query(`
-        SELECT COALESCE(ROUND(SUM(total_rain_mm)::numeric, 1), 0) AS rainfall_mm
-        FROM daily_max_records
-        WHERE station_id = 'kknagar'
-          AND record_date >= date_trunc('month', $1::date)::date
-          AND record_date < (date_trunc('month', $1::date) + INTERVAL '1 month')::date
-    `, [completedDate]);
-    const rainfallMm = Number(totalResult.rows[0]?.rainfall_mm) || 0;
-
-    const updated = await client.query(`
-        UPDATE historical_rainfall
-        SET rainfall_mm = $3
-        WHERE year_val = $1 AND lower(month_val) = lower($2)
-    `, [completedParts.year, completedMonth, rainfallMm]);
-    if (updated.rowCount === 0) {
-        await client.query(
-            'INSERT INTO historical_rainfall (year_val, month_val, rainfall_mm) VALUES ($1, $2, $3)',
-            [completedParts.year, completedMonth, rainfallMm]
-        );
-    }
-
-    // A fresh month begins at 00:00 IST. Insert its initial 0.0 row now; the
-    // next nightly rollup will replace it with the month-to-date total.
-    const currentExists = await client.query(`
-        SELECT 1 FROM historical_rainfall
-        WHERE year_val = $1 AND lower(month_val) = lower($2)
-        LIMIT 1
-    `, [currentParts.year, currentMonth]);
-    if (currentExists.rowCount === 0) {
-        await client.query(
-            'INSERT INTO historical_rainfall (year_val, month_val, rainfall_mm) VALUES ($1, $2, 0)',
-            [currentParts.year, currentMonth]
-        );
-    }
-}
-
-async function getNEMRainfallMm(station, todayISTStr, currentDailyIn) {
-    const { year, month } = istDateParts(todayISTStr);
-    if (month < 10) return null;
-
-    const state = stationState[station.id];
-    if (state.nemBaseDate !== todayISTStr) {
-        const seasonStart = `${year}-10-01`;
-        const baseResult = await pool.query(`
-            SELECT COALESCE(SUM(total_rain_mm), 0) AS rainfall_mm
-            FROM daily_max_records
-            WHERE station_id = $1
-              AND record_date >= $2::date
-              AND record_date < $3::date
-        `, [station.id, seasonStart, todayISTStr]);
-        state.nemBaseDate = todayISTStr;
-        state.nemBaseRainMm = Number(baseResult.rows[0]?.rainfall_mm) || 0;
-    }
-
-    return Math.round((state.nemBaseRainMm + (Number(currentDailyIn) || 0) * 25.4) * 10) / 10;
 }
 
 async function loadBufferState(station) {
@@ -333,33 +228,24 @@ function calculateRealFeel(tempC, humidity) {
  * Decay is now handled externally by the Cron.
  */
 
- function processRainLogic(buf, newDailyInches, observationTimeMs, isCron = false) {
-     // Only the cron advances the durable rain baseline. The timestamp is the
-    // station/API observation time, never the time at which the cron arrived.
+ function processRainLogic(buf, newDailyInches, currentTimeStamp, isCron = false) {
+     // If a user refresh happens, don't update the baseline or time
+    // Only the Cron should advance the "lastRainRaw" and "lastRainTime"
     if (!isCron) {
         return buf; 
     }
-    const observationTime = Number(observationTimeMs);
-    if (!Number.isFinite(newDailyInches) || !Number.isFinite(observationTime) || observationTime <= 0) {
-        throw new Error('Missing or invalid rain observation timestamp');
-    }
+    const now = Date.now();
     
     if (buf.lastRainRaw === null) {
         buf.lastRainRaw = newDailyInches;
-        buf.lastRainTime = observationTime;
+        buf.lastRainTime = now;
         return buf;
     }
-
-    // The provider can return the same observation more than once. It is not
-    // a new measurement, so it must not create another rain-rate calculation.
-    if (observationTime <= buf.lastRainTime) return buf;
 
     // --- MIDNIGHT RESET FIX ---
     // If the API resets the daily total back to 0 (or a lower number)
     if (newDailyInches < buf.lastRainRaw) {
-        buf.lastRainRaw = newDailyInches;
-        buf.lastRainTime = observationTime;
-        buf.lastCalculatedRate = 0;
+        buf.lastRainRaw = newDailyInches; // Reset our baseline tracker
         return buf;    // Exit without calculating a rate
     }
     // --------------------------
@@ -367,7 +253,7 @@ function calculateRealFeel(tempC, humidity) {
     const deltaRain = newDailyInches - buf.lastRainRaw;
 
         if (deltaRain > 0.0001) { 
-        let timeSinceLastTipSec = (observationTime - buf.lastRainTime) / 1000;
+        let timeSinceLastTipSec = (now - buf.lastRainTime) / 1000;
 
         // Fresh event: if gap > 5 min, treat as new rain (60 sec baseline)
         if (timeSinceLastTipSec > 300) {
@@ -379,13 +265,13 @@ function calculateRealFeel(tempC, humidity) {
         buf.lastCalculatedRate = deltaRain * (3600 / effectiveTime);
         
         buf.lastRainRaw = newDailyInches;
-        buf.lastRainTime = observationTime; 
+        buf.lastRainTime = now; 
     }
 
 
     if (buf.lastCalculatedRate > (buf.bufRR || 0)) { 
         buf.bufRR = buf.lastCalculatedRate; 
-        buf.tRR = new Date(observationTime).toISOString(); 
+        buf.tRR = currentTimeStamp; 
     }
     
     return buf;
@@ -400,10 +286,11 @@ function calculateRealFeel(tempC, humidity) {
 
 async function bufferOnlyUpdate(station) {
     const now = Date.now();
+    const currentTimeStamp = new Date().toISOString();
     const st = stationState[station.id];
 
     try {
-        let apiW, apiG, apiT, dailyRainInches, observationTimeMs;
+        let apiW, apiG, apiT, dailyRainInches;
 
         if (station.type === 'ecowitt') {
             const url = `https://api.ecowitt.net/api/v3/device/real_time?application_key=${station.appKey}&api_key=${station.apiKey}&mac=${station.mac}&rainfall_unitid=12`;
@@ -416,7 +303,6 @@ async function bufferOnlyUpdate(station) {
             apiG = parseFloat(d.wind.wind_gust.value);
             apiT = parseFloat(d.outdoor.temperature.value);
             dailyRainInches = parseFloat(d.rainfall.daily.value) / 25.4;
-            observationTimeMs = Number(d.rainfall.daily.time) * 1000;
 
         } else if (station.type === 'ambient') {
             const url = `https://api.ambientweather.net/v1/devices?applicationKey=${station.appKey}&apiKey=${station.apiKey}&limit=1`;
@@ -433,18 +319,12 @@ async function bufferOnlyUpdate(station) {
             apiG = parseFloat(d.windgustmph);
             apiT = parseFloat(tempf);
             dailyRainInches = parseFloat(d.dailyrainin);
-            observationTimeMs = Number(d.dateutc);
         }
-
-        if (!Number.isFinite(observationTimeMs) || observationTimeMs <= 0) {
-            throw new Error(`Missing rain observation timestamp [${station.id}]`);
-        }
-        const currentTimeStamp = new Date(observationTimeMs).toISOString();
 
         let buf = await loadBufferState(station);
 
-        // 1. Calculate RR from the provider's observation interval, not cron timing.
-        buf = processRainLogic(buf, dailyRainInches, observationTimeMs, true);
+        // 1. Process rain tips
+        buf = processRainLogic(buf, dailyRainInches, currentTimeStamp, true);
 
         // Zero out rain rate if no rain for 5+ minutes
         const secondsSinceLastTip = (now - buf.lastRainTime) / 1000;
@@ -476,7 +356,7 @@ async function bufferOnlyUpdate(station) {
 async function syncWithEcowitt(station, forceWrite = false) {
     const now = Date.now();
     const st = stationState[station.id];
-    const fmtL = () => new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' });
+    const fmtL = () => new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' });
     const nowIST = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" }));
     const todayISTStr = nowIST.toLocaleDateString('en-CA');
     const hour = nowIST.getHours();
@@ -485,13 +365,6 @@ async function syncWithEcowitt(station, forceWrite = false) {
     if (st.lastArchivedDate && st.lastArchivedDate !== todayISTStr) {
         st.cachedData = null;
     }
-
-    // Daily extrema live in the database. Refresh them on the same 30-second
-    // cadence as the dashboard so a warm visitor cache cannot hide a DB write.
-    const shouldRefreshDailyExtremes =
-        !st.cachedData ||
-        st.dataChangedSinceLastRead ||
-        (now - (st.lastDailyExtremesFetchTime || 0) >= 30000);
 
     // ── FETCH RAW DATA FROM API ──────────────────────────────
     const fetchLiveData = async () => {
@@ -510,6 +383,7 @@ async function syncWithEcowitt(station, forceWrite = false) {
                 gustMph:    parseFloat(d.wind.wind_gust.value),
                 windDeg:    parseFloat(d.wind.wind_direction.value),
                 dailyIn:    parseFloat(d.rainfall.daily.value) / 25.4,
+                weeklyIn:   parseFloat(d.rainfall.weekly.value) / 25.4,
                 monthlyIn:  parseFloat(d.rainfall.monthly.value) / 25.4,
                 yearlyIn:   parseFloat(d.rainfall.yearly.value) / 25.4,
                 solar:      d.solar_and_uvi?.solar?.value || 0,
@@ -537,6 +411,7 @@ async function syncWithEcowitt(station, forceWrite = false) {
         gustMph:    parseFloat(d.windgustmph),
         windDeg:    parseFloat(d.winddir),
         dailyIn:    parseFloat(d.dailyrainin),
+        weeklyIn:   parseFloat(d.weeklyrainin),
         monthlyIn:  parseFloat(d.monthlyrainin),
         yearlyIn:   parseFloat(d.yearlyrainin),
         solar:      parseFloat(d.solarradiation) || 0,
@@ -547,12 +422,11 @@ async function syncWithEcowitt(station, forceWrite = false) {
     };
 
     // ── VISITOR PATH (cache < 9 min) ─────────────────────────
-    if (!forceWrite && st.cachedData && (now - st.lastFetchTime < 540000) && !shouldRefreshDailyExtremes) {
+    if (!forceWrite && st.cachedData && (now - st.lastFetchTime < 540000)) {
         try {
             const r = await fetchLiveData();
             const buf = await loadBufferState(station);
-            const liveRR = toMillimetresPerHour(buf.lastCalculatedRate);
-            const nemMm = await getNEMRainfallMm(station, todayISTStr, r.dailyIn);
+            const liveRR = parseFloat((buf.lastCalculatedRate * 25.4).toFixed(1));
 
             const liveTemp = parseFloat(((r.tempF - 32) * 5 / 9).toFixed(1));
             const liveWind = parseFloat((r.windMph * 1.60934).toFixed(1));
@@ -569,12 +443,8 @@ async function syncWithEcowitt(station, forceWrite = false) {
             st.cachedData.wind.gust = liveGust;
             st.cachedData.rain.total = Math.round(r.dailyIn * 2540) / 100;
             st.cachedData.rain.rate = liveRR;
-            if (nemMm !== null) {
-                st.cachedData.rain.seasonLabel = 'NEM';
-                st.cachedData.rain.seasonTotal = nemMm;
-            }
 
-            const fmtIso = (iso) => iso ? new Date(iso).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' }) : fmtL();
+            const fmtIso = (iso) => iso ? new Date(iso).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' }) : fmtL();
 
             if (liveTemp > st.cachedData.temp.max) { st.cachedData.temp.max = liveTemp; st.cachedData.temp.maxTime = fmtL(); }
             if (liveTemp < st.cachedData.temp.min) { st.cachedData.temp.min = liveTemp; st.cachedData.temp.minTime = fmtL(); }
@@ -611,7 +481,6 @@ async function syncWithEcowitt(station, forceWrite = false) {
         }
 
         const r = await fetchLiveData();
-        const nemMm = await getNEMRainfallMm(station, todayISTStr, r.dailyIn);
 
         const liveTemp  = parseFloat(((r.tempF - 32) * 5 / 9).toFixed(1));
         const liveDewC  = parseFloat(((r.dewF - 32) * 5 / 9).toFixed(1));
@@ -721,10 +590,6 @@ try {
               AND (time AT TIME ZONE 'Asia/Kolkata')::date < $2::date
         `, [station.id, todayISTStr]);
 
-        if (station.id === 'kknagar') {
-            await maintainKKNagarHistoricalRainfall(client, todayISTStr);
-        }
-
         didRollup = true;
     }
 
@@ -759,7 +624,7 @@ try {
         let mx_t = -999, mn_t = 999, mx_w = 0, mx_g = 0, mx_r = 0;
         let mx_t_time = null, mn_t_time = null, mx_w_t = null, mx_g_t = null, mx_r_t = null;
 
-        if (shouldRefreshDailyExtremes) {
+        if (st.dataChangedSinceLastRead || !st.cachedData) {
             try {
                 const historyRes = await pool.query(`
                     SELECT * FROM weather_history
@@ -773,7 +638,7 @@ try {
                 let closestDiff = Infinity;
 
                 historyRes.rows.forEach(row => {
-                    const fmt = (iso) => new Date(iso || row.time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' });
+                    const fmt = (iso) => new Date(iso || row.time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' });
                     const r_max_t = parseFloat(((row.temp_f - 32) * 5/9).toFixed(1));
                     const r_min_t = parseFloat(((row.temp_min_f - 32) * 5/9).toFixed(1));
                     const r_w    = parseFloat((row.wind_speed_mph * 1.60934).toFixed(1));
@@ -803,14 +668,13 @@ try {
                     }
                 }
                 st.dataChangedSinceLastRead = false;
-                st.lastDailyExtremesFetchTime = now;
             } catch (dbError) { console.error("DB Prep Error:", dbError); }
         }
 
         const writerBufForRR = await loadBufferState(station);
-        const liveRR = toMillimetresPerHour(writerBufForRR.lastCalculatedRate);
+        const liveRR = parseFloat((writerBufForRR.lastCalculatedRate * 25.4).toFixed(1));
 
-        const fmtIso = (iso) => iso ? new Date(iso).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' }) : fmtL();
+        const fmtIso = (iso) => iso ? new Date(iso).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' }) : fmtL();
 
         if (mx_t === -999) { mx_t = liveTemp; mx_t_time = fmtL(); }
         if (mn_t ===  999) { mn_t = liveTemp; mn_t_time = fmtL(); }
@@ -824,26 +688,7 @@ try {
         if (liveGust > mx_g) { mx_g = liveGust; mx_g_t    = fmtL(); }
         if (liveRR   > mx_r) { mx_r = liveRR;   mx_r_t    = fmtL(); }
 
-        // Merge database, cache, and cron buffer peaks before rebuilding the
-        // response. This guarantees a visitor refresh cannot downgrade Max RR.
-        const cachedRainPeak = st.cachedData?.rain?.maxR || 0;
-        const cachedRainPeakTime = st.cachedData?.rain?.maxRTime || null;
-        let resolvedRainPeak = keepHigherRainPeak(mx_r, mx_r_t, cachedRainPeak, cachedRainPeakTime);
-        resolvedRainPeak = keepHigherRainPeak(
-            resolvedRainPeak.value,
-            resolvedRainPeak.time,
-            toMillimetresPerHour(writerBufForRR.bufRR),
-            fmtIso(writerBufForRR.tRR)
-        );
-        mx_r = resolvedRainPeak.value;
-        mx_r_t = resolvedRainPeak.time;
-
-        const source = (forceWrite && typeof snap !== 'undefined') ? snap : {
-            maxT: writerBufForRR.bufMaxT, minT: writerBufForRR.bufMinT,
-            w: writerBufForRR.bufW, g: writerBufForRR.bufG, rr: writerBufForRR.bufRR,
-            tMaxT: writerBufForRR.tMaxT, tMinT: writerBufForRR.tMinT,
-            tW: writerBufForRR.tW, tG: writerBufForRR.tG, tRR: writerBufForRR.tRR
-        };
+        const source = (forceWrite && typeof snap !== 'undefined') ? snap : st;
         if (source.maxT !== -999 && source.maxT !== undefined) { const v = parseFloat(((source.maxT-32)*5/9).toFixed(1)); if (v > mx_t) { mx_t = v; mx_t_time = fmtIso(source.tMaxT); } }
         if (source.minT !==  999 && source.minT !== undefined) { const v = parseFloat(((source.minT-32)*5/9).toFixed(1)); if (v < mn_t) { mn_t = v; mn_t_time = fmtIso(source.tMinT); } }
         if (source.w > 0) { const v = parseFloat((source.w*1.60934).toFixed(1)); if (v > mx_w) { mx_w = v; mx_w_t = fmtIso(source.tW); } }
@@ -855,40 +700,18 @@ try {
             atmo: { hum: liveHum, hTrend: humRate, press: livePress, pTrend: pressRate, sol: r.solar, uv: r.uv },
             wind: { speed: liveWind, gust: liveGust, maxS: mx_w, maxSTime: mx_w_t, maxG: mx_g, maxGTime: mx_g_t, deg: r.windDeg, card: getCard(r.windDeg) },
             rain: (() => {
-    let yearlyMm = Math.round((Math.round(r.yearlyIn * 2540) / 100 +
+    let yearlyMm = Math.round(r.yearlyIn * 2540) / 100 +
     (station.id === 'kknagar' ? 494.8 :
-     station.id === 'ayyapakkam' ? 257.02 : 0)) * 100) / 100;
-
-    const swmBaseline = {
-        kknagar: 519.7,
-        ayyapakkam: 642.3,
-        neelangarai: 410.1,
-        sanatorium: 405.2
-    };
-
-    const yearlyBaseline = {
-        kknagar: 214.4,
-        ayyapakkam: 547.37,
-        neelangarai: 593.6,
-        sanatorium: 529.3
-    };
-
-    // SWM = station SWM baseline + raw yearly API rainfall - station yearly baseline.
-    // This is independent from, and does not modify, the existing yearlyMm calculation above.
-    const rawYearlyMm = Math.round(r.yearlyIn * 2540) / 100;
-    const swmMm = Math.round((swmBaseline[station.id] + rawYearlyMm - yearlyBaseline[station.id]) * 100) / 100;
-
+     station.id === 'ayyapakkam' ? 257.02 : 0);
     return {
-    total:   Math.round(r.dailyIn  * 2540) / 100,
-    rate:    liveRR,
-    maxR:    mx_r,
-    maxRTime: mx_r_t,
-    monthly: Math.round(r.monthlyIn * 2540) / 100,
-    swm:     swmMm,
-    seasonLabel: nemMm !== null ? 'NEM' : 'SWM',
-    seasonTotal: nemMm !== null ? nemMm : swmMm,
-    yearly:  yearlyMm,
-};
+        total:   Math.round(r.dailyIn  * 2540) / 100,
+        rate:    liveRR,
+        maxR:    mx_r,
+        maxRTime: mx_r_t,
+        weekly:  Math.round(r.weeklyIn  * 2540) / 100,
+        monthly: Math.round(r.monthlyIn * 2540) / 100 + (station.id === 'kknagar' ? 119.8 : 0),
+        yearly:  yearlyMm,
+    };
 })(),
             lastSync: new Date().toISOString()
         };
@@ -924,52 +747,6 @@ async function getWeatherSummary(station) {
     } catch (err) { return { error: err.message }; }
 }
 
-// Lightweight rain-only snapshot for visible dashboards. It reads the durable
-// cron buffer and today's stored peak, never the weather-provider API.
-async function getRainStatus(station) {
-    const st = stationState[station.id];
-    const now = Date.now();
-    if (st.rainStatusCache && now - st.rainStatusCacheAt < 4000) return st.rainStatusCache;
-    if (st.rainStatusPromise) return st.rainStatusPromise;
-
-    st.rainStatusPromise = (async () => {
-        const todayISTStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
-        const [buffer, historyRes] = await Promise.all([
-            loadBufferState(station),
-            pool.query(`
-                SELECT rain_rate_in, max_r_time
-                FROM weather_history
-                WHERE station_id = $1
-                  AND (time AT TIME ZONE 'Asia/Kolkata')::date = $2::date
-                  AND rain_rate_in IS NOT NULL
-                ORDER BY rain_rate_in DESC, time ASC
-                LIMIT 1
-            `, [station.id, todayISTStr])
-        ]);
-
-        const formatTime = (iso) => iso ? new Date(iso).toLocaleTimeString('en-IN', {
-            hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Kolkata'
-        }) : null;
-        const currentRate = toMillimetresPerHour(buffer.lastCalculatedRate);
-        const dbPeak = historyRes.rows[0];
-        let peak = keepHigherRainPeak(0, null, toMillimetresPerHour(dbPeak?.rain_rate_in), formatTime(dbPeak?.max_r_time));
-        peak = keepHigherRainPeak(peak.value, peak.time, st.cachedData?.rain?.maxR, st.cachedData?.rain?.maxRTime);
-        peak = keepHigherRainPeak(peak.value, peak.time, toMillimetresPerHour(buffer.bufRR), formatTime(buffer.tRR));
-        peak = keepHigherRainPeak(peak.value, peak.time, currentRate, null);
-
-        const status = { rate: currentRate, maxRate: peak.value, maxRateTime: peak.time, lastSync: new Date().toISOString() };
-        st.rainStatusCache = status;
-        st.rainStatusCacheAt = Date.now();
-        return status;
-    })();
-
-    try {
-        return await st.rainStatusPromise;
-    } finally {
-        st.rainStatusPromise = null;
-    }
-}
-
 // Routes
 
 /**
@@ -984,44 +761,6 @@ function getStation(req) {
 app.get("/weather", async (req, res) => {
     const s = getStation(req);
     res.json(await syncWithEcowitt(s, false));
-});
-
-app.get("/api/rain-status", async (req, res) => {
-    const s = getStation(req);
-    res.set('Cache-Control', 'no-store, max-age=0');
-    try {
-        res.json(await getRainStatus(s));
-    } catch (error) {
-        console.error(`Rain status unavailable [${s.id}]:`, error.message);
-        res.status(503).json({ error: 'Rain status temporarily unavailable' });
-    }
-});
-
-// Additive compact-data view. It reuses the existing per-station sync/cache path
-// and deliberately exposes only the four values needed by Station Summary.
-app.get("/api/station-summary", async (req, res) => {
-    const stationIds = ['kknagar', 'neelangarai', 'ayyapakkam', 'sanatorium'];
-    const stations = await Promise.all(stationIds.map(async (stationId) => {
-        const station = STATIONS[stationId];
-        try {
-            const data = await syncWithEcowitt(station, false);
-            if (!data) return { id: station.id, name: station.name, available: false };
-            return {
-                id: station.id,
-                name: station.name,
-                available: true,
-                temperature: data.temp.current,
-                rainfall: data.rain.total,
-                rainRate: data.rain.rate,
-                maxRainRate: data.rain.maxR,
-                lastSync: data.lastSync
-            };
-        } catch (error) {
-            console.error(`Station summary unavailable [${station.id}]:`, error.message);
-            return { id: station.id, name: station.name, available: false };
-        }
-    }));
-    res.json({ lastSync: new Date().toISOString(), stations });
 });
 
 app.get("/api/summary", async (req, res) => {
@@ -1069,9 +808,7 @@ app.get("/api/history_graphs", async (req, res) => {
             temp: parseFloat(((r.temp_f - 32) * 5/9).toFixed(1)),
             hum:  r.humidity,
             wind: parseFloat((r.wind_speed_mph * 1.60934).toFixed(1)),
-            rain: parseFloat((r.daily_rain_in * 25.4).toFixed(1)),
-            realFeel: parseFloat(((r.feels_like_f - 32) * 5/9).toFixed(1)) || parseFloat(((r.temp_f - 32) * 5/9).toFixed(1)),
-            pressure: parseFloat(r.barometric_pressure_in) ? parseFloat(r.barometric_pressure_in * 33.8639) : 1013 // Convert inHg to hPa
+            rain: parseFloat((r.daily_rain_in * 25.4).toFixed(1))
         }));
         res.json(history);
     } catch (e) { res.status(500).json({ error: e.message }); }
@@ -1081,11 +818,6 @@ app.get("/api/history_graphs", async (req, res) => {
 app.get('/api/historical-rain', async (req, res) => {
     const { year } = req.query;
     if (!year) return res.status(400).json({ error: "Year is required" });
-    // Historical rainfall is currently a KK Nagar-only archive. Do not return
-    // KK Nagar records when another station is selected or requested directly.
-    if ((req.query.station || 'kknagar').toLowerCase() !== 'kknagar') {
-        return res.status(404).json({ error: 'Historical rainfall is available for KK Nagar only.' });
-    }
 
     try {
         const result = await pool.query(
@@ -1127,7 +859,7 @@ app.get('/manifest.json', (req, res) => {
 app.get('/sw.js', (req, res) => {
     res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
     res.type('application/javascript').send(`
-const CACHE_NAME = 'kk-nagar-weather-v4';
+const CACHE_NAME = 'kk-nagar-weather-v3';
 
 self.addEventListener('install', event => {
   event.waitUntil(
@@ -1215,7 +947,8 @@ app.get('/screenshot-1280.png', (req, res) => {
 
 
 // 5. The User Interface (Your HTML)
-const renderWeatherApp = () => `
+app.get("/", (req, res) => {
+    res.send(`
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -1247,7 +980,7 @@ if ('serviceWorker' in navigator) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0, shrink-to-fit=no, viewport-fit=cover">
     <title>KK Nagar Weather Station</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Sora:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <style>
     /* ☁️ E-INK LIGHT MODE (Anti-Glare / Matte)    */
     /* ========================================== */
@@ -1488,7 +1221,7 @@ if ('serviceWorker' in navigator) {
     #t, #w, #r_tot, #pr,
     #mx, #mn, #mw, #mg,
     #r_rate, #mr, #rf, #h_val, #d_val,
-    #r_month, #r_swm, #r_year,
+    #r_week, #r_month, #r_year,
     #sol, #uv {
         /* 🎨 SMOOTH: Transition animation on value changes */
         transition: all 0.35s cubic-bezier(0.22, 1, 0.36, 1);
@@ -1688,6 +1421,26 @@ if ('serviceWorker' in navigator) {
     .graphs-wrapper { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin-top: 20px; }
     .graph-card { background: var(--card); padding: 24px; border-radius: 24px; border: 1px solid var(--border); height: 320px; box-shadow: var(--glow); display: flex; flex-direction: column; overflow: hidden; }
     .graph-card canvas { flex-grow: 1; width: 100% !important; height: 100% !important; }
+
+    /* Desktop-only: one wider, taller graph per row in a scrollable column.
+       Mobile/tablet (<1100px) keep the existing auto-fit grid untouched. */
+    @media screen and (min-width: 1100px) {
+        .graphs-wrapper {
+            grid-template-columns: 1fr;
+            gap: 24px;
+            max-width: 980px;
+            margin-left: auto;
+            margin-right: auto;
+            max-height: 78vh;
+            overflow-y: auto;
+            padding-right: 6px;
+            scroll-behavior: smooth;
+        }
+        .graph-card {
+            height: 420px;
+            padding: 28px;
+        }
+    }
 
     .trend-up { color: #ef4444; font-weight: bold; } .trend-down { color: #0ea5e9; font-weight: bold; }
 
@@ -2154,602 +1907,233 @@ if ('serviceWorker' in navigator) {
     cursor: pointer;
 }
 
-/* Additive application navigation — isolated from the existing dashboard UI. */
-.dashboard-nav-host { flex: 0 0 auto; display: flex; align-items: center; }
-.dashboard-nav-toggle {
-    width: 42px; height: 42px; padding: 0; border: 1px solid var(--border);
-    border-radius: 13px; background: var(--card); color: var(--text); cursor: pointer;
-    display: inline-flex; align-items: center; justify-content: center; box-shadow: var(--glow);
-    -webkit-tap-highlight-color: transparent;
-}
-.dashboard-nav-toggle svg { width: 20px; height: 20px; stroke: currentColor; }
-.dashboard-nav-toggle:focus-visible, .dashboard-nav-link:focus-visible { outline: 3px solid rgba(56, 189, 248, 0.5); outline-offset: 3px; }
-.dashboard-nav-overlay {
-    position: fixed; inset: 0; z-index: 10000; background: rgba(2, 6, 23, 0.42);
-    opacity: 0; pointer-events: none; transition: opacity 0.2s ease;
-}
-.dashboard-nav-overlay.is-open { opacity: 1; pointer-events: auto; }
-.dashboard-nav-drawer {
-    position: fixed; z-index: 10001; top: 0; bottom: 0; left: 0; width: min(310px, calc(100vw - 46px));
-    padding: calc(22px + env(safe-area-inset-top, 0px)) 16px 24px calc(16px + env(safe-area-inset-left, 0px));
-    background: var(--card); border-right: 1px solid var(--border); box-shadow: 18px 0 42px rgba(2, 6, 23, 0.25);
-    transform: translateX(-105%); transition: transform 0.24s cubic-bezier(0.22, 1, 0.36, 1);
-    display: flex; flex-direction: column; gap: 18px;
-}
-.dashboard-nav-drawer.is-open { transform: translateX(0); }
-.dashboard-nav-heading { color: var(--muted); font-size: 11px; font-weight: 800; letter-spacing: 1.4px; text-transform: uppercase; }
-.dashboard-nav-links { display: grid; gap: 8px; }
-.dashboard-nav-link {
-    min-height: 48px; width: 100%; border: 1px solid transparent; border-radius: 13px; background: transparent;
-    color: var(--text); cursor: pointer; font: 700 15px/1 'Outfit', sans-serif; text-align: left; padding: 0 14px;
-}
-.dashboard-nav-link.active { color: white; background: var(--accent); border-color: var(--accent); }
-.dashboard-nav-link:active { transform: scale(0.98); }
-body.dashboard-nav-open { overflow: hidden; }
-.station-summary-page-title { display: none; align-items: center; min-width: 0; color: var(--text); font-size: 28px; font-weight: 900; letter-spacing: -0.8px; }
-body.station-summary-active .station-picker,
-body.station-summary-active .header-actions,
-body.station-summary-active .nav-tabs { display: none; }
-body.station-summary-active .station-summary-page-title { display: flex; }
-body.station-summary-active .header { justify-content: flex-start; margin-bottom: 28px; }
-
-/* Additive Station Summary page — all selectors are intentionally namespaced. */
-.station-summary-shell { width: 100%; }
-.station-summary-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; width: 100%; }
-.station-summary-card {
-    min-width: 0; padding: 16px; border: 1px solid var(--border); border-radius: 18px;
-    background: var(--card); box-shadow: var(--glow); position: relative; overflow: hidden;
-}
-.station-summary-card-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.station-summary-name { overflow: hidden; color: var(--accent); font-size: 15px; font-weight: 900; letter-spacing: -0.2px; text-overflow: ellipsis; white-space: nowrap; }
-.station-summary-name::before { content: ''; display: inline-block; width: 8px; height: 8px; margin: 0 8px 1px 0; border-radius: 50%; background: currentColor; box-shadow: 0 0 0 4px rgba(56, 189, 248, 0.12); }
-.station-summary-live { display: inline-flex; align-items: center; flex: 0 0 auto; gap: 5px; color: var(--muted); font-size: 9px; font-weight: 800; letter-spacing: 0.7px; }
-.station-summary-live::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: #34d399; box-shadow: 0 0 8px rgba(52, 211, 153, 0.7); }
-.station-summary-metrics { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 8px; margin-top: 15px; }
-.station-summary-metric { min-width: 0; position: relative; }
-.station-summary-label { display: block; overflow: hidden; color: var(--muted); font-size: 9px; font-weight: 800; letter-spacing: 0.45px; text-overflow: ellipsis; text-transform: uppercase; white-space: nowrap; }
-.station-summary-value { display: block; overflow: hidden; margin-top: 4px; color: var(--text); font-size: clamp(15px, 2.1vw, 21px); font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: -0.6px; text-overflow: ellipsis; white-space: nowrap; }
-.station-summary-metric:nth-child(odd)::after { content: ''; position: absolute; top: 2px; right: -5px; bottom: 2px; width: 1px; background: linear-gradient(to bottom, transparent, var(--border) 18%, var(--border) 82%, transparent); }
-.station-summary-metric:nth-child(-n+2)::before { content: ''; position: absolute; right: 0; bottom: -7px; left: 0; height: 1px; background: linear-gradient(to right, transparent, var(--border) 14%, var(--border) 86%, transparent); }
-.station-summary-card:nth-child(1) .station-summary-name { color: #fb7185; }
-.station-summary-card:nth-child(2) .station-summary-name { color: #fbbf24; }
-.station-summary-card:nth-child(3) .station-summary-name { color: #22d3ee; }
-.station-summary-card:nth-child(4) .station-summary-name { color: #a78bfa; }
-.station-summary-metric:nth-child(2) .station-summary-value { color: #38bdf8; }
-.station-summary-metric:nth-child(3) .station-summary-value { color: #2dd4bf; }
-.station-summary-metric:nth-child(4) .station-summary-value { color: #f472b6; }
-.station-summary-unavailable { margin: 15px 0 1px; color: var(--muted); font-size: 12px; font-weight: 700; }
-@media screen and (max-width: 430px) {
-    .dashboard-nav-toggle { width: 40px; height: 40px; }
-    .station-summary-grid { gap: 8px; }
-    .station-summary-card { padding: 12px 10px; border-radius: 15px; }
-    .station-summary-name { font-size: 13px; }
-    .station-summary-metrics { gap: 10px 5px; margin-top: 12px; }
-    .station-summary-label { font-size: 8px; letter-spacing: 0.2px; }
-    .station-summary-value { font-size: 14px; }
-}
-
-/* Dedicated Station Summary sizing: large 2×2 desktop cards and readable mobile scrolling. */
-@media screen and (min-width: 768px) {
-    .station-summary-grid {
-        min-height: min(720px, calc(100vh - 150px));
-        grid-template-rows: repeat(2, minmax(270px, 1fr));
-        gap: 18px;
-    }
-    .station-summary-card { padding: 28px; border-radius: 22px; }
-    .station-summary-name { font-size: 21px; }
-    .station-summary-metrics { gap: 26px 18px; margin-top: 32px; }
-    .station-summary-label { font-size: 11px; letter-spacing: 0.7px; }
-    .station-summary-value { margin-top: 7px; font-size: clamp(23px, 2vw, 31px); }
-}
-
-@media screen and (max-width: 767px) {
-    .station-summary-page-title { font-size: clamp(22px, 7vw, 28px); }
-    .station-summary-grid { grid-template-columns: minmax(0, 1fr); gap: 12px; }
-    .station-summary-card { min-height: 184px; padding: 20px; border-radius: 18px; }
-    .station-summary-name { font-size: 20px; }
-    .station-summary-metrics { gap: 20px 12px; margin-top: 20px; }
-    .station-summary-label { font-size: 10px; letter-spacing: 0.45px; }
-    .station-summary-value { margin-top: 6px; font-size: 23px; }
-}
-
-/* Station Summary polish: restrained data hierarchy and a compact navigation sheet. */
-.dashboard-nav-drawer {
-    top: 12px;
-    bottom: 12px;
-    width: min(264px, 68vw);
-    padding: calc(18px + env(safe-area-inset-top, 0px)) 14px 18px calc(14px + env(safe-area-inset-left, 0px));
+/* ── Global hamburger: does not affect the existing dashboard layout ── */
+#app-menu-button {
+    position: fixed;
+    left: 0;
+    top: 50%;
+    z-index: 10001;
+    display: grid;
+    gap: 4px;
+    width: 42px;
+    height: 48px;
+    padding: 0 12px;
     border: 1px solid var(--border);
     border-left: 0;
-    border-radius: 0 20px 20px 0;
-    box-shadow: 14px 10px 34px rgba(2, 6, 23, 0.22);
-    gap: 14px;
-}
-.dashboard-nav-heading { padding-left: 4px; font-size: 10px; letter-spacing: 1.2px; }
-.dashboard-nav-links { gap: 5px; }
-.dashboard-nav-link { min-height: 44px; border-radius: 11px; font-size: 14px; font-weight: 600; padding: 0 12px; }
-.dashboard-nav-link.active { box-shadow: 0 8px 18px rgba(3, 105, 161, 0.18); }
-
-.station-summary-grid { gap: 14px; }
-.station-summary-card {
-    padding: 20px;
-    border-color: color-mix(in srgb, var(--border) 88%, transparent);
-    border-radius: 20px;
+    border-radius: 0 14px 14px 0;
     background: var(--card);
-    box-shadow: 0 12px 28px -24px rgba(15, 23, 42, 0.45);
-}
-.station-summary-name { color: var(--text) !important; font-size: 18px; font-weight: 700; letter-spacing: -0.35px; }
-.station-summary-name::before { width: 7px; height: 7px; margin-right: 9px; box-shadow: none; }
-.station-summary-card:nth-child(1) .station-summary-name::before { background: #fb7185; }
-.station-summary-card:nth-child(2) .station-summary-name::before { background: #f59e0b; }
-.station-summary-card:nth-child(3) .station-summary-name::before { background: #22b8cf; }
-.station-summary-card:nth-child(4) .station-summary-name::before { background: #8b7cf6; }
-.station-summary-live { color: var(--muted); font-size: 8px; font-weight: 700; letter-spacing: 0.8px; }
-.station-summary-live::before { width: 5px; height: 5px; box-shadow: none; }
-.station-summary-metrics { gap: 16px 18px; margin-top: 20px; }
-.station-summary-metric { padding-left: 9px; }
-.station-summary-metric::after, .station-summary-metric::before { display: none !important; }
-.station-summary-metric:nth-child(1) { border-left: 2px solid #94a3b8; }
-.station-summary-metric:nth-child(2) { border-left: 2px solid #60a5fa; }
-.station-summary-metric:nth-child(3) { border-left: 2px solid #2dd4bf; }
-.station-summary-metric:nth-child(4) { border-left: 2px solid #a78bfa; }
-.station-summary-label { color: var(--muted); font-size: 9px; font-weight: 600; letter-spacing: 0.8px; }
-.station-summary-value,
-.station-summary-metric:nth-child(2) .station-summary-value,
-.station-summary-metric:nth-child(3) .station-summary-value,
-.station-summary-metric:nth-child(4) .station-summary-value {
-    color: var(--text);
-    margin-top: 5px;
-    font-family: 'Outfit', sans-serif;
-    font-size: clamp(19px, 2.1vw, 26px);
-    font-weight: 600;
-    letter-spacing: -0.8px;
-    line-height: 1;
-    font-variant-numeric: tabular-nums lining-nums;
-}
-body:not(.is-night) .station-summary-card { background: #ffffff; border-color: #d8e1ea; box-shadow: 0 12px 25px -24px rgba(15, 23, 42, 0.42); }
-body:not(.is-night) .dashboard-nav-drawer { background: #ffffff; }
-
-@media screen and (min-width: 768px) {
-    .station-summary-grid { gap: 18px; }
-    .station-summary-card { padding: 28px; }
-    .station-summary-name { font-size: 21px; }
-    .station-summary-metrics { gap: 30px 24px; margin-top: 34px; }
-    .station-summary-value,
-    .station-summary-metric:nth-child(2) .station-summary-value,
-    .station-summary-metric:nth-child(3) .station-summary-value,
-    .station-summary-metric:nth-child(4) .station-summary-value { font-size: clamp(24px, 2vw, 30px); }
+    box-shadow: var(--glow);
+    cursor: pointer;
+    transform: translateY(-50%);
 }
 
-@media screen and (max-width: 430px) {
-    .dashboard-nav-drawer { width: min(248px, 66vw); }
-    .station-summary-card { padding: 18px; border-radius: 18px; }
-    .station-summary-name { font-size: 18px; }
-    .station-summary-metrics { gap: 16px 12px; margin-top: 18px; }
-    .station-summary-value,
-    .station-summary-metric:nth-child(2) .station-summary-value,
-    .station-summary-metric:nth-child(3) .station-summary-value,
-    .station-summary-metric:nth-child(4) .station-summary-value { font-size: 21px; }
+#app-menu-button span {
+    display: block;
+    width: 17px;
+    height: 2px;
+    border-radius: 2px;
+    background: var(--accent);
 }
 
-/* Summary data emphasis — colour is reserved for rainfall and rain-rate values. */
-.station-summary-metric { padding-left: 10px; }
-.station-summary-metric:nth-child(1) { border-left-color: #94a3b8; }
-.station-summary-metric:nth-child(2) { border-left-color: #38bdf8; }
-.station-summary-metric:nth-child(3) { border-left-color: #2dd4bf; }
-.station-summary-metric:nth-child(4) { border-left-color: #a78bfa; }
-.station-summary-metric:nth-child(odd)::after {
-    display: block !important;
-    content: '';
-    position: absolute;
-    top: 3px;
-    right: -9px;
-    bottom: 3px;
-    width: 1px;
-    background: linear-gradient(to bottom, transparent, var(--border) 18%, var(--border) 82%, transparent);
+#app-menu-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 10002;
+    display: none;
+    background: rgba(2, 6, 23, 0.68);
 }
-.station-summary-metric:nth-child(n+3)::before {
-    display: block !important;
-    content: '';
-    position: absolute;
-    top: -9px;
-    right: 0;
+
+#app-side-menu {
+    position: fixed;
+    top: 0;
+    bottom: 0;
     left: 0;
-    height: 1px;
-    background: linear-gradient(to right, transparent, var(--border) 10%, var(--border) 90%, transparent);
-}
-.station-summary-metric:nth-child(2) .station-summary-label,
-.station-summary-metric:nth-child(2) .station-summary-value { color: #38bdf8; }
-.station-summary-metric:nth-child(3) .station-summary-label,
-.station-summary-metric:nth-child(3) .station-summary-value { color: #2dd4bf; }
-.station-summary-metric:nth-child(4) .station-summary-label,
-.station-summary-metric:nth-child(4) .station-summary-value { color: #a78bfa; }
-body:not(.is-night) .station-summary-metric:nth-child(2) .station-summary-label,
-body:not(.is-night) .station-summary-metric:nth-child(2) .station-summary-value { color: #0284c7; }
-body:not(.is-night) .station-summary-metric:nth-child(3) .station-summary-label,
-body:not(.is-night) .station-summary-metric:nth-child(3) .station-summary-value { color: #0f766e; }
-body:not(.is-night) .station-summary-metric:nth-child(4) .station-summary-label,
-body:not(.is-night) .station-summary-metric:nth-child(4) .station-summary-value { color: #6d28d9; }
-
-@media screen and (max-width: 767px) {
-    .station-summary-grid { gap: 14px; }
-    .station-summary-card { min-height: 204px; padding: 22px; border-radius: 20px; }
-    .station-summary-name { font-size: 21px; }
-    .station-summary-metrics { gap: 22px 16px; margin-top: 24px; }
-    .station-summary-label { font-size: 10px; font-weight: 600; }
-    .station-summary-value,
-    .station-summary-metric:nth-child(2) .station-summary-value,
-    .station-summary-metric:nth-child(3) .station-summary-value,
-    .station-summary-metric:nth-child(4) .station-summary-value { font-size: 25px; }
-}
-
-@media screen and (max-width: 430px) {
-    .station-summary-card { min-height: 198px; padding: 20px; }
-    .station-summary-name { font-size: 20px; }
-    .station-summary-metrics { gap: 20px 14px; margin-top: 22px; }
-    .station-summary-value,
-    .station-summary-metric:nth-child(2) .station-summary-value,
-    .station-summary-metric:nth-child(3) .station-summary-value,
-    .station-summary-metric:nth-child(4) .station-summary-value { font-size: 23px; }
-}
-
-/* Fluid density: cards use their content height instead of a fixed desktop slab. */
-.station-summary-grid { gap: clamp(12px, 1.4vw, 18px); }
-.station-summary-card {
-    min-height: 0 !important;
-    padding: clamp(19px, 2vw, 26px);
-    border-radius: 18px;
-}
-.station-summary-name { font-weight: 600; }
-.station-summary-live { font-weight: 600; }
-.station-summary-metrics { margin-top: clamp(20px, 2.2vw, 28px); gap: clamp(18px, 2vw, 25px) clamp(14px, 1.6vw, 22px); }
-.station-summary-label { font-weight: 500; letter-spacing: 0.9px; }
-.station-summary-value,
-.station-summary-metric:nth-child(2) .station-summary-value,
-.station-summary-metric:nth-child(3) .station-summary-value,
-.station-summary-metric:nth-child(4) .station-summary-value {
-    font-size: clamp(21px, 1.75vw, 28px);
-    font-weight: 500;
-    letter-spacing: -1px;
-}
-.station-summary-metric:nth-child(odd)::after { opacity: 0.62; }
-.station-summary-metric:nth-child(n+3)::before { opacity: 0.62; }
-
-@media screen and (min-width: 768px) {
-    .station-summary-grid {
-        min-height: 0;
-        grid-template-rows: none;
-    }
-    .station-summary-card { padding: clamp(22px, 2vw, 28px); }
-}
-
-@media screen and (max-width: 767px) {
-    .station-summary-grid { grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
-    .station-summary-card { padding: clamp(18px, 5vw, 22px); }
-    .station-summary-name { font-size: clamp(18px, 5.4vw, 21px); }
-    .station-summary-metrics { margin-top: clamp(19px, 5vw, 24px); gap: clamp(17px, 4.8vw, 22px) clamp(12px, 3.5vw, 16px); }
-    .station-summary-value,
-    .station-summary-metric:nth-child(2) .station-summary-value,
-    .station-summary-metric:nth-child(3) .station-summary-value,
-    .station-summary-metric:nth-child(4) .station-summary-value { font-size: clamp(20px, 6vw, 24px); }
-}
-
-/* Hybrid Station Summary: the reference palette with the current fluid, lighter layout. */
-.station-summary-card:nth-child(1) .station-summary-name { color: #fb7185 !important; }
-.station-summary-card:nth-child(2) .station-summary-name { color: #fbbf24 !important; }
-.station-summary-card:nth-child(3) .station-summary-name { color: #22d3ee !important; }
-.station-summary-card:nth-child(4) .station-summary-name { color: #a78bfa !important; }
-.station-summary-name { font-weight: 700; }
-.station-summary-value,
-.station-summary-metric:nth-child(2) .station-summary-value,
-.station-summary-metric:nth-child(3) .station-summary-value,
-.station-summary-metric:nth-child(4) .station-summary-value { font-family: 'Sora', 'Outfit', sans-serif; }
-.station-summary-metric:nth-child(2) { border-left-color: #38bdf8; }
-.station-summary-metric:nth-child(3) { border-left-color: #2dd4bf; }
-.station-summary-metric:nth-child(4) { border-left-color: #f472b6; }
-.station-summary-metric:nth-child(2) .station-summary-label,
-.station-summary-metric:nth-child(2) .station-summary-value { color: #38bdf8; }
-.station-summary-metric:nth-child(3) .station-summary-label,
-.station-summary-metric:nth-child(3) .station-summary-value { color: #2dd4bf; }
-.station-summary-metric:nth-child(4) .station-summary-label,
-.station-summary-metric:nth-child(4) .station-summary-value { color: #f472b6; }
-body:not(.is-night) .station-summary-card:nth-child(1) .station-summary-name { color: #e11d48 !important; }
-body:not(.is-night) .station-summary-card:nth-child(2) .station-summary-name { color: #b45309 !important; }
-body:not(.is-night) .station-summary-card:nth-child(3) .station-summary-name { color: #0891b2 !important; }
-body:not(.is-night) .station-summary-card:nth-child(4) .station-summary-name { color: #7c3aed !important; }
-body:not(.is-night) .station-summary-metric:nth-child(4) .station-summary-label,
-body:not(.is-night) .station-summary-metric:nth-child(4) .station-summary-value { color: #db2777; }
-
-/* Rain Radar Station Summary — final hierarchy: temperature ring, rainfall,
-   then the two rain-rate values. The ring is intentionally always complete;
-   it is a temperature frame, not a percentage indicator. */
-.station-summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: clamp(12px, 1.5vw, 18px); }
-.station-summary-radar-card { min-height: 0 !important; padding: clamp(18px, 2vw, 24px); overflow: hidden; border: 1px solid color-mix(in srgb, var(--border) 86%, #38bdf8 14%); border-radius: 20px; background: var(--card); box-shadow: 0 14px 30px -25px rgba(2, 6, 23, 0.7); cursor: pointer; }
-.station-summary-radar-card.is-rain-leader { border-color: rgba(56, 189, 248, 0.42); background: radial-gradient(330px 180px at 100% 0%, rgba(56, 189, 248, 0.13), transparent 70%), var(--card); }
-.station-summary-radar-card:focus-visible { outline: 3px solid rgba(56, 189, 248, 0.55); outline-offset: 3px; }
-.station-summary-radar-header { display: flex; align-items: center; gap: 8px; min-width: 0; }
-.station-summary-rank { flex: 0 0 auto; color: #76d8ff; font-size: 10px; font-weight: 700; letter-spacing: 0.08em; }
-.station-summary-radar-name { display: flex; align-items: center; gap: 8px; min-width: 0; color: var(--text); font-size: clamp(16px, 1.6vw, 20px); font-weight: 700; letter-spacing: -0.45px; white-space: nowrap; }
-.station-summary-radar-name::before { content: ''; flex: 0 0 auto; width: 7px; height: 7px; border-radius: 50%; background: var(--station-mark); box-shadow: 0 0 9px color-mix(in srgb, var(--station-mark) 72%, transparent); }
-.station-summary-radar-card.station-radar-kknagar { --station-mark: #fb7185; }
-.station-summary-radar-card.station-radar-neelangarai { --station-mark: #fbbf24; }
-.station-summary-radar-card.station-radar-ayyapakkam { --station-mark: #22d3ee; }
-.station-summary-radar-card.station-radar-sanatorium { --station-mark: #a78bfa; }
-.station-summary-radar-live { margin-left: auto; flex: 0 0 auto; color: var(--muted); font-size: 9px; font-weight: 600; letter-spacing: 0.08em; }
-.station-summary-radar-live::before { content: ''; display: inline-block; width: 6px; height: 6px; margin-right: 5px; border-radius: 50%; background: #34d399; box-shadow: 0 0 8px rgba(52, 211, 153, 0.58); }
-.station-summary-radar-main { display: grid; grid-template-columns: 98px minmax(0, 1fr); align-items: center; gap: clamp(15px, 2vw, 22px); margin: clamp(18px, 2vw, 23px) 0 17px; }
-.station-summary-temp-orb { position: relative; display: grid; place-items: center; width: 98px; height: 98px; border-radius: 50%; background: linear-gradient(135deg, #69e1ff, #278fea); box-shadow: 0 0 0 1px rgba(105, 225, 255, 0.24), 0 0 20px rgba(56, 189, 248, 0.13); }
-.station-summary-temp-orb::after { content: ''; position: absolute; inset: 5px; border-radius: inherit; background: var(--card); }
-.station-summary-temp-orb-value { z-index: 1; color: var(--text); font-family: 'Sora', 'Outfit', sans-serif; font-size: 22px; font-weight: 500; letter-spacing: -1.3px; }
-.station-summary-temp-orb-label { position: absolute; z-index: 1; top: 61px; color: var(--muted); font-size: 8px; font-weight: 700; letter-spacing: 0.1em; }
-.station-summary-rain-label { color: #8ab4d2; font-size: 9px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; }
-.station-summary-rain-value { display: block; margin-top: 5px; color: #42cfff; font-family: 'Sora', 'Outfit', sans-serif; font-size: clamp(26px, 2.8vw, 34px); font-weight: 600; letter-spacing: -2px; line-height: 1; white-space: nowrap; }
-.station-summary-rain-value small { color: var(--muted); font-size: 12px; font-weight: 500; letter-spacing: -0.3px; }
-.station-summary-radar-rates { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; padding-top: 14px; border-top: 1px solid var(--line); }
-.station-summary-radar-rate { min-width: 0; padding-left: 10px; border-left: 2px solid #2dd4bf; }
-.station-summary-radar-rate.max { border-left-color: #a78bfa; }
-.station-summary-radar-rate-label { display: block; color: #6ee7d4; font-size: 9px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; white-space: nowrap; }
-.station-summary-radar-rate.max .station-summary-radar-rate-label { color: #c4b5fd; }
-.station-summary-radar-rate-value { display: block; margin-top: 5px; color: #2dd4bf; font-family: 'Sora', 'Outfit', sans-serif; font-size: clamp(22px, 2.4vw, 28px); font-weight: 500; letter-spacing: -1px; white-space: nowrap; }
-.station-summary-radar-rate.max .station-summary-radar-rate-value { color: #a78bfa; }
-.station-summary-radar-rate-value small { color: var(--muted); font-size: 10px; font-weight: 500; letter-spacing: 0; }
-body:not(.is-night) .station-summary-radar-card { background: #fff; border-color: #d7e2ed; }
-body:not(.is-night) .station-summary-radar-card.is-rain-leader { background: radial-gradient(330px 180px at 100% 0%, rgba(56, 189, 248, 0.10), transparent 70%), #fff; border-color: #93d8f5; }
-@media screen and (max-width: 767px) { .station-summary-grid { grid-template-columns: 1fr; gap: 12px; } .station-summary-radar-card { padding: 18px; border-radius: 18px; cursor: default; } .station-summary-radar-main { grid-template-columns: 84px minmax(0, 1fr); gap: 15px; margin: 16px 0 14px; } .station-summary-temp-orb { width: 84px; height: 84px; } .station-summary-temp-orb-value { font-size: 20px; } .station-summary-temp-orb-label { top: 52px; } .station-summary-rain-value { font-size: 33px; } .station-summary-radar-rates { gap: 10px; padding-top: 12px; } }
-
-/* Final Radar composition: temperature is readable normally; rainfall owns the circle. */
-.station-summary-radar-card { padding: clamp(22px, 2.2vw, 30px); }
-.station-summary-radar-main { grid-template-columns: minmax(130px, 1fr) minmax(150px, .9fr); gap: clamp(28px, 4vw, 58px); min-height: 130px; margin: clamp(22px, 2.5vw, 32px) 0 22px; }
-.station-summary-temp-orb { display: none; }
-.station-summary-temp-readout { display: flex; flex-direction: column; justify-content: center; min-width: 0; align-self: stretch; }
-.station-summary-temp-label { color: var(--muted); font-size: 10px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; }
-.station-summary-temp-value { display: block; margin-top: 7px; color: var(--text); font-family: 'Sora', 'Outfit', sans-serif; font-size: clamp(36px, 3.4vw, 49px); font-weight: 500; letter-spacing: -2.8px; line-height: .95; white-space: nowrap; }
-.station-summary-temp-value small { color: var(--muted); font-size: 15px; font-weight: 500; letter-spacing: -.4px; }
-.station-summary-rain-core { display: grid; place-items: center; justify-self: end; position: relative; width: clamp(122px, 11vw, 142px); height: clamp(122px, 11vw, 142px); border-radius: 50%; background: linear-gradient(145deg, #65e4ff, #268ce7); box-shadow: 0 0 0 1px rgba(103, 228, 255, .23), 0 0 28px rgba(56, 189, 248, .18); }
-.station-summary-rain-core::before { content: ''; position: absolute; inset: 6px; border-radius: inherit; background: var(--card); }
-.station-summary-rain-core::after { content: ''; position: absolute; inset: 14px; border: 1px solid rgba(116, 223, 255, .16); border-radius: inherit; }
-.station-summary-rain-label { position: absolute; z-index: 1; top: 36px; color: #91c4df; font-size: 9px; font-weight: 700; letter-spacing: .13em; text-transform: uppercase; }
-.station-summary-rain-value { position: relative; z-index: 1; display: block; margin: 14px 0 0; color: #50d5ff; font-size: clamp(32px, 3.2vw, 43px); font-weight: 600; letter-spacing: -2.6px; line-height: 1; }
-.station-summary-rain-value small { display: block; margin-top: 3px; color: var(--muted); font-size: 10px; font-weight: 600; letter-spacing: .04em; text-align: center; }
-.station-summary-radar-rates { gap: clamp(14px, 3vw, 34px); padding-top: 18px; }
-.station-summary-radar-rate { padding-left: 13px; }
-.station-summary-radar-rate-label { font-size: 10px; }
-.station-summary-radar-rate-value { font-size: clamp(22px, 2.2vw, 27px); margin-top: 7px; }
-@media screen and (min-width: 768px) { .station-summary-radar-card { min-height: 338px; } }
-@media screen and (max-width: 767px) {
-    .station-summary-radar-card { padding: 20px; }
-    .station-summary-radar-main { grid-template-columns: minmax(106px, 1fr) 122px; min-height: 122px; gap: 14px; margin: 19px 0 18px; }
-    .station-summary-temp-label { font-size: 9px; }
-    .station-summary-temp-value { font-size: clamp(35px, 10vw, 43px); }
-    .station-summary-rain-core { width: 122px; height: 122px; }
-    .station-summary-rain-label { top: 31px; }
-    .station-summary-rain-value { font-size: 36px; }
-    .station-summary-radar-rates { gap: 12px; padding-top: 15px; }
-    .station-summary-radar-rate { padding-left: 11px; }
-    .station-summary-radar-rate-value { font-size: 22px; }
-}
-@media screen and (max-width: 360px) {
-    .station-summary-radar-main { grid-template-columns: minmax(94px, 1fr) 108px; gap: 9px; }
-    .station-summary-rain-core { width: 108px; height: 108px; }
-    .station-summary-rain-label { top: 27px; }
-    .station-summary-rain-value { font-size: 31px; }
-}
-
-/* Compact rainfall beacon: a quieter alternative to the oversized radar ring. */
-.station-summary-radar-card { padding: clamp(19px, 1.8vw, 24px); }
-.station-summary-radar-main { grid-template-columns: minmax(132px, 1fr) minmax(142px, .8fr); min-height: 96px; gap: clamp(22px, 3vw, 46px); margin: 18px 0 17px; }
-.station-summary-rain-core {
-    justify-self: end;
-    width: clamp(132px, 11vw, 156px);
-    height: 94px;
-    overflow: hidden;
-    border: 1px solid rgba(86, 214, 255, 0.27);
-    border-radius: 17px;
-    background: linear-gradient(135deg, rgba(31, 123, 202, 0.24), rgba(22, 41, 70, 0.78));
-    box-shadow: inset 0 1px 0 rgba(129, 232, 255, 0.12), 0 10px 22px -17px rgba(56, 189, 248, 0.6);
-}
-.station-summary-rain-core::before { content: ''; position: absolute; inset: 0; border-radius: inherit; background: linear-gradient(90deg, rgba(68, 213, 255, 0.2), transparent 48%); }
-.station-summary-rain-core::after { content: ''; position: absolute; right: 12px; bottom: 11px; left: 12px; height: 2px; border: 0; border-radius: 999px; background: linear-gradient(90deg, #2597e9, #62e3ff, rgba(98, 227, 255, 0.1)); }
-.station-summary-rain-label { top: 16px; left: 15px; color: #9ddaf0; }
-.station-summary-rain-value { margin: 27px 0 0; font-size: clamp(30px, 3vw, 39px); }
-.station-summary-rain-value small { display: inline; margin-left: 3px; color: #a7c7dc; font-size: 11px; letter-spacing: -.1px; }
-.station-summary-radar-rates { padding-top: 14px; }
-@media screen and (min-width: 768px) { .station-summary-radar-card { min-height: 274px; } }
-@media screen and (max-width: 767px) {
-    .station-summary-radar-card { padding: 16px 18px; }
-    .station-summary-radar-main { grid-template-columns: minmax(111px, 1fr) 124px; min-height: 84px; gap: 14px; margin: 14px 0 12px; }
-    .station-summary-rain-core { width: 124px; height: 84px; border-radius: 15px; }
-    .station-summary-rain-label { top: 13px; left: 13px; }
-    .station-summary-rain-value { margin-top: 24px; font-size: 33px; }
-    .station-summary-rain-core::after { right: 11px; bottom: 9px; left: 11px; }
-    .station-summary-radar-rates { padding-top: 11px; }
-}
-@media screen and (max-width: 360px) {
-    .station-summary-radar-main { grid-template-columns: minmax(100px, 1fr) 114px; gap: 10px; }
-    .station-summary-rain-core { width: 114px; }
-}
-
-/* Option A: equal temperature and rain readings on one aligned, laser-guided grid. */
-.station-summary-radar-card { padding: clamp(19px, 2vw, 25px); }
-.station-summary-radar-main {
-    grid-template-columns: minmax(0, 1fr) 1px minmax(0, 1fr);
-    align-items: center;
-    min-height: 94px;
-    gap: clamp(18px, 2.6vw, 32px);
-    margin: 18px 0 16px;
-}
-.station-summary-temp-readout,
-.station-summary-rain-core {
+    z-index: 10003;
     display: flex;
+    width: min(290px, 82vw);
     flex-direction: column;
-    justify-content: center;
-    align-self: stretch;
-    min-width: 0;
+    padding: calc(20px + env(safe-area-inset-top, 0px)) 14px 18px;
+    background: var(--card);
+    border-right: 1px solid var(--border);
+    box-shadow: 18px 0 45px rgba(0, 0, 0, 0.35);
+    transform: translateX(-105%);
+    transition: transform 0.22s ease;
 }
-.station-summary-temp-rain-divider {
-    align-self: stretch;
-    width: 1px;
-    background: linear-gradient(to bottom, transparent, rgba(68, 213, 255, 0.68) 18%, rgba(68, 213, 255, 0.68) 82%, transparent);
-    box-shadow: 0 0 11px rgba(56, 189, 248, 0.25);
+
+#app-side-menu.open {
+    transform: translateX(0);
 }
-.station-summary-rain-core {
-    position: static;
-    justify-self: stretch;
-    align-items: flex-start;
-    width: auto;
-    height: auto;
-    overflow: visible;
-    border: 0;
-    border-radius: 0;
-    background: none;
-    box-shadow: none;
+
+#app-side-menu h2 {
+    margin: 4px 10px 22px;
+    color: var(--text);
+    font-size: 17px;
 }
-.station-summary-rain-core::before,
-.station-summary-rain-core::after { display: none; }
-.station-summary-rain-label {
-    position: static;
-    text-align: left;
-    color: #91c4df;
+
+.app-menu-label {
+    margin: 0 10px 8px;
+    color: var(--muted);
     font-size: 10px;
-    font-weight: 700;
-    letter-spacing: .12em;
+    font-weight: 800;
+    letter-spacing: 1px;
     text-transform: uppercase;
 }
-.station-summary-rain-value {
-    position: static;
-    display: block;
-    margin: 7px 0 0;
-    color: #50d5ff;
-    font-size: clamp(36px, 3.4vw, 49px);
-    font-weight: 500;
-    letter-spacing: -2.8px;
-    line-height: .95;
+
+.app-menu-item {
+    width: 100%;
+    margin: 3px 0;
+    padding: 12px;
+    border: 0;
+    border-radius: 12px;
+    background: transparent;
+    color: var(--muted);
+    font: inherit;
+    font-size: 14px;
+    font-weight: 700;
     text-align: left;
-    white-space: nowrap;
+    cursor: pointer;
 }
-.station-summary-rain-value small {
-    display: inline;
-    margin: 0 0 0 2px;
-    color: #9eb5ce;
-    font-size: 15px;
-    font-weight: 500;
-    letter-spacing: -.4px;
-    text-align: left;
+
+.app-menu-item.active {
+    background: rgba(56, 189, 248, 0.14);
+    color: var(--accent);
 }
-.station-summary-radar-rates {
+
+/* ── New four-station Summary page ── */
+#station-summary-view {
+    display: none;
+    width: 100%;
+    max-width: 480px;
+    margin: 0 auto;
+    padding: 24px 16px 100px;
+}
+
+.station-summary-title {
+    margin: 0;
+    color: var(--text);
+    font-size: 23px;
+}
+
+.station-summary-subtitle {
+    margin: 5px 0 12px;
+    color: var(--muted);
+    font-size: 12px;
+}
+
+.station-summary-row {
     position: relative;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    margin-top: 0;
-    padding-top: 14px;
-    border-top: 1px solid rgba(119, 158, 198, .18);
+    width: 100%;
+    padding: 15px 3px 17px;
+    border: 0;
+    background: transparent;
+    color: var(--text);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
 }
-.station-summary-radar-rates::after {
-    content: '';
+
+.station-summary-row::after {
     position: absolute;
-    top: 14px;
+    right: 0;
     bottom: 0;
-    left: 50%;
-    width: 1px;
-    background: linear-gradient(to bottom, rgba(113, 221, 255, .48), transparent);
-}
-.station-summary-radar-rate + .station-summary-radar-rate { padding-left: clamp(18px, 2.6vw, 32px); }
-.station-summary-radar-rate.max { border-left: 0; }
-@media screen and (min-width: 768px) { .station-summary-radar-card { min-height: 252px; } }
-@media screen and (max-width: 767px) {
-    .station-summary-radar-card { padding: 16px 18px; }
-    .station-summary-radar-main { min-height: 78px; gap: 14px; margin: 13px 0 11px; }
-    .station-summary-temp-value,
-    .station-summary-rain-value { font-size: clamp(34px, 9.4vw, 40px); }
-    .station-summary-radar-rates { padding-top: 10px; }
-    .station-summary-radar-rates::after { top: 10px; }
-    .station-summary-radar-rate + .station-summary-radar-rate { padding-left: 16px; }
-}
-@media screen and (max-width: 360px) {
-    .station-summary-radar-main { gap: 10px; }
-    .station-summary-radar-rate + .station-summary-radar-rate { padding-left: 12px; }
+    left: 0;
+    height: 1px;
+    content: "";
+    background: linear-gradient(
+        90deg,
+        transparent,
+        var(--border) 14%,
+        var(--accent) 50%,
+        var(--border) 86%,
+        transparent
+    );
+    opacity: 0.65;
 }
 
-/* One shared grid prevents legacy RR accents and padding from shifting the values. */
-.station-summary-radar-rates {
-    grid-template-columns: minmax(0, 1fr) 1px minmax(0, 1fr);
-    column-gap: clamp(18px, 2.6vw, 32px);
-}
-.station-summary-radar-rate,
-.station-summary-radar-rate.max,
-.station-summary-radar-rate + .station-summary-radar-rate {
-    padding-left: 0;
-    border-left: 0;
-}
-.station-summary-radar-rate:first-child { grid-column: 1; }
-.station-summary-radar-rate.max { grid-column: 3; }
-@media screen and (max-width: 767px) {
-    .station-summary-radar-rates { column-gap: 14px; }
-    .station-summary-radar-rate,
-    .station-summary-radar-rate.max,
-    .station-summary-radar-rate + .station-summary-radar-rate { padding-left: 0; }
-}
-@media screen and (max-width: 360px) {
-    .station-summary-radar-rates { column-gap: 10px; }
+.station-summary-row:last-child::after {
+    display: none;
 }
 
-/* Station-aware navigation: only KK Nagar has a historical archive today. */
-#tab-hist[hidden] { display: none !important; }
-@media screen and (max-width: 767px) {
-    .container > .nav-tabs.history-unavailable { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.station-summary-name-line {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px;
 }
 
-/* Summary-inspired live values: lighter, calmer, and easier to scan. */
-.main-val,
-.main-val span,
-.cell-val,
-.pod-val,
-.pro-val,
-#mx, #mn, #mw, #mg,
-#r_rate, #mr, #rf, #h_val, #d_val,
-#r_month, #r_swm, #r_year,
-#sol, #uv {
-    font-family: 'Sora', 'Outfit', sans-serif !important;
-    font-weight: 500 !important;
-    letter-spacing: -1.1px;
+.station-summary-name {
+    font-size: 15px;
+    font-weight: 800;
 }
-.main-val { font-size: clamp(44px, 4.2vw, 52px); letter-spacing: -2.5px; }
-.unit { font-family: 'Sora', 'Outfit', sans-serif; font-weight: 500; }
-#mx, #mn { font-size: 20px !important; }
-.cell-val { font-size: 14px; }
 
-/* Peak times retain hierarchy without crowding the measurement. */
-.time-mark {
-    margin-left: 9px;
+.station-summary-live {
+    color: #10b981;
     font-size: 10px;
-    font-weight: 500;
-    letter-spacing: 0;
+    font-weight: 800;
+    letter-spacing: 0.7px;
+}
+
+.station-summary-metrics {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    margin-top: 11px;
+}
+
+.station-summary-metric {
+    position: relative;
+    min-width: 0;
+    padding: 0 6px;
+}
+
+.station-summary-metric:first-child {
+    padding-left: 0;
+}
+
+.station-summary-metric:last-child {
+    padding-right: 0;
+}
+
+.station-summary-metric:not(:last-child)::after {
+    position: absolute;
+    top: 3px;
+    right: 0;
+    bottom: 3px;
+    width: 1px;
+    content: "";
+    background: linear-gradient(var(--border), var(--accent), var(--border));
+    opacity: 0.75;
+}
+
+.station-summary-metric-label {
+    display: block;
+    overflow: hidden;
+    color: var(--muted);
+    font-size: 8px;
+    font-weight: 800;
+    letter-spacing: 0.5px;
+    text-overflow: ellipsis;
+    text-transform: uppercase;
     white-space: nowrap;
-    opacity: 0.7;
 }
 
-/* Restore hierarchy for daily extremes and the 24H Summary without returning
-   the whole dashboard to the former heavy-weight look. */
-#mx, #mn { font-size: 22px !important; font-weight: 600 !important; }
-.pro-val { font-size: 22px; font-weight: 600 !important; }
+.station-summary-metric-value {
+    display: block;
+    margin-top: 4px;
+    font-size: 15px;
+    font-weight: 800;
+    letter-spacing: -0.4px;
+    white-space: nowrap;
+}
 
-/* Give secondary metrics a little more breathing room on compact screens. */
-.modular-inline-stack { gap: 8px; }
-.modular-cell { padding: 17px 10px; }
-.cell-lbl { margin-bottom: 6px; }
-#rf, #h_val, #d_val, #mw, #mg,
-#r_month, #r_swm, #r_year {
-    font-size: 16px;
-    font-weight: 500 !important;
-    letter-spacing: -0.55px;
+.station-summary-metric-value small {
+    color: var(--muted);
+    font-size: 8px;
+    font-weight: 600;
 }
-@media screen and (max-width: 767px) {
-    .main-val { font-size: clamp(34px, 10vw, 42px); }
-    #mx, #mn { font-size: clamp(16px, 5.1vw, 21px) !important; }
-    .pro-val { font-size: clamp(15px, 4.8vw, 19px); }
-    #rf, #h_val, #d_val, #mw, #mg,
-    #r_month, #r_swm, #r_year { font-size: clamp(15px, 4.3vw, 17px); }
-    .time-mark { margin-left: 7px; font-size: 9px; }
-}
+
+.summary-rain { color: #38bdf8; }
+.summary-rate { color: #22d3ee; }
+.summary-max { color: #a78bfa; }
 
 </style>
 </head>
@@ -2759,22 +2143,12 @@ body:not(.is-night) .station-summary-radar-card.is-rain-leader { background: rad
     <button id="pwa-install-button" type="button">Install</button>
     <button id="pwa-install-close" type="button" aria-label="Close">×</button>
 </div>
-<div class="dashboard-nav-overlay" id="dashboardNavOverlay" onclick="closeDashboardNav()"></div>
-<aside class="dashboard-nav-drawer" id="dashboardNavDrawer" aria-label="Application navigation" aria-hidden="true">
-    <div class="dashboard-nav-heading">Navigate</div>
-    <div class="dashboard-nav-links">
-        <button class="dashboard-nav-link" id="dashboardNavMain" type="button" onclick="navigateDashboardNav('dashboard')">Main Dashboard</button>
-        <button class="dashboard-nav-link" id="dashboardNavSummary" type="button" onclick="navigateDashboardNav('summary')">Station Summary</button>
-    </div>
-</aside>
-    <div class="container">
+    <button id="app-menu-button" type="button" onclick="toggleAppMenu()" aria-label="Open menu">
+    <span></span><span></span><span></span>
+</button>
+
+<div class="container" id="main-shell">
     <div class="header">
-        <div class="dashboard-nav-host">
-            <button class="dashboard-nav-toggle" id="dashboardNavToggle" type="button" aria-label="Open navigation" aria-controls="dashboardNavDrawer" aria-expanded="false" onclick="toggleDashboardNav()">
-                <svg viewBox="0 0 24 24" fill="none" stroke-width="2.2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
-            </button>
-        </div>
-        <div class="station-summary-page-title">Station Summary</div>
         <div class="station-picker" id="stationPicker">
          <button class="title-trigger" id="titleTrigger" onclick="toggleStationMenu()">
     <h1 id="station-title">KK Nagar Weather Station</h1>
@@ -2952,12 +2326,12 @@ body:not(.is-night) .station-summary-radar-card.is-rain-leader { background: rad
                     
                     <div class="modular-inline-stack">
                         <div class="modular-cell">
-                            <span class="cell-lbl">Monthly</span>
-                            <span id="r_month" class="cell-val">--</span>
+                            <span class="cell-lbl">Weekly</span>
+                            <span id="r_week" class="cell-val">--</span>
                         </div>
                         <div class="modular-cell">
-                            <span class="cell-lbl" id="r_season_label">SWM</span>
-                            <span id="r_swm" class="cell-val">--</span>
+                            <span class="cell-lbl">Monthly</span>
+                            <span id="r_month" class="cell-val">--</span>
                         </div>
                         <div class="modular-cell">
                             <span class="cell-lbl">Yearly</span>
@@ -3076,8 +2450,7 @@ body:not(.is-night) .station-summary-radar-card.is-rain-leader { background: rad
                         <div class="graph-card"><div class="label" style="margin-bottom: 8px;">Temperature Trend</div><div style="flex-grow: 1; position: relative;"><canvas id="cT"></canvas></div></div>
                         <div class="graph-card"><div class="label" style="margin-bottom: 8px;">Humidity Levels</div><div style="flex-grow: 1; position: relative;"><canvas id="cH"></canvas></div></div>
                         <div class="graph-card"><div class="label" style="margin-bottom: 8px;">Wind Velocity</div><div style="flex-grow: 1; position: relative;"><canvas id="cW"></canvas></div></div>
-                        <div class="graph-card"><div class="label" style="margin-bottom: 8px;">💧 Precipitation & Rain Intensity</div><div style="flex-grow: 1; position: relative;"><canvas id="cR"></canvas></div></div>
-                        <div class="graph-card"><div class="label" style="margin-bottom: 8px;">🌧️ Rain Formation Index (0=High Rain Chance, 100=No Rain)</div><div style="flex-grow: 1; position: relative;"><canvas id="cASI"></canvas></div></div>
+                        <div class="graph-card"><div class="label" style="margin-bottom: 8px;">Precipitation</div><div style="flex-grow: 1; position: relative;"><canvas id="cR"></canvas></div></div>
                     </div>
 
                 </div>
@@ -3093,164 +2466,162 @@ body:not(.is-night) .station-summary-radar-card.is-rain-leader { background: rad
             <div id="historical-content"></div>
         </div>
 
-        <div id="page-station-summary" style="display: none;">
-            <div class="station-summary-shell">
-                <div class="station-summary-grid" id="stationSummaryGrid" aria-live="polite"></div>
-            </div>
-        </div>
-
     </div>
+
+    <div id="station-summary-view">
+    <h1 class="station-summary-title">Station Summary</h1>
+    <p class="station-summary-subtitle">Live essentials from all four stations.</p>
+    <div id="station-summary-list"></div>
+</div>
+
+<div id="app-menu-overlay" onclick="closeAppMenu()"></div>
+
+<aside id="app-side-menu">
+    <h2>Weather Hub</h2>
+    <div class="app-menu-label">Navigate</div>
+
+    <button id="app-menu-main" class="app-menu-item active" type="button"
+        onclick="switchAppView('main')">
+        ☰ &nbsp; Main Dashboard
+    </button>
+
+    <button id="app-menu-summary" class="app-menu-item" type="button"
+        onclick="switchAppView('station-summary')">
+        ◫ &nbsp; Station Summary
+    </button>
+</aside>
 
 
     <script>
         let currentMode = localStorage.getItem('weatherMode') || 'auto';
         let currentStation = localStorage.getItem('weatherStation') || 'kknagar';
 
-const stationSummaryStations = [
+        const summaryStations = [
     { id: 'kknagar', name: 'KK Nagar' },
     { id: 'neelangarai', name: 'Neelangarai' },
     { id: 'ayyapakkam', name: 'Ayyapakkam' },
     { id: 'sanatorium', name: 'Sanatorium' }
 ];
-let stationSummaryUpdating = false;
 
-function isStationSummaryRoute() {
-    return window.location.pathname.replace(/\\/+$/, '') === '/station-summary';
-}
+let summaryRefreshInProgress = false;
 
-function toggleDashboardNav() {
-    const drawer = document.getElementById('dashboardNavDrawer');
-    if (drawer.classList.contains('is-open')) closeDashboardNav();
-    else openDashboardNav();
-}
+window.toggleAppMenu = function() {
+    const menu = document.getElementById('app-side-menu');
+    const overlay = document.getElementById('app-menu-overlay');
+    const isOpen = menu.classList.toggle('open');
+    overlay.style.display = isOpen ? 'block' : 'none';
+};
 
-function openDashboardNav() {
-    document.getElementById('dashboardNavDrawer').classList.add('is-open');
-    document.getElementById('dashboardNavOverlay').classList.add('is-open');
-    document.getElementById('dashboardNavDrawer').setAttribute('aria-hidden', 'false');
-    document.getElementById('dashboardNavToggle').setAttribute('aria-expanded', 'true');
-    document.body.classList.add('dashboard-nav-open');
-}
+window.closeAppMenu = function() {
+    document.getElementById('app-side-menu').classList.remove('open');
+    document.getElementById('app-menu-overlay').style.display = 'none';
+};
 
-function closeDashboardNav() {
-    document.getElementById('dashboardNavDrawer').classList.remove('is-open');
-    document.getElementById('dashboardNavOverlay').classList.remove('is-open');
-    document.getElementById('dashboardNavDrawer').setAttribute('aria-hidden', 'true');
-    document.getElementById('dashboardNavToggle').setAttribute('aria-expanded', 'false');
-    document.body.classList.remove('dashboard-nav-open');
-}
+window.switchAppView = function(view) {
+    const isMain = view === 'main';
 
-function updateDashboardNavState() {
-    const summaryOpen = isStationSummaryRoute();
-    document.getElementById('dashboardNavMain').classList.toggle('active', !summaryOpen);
-    document.getElementById('dashboardNavSummary').classList.toggle('active', summaryOpen);
-}
+    document.getElementById('main-shell').style.display = isMain ? 'block' : 'none';
+    document.getElementById('station-summary-view').style.display = isMain ? 'none' : 'block';
 
-function navigateDashboardNav(destination) {
-    const target = destination === 'summary' ? '/station-summary' : '/';
-    closeDashboardNav();
-    if (window.location.pathname !== target) window.history.pushState({}, '', target);
-    renderCurrentRoute();
-}
+    document.getElementById('app-menu-main').classList.toggle('active', isMain);
+    document.getElementById('app-menu-summary').classList.toggle('active', !isMain);
 
-function formatStationSummaryValue(value, unit) {
-    const numeric = Number(value);
-    if (value === null || value === undefined || !Number.isFinite(numeric)) return '—';
-    // Keep inactive rain-rate values visually quiet and consistent. Once rain
-    // starts, retain one decimal place for the actual calculated rate.
-    if (unit === ' mm/h' && numeric === 0) return '0' + unit;
-    return numeric.toFixed(1) + unit;
-}
+    closeAppMenu();
 
-function openStationFromSummary(stationId) {
-    if (isStationSummaryRoute()) window.history.pushState({}, '', '/');
+    if (!isMain) refreshStationSummary();
+
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+};
+
+window.openStationFromSummary = function(stationId) {
+    switchAppView('main');
     switchStation(stationId);
-    renderCurrentRoute();
+};
+
+function summaryValue(value, unit) {
+    const number = Number(value);
+    const output = Number.isFinite(number) ? number.toFixed(1) : '--';
+    return output + '<small>' + unit + '</small>';
 }
 
-function renderStationSummaryCards(records) {
-    const byId = {};
-    (records || []).forEach(function(record) { byId[record.id] = record; });
-    const grid = document.getElementById('stationSummaryGrid');
-    if (!grid) return;
+function summaryCard(station, weather) {
+    const rain = weather?.rain || {};
+    const temp = weather?.temp || {};
+    const live = weather && !weather.error ? '● LIVE' : '● OFFLINE';
 
-    const rainfall = function(record) { return Math.max(0, Number(record.rainfall) || 0); };
-    const recordsByStation = stationSummaryStations.map(function(station) {
-        return Object.assign({}, station, byId[station.id] || { available: false });
-    });
-    const available = recordsByStation.filter(function(record) { return record.available !== false; });
-    const unavailable = recordsByStation.filter(function(record) { return record.available === false; });
-    available.sort(function(left, right) { return rainfall(right) - rainfall(left) || left.name.localeCompare(right.name); });
+    return '<button type="button" class="station-summary-row" data-station-id="' + station.id + '">' +
+        '<span class="station-summary-name-line">' +
+            '<span class="station-summary-name">' + station.name + '</span>' +
+            '<span class="station-summary-live">' + live + '</span>' +
+        '</span>' +
 
-    const cardMarkup = available.map(function(data, index) {
-        const temperature = formatStationSummaryValue(data.temperature, '°C');
-        const rainfallValue = formatStationSummaryValue(data.rainfall, ' mm');
-        const currentRate = formatStationSummaryValue(data.rainRate, ' mm/h');
-        const maxRate = formatStationSummaryValue(data.maxRainRate, ' mm/h');
-        return '<article class="station-summary-radar-card station-radar-' + data.id + (index === 0 ? ' is-rain-leader' : '') + '" data-station-id="' + data.id + '" role="button" tabindex="0" aria-label="Open ' + data.name + ' dashboard">' +
-            '<div class="station-summary-radar-header"><span class="station-summary-radar-name">' + data.name + '</span><span class="station-summary-radar-live">LIVE</span></div>' +
-            '<div class="station-summary-radar-main"><div class="station-summary-temp-readout"><span class="station-summary-temp-label">Temperature</span><span class="station-summary-temp-value">' + temperature.replace('°C', '<small>°C</small>') + '</span></div><span class="station-summary-temp-rain-divider" aria-hidden="true"></span>' +
-                '<div class="station-summary-rain-core"><span class="station-summary-rain-label">Rain</span><span class="station-summary-rain-value">' + rainfallValue.replace(' mm', '<small>mm</small>') + '</span></div></div>' +
-            '<div class="station-summary-radar-rates"><div class="station-summary-radar-rate"><span class="station-summary-radar-rate-label">Current RR</span><span class="station-summary-radar-rate-value">' + currentRate.replace(' mm/h', ' <small>mm/h</small>') + '</span></div>' +
-            '<div class="station-summary-radar-rate max"><span class="station-summary-radar-rate-label">Max RR</span><span class="station-summary-radar-rate-value">' + maxRate.replace(' mm/h', ' <small>mm/h</small>') + '</span></div></div></article>';
-    });
+        '<span class="station-summary-metrics">' +
+            '<span class="station-summary-metric">' +
+                '<span class="station-summary-metric-label">Temp</span>' +
+                '<span class="station-summary-metric-value">' +
+                    summaryValue(temp.current, '°C') +
+                '</span>' +
+            '</span>' +
 
-    const unavailableMarkup = unavailable.map(function(station) {
-        return '<article class="station-summary-radar-card station-radar-' + station.id + ' summary-loading"><div class="station-summary-radar-header"><span class="station-summary-radar-name">' + station.name + '</span></div><div class="summary-loading-content"><div class="summary-spinner"></div><p class="summary-loading-text">Loading...</p><div class="summary-dots"><span></span><span></span><span></span></div></div></article>';
-    });
-    grid.innerHTML = cardMarkup.concat(unavailableMarkup).join('');
-    grid.querySelectorAll('.station-summary-radar-card[data-station-id]').forEach(function(card) {
-        const stationId = card.dataset.stationId;
-        card.addEventListener('click', function() { openStationFromSummary(stationId); });
-        card.addEventListener('keydown', function(event) {
-            if (event.key === 'Enter' || event.key === ' ') {
-                event.preventDefault();
-                openStationFromSummary(stationId);
-            }
-        });
-    });
+            '<span class="station-summary-metric">' +
+                '<span class="station-summary-metric-label">Rain</span>' +
+                '<span class="station-summary-metric-value summary-rain">' +
+                    summaryValue(rain.total, 'mm') +
+                '</span>' +
+            '</span>' +
+
+            '<span class="station-summary-metric">' +
+                '<span class="station-summary-metric-label">Rain rate</span>' +
+                '<span class="station-summary-metric-value summary-rate">' +
+                    summaryValue(rain.rate, 'mm/h') +
+                '</span>' +
+            '</span>' +
+
+            '<span class="station-summary-metric">' +
+                '<span class="station-summary-metric-label">Peak rate</span>' +
+                '<span class="station-summary-metric-value summary-max">' +
+                    summaryValue(rain.maxR, 'mm/h') +
+                '</span>' +
+            '</span>' +
+        '</span>' +
+    '</button>';
 }
 
-async function updateStationSummary() {
-    if (stationSummaryUpdating || !isStationSummaryRoute()) return;
-    stationSummaryUpdating = true;
+async function refreshStationSummary() {
+    const list = document.getElementById('station-summary-list');
+
+    if (!list || summaryRefreshInProgress) return;
+
+    summaryRefreshInProgress = true;
+
     try {
-        const response = await fetch('/api/station-summary');
-        if (!response.ok) throw new Error('Summary request failed');
-        const data = await response.json();
-        renderStationSummaryCards(data.stations);
-    } catch (error) {
-        renderStationSummaryCards(stationSummaryStations.map(function(station) {
-            return { id: station.id, available: false };
-        }));
+        const stamp = Date.now();
+
+        const results = await Promise.allSettled(
+            summaryStations.map(async (station) => {
+                const response = await fetch(
+                    '/weather?station=' + station.id + '&v=' + stamp
+                );
+
+                if (!response.ok) throw new Error('Station unavailable');
+
+                return await response.json();
+            })
+        );
+
+        list.innerHTML = results.map((result, index) => {
+            const weather = result.status === 'fulfilled' ? result.value : null;
+            return summaryCard(summaryStations[index], weather);
+        }).join('');
+        list.querySelectorAll('[data-station-id]').forEach((button) => {
+    button.addEventListener('click', () => {
+        openStationFromSummary(button.dataset.stationId);
+    });
+});
     } finally {
-        stationSummaryUpdating = false;
+        summaryRefreshInProgress = false;
     }
 }
-
-function showStationSummaryPage() {
-    document.body.classList.add('station-summary-active');
-    document.getElementById('page-dashboard').style.display = 'none';
-    document.getElementById('page-summary').style.display = 'none';
-    document.getElementById('page-historical').style.display = 'none';
-    document.getElementById('page-station-summary').style.display = 'block';
-    document.getElementById('tab-dash').classList.remove('active');
-    document.getElementById('tab-sum').classList.remove('active');
-    document.getElementById('tab-hist').classList.remove('active');
-    renderStationSummaryCards();
-    updateStationSummary();
-}
-
-function renderCurrentRoute() {
-    if (isStationSummaryRoute()) showStationSummaryPage();
-    else showPage('dashboard');
-    updateDashboardNavState();
-}
-
-window.addEventListener('popstate', renderCurrentRoute);
-document.addEventListener('keydown', function(event) {
-    if (event.key === 'Escape') closeDashboardNav();
-});
 
 function switchStation(id) {
     currentStation = id;
@@ -3267,32 +2638,9 @@ function switchStation(id) {
     id === 'ayyapakkam' ? 'Ayyapakkam Weather Station' :
     'Sanatorium Weather Station';
 
-    updateHistoricalTabAvailability();
     closeStationMenu();
     graphDataLoaded = false;
-    if (isStationSummaryRoute()) {
-        updateStationSummary();
-        return;
-    }
     update();
-}
-
-function updateHistoricalTabAvailability() {
-    const historicalTab = document.getElementById('tab-hist');
-    const historicalPage = document.getElementById('page-historical');
-    const tabs = document.querySelector('.container > .nav-tabs');
-    const isKKNagar = currentStation === 'kknagar';
-    if (!historicalTab || !tabs) return;
-
-    historicalTab.hidden = !isKKNagar;
-    historicalTab.setAttribute('aria-hidden', String(!isKKNagar));
-    tabs.classList.toggle('history-unavailable', !isKKNagar);
-
-    // If a user changes station while viewing history, never leave the KK
-    // Nagar-only archive on screen for the newly selected station.
-    if (!isKKNagar && historicalPage && historicalPage.style.display !== 'none') {
-        showPage('dashboard');
-    }
 }
 
 function toggleStationMenu() {
@@ -3386,61 +2734,20 @@ document.addEventListener('click', function(e) {
             });
         }
 
-        function setupChart(id, label, color, minVal = null, maxVal = null) {
+        function setupChart(id, label, color, minVal = null) {
             const canvas = document.getElementById(id);
             const ctx = canvas.getContext('2d');
             const gradient = ctx.createLinearGradient(0, 0, 0, 300);
             gradient.addColorStop(0, color + '40'); gradient.addColorStop(1, color + '00');
-            const yScale = { x: { ticks: { maxTicksLimit: 8 } } };
-            if (minVal !== null) yScale.y = yScale.y || {};
-            if (minVal !== null) yScale.y.min = minVal;
-            if (maxVal !== null) yScale.y = yScale.y || {};
-            if (maxVal !== null) yScale.y.max = maxVal;
             return new Chart(ctx, { 
                 type: 'line', 
                 data: { labels: [], datasets: [{ label: label, data: [], borderColor: color, backgroundColor: gradient, fill: true, tension: 0.4, pointRadius: 0, borderWidth: 2 }] }, 
                 options: { 
                     responsive: true, maintainAspectRatio: false, 
                     interaction: { intersect: false, mode: 'index' },
-                    plugins: { 
-                        tooltip: { enabled: true }, 
-                        legend: { display: true, position: 'top', labels: { boxWidth: 8, font: { size: 11 }, padding: 10 } } 
-                    }, 
-                    scales: yScale
+                    plugins: { tooltip: { enabled: true }, legend: { display: false } }, 
+                    scales: { y: { min: minVal }, x: { ticks: { maxTicksLimit: 8 } } } 
                 } 
-            });
-        }
-        
-        function setupDualAxisChart(id, label1, label2, color1, color2) {
-            const canvas = document.getElementById(id);
-            const ctx = canvas.getContext('2d');
-            const gradient1 = ctx.createLinearGradient(0, 0, 0, 300);
-            gradient1.addColorStop(0, color1 + '40'); gradient1.addColorStop(1, color1 + '00');
-            const gradient2 = ctx.createLinearGradient(0, 0, 0, 300);
-            gradient2.addColorStop(0, color2 + '40'); gradient2.addColorStop(1, color2 + '00');
-            
-            return new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: [],
-                    datasets: [
-                        { label: label1, data: [], borderColor: color1, backgroundColor: gradient1, fill: true, tension: 0.4, pointRadius: 0, borderWidth: 2, yAxisID: 'y' },
-                        { label: label2, data: [], borderColor: color2, backgroundColor: gradient2, fill: false, tension: 0.4, pointRadius: 0, borderWidth: 2.5, yAxisID: 'y1', borderDash: [5, 5] }
-                    ]
-                },
-                options: {
-                    responsive: true, maintainAspectRatio: false,
-                    interaction: { intersect: false, mode: 'index' },
-                    plugins: { 
-                        tooltip: { enabled: true }, 
-                        legend: { display: true, position: 'top', labels: { boxWidth: 8, font: { size: 11 } } }
-                    },
-                    scales: {
-                        x: { ticks: { maxTicksLimit: 8 } },
-                        y: { position: 'left', min: 0, title: { display: true, text: label1 + ' (mm)' } },
-                        y1: { position: 'right', min: 0, title: { display: true, text: label2 + ' (mm/h)' }, grid: { drawOnChartArea: false } }
-                    }
-                }
             });
         }
         
@@ -3501,106 +2808,13 @@ document.addEventListener('click', function(e) {
                             charts.cT = setupChart('cT', 'Temp °C', '#ef4444'); 
                             charts.cH = setupChart('cH', 'Humidity %', '#10b981'); 
                             charts.cW = setupChart('cW', 'Wind km/h', '#f59e0b'); 
-                            charts.cR = setupDualAxisChart('cR', 'Precipitation (mm)', 'Rain Rate (mm/h)', '#3b82f6', '#ec4899');
-                            charts.cASI = setupChart('cASI', 'Stability Index (0=Unstable, 100=Stable)', '#8b5cf6', 0, 100);
+                            charts.cR = setupChart('cR', 'Rain mm', '#3b82f6', 0); 
                             applyTheme(); 
                         }
                         charts.cT.data.labels = labels; charts.cT.data.datasets[0].data = history.map(h => h.temp); charts.cT.update('none');
                         charts.cH.data.labels = labels; charts.cH.data.datasets[0].data = history.map(h => h.hum); charts.cH.update('none');
                         charts.cW.data.labels = labels; charts.cW.data.datasets[0].data = history.map(h => h.wind); charts.cW.update('none');
-                        
-                        // Dual-axis: Precipitation (mm) + Instantaneous Rain Rate (mm/h)
-                        // Rain Intensity = rate of change in rainfall (mm per 10-minute interval converted to mm/h)
-                        const rainIntensity = history.map((h, i) => {
-                            if (i === 0) return 0;
-                            const currentRain = parseFloat(h.rain || 0);
-                            const prevRain = parseFloat(history[i-1].rain || 0);
-                            const rainDelta = Math.max(0, currentRain - prevRain); // mm in 10 minutes
-                            const rainRatePerHour = rainDelta * 6; // Convert 10-min interval to hourly rate (×6)
-                            return rainRatePerHour; // Now in mm/h (instantaneous rain rate)
-                        });
-                        
-                        charts.cR.data.labels = labels;
-                        charts.cR.data.datasets[0].data = history.map(h => h.rain); // Precipitation on left axis
-                        charts.cR.data.datasets[1].data = rainIntensity; // Intensity on right axis
-                        charts.cR.update('none');
-                        
-                        // COMPREHENSIVE RAIN FORMATION INDEX
-                        // Uses ALL available parameters: temp, real feel, wind, humidity, dew point, pressure, rain
-                        // Lower value (0-40) = HIGH RAIN PROBABILITY ⚠️
-                        // Higher value (60-100) = LOW RAIN PROBABILITY ✓
-                        
-                        const rainFormationIndex = history.map((h, i) => {
-                            // Extract ALL parameters
-                            const temp = parseFloat(h.temp || 20);
-                            const realFeel = parseFloat(h.realFeel || temp);
-                            const hum = parseFloat(h.hum || 50);
-                            const wind = parseFloat(h.wind || 0);
-                            const pressure = parseFloat(h.press || 1013);
-                            const rain = parseFloat(h.rain || 0);
-                            
-                            // 1. INSTABILITY FACTOR (Temperature vs Real Feel)
-                            // Larger difference = more convection = unstable
-                            const tempDiff = Math.abs(realFeel - temp);
-                            let instability = (tempDiff * 5); // Higher diff = lower stability
-                            
-                            // 2. MOISTURE AVAILABILITY FACTOR (Humidity + Dew Point approximation)
-                            // Dew Point ≈ T - (100-RH)/5
-                            const dewApprox = temp - ((100 - hum) / 5);
-                            const dewDiff = Math.max(0, temp - dewApprox);
-                            
-                            // High humidity + Small dew difference = LOTS of moisture = good for rain
-                            // Formula: (humidity) - (dew difference) indicates precipitable water
-                            const moistureFactor = hum - (dewDiff * 2); // High humidity, low dew diff = more moisture
-                            
-                            // 3. WIND SPEED EFFECT (Convective Organization & Shear)
-                            // Moderate wind organizes storms and brings moisture from surrounding areas
-                            // Too light = no organization, too strong = shear breaks storms
-                            let windEffect = 0;
-                            if (wind > 2 && wind < 12) {
-                                windEffect = -15; // IDEAL: Moderate wind for organized convection
-                            } else if (wind >= 12 && wind < 20) {
-                                windEffect = -5; // Good but getting too strong
-                            } else if (wind >= 20) {
-                                windEffect = 5; // Strong wind can stabilize (shear breaks storms)
-                            } else if (wind <= 2) {
-                                windEffect = 10; // Very light wind = less convection organization
-                            }
-                            
-                            // 4. PRESSURE TREND (System Strength)
-                            // Lower pressure = stronger system = more rain potential
-                            // Normal ~1013 hPa, Low = <1010 hPa (weather system present)
-                            const pressureFactor = (1013 - pressure) * 2; // Negative pressure = lower stability
-                            
-                            // 5. ACTUAL RAIN (Indicator of current convection)
-                            // If rain already falling = most direct indicator
-                            let actualRainFactor = 0;
-                            if (rain > 0.5) {
-                                actualRainFactor = -50; // Heavy penalty (reduction) for stability = high rain chance
-                            } else if (rain > 0.1) {
-                                actualRainFactor = -20;
-                            }
-                            
-                            // 6. TEMPERATURE TREND (System Development)
-                            // Rapid warming = destabilizing = good for afternoon storms
-                            let tempTrendFactor = 0;
-                            if (i >= 3) {
-                                const tempTrend = temp - parseFloat(history[i-3].temp || temp);
-                                tempTrendFactor = -tempTrend * 3; // Warming reduces stability
-                            }
-                            
-                            // COMPREHENSIVE RAIN FORMATION SCORE (Year-round, all monsoons)
-                            // Combines: Instability + Moisture + Pressure + Wind Organization + Actual Rain + Temperature Trend
-                            // Lower score = HIGH rain probability, Higher score = LOW rain probability
-                            const rainFormation = 100 - instability - (moistureFactor / 2) - pressureFactor + windEffect + tempTrendFactor + actualRainFactor;
-                            
-                            // Normalize to 0-100
-                            return Math.max(0, Math.min(100, rainFormation));
-                        });
-                        
-                        charts.cASI.data.labels = labels;
-                        charts.cASI.data.datasets[0].data = rainFormationIndex;
-                        charts.cASI.update('none');
+                        charts.cR.data.labels = labels; charts.cR.data.datasets[0].data = history.map(h => h.rain); charts.cR.update('none');
                         graphDataLoaded = true;
                     }, 50); 
                 } else {
@@ -3614,43 +2828,7 @@ document.addEventListener('click', function(e) {
             }
         }
 
-        let rainStatusRequestInFlight = false;
-
-        function renderRainRateValues(rate, maxRate, maxRateTime) {
-            const current = Number(rate) || 0;
-            const peak = Number(maxRate) || 0;
-            const rateElement = document.getElementById('r_rate');
-            const maxElement = document.getElementById('mr');
-            const currentText = current > 0 ? current.toFixed(1) : '0';
-            if (rateElement) rateElement.innerHTML = currentText + '<span style="font-size:11px; font-weight:600; color:var(--muted); margin-left:3px;">mm/h</span>';
-            if (maxElement) {
-                maxElement.innerHTML = peak > 0
-                    ? peak.toFixed(1) + '<span style="font-size:11px; font-weight:600; color:var(--muted); margin-left:3px;">mm/h</span> <span style="font-size:9px; color:var(--muted); font-weight:500; opacity:0.75;">' + (maxRateTime || '') + '</span>'
-                    : '0<span style="font-size:11px; font-weight:600; color:var(--muted); margin-left:3px;">mm/h</span>';
-            }
-        }
-
-        async function refreshRainRateOnly() {
-            if (rainStatusRequestInFlight || document.visibilityState !== 'visible' || isStationSummaryRoute()) return;
-            rainStatusRequestInFlight = true;
-            try {
-                const response = await fetch('/api/rain-status?station=' + currentStation, { cache: 'no-store' });
-                if (!response.ok) return;
-                const status = await response.json();
-                if (!status || status.error) return;
-                renderRainRateValues(status.rate, status.maxRate, status.maxRateTime);
-            } catch (error) {
-                console.error('Rain status refresh failed:', error);
-            } finally {
-                rainStatusRequestInFlight = false;
-            }
-        }
-
         async function update() {
-            if (isStationSummaryRoute()) {
-                updateStationSummary();
-                return;
-            }
             try {
                 const res = await fetch('/weather?station=' + currentStation + '&v=' + Date.now()); 
                 const d = await res.json(); 
@@ -3659,7 +2837,7 @@ document.addEventListener('click', function(e) {
                 updateValueWithFade('t', d.temp.current, 1);
                 updateValueWithFade('w', d.wind.speed, 1);
                 updateValueWithFade('r_tot', d.rain.total, 1);
-                renderRainRateValues(d.rain.rate, d.rain.maxR, d.rain.maxRTime);
+                document.getElementById('r_rate').innerHTML = d.rain.rate.toFixed(1) + '<span style="font-size:11px; font-weight:600; color:var(--muted); margin-left:3px;">mm/h</span>';
                 updateValueWithFade('wg', d.wind.gust, 1, ' km/h'); 
 
                 document.getElementById('tTrendBox').innerHTML = d.temp.rate > 0 ? '<span class="trend-up">▲</span> +' + d.temp.rate + '°C /hr' : d.temp.rate < 0 ? '<span class="trend-down">▼</span> ' + d.temp.rate + '°C /hr' : '● Steady';
@@ -3678,10 +2856,14 @@ document.addEventListener('click', function(e) {
                 document.getElementById('needle').style.transform = 'rotate(' + d.wind.deg + 'deg)';
                 liveWindSpeed = d.wind.speed; liveWindDeg = d.wind.deg;
                 
+                document.getElementById('r_week').innerText = d.rain.weekly + ' mm';
                 document.getElementById('r_month').innerText = d.rain.monthly + ' mm';
-                document.getElementById('r_season_label').innerText = d.rain.seasonLabel || 'SWM';
-                document.getElementById('r_swm').innerText = (d.rain.seasonTotal ?? d.rain.swm) + ' mm';
                 document.getElementById('r_year').innerText = d.rain.yearly + ' mm';
+                document.getElementById('mr').innerHTML = d.rain.maxR > 0 
+    ? d.rain.maxR.toFixed(1) + '<span style="font-size:11px; font-weight:600; color:var(--muted); margin-left:3px;">mm/h</span> <span style="font-size:9px; color:var(--muted); font-weight:500; opacity:0.75;">' + d.rain.maxRTime + '</span>' 
+    : '0<span style="font-size:11px; font-weight:600; color:var(--muted); margin-left:3px;">mm/h</span>';
+
+
                 const pTrend = d.atmo.pTrend;
                 if (pTrend >= 0.1) document.getElementById('pIcon').innerHTML = '<span style="color:#ef4444; font-size:14px;">▲</span>';
                 else if (pTrend <= -0.1) document.getElementById('pIcon').innerHTML = '<span style="color:#0ea5e9; font-size:14px;">▼</span>';
@@ -3707,7 +2889,12 @@ document.addEventListener('click', function(e) {
                     fetchGraphDataFromDB();
                 }
 
-            } catch (e) { console.error(e); }
+/* Refresh all four stations only while the new Summary page is open */
+if (document.getElementById('station-summary-view').style.display === 'block') {
+    refreshStationSummary();
+}
+
+} catch (e) { console.error(e); }
         }
 
         function animateWind() {
@@ -3727,25 +2914,13 @@ document.addEventListener('click', function(e) {
             ctxW.stroke(); requestAnimationFrame(animateWind);
         }
 
-        applyTheme(); animateWind();
-        setInterval(update, 30000);
-        // Five-second checks happen only in a visible dashboard tab and use the
-        // local buffer/database endpoint above, not the external weather APIs.
-        setInterval(refreshRainRateOnly, 5000);
-        document.addEventListener('visibilitychange', () => {
-            if (document.visibilityState === 'visible') refreshRainRateOnly();
-        });
+        applyTheme(); animateWind(); setInterval(update, 30000);
 
         function showPage(pageId) {
-    if (pageId === 'historical' && currentStation !== 'kknagar') {
-        pageId = 'dashboard';
-    }
-    document.body.classList.remove('station-summary-active');
     // 1. Toggle visibility of the three pages
     document.getElementById('page-dashboard').style.display = pageId === 'dashboard' ? 'block' : 'none';
     document.getElementById('page-summary').style.display = pageId === 'summary' ? 'block' : 'none';
     document.getElementById('page-historical').style.display = pageId === 'historical' ? 'block' : 'none'; // Added this
-    document.getElementById('page-station-summary').style.display = 'none';
     
     // 2. Update the active class for the three buttons
     document.getElementById('tab-dash').classList.toggle('active', pageId === 'dashboard');
@@ -4053,15 +3228,10 @@ window.addEventListener('appinstalled', () => {
     deferredInstallPrompt = null;
 });
 
-renderCurrentRoute();
-
 </script>
 </body>
 </html>
-    `;
-
-app.get(["/", "/station-summary"], (req, res) => {
-    res.send(renderWeatherApp());
+    `);
 });
 
 if (process.env.NODE_ENV !== 'production') {
