@@ -1689,22 +1689,17 @@ if ('serviceWorker' in navigator) {
     .graph-card { background: var(--card); padding: 24px; border-radius: 24px; border: 1px solid var(--border); height: 320px; box-shadow: var(--glow); display: flex; flex-direction: column; overflow: hidden; }
     .graph-card canvas { flex-grow: 1; width: 100% !important; height: 100% !important; }
 
-    /* Desktop-only: one wider, taller graph per row in a scrollable column.
-       Mobile/tablet (<1100px) keep the existing auto-fit grid untouched. */
+    /* Desktop-only: one full-width graph per row, using the page's own
+       scroll (no separate inner scrollbar). Mobile/tablet (<1100px) keep
+       the existing auto-fit grid untouched. */
     @media screen and (min-width: 1100px) {
         .graphs-wrapper {
             grid-template-columns: 1fr;
             gap: 24px;
-            max-width: 980px;
-            margin-left: auto;
-            margin-right: auto;
-            max-height: 78vh;
-            overflow-y: auto;
-            padding-right: 6px;
-            scroll-behavior: smooth;
+            width: 100%;
         }
         .graph-card {
-            height: 420px;
+            height: 380px;
             padding: 28px;
         }
     }
