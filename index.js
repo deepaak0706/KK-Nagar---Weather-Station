@@ -251,7 +251,10 @@ async function getNEMRainfallMm(station, todayISTStr, currentDailyIn) {
         state.nemBaseRainMm = Number(baseResult.rows[0]?.rainfall_mm) || 0;
     }
 
-    return Math.round((state.nemBaseRainMm + (Number(currentDailyIn) || 0) * 25.4) * 10) / 10;
+    // KK Nagar correction: Add 5.3mm preset for October (this month only) to NEM
+    const nemValue = state.nemBaseRainMm + (Number(currentDailyIn) || 0) * 25.4;
+    const kknagar_nem_adjusted = station.id === 'kknagar' ? nemValue + 5.3 : nemValue;
+    return Math.round(kknagar_nem_adjusted * 10) / 10;
 }
 
 async function loadBufferState(station) {
@@ -878,12 +881,17 @@ try {
     const rawYearlyMm = Math.round(r.yearlyIn * 2540) / 100;
     const swmMm = Math.round((swmBaseline[station.id] + rawYearlyMm - yearlyBaseline[station.id]) * 100) / 100;
 
+    // KK Nagar correction: Add 5.8mm preset for October (this month only) to monthly
+    const kknagar_monthly_adjusted = station.id === 'kknagar' 
+        ? Math.round((r.monthlyIn * 2540) / 100) + 5.8 
+        : Math.round(r.monthlyIn * 2540) / 100;
+    
     return {
     total:   Math.round(r.dailyIn  * 2540) / 100,
     rate:    liveRR,
     maxR:    mx_r,
     maxRTime: mx_r_t,
-    monthly: Math.round(r.monthlyIn * 2540) / 100,
+    monthly: kknagar_monthly_adjusted,
     swm:     swmMm,
     seasonLabel: nemMm !== null ? 'NEM' : 'SWM',
     seasonTotal: nemMm !== null ? nemMm : swmMm,
