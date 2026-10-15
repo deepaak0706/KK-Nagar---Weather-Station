@@ -46,7 +46,7 @@ const STATIONS = {
         appKey: APPLICATION_KEY,
         apiKey: API_KEY,
         mac: MAC,
-        yearlyBaseline: 375.0,
+        yearlyBaseline: 354.5,
         // ← ADD THESE 4 LINES:
         dataStartYear: 2019,
         dataEndYear: 2026,
