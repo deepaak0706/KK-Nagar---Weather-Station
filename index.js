@@ -878,12 +878,17 @@ try {
     const rawYearlyMm = Math.round(r.yearlyIn * 2540) / 100;
     const swmMm = Math.round((swmBaseline[station.id] + rawYearlyMm - yearlyBaseline[station.id]) * 100) / 100;
 
+    // KK Nagar correction: Add 5.5mm preset to monthly (this month only - will be removed on Nov 1st)
+    const kknagar_monthly_adjusted = station.id === 'kknagar' 
+        ? Math.round(r.monthlyIn * 2540) / 100 + 5.5 
+        : Math.round(r.monthlyIn * 2540) / 100;
+    
     return {
     total:   Math.round(r.dailyIn  * 2540) / 100,
     rate:    liveRR,
     maxR:    mx_r,
     maxRTime: mx_r_t,
-    monthly: Math.round(r.monthlyIn * 2540) / 100,
+    monthly: kknagar_monthly_adjusted,
     swm:     swmMm,
     seasonLabel: nemMm !== null ? 'NEM' : 'SWM',
     seasonTotal: nemMm !== null ? nemMm : swmMm,
