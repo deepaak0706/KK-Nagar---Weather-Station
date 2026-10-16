@@ -102,13 +102,13 @@ const STATIONS = {
     },
         annanagar: {
         id: 'annanagar',
-        name: 'Anna Nagar',
+        name: 'Madras - Monsoon ANW',
         type: 'ecowitt',            // or 'ambient'
         appKey: AN_APPLICATION_KEY,
         apiKey: AN_API_KEY,
         mac: AN_MAC,
         yearlyBaseline: 0,
-	    nemPresetMm: 19.2,
+        nemPresetMm: 19.2,
         dataStartYear: 2026,        // year this station started logging
         dataEndYear: 2026,
         summaryStartYear: 2026,
@@ -2837,7 +2837,7 @@ body:not(.is-night) .station-summary-radar-card.is-rain-leader { background: rad
                     <span class="pin">📍</span><span>Sanatorium</span><span class="check">✓</span>
                 </div>
                 <div class="station-menu-item" id="opt-annanagar" onclick="switchStation('annanagar')">
-                    <span class="pin">📍</span><span>Anna Nagar West</span><span class="check">✓</span>
+                    <span class="pin">📍</span><span>Madras - Monsoon ANW</span><span class="check">✓</span>
                 </div>
             </div>
         </div>
@@ -3153,7 +3153,7 @@ const stationSummaryStations = [
     { id: 'neelangarai', name: 'Neelangarai' },
     { id: 'ayyapakkam', name: 'Ayyapakkam' },
     { id: 'sanatorium', name: 'Sanatorium' },
-    { id: 'annanagar', name: 'Anna Nagar West' }
+    { id: 'annanagar', name: 'Madras - Monsoon ANW' }
 ];
 let stationSummaryUpdating = false;
 
@@ -3309,7 +3309,7 @@ function switchStation(id) {
     id === 'kknagar' ? 'KK Nagar Weather Station' : 
     id === 'neelangarai' ? 'Neelangarai Weather Station' :
     id === 'ayyapakkam' ? 'Ayyapakkam Weather Station' :
-    id === 'annanagar' ? 'Anna Nagar Weather Station' :
+    id === 'annanagar' ? 'Madras - Monsoon ANW Weather Station' :
     'Sanatorium Weather Station';
 
     updateHistoricalTabAvailability();
