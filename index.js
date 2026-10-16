@@ -102,13 +102,13 @@ const STATIONS = {
     },
         annanagar: {
         id: 'annanagar',
-        name: 'Madras - Monsoon ANW',
+        name: 'Anna Nagar',
         type: 'ecowitt',            // or 'ambient'
         appKey: AN_APPLICATION_KEY,
         apiKey: AN_API_KEY,
         mac: AN_MAC,
         yearlyBaseline: 0,
-	nemPresetMm: 19.2,
+	    nemPresetMm: 19.2,
         dataStartYear: 2026,        // year this station started logging
         dataEndYear: 2026,
         summaryStartYear: 2026,
@@ -1162,7 +1162,7 @@ app.get('/manifest.json', (req, res) => {
 app.get('/sw.js', (req, res) => {
     res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
     res.type('application/javascript').send(`
-const CACHE_NAME = 'kk-nagar-weather-v5';
+const CACHE_NAME = 'kk-nagar-weather-v4';
 
 self.addEventListener('install', event => {
   event.waitUntil(
@@ -2512,6 +2512,9 @@ body:not(.is-night) .station-summary-metric:nth-child(4) .station-summary-value 
 .station-summary-radar-card.station-radar-sanatorium { --station-mark: #a78bfa; }
 .station-summary-radar-card.station-radar-annanagar { --station-mark: #34d399; }
 
+/* Centre the odd last card across the full width */
+.station-summary-radar-card:last-child:nth-child(odd) { grid-column: 1 / -1; }
+
 .station-summary-radar-live { margin-left: auto; flex: 0 0 auto; color: var(--muted); font-size: 9px; font-weight: 600; letter-spacing: 0.08em; }
 .station-summary-radar-live::before { content: ''; display: inline-block; width: 6px; height: 6px; margin-right: 5px; border-radius: 50%; background: #34d399; box-shadow: 0 0 8px rgba(52, 211, 153, 0.58); }
 .station-summary-radar-main { display: grid; grid-template-columns: 98px minmax(0, 1fr); align-items: center; gap: clamp(15px, 2vw, 22px); margin: clamp(18px, 2vw, 23px) 0 17px; }
@@ -2834,7 +2837,7 @@ body:not(.is-night) .station-summary-radar-card.is-rain-leader { background: rad
                     <span class="pin">📍</span><span>Sanatorium</span><span class="check">✓</span>
                 </div>
                 <div class="station-menu-item" id="opt-annanagar" onclick="switchStation('annanagar')">
-                    <span class="pin">📍</span><span>Madras - Monsoon ANW</span><span class="check">✓</span>
+                    <span class="pin">📍</span><span>Anna Nagar West</span><span class="check">✓</span>
                 </div>
             </div>
         </div>
@@ -3150,7 +3153,7 @@ const stationSummaryStations = [
     { id: 'neelangarai', name: 'Neelangarai' },
     { id: 'ayyapakkam', name: 'Ayyapakkam' },
     { id: 'sanatorium', name: 'Sanatorium' },
-    { id: 'annanagar', name: 'Madras - Monsoon ANW' }
+    { id: 'annanagar', name: 'Anna Nagar West' }
 ];
 let stationSummaryUpdating = false;
 
@@ -3306,7 +3309,7 @@ function switchStation(id) {
     id === 'kknagar' ? 'KK Nagar Weather Station' : 
     id === 'neelangarai' ? 'Neelangarai Weather Station' :
     id === 'ayyapakkam' ? 'Ayyapakkam Weather Station' :
-    id === 'annanagar' ? 'Madras - Monsoon ANW Weather Station' :
+    id === 'annanagar' ? 'Anna Nagar Weather Station' :
     'Sanatorium Weather Station';
 
     updateHistoricalTabAvailability();
