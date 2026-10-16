@@ -437,6 +437,128 @@ function calculateRealFeel(tempC, humidity) {
  * 1-MIN CRON: Memory Buffer & Decay Engine
  */
 
+// ── MIDNIGHT HANDOFF ─────────────────────────────────────────────
+// Runs once per IST day, on the first write of the new day, BEFORE the buffer is
+// zeroed or refilled. In one transaction (guarded by an advisory lock so the two
+// crons cannot both run it):
+//   1. saves yesterday's last rain total, as the buffer last saw it, to daily_max_records
+//   2. writes a closing row for yesterday, stamped 23:59:59, holding yesterday's
+//      peaks still in the buffer, with 0 daily rain
+//   3. rolls yesterday up into daily_max_records, then deletes yesterday's raw rows
+//   4. clears the buffer's peaks (they belonged to yesterday)
+//   5. writes today's marker row, so this only ever runs once per day
+// Any failure rolls back everything and throws, so the next run retries cleanly.
+const istDayOf = (ms) => new Date(ms).toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+
+async function midnightHandoff(station, buf, nowMs) {
+    const todayStr = istDayOf(nowMs);
+    const closingMs = new Date(`${todayStr}T00:00:00+05:30`).getTime() - 1000;   // 23:59:59 yesterday IST
+    const closingIso = new Date(closingMs).toISOString();
+    const endedDay = istDayOf(closingMs);
+
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+        await client.query(`SELECT pg_advisory_xact_lock(hashtext($1))`, ['handoff-' + station.id]);
+
+        const done = await client.query(
+            'SELECT 1 FROM daily_max_records WHERE station_id = $1 AND record_date = $2::date LIMIT 1',
+            [station.id, todayStr]
+        );
+        if (done.rows.length > 0) {
+            await client.query('COMMIT');   // already handed off today; nothing to do
+            return false;
+        }
+
+        // 1. Yesterday's last rain total, as the buffer last saw it (e.g. the 23:58 reading).
+        if (buf.lastRainRaw !== null && buf.lastRainRaw > 0 && buf.lastRainTime &&
+            istDayOf(buf.lastRainTime) < todayStr) {
+            await client.query(`
+                INSERT INTO daily_max_records (station_id, record_date, total_rain_mm)
+                VALUES ($1, $2::date, $3)
+                ON CONFLICT (station_id, record_date) DO UPDATE SET
+                    total_rain_mm = GREATEST(COALESCE(daily_max_records.total_rain_mm, 0), EXCLUDED.total_rain_mm)
+            `, [station.id, endedDay, Math.round(buf.lastRainRaw * 25.4 * 100) / 100]);
+        }
+
+        // 2. Closing row for yesterday: buffer peaks, 0 daily rain. Other sensor
+        //    fields are copied from the latest stored row (same column list as the writer).
+        const real = (v) => (v === null || v === undefined || v === -999 || v === 999) ? null : v;
+        await client.query(`
+            INSERT INTO weather_history
+                (station_id, time, temp_f, temp_min_f, temp_current_f, humidity,
+                 wind_speed_mph, wind_gust_mph, rain_rate_in, daily_rain_in,
+                 max_w_time, max_t_time, min_t_time, max_r_time, max_g_time,
+                 solar_radiation, press_rel)
+            SELECT station_id, $2::timestamptz,
+                   COALESCE($3, temp_f), COALESCE($4, temp_min_f), temp_current_f, humidity,
+                   COALESCE($5, wind_speed_mph), COALESCE($6, wind_gust_mph), COALESCE($7, 0), 0,
+                   COALESCE($8::timestamptz, $2::timestamptz), COALESCE($9::timestamptz, $2::timestamptz),
+                   COALESCE($10::timestamptz, $2::timestamptz), COALESCE($11::timestamptz, $2::timestamptz),
+                   COALESCE($12::timestamptz, $2::timestamptz),
+                   solar_radiation, press_rel
+            FROM weather_history
+            WHERE station_id = $1
+            ORDER BY time DESC
+            LIMIT 1
+        `, [station.id, closingIso,
+            real(buf.bufMaxT), real(buf.bufMinT), real(buf.bufW), real(buf.bufG), real(buf.bufRR),
+            buf.tW || null, buf.tMaxT || null, buf.tMinT || null, buf.tRR || null, buf.tG || null]);
+
+        // 3. Roll yesterday up (this includes the closing row), then delete yesterday's raw rows.
+        await client.query(`
+            INSERT INTO daily_max_records
+                (station_id, record_date, max_temp_c, min_temp_c, max_wind_kmh, max_gust_kmh, total_rain_mm)
+            SELECT station_id, (time AT TIME ZONE 'Asia/Kolkata')::date,
+                   MAX((temp_f - 32) * 5/9), MIN((temp_min_f - 32) * 5/9),
+                   MAX(wind_speed_mph * 1.60934), MAX(wind_gust_mph * 1.60934),
+                   MAX(daily_rain_in * 25.4) FILTER (WHERE daily_rain_in::text <> 'NaN')
+            FROM weather_history
+            WHERE station_id = $1
+              AND (time AT TIME ZONE 'Asia/Kolkata')::date < $2::date
+            GROUP BY station_id, (time AT TIME ZONE 'Asia/Kolkata')::date
+            ON CONFLICT (station_id, record_date) DO UPDATE SET
+                max_temp_c = EXCLUDED.max_temp_c, min_temp_c = EXCLUDED.min_temp_c,
+                max_wind_kmh = EXCLUDED.max_wind_kmh, max_gust_kmh = EXCLUDED.max_gust_kmh,
+                total_rain_mm = GREATEST(COALESCE(daily_max_records.total_rain_mm, 0), EXCLUDED.total_rain_mm)
+        `, [station.id, todayStr]);
+
+        await client.query(`
+            DELETE FROM weather_history
+            WHERE station_id = $1
+              AND (time AT TIME ZONE 'Asia/Kolkata')::date < $2::date
+        `, [station.id, todayStr]);
+
+        if (station.id === 'kknagar') {
+            await maintainKKNagarHistoricalRainfall(client, todayStr);
+        }
+
+        // 4. Clear yesterday's peaks from the buffer.
+        await client.query(`
+            UPDATE buffer_state SET
+                buf_w = 0, buf_g = 0, buf_max_t = -999, buf_min_t = 999, buf_rr = 0,
+                t_w = NULL, t_g = NULL, t_max_t = NULL, t_min_t = NULL, t_rr = NULL
+            WHERE station_id = $1
+        `, [station.id]);
+
+        // 5. Today's marker: this handoff has run for today.
+        await client.query(`
+            INSERT INTO daily_max_records (station_id, record_date, total_rain_mm)
+            VALUES ($1, $2::date, 0)
+            ON CONFLICT (station_id, record_date) DO NOTHING
+        `, [station.id, todayStr]);
+
+        await client.query('COMMIT');
+        console.log(`🌙 Midnight handoff [${station.id}] ${endedDay} closed (rain ${buf.lastRainRaw !== null ? (buf.lastRainRaw * 25.4).toFixed(2) : '0'} mm)`);
+        return true;
+    } catch (err) {
+        await client.query('ROLLBACK');
+        throw err;
+    } finally {
+        client.release();
+    }
+}
+
 async function bufferOnlyUpdate(station) {
     const now = Date.now();
     const st = stationState[station.id];
@@ -482,7 +604,12 @@ async function bufferOnlyUpdate(station) {
 
         let buf = await loadBufferState(station);
 
+        // ── MIDNIGHT HANDOFF (once per day, before the buffer is zeroed or refilled) ──
+        await midnightHandoff(station, buf, observationTimeMs);
+        buf = await loadBufferState(station);   // handoff may have cleared peaks in the DB
+
         // 1. Calculate RR from the provider's observation interval, not cron timing.
+        //    processRainLogic performs the zeroing, only after the snap above succeeded.
         buf = processRainLogic(buf, dailyRainInches, observationTimeMs, true);
 
         // Zero out rain rate if no rain for 5+ minutes
@@ -661,6 +788,7 @@ async function syncWithEcowitt(station, forceWrite = false) {
 
         let writerBuf;
         if (forceWrite) {
+            await midnightHandoff(station, await loadBufferState(station), Date.now());
             writerBuf = await loadBufferState(station);
             snap = {
                 maxT: writerBuf.bufMaxT, minT: writerBuf.bufMinT,
@@ -680,7 +808,7 @@ try {
         WHERE station_id = $1 AND time BETWEEN $2 AND $3 LIMIT 1
     `, [station.id, checkStart, checkEnd]);
 
-    if (!(hour === 0 && minute < 5) && dupCheck.rows.length > 0) {
+    if (dupCheck.rows.length > 0) {
         console.log(`⚠️ Duplicate skipped [${station.id}]`);
         await client.query('ROLLBACK');
         dbWriteSuccess = true;
@@ -688,10 +816,7 @@ try {
         return st.cachedData;
     }
 
-    let timeSql = 'NOW()';
-    if (hour === 0 && minute < 5) {
-        timeSql = "(date_trunc('day', NOW() AT TIME ZONE 'Asia/Kolkata') AT TIME ZONE 'Asia/Kolkata') - INTERVAL '1 second'";
-    }
+    const timeSql = 'NOW()';
 
     const dbMaxT = snap.maxT === -999 ? r.tempF   : snap.maxT;
     const dbMinT = snap.minT ===  999 ? r.tempF   : snap.minT;
@@ -699,11 +824,22 @@ try {
     const dbG    = snap.tG   === null  ? r.gustMph : snap.g;
     const dbRR   = snap.rr || 0;
 
-    // At midnight the API resets daily rain to 0.
-    // Use buffer's last known rain value if it's higher than what API returned.
-    const dbDailyIn = (hour === 0 && minute < 5 && writerBuf.lastRainRaw !== null && writerBuf.lastRainRaw > r.dailyIn)
-    ? writerBuf.lastRainRaw
-    : r.dailyIn;
+    // Daily rain for this row. A non-numeric API value must never reach the DB.
+    // Fallback = last valid daily rain already stored for this station (the value
+    // the live page showed before the reset). Midnight snap in the 1-min path has
+    // already preserved the day's final total in daily_max_records.
+    let dbDailyIn = r.dailyIn;
+    if (!Number.isFinite(dbDailyIn)) {
+        const lastGood = await client.query(`
+            SELECT daily_rain_in FROM weather_history
+            WHERE station_id = $1
+              AND daily_rain_in IS NOT NULL
+              AND daily_rain_in::text <> 'NaN'
+            ORDER BY time DESC LIMIT 1
+        `, [station.id]);
+        dbDailyIn = lastGood.rows[0] ? Number(lastGood.rows[0].daily_rain_in) : 0;
+        console.warn(`Non-numeric daily rain [${station.id}], using last valid value ${dbDailyIn}`);
+    }
 
 
     if (isNaN(r.tempF) || isNaN(dbMaxT) || isNaN(dbMinT) || isNaN(dbW) || isNaN(dbG)) {
@@ -732,54 +868,8 @@ try {
         r.solar, r.pressRaw
     ]);
 
-    // Midnight rollup — runs INSIDE transaction
-    let didRollup = false;
-    if (hour === 0 && minute < 30 && st.lastArchivedDate !== todayISTStr) {
-        await client.query(`
-            INSERT INTO daily_max_records 
-                (station_id, record_date, max_temp_c, min_temp_c, max_wind_kmh, max_gust_kmh, total_rain_mm)
-            SELECT 
-                station_id,
-                (time AT TIME ZONE 'Asia/Kolkata')::date,
-                MAX((temp_f - 32) * 5/9), MIN((temp_min_f - 32) * 5/9),
-                MAX(wind_speed_mph * 1.60934), MAX(wind_gust_mph * 1.60934),
-                MAX(daily_rain_in * 25.4)
-            FROM weather_history
-            WHERE station_id = $1
-              AND (time AT TIME ZONE 'Asia/Kolkata')::date < $2::date
-            GROUP BY station_id, (time AT TIME ZONE 'Asia/Kolkata')::date
-            ON CONFLICT (station_id, record_date) DO UPDATE SET
-                max_temp_c=EXCLUDED.max_temp_c, min_temp_c=EXCLUDED.min_temp_c,
-                max_wind_kmh=EXCLUDED.max_wind_kmh, max_gust_kmh=EXCLUDED.max_gust_kmh,
-                total_rain_mm=EXCLUDED.total_rain_mm
-        `, [station.id, todayISTStr]);
-
-        await client.query(`
-            DELETE FROM weather_history 
-            WHERE station_id = $1 
-              AND (time AT TIME ZONE 'Asia/Kolkata')::date < $2::date
-        `, [station.id, todayISTStr]);
-
-        if (station.id === 'kknagar') {
-            await maintainKKNagarHistoricalRainfall(client, todayISTStr);
-        }
-
-        didRollup = true;
-    }
-
     // Single COMMIT covers everything
     await client.query('COMMIT');
-
-    // Update in-memory state ONLY after confirmed commit
-    if (didRollup) {
-        st.lastArchivedDate = todayISTStr;
-        st.cachedData = null;
-        resetStateBuffers(station);
-        await resetBufferPeaksDB(station);  // ← ADD THIS
-        snap=undefined;
-        console.log(`✅ Midnight rollup complete [${station.id}]`);
-    }
-
 
     st.dataChangedSinceLastRead = true;
     dbWriteSuccess = true;
