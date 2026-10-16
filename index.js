@@ -856,7 +856,7 @@ try {
             wind: { speed: liveWind, gust: liveGust, maxS: mx_w, maxSTime: mx_w_t, maxG: mx_g, maxGTime: mx_g_t, deg: r.windDeg, card: getCard(r.windDeg) },
             rain: (() => {
     let yearlyMm = Math.round((Math.round(r.yearlyIn * 2540) / 100 +
-    (station.id === 'kknagar' ? 479.3 :
+    (station.id === 'kknagar' ? 479.5 :
      station.id === 'ayyapakkam' ? 257.02 : 0)) * 100) / 100;
 
     const swmBaseline = {
