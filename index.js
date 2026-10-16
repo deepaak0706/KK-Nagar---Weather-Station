@@ -80,6 +80,7 @@ const STATIONS = {
         apiKey: AYYA_API_KEY,
         mac: AYYA_MAC,
         yearlyBaseline: 0,
+        nemPresetMm: 19.2,
         dataStartYear: 2020,
         dataEndYear: 2026,
         summaryStartYear: 2026,
@@ -279,7 +280,7 @@ async function getNEMRainfallMm(station, todayISTStr, currentDailyIn) {
         state.nemBaseRainMm = Number(baseResult.rows[0]?.rainfall_mm) || 0;
     }
 
-    return Math.round((state.nemBaseRainMm + (Number(currentDailyIn) || 0) * 25.4) * 10) / 10;
+    return Math.round((state.nemBaseRainMm + (Number(currentDailyIn) || 0) * 25.4 + (station.nemPresetMm || 0)) * 10) / 10;
 }
 
 async function loadBufferState(station) {
