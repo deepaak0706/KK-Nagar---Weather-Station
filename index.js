@@ -46,7 +46,7 @@ const STATIONS = {
         appKey: APPLICATION_KEY,
         apiKey: API_KEY,
         mac: MAC,
-        yearlyBaseline: 354.5,
+        yearlyBaseline: 375.0,
         // ← ADD THESE 4 LINES:
         dataStartYear: 2019,
         dataEndYear: 2026,
@@ -251,12 +251,7 @@ async function getNEMRainfallMm(station, todayISTStr, currentDailyIn) {
         state.nemBaseRainMm = Number(baseResult.rows[0]?.rainfall_mm) || 0;
     }
 
-    // KK Nagar correction: Add preset for NEM (Oct-Dec season)
-    // Original preset: 5.3mm, but 20.5mm was incorrectly added at midnight snapshot
-    // So adjusted preset: 5.3 - 20.5 = -15.2mm to counteract the midnight spike
-    const nemValue = state.nemBaseRainMm + (Number(currentDailyIn) || 0) * 25.4;
-    const kknagar_nem_adjusted = station.id === 'kknagar' ? nemValue - 15.2 : nemValue;
-    return Math.round(kknagar_nem_adjusted * 10) / 10;
+    return Math.round((state.nemBaseRainMm + (Number(currentDailyIn) || 0) * 25.4) * 10) / 10;
 }
 
 async function loadBufferState(station) {
@@ -861,7 +856,7 @@ try {
             wind: { speed: liveWind, gust: liveGust, maxS: mx_w, maxSTime: mx_w_t, maxG: mx_g, maxGTime: mx_g_t, deg: r.windDeg, card: getCard(r.windDeg) },
             rain: (() => {
     let yearlyMm = Math.round((Math.round(r.yearlyIn * 2540) / 100 +
-    (station.id === 'kknagar' ? 479.3 :
+    (station.id === 'kknagar' ? 494.8 :
      station.id === 'ayyapakkam' ? 257.02 : 0)) * 100) / 100;
 
     const swmBaseline = {
@@ -883,17 +878,12 @@ try {
     const rawYearlyMm = Math.round(r.yearlyIn * 2540) / 100;
     const swmMm = Math.round((swmBaseline[station.id] + rawYearlyMm - yearlyBaseline[station.id]) * 100) / 100;
 
-    // KK Nagar correction: Add 5.8mm preset for October (this month only) to monthly
-    const kknagar_monthly_adjusted = station.id === 'kknagar' 
-        ? Math.round((r.monthlyIn * 2540) / 100) + 5.8 
-        : Math.round(r.monthlyIn * 2540) / 100;
-    
     return {
     total:   Math.round(r.dailyIn  * 2540) / 100,
     rate:    liveRR,
     maxR:    mx_r,
     maxRTime: mx_r_t,
-    monthly: kknagar_monthly_adjusted,
+    monthly: Math.round(r.monthlyIn * 2540) / 100,
     swm:     swmMm,
     seasonLabel: nemMm !== null ? 'NEM' : 'SWM',
     seasonTotal: nemMm !== null ? nemMm : swmMm,
