@@ -251,9 +251,11 @@ async function getNEMRainfallMm(station, todayISTStr, currentDailyIn) {
         state.nemBaseRainMm = Number(baseResult.rows[0]?.rainfall_mm) || 0;
     }
 
-    // KK Nagar correction: Add 5.3mm preset for October (this month only) to NEM
+    // KK Nagar correction: Add preset for NEM (Oct-Dec season)
+    // Original preset: 5.3mm, but 20.5mm was incorrectly added at midnight snapshot
+    // So adjusted preset: 5.3 - 20.5 = -15.2mm to counteract the midnight spike
     const nemValue = state.nemBaseRainMm + (Number(currentDailyIn) || 0) * 25.4;
-    const kknagar_nem_adjusted = station.id === 'kknagar' ? nemValue + 5.3 : nemValue;
+    const kknagar_nem_adjusted = station.id === 'kknagar' ? nemValue - 15.2 : nemValue;
     return Math.round(kknagar_nem_adjusted * 10) / 10;
 }
 
