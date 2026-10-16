@@ -33,6 +33,10 @@ const SANATORIUM_APPLICATION_KEY = process.env.SANATORIUM_APPLICATION_KEY;
 const SANATORIUM_API_KEY = process.env.SANATORIUM_API_KEY;
 const SANATORIUM_MAC = process.env.SANATORIUM_MAC;
 
+// New — Anna Nagar
+const AN_APPLICATION_KEY = process.env.AN_APPLICATION_KEY;
+const AN_API_KEY = process.env.AN_API_KEY;
+const AN_MAC = process.env.AN_MAC;
 
 // =============================================
 // STATION CONFIGURATION
@@ -95,6 +99,20 @@ const STATIONS = {
         summaryStartYear: 2026,
         summaryEndYear: 2032,
     },
+        annanagar: {
+        id: 'annanagar',
+        name: 'Anna Nagar',
+        type: 'ecowitt',            // or 'ambient'
+        appKey: AN_APPLICATION_KEY,
+        apiKey: AN_API_KEY,
+        mac: AN_MAC,
+        yearlyBaseline: 0,
+        dataStartYear: 2026,        // year this station started logging
+        dataEndYear: 2026,
+        summaryStartYear: 2026,
+        summaryEndYear: 2032,
+    },
+    
 };
 
 
@@ -137,6 +155,16 @@ const stationState = {
         sanatorium: { 
         cachedData: null, lastFetchTime: 0, lastDbWrite: 0,
         lastRainRaw: null, lastCalculatedRate: 0, lastRainTime: 0, 
+        bufW: 0, bufG: 0, bufMaxT: -999, bufMinT: 999, bufRR: 0,
+        tW: null, tG: null, tMaxT: null, tMinT: null, tRR: null,
+        lastArchivedDate: null, dataChangedSinceLastRead: false,
+        summaryCache: null, lastSummaryFetchDate: null, lastDateSeen: null,
+        yearlyMidnightSnapshot: null,
+        nemBaseDate: null, nemBaseRainMm: 0,
+    },
+        annanagar: {
+        cachedData: null, lastFetchTime: 0, lastDbWrite: 0,
+        lastRainRaw: null, lastCalculatedRate: 0, lastRainTime: 0,
         bufW: 0, bufG: 0, bufMaxT: -999, bufMinT: 999, bufRR: 0,
         tW: null, tG: null, tMaxT: null, tMinT: null, tRR: null,
         lastArchivedDate: null, dataChangedSinceLastRead: false,
@@ -863,14 +891,16 @@ try {
         kknagar: 519.7,
         ayyapakkam: 642.3,
         neelangarai: 410.1,
-        sanatorium: 405.2
+        sanatorium: 405.2,
+        annanagar: 0
     };
 
     const yearlyBaseline = {
         kknagar: 214.4,
         ayyapakkam: 547.37,
         neelangarai: 593.6,
-        sanatorium: 529.3
+        sanatorium: 529.3,
+        annanagar: 0
     };
 
     // SWM = station SWM baseline + raw yearly API rainfall - station yearly baseline.
@@ -1005,7 +1035,7 @@ app.get("/api/rain-status", async (req, res) => {
 // Additive compact-data view. It reuses the existing per-station sync/cache path
 // and deliberately exposes only the four values needed by Station Summary.
 app.get("/api/station-summary", async (req, res) => {
-    const stationIds = ['kknagar', 'neelangarai', 'ayyapakkam', 'sanatorium'];
+    const stationIds = ['kknagar', 'neelangarai', 'ayyapakkam', 'sanatorium', 'annanagar'];
     const stations = await Promise.all(stationIds.map(async (stationId) => {
         const station = STATIONS[stationId];
         try {
@@ -1043,7 +1073,7 @@ app.get("/api/sync", async (req, res) => {
 app.get("/api/sync-all", async (req, res) => {
     const results = {};
     try {
-        for (const stationId of ['kknagar', 'neelangarai', 'ayyapakkam', 'sanatorium']) {
+        for (const stationId of ['kknagar', 'neelangarai', 'ayyapakkam', 'sanatorium', 'annanagar']) {
             const s = STATIONS[stationId];
             if (req.query.buffer === 'true') {
                 results[stationId] = await bufferOnlyUpdate(s);
@@ -2478,6 +2508,11 @@ body:not(.is-night) .station-summary-metric:nth-child(4) .station-summary-value 
 .station-summary-radar-card.station-radar-neelangarai { --station-mark: #fbbf24; }
 .station-summary-radar-card.station-radar-ayyapakkam { --station-mark: #22d3ee; }
 .station-summary-radar-card.station-radar-sanatorium { --station-mark: #a78bfa; }
+.station-summary-radar-card.station-radar-annanagar { --station-mark: #34d399; }
+
+/* Centre the odd last card across the full width */
+.station-summary-radar-card:last-child:nth-child(odd) { grid-column: 1 / -1; }
+
 .station-summary-radar-live { margin-left: auto; flex: 0 0 auto; color: var(--muted); font-size: 9px; font-weight: 600; letter-spacing: 0.08em; }
 .station-summary-radar-live::before { content: ''; display: inline-block; width: 6px; height: 6px; margin-right: 5px; border-radius: 50%; background: #34d399; box-shadow: 0 0 8px rgba(52, 211, 153, 0.58); }
 .station-summary-radar-main { display: grid; grid-template-columns: 98px minmax(0, 1fr); align-items: center; gap: clamp(15px, 2vw, 22px); margin: clamp(18px, 2vw, 23px) 0 17px; }
@@ -2799,6 +2834,9 @@ body:not(.is-night) .station-summary-radar-card.is-rain-leader { background: rad
                 <div class="station-menu-item" id="opt-sanatorium" onclick="switchStation('sanatorium')">
                     <span class="pin">📍</span><span>Sanatorium</span><span class="check">✓</span>
                 </div>
+                <div class="station-menu-item" id="opt-annanagar" onclick="switchStation('annanagar')">
+                    <span class="pin">📍</span><span>Anna Nagar West</span><span class="check">✓</span>
+                </div>
             </div>
         </div>
 
@@ -3112,7 +3150,8 @@ const stationSummaryStations = [
     { id: 'kknagar', name: 'KK Nagar' },
     { id: 'neelangarai', name: 'Neelangarai' },
     { id: 'ayyapakkam', name: 'Ayyapakkam' },
-    { id: 'sanatorium', name: 'Sanatorium' }
+    { id: 'sanatorium', name: 'Sanatorium' },
+    { id: 'annanagar', name: 'Anna Nagar West' }
 ];
 let stationSummaryUpdating = false;
 
@@ -3262,11 +3301,13 @@ function switchStation(id) {
     document.getElementById('opt-neelangarai').classList.toggle('active', id === 'neelangarai');
     document.getElementById('opt-ayyapakkam').classList.toggle('active', id === 'ayyapakkam');
     document.getElementById('opt-sanatorium').classList.toggle('active', id === 'sanatorium');
+    document.getElementById('opt-annanagar').classList.toggle('active', id === 'annanagar');
 
     document.getElementById('station-title').textContent =
     id === 'kknagar' ? 'KK Nagar Weather Station' : 
     id === 'neelangarai' ? 'Neelangarai Weather Station' :
     id === 'ayyapakkam' ? 'Ayyapakkam Weather Station' :
+    id === 'annanagar' ? 'Anna Nagar Weather Station' :
     'Sanatorium Weather Station';
 
     updateHistoricalTabAvailability();
