@@ -2512,9 +2512,6 @@ body:not(.is-night) .station-summary-metric:nth-child(4) .station-summary-value 
 .station-summary-radar-card.station-radar-sanatorium { --station-mark: #a78bfa; }
 .station-summary-radar-card.station-radar-annanagar { --station-mark: #34d399; }
 
-/* Centre the odd last card across the full width */
-.station-summary-radar-card:last-child:nth-child(odd) { grid-column: 1 / -1; }
-
 .station-summary-radar-live { margin-left: auto; flex: 0 0 auto; color: var(--muted); font-size: 9px; font-weight: 600; letter-spacing: 0.08em; }
 .station-summary-radar-live::before { content: ''; display: inline-block; width: 6px; height: 6px; margin-right: 5px; border-radius: 50%; background: #34d399; box-shadow: 0 0 8px rgba(52, 211, 153, 0.58); }
 .station-summary-radar-main { display: grid; grid-template-columns: 98px minmax(0, 1fr); align-items: center; gap: clamp(15px, 2vw, 22px); margin: clamp(18px, 2vw, 23px) 0 17px; }
