@@ -3,6 +3,15 @@ const fetch = require("node-fetch");
 const { Pool } = require('pg');
 const path = require("path");
 const app = express();
+// Never let browsers, PWAs or CDNs reuse stale live data.
+app.use((req, res, next) => {
+    if (req.path.startsWith('/api/') || req.path === '/weather') {
+        res.set('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+        res.set('Pragma', 'no-cache');
+        res.set('Expires', '0');
+    }
+    next();
+});
 app.use(express.static('public'));
 
 const pool = new Pool({
@@ -1063,6 +1072,11 @@ app.get("/api/station-summary", async (req, res) => {
 
 app.get("/api/summary", async (req, res) => {
     const s = getStation(req);
+    if (req.query.fresh === '1') {
+        const st = stationState[s.id];
+        st.summaryCache = null;
+        st.lastSummaryFetchDate = null;
+    }
     res.json(await getWeatherSummary(s));
 });
 
@@ -1162,7 +1176,7 @@ app.get('/manifest.json', (req, res) => {
 app.get('/sw.js', (req, res) => {
     res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
     res.type('application/javascript').send(`
-const CACHE_NAME = 'kk-nagar-weather-v4';
+const CACHE_NAME = 'kk-nagar-weather-v5';
 
 self.addEventListener('install', event => {
   event.waitUntil(
@@ -1188,6 +1202,8 @@ self.addEventListener('activate', event => {
    Use the cached page only when the device is offline. */
 self.addEventListener('fetch', event => {
   if (event.request.method !== 'GET') return;
+  const url = new URL(event.request.url);
+  if (url.pathname.startsWith('/api/') || url.pathname === '/weather') return;
 
   event.respondWith(
     fetch(event.request)
@@ -3258,7 +3274,7 @@ async function updateStationSummary() {
     if (stationSummaryUpdating || !isStationSummaryRoute()) return;
     stationSummaryUpdating = true;
     try {
-        const response = await fetch('/api/station-summary');
+        const response = await fetch('/api/station-summary?t=' + Date.now(), { cache: 'no-store' });
         if (!response.ok) throw new Error('Summary request failed');
         const data = await response.json();
         renderStationSummaryCards(data.stations);
@@ -3489,7 +3505,7 @@ document.addEventListener('click', function(e) {
 
         async function fetchGraphDataFromDB() {
             try {
-                const res = await fetch('/api/history_graphs?station=' + currentStation);
+                const res = await fetch('/api/history_graphs?station=' + currentStation + '&t=' + Date.now(), { cache: 'no-store' });
                 if (!res.ok) throw new Error("Failed response");
                 const history = await res.json();
                 
@@ -3721,7 +3737,7 @@ async function fetchMonthlySummary() {
     tableContainer.innerHTML = '<div class="card" style="text-align:center; padding:40px;">Querying Database...</div>';
     
     try {
-        const res = await fetch('/api/summary?station=' + currentStation);
+        const res = await fetch('/api/summary?station=' + currentStation + '&fresh=1&t=' + Date.now(), { cache: 'no-store' });
         const groups = await res.json();
         const currentKey = \`\${selectedMonth} \${selectedYear}\`;
         const days = groups[currentKey] || [];
@@ -3809,7 +3825,7 @@ window.fetchHistoricalData = async function() {
     resultsTable.innerHTML = '<div style="text-align:center; padding:40px; color: var(--text-muted, #64748b);">Syncing Archive...</div>';
 
     try {
-        var response = await fetch('/api/historical-rain?year=' + year + '&station=' + currentStation);
+        var response = await fetch('/api/historical-rain?year=' + year + '&station=' + currentStation + '&t=' + Date.now(), { cache: 'no-store' });
         var result = await response.json();
 
         if (!result.data || result.data.length === 0) {
@@ -3972,6 +3988,7 @@ renderCurrentRoute();
     `;
 
 app.get(["/", "/station-summary"], (req, res) => {
+    res.set('Cache-Control', 'no-cache, must-revalidate');
     res.send(renderWeatherApp());
 });
 
