@@ -1162,7 +1162,7 @@ app.get('/manifest.json', (req, res) => {
 app.get('/sw.js', (req, res) => {
     res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
     res.type('application/javascript').send(`
-const CACHE_NAME = 'kk-nagar-weather-v4';
+const CACHE_NAME = 'kk-nagar-weather-v5';
 
 self.addEventListener('install', event => {
   event.waitUntil(
@@ -3150,7 +3150,7 @@ const stationSummaryStations = [
     { id: 'neelangarai', name: 'Neelangarai' },
     { id: 'ayyapakkam', name: 'Ayyapakkam' },
     { id: 'sanatorium', name: 'Sanatorium' },
-    { id: 'annanagar', name: 'Anna Nagar West' }
+    { id: 'annanagar', name: 'Madras - Monsoon ANW' }
 ];
 let stationSummaryUpdating = false;
 
