@@ -80,7 +80,6 @@ const STATIONS = {
         apiKey: AYYA_API_KEY,
         mac: AYYA_MAC,
         yearlyBaseline: 0,
-        nemPresetMm: 19.2,
         dataStartYear: 2020,
         dataEndYear: 2026,
         summaryStartYear: 2026,
@@ -108,6 +107,7 @@ const STATIONS = {
         apiKey: AN_API_KEY,
         mac: AN_MAC,
         yearlyBaseline: 0,
+        nemPresetMm: 19.2,
         dataStartYear: 2026,        // year this station started logging
         dataEndYear: 2026,
         summaryStartYear: 2026,
