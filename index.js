@@ -102,7 +102,7 @@ const STATIONS = {
     },
         annanagar: {
         id: 'annanagar',
-        name: 'Anna Nagar',
+        name: 'Madras - Monsoon ANW',
         type: 'ecowitt',            // or 'ambient'
         appKey: AN_APPLICATION_KEY,
         apiKey: AN_API_KEY,
@@ -2834,7 +2834,7 @@ body:not(.is-night) .station-summary-radar-card.is-rain-leader { background: rad
                     <span class="pin">📍</span><span>Sanatorium</span><span class="check">✓</span>
                 </div>
                 <div class="station-menu-item" id="opt-annanagar" onclick="switchStation('annanagar')">
-                    <span class="pin">📍</span><span>Anna Nagar West</span><span class="check">✓</span>
+                    <span class="pin">📍</span><span>Madras - Monsoon ANW</span><span class="check">✓</span>
                 </div>
             </div>
         </div>
@@ -3306,7 +3306,7 @@ function switchStation(id) {
     id === 'kknagar' ? 'KK Nagar Weather Station' : 
     id === 'neelangarai' ? 'Neelangarai Weather Station' :
     id === 'ayyapakkam' ? 'Ayyapakkam Weather Station' :
-    id === 'annanagar' ? 'Anna Nagar Weather Station' :
+    id === 'annanagar' ? 'Madras - Monsoon ANW Weather Station' :
     'Sanatorium Weather Station';
 
     updateHistoricalTabAvailability();
