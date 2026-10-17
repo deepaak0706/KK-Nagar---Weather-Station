@@ -3058,7 +3058,7 @@ body:not(.is-night) .station-summary-radar-card.is-rain-leader { background: rad
 
 </style>
 <style>
-.rain-head { display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap; }
+.rain-head { display:flex; align-items:center; justify-content:flex-start; gap:0; flex-wrap:wrap; }
 .rain-swap-btn { all:unset; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; width:22px; height:22px; margin-left:8px; border-radius:6px; background:rgba(148,163,184,0.14); color:#93c5fd; vertical-align:middle; transition:background .2s; }
 .rain-swap-btn:hover, .rain-swap-btn:focus-visible { background:rgba(148,163,184,0.26); }
 .rain-imd-box { margin-top:8px; font-size:11px; color:var(--muted, #94a3b8); }
