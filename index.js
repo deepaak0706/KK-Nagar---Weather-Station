@@ -3875,12 +3875,10 @@ document.addEventListener('click', function(e) {
             var imd = lastRainData.imd;
             if (imd && imd.total !== null && imd.total !== undefined) {
                 updateValueWithFade('r_tot', imd.total, 1);
-                var since = new Date(imd.since).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' });
-                document.getElementById('r_imd_since').innerText = 'Since ' + since + ' IST';
             } else {
                 document.getElementById('r_tot').innerText = '--';
-                document.getElementById('r_imd_since').innerText = 'Waiting for the 8:30 AM reading';
             }
+            document.getElementById('r_imd_since').innerText = '';
             renderImdHistory();
         }
 
@@ -3898,7 +3896,7 @@ document.addEventListener('click', function(e) {
             var list = document.getElementById('r_imd_list');
             if (!list) return;
             if (!imdHistoryRows.length) {
-                list.innerHTML = '<div class="rain-imd-empty">No completed 8:30 AM days yet</div>';
+                list.innerHTML = '';
                 return;
             }
             var html = '';
