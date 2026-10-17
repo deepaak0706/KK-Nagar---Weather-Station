@@ -564,7 +564,7 @@ async function bufferOnlyUpdate(station) {
     const st = stationState[station.id];
 
     try {
-        let apiW, apiG, apiT, dailyRainInches, observationTimeMs;
+        let apiW, apiG, apiT, dailyRainInches, observationTimeMs, yearlyIn;
 
         if (station.type === 'ecowitt') {
             const url = `https://api.ecowitt.net/api/v3/device/real_time?application_key=${station.appKey}&api_key=${station.apiKey}&mac=${station.mac}&rainfall_unitid=12`;
@@ -577,6 +577,7 @@ async function bufferOnlyUpdate(station) {
             apiG = parseFloat(d.wind.wind_gust.value);
             apiT = parseFloat(d.outdoor.temperature.value);
             dailyRainInches = parseFloat(d.rainfall.daily.value) / 25.4;
+            yearlyIn = parseFloat(d.rainfall.yearly.value) / 25.4;
             observationTimeMs = Number(d.rainfall.daily.time) * 1000;
 
         } else if (station.type === 'ambient') {
@@ -594,6 +595,7 @@ async function bufferOnlyUpdate(station) {
             apiG = parseFloat(d.windgustmph);
             apiT = parseFloat(tempf);
             dailyRainInches = parseFloat(d.dailyrainin);
+            yearlyIn = parseFloat(d.yearlyrainin);
             observationTimeMs = Number(d.dateutc);
         }
 
@@ -601,6 +603,9 @@ async function bufferOnlyUpdate(station) {
             throw new Error(`Missing rain observation timestamp [${station.id}]`);
         }
         const currentTimeStamp = new Date(observationTimeMs).toISOString();
+
+        recordImdCheckpoint(station, Math.round(yearlyIn * 2540) / 100, observationTimeMs)
+            .catch(e => console.error(`IMD checkpoint [${station.id}]:`, e.message));
 
         let buf = await loadBufferState(station);
 
@@ -636,6 +641,125 @@ async function bufferOnlyUpdate(station) {
 }
 
 
+// ── IMD 08:30 → 08:30 IST RAINFALL ──────────────────────────────
+// A checkpoint is the provider's yearly rain counter (mm) taken at the first
+// reading on/after 08:30 IST. A day's IMD total is the difference between two
+// consecutive checkpoints. Nothing here touches the existing 24H/NEM/SWM logic.
+const IMD_CHECKPOINT_MIN = 8 * 60 + 30;
+const IMD_ACCEPT_WINDOW_MS = 45 * 60 * 1000;   // first reading must arrive within 45 min of 08:30
+const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
+
+let imdTablesReady = null;
+function ensureImdTables() {
+    if (!imdTablesReady) {
+        imdTablesReady = pool.query(`
+            CREATE TABLE IF NOT EXISTS imd_rain_checkpoints (
+                station_id    TEXT          NOT NULL,
+                window_date   DATE          NOT NULL,
+                checkpoint_at TIMESTAMPTZ   NOT NULL,
+                yearly_mm     NUMERIC(10,2) NOT NULL,
+                PRIMARY KEY (station_id, window_date)
+            );
+            CREATE TABLE IF NOT EXISTS imd_rain_daily (
+                station_id  TEXT          NOT NULL,
+                window_date DATE          NOT NULL,
+                total_mm    NUMERIC(10,2) NOT NULL,
+                PRIMARY KEY (station_id, window_date)
+            );
+        `).catch(err => { imdTablesReady = null; throw err; });
+    }
+    return imdTablesReady;
+}
+
+function shiftIstDate(dateStr, days) {
+    const d = new Date(dateStr + 'T00:00:00Z');
+    d.setUTCDate(d.getUTCDate() + days);
+    return d.toISOString().slice(0, 10);
+}
+
+// The IMD day is labelled with the IST date on which its 08:30 window starts.
+function imdWindowDateOf(ms) {
+    const ist = new Date(ms + IST_OFFSET_MS);
+    const mins = ist.getUTCHours() * 60 + ist.getUTCMinutes();
+    const day = ist.toISOString().slice(0, 10);
+    return mins < IMD_CHECKPOINT_MIN ? shiftIstDate(day, -1) : day;
+}
+
+function imdCheckpointMs(windowDate) {
+    return new Date(`${windowDate}T08:30:00+05:30`).getTime();
+}
+
+// If the counter went backwards (new year / device reset), the amount since
+// the reset is the counter value itself.
+function imdDelta(startMm, endMm) {
+    const v = endMm >= startMm ? endMm - startMm : endMm;
+    return Math.round(v * 100) / 100;
+}
+
+async function recordImdCheckpoint(station, yearlyMm, observationMs) {
+    if (!Number.isFinite(yearlyMm) || !Number.isFinite(observationMs)) return;
+    const st = stationState[station.id];
+    const windowDate = imdWindowDateOf(observationMs);
+    if (st.imdRecordedWindow === windowDate) return;          // already done this window
+
+    const startMs = imdCheckpointMs(windowDate);
+    if (observationMs - startMs > IMD_ACCEPT_WINDOW_MS) return; // missed the 08:30 reading
+
+    await ensureImdTables();
+    await pool.query(
+        `INSERT INTO imd_rain_checkpoints (station_id, window_date, checkpoint_at, yearly_mm)
+         VALUES ($1, $2::date, $3::timestamptz, $4)
+         ON CONFLICT (station_id, window_date) DO NOTHING`,
+        [station.id, windowDate, new Date(observationMs).toISOString(), yearlyMm]
+    );
+
+    const prev = shiftIstDate(windowDate, -1);
+    const rows = (await pool.query(
+        `SELECT to_char(window_date, 'YYYY-MM-DD') AS d, yearly_mm
+         FROM imd_rain_checkpoints
+         WHERE station_id = $1 AND window_date IN ($2::date, $3::date)`,
+        [station.id, prev, windowDate]
+    )).rows;
+    const byDate = {};
+    rows.forEach(r => { byDate[r.d] = Number(r.yearly_mm); });
+
+    // Both ends of the previous IMD day now exist, so close that day.
+    if (byDate[prev] !== undefined && byDate[windowDate] !== undefined) {
+        await pool.query(
+            `INSERT INTO imd_rain_daily (station_id, window_date, total_mm)
+             VALUES ($1, $2::date, $3)
+             ON CONFLICT (station_id, window_date) DO UPDATE SET total_mm = EXCLUDED.total_mm`,
+            [station.id, prev, imdDelta(byDate[prev], byDate[windowDate])]
+        );
+    }
+
+    st.imdRecordedWindow = windowDate;
+    st.imdCheckpoint = { windowDate, yearlyMm: byDate[windowDate] !== undefined ? byDate[windowDate] : null };
+}
+
+// Live "since 08:30" total for the current IMD day.
+async function getImdLive(station, yearlyMm, nowMs) {
+    if (!Number.isFinite(yearlyMm)) return null;
+    const st = stationState[station.id];
+    const windowDate = imdWindowDateOf(nowMs);
+
+    if (!st.imdCheckpoint || st.imdCheckpoint.windowDate !== windowDate || st.imdCheckpoint.yearlyMm === null) {
+        await ensureImdTables();
+        const r = await pool.query(
+            `SELECT yearly_mm FROM imd_rain_checkpoints WHERE station_id = $1 AND window_date = $2::date`,
+            [station.id, windowDate]
+        );
+        st.imdCheckpoint = { windowDate, yearlyMm: r.rows[0] ? Number(r.rows[0].yearly_mm) : null };
+    }
+
+    const start = st.imdCheckpoint.yearlyMm;
+    return {
+        total: start === null ? null : imdDelta(start, yearlyMm),
+        since: new Date(imdCheckpointMs(windowDate)).toISOString(),
+        windowDate
+    };
+}
+
 /**
  * MAIN SYNC: Handles Dashboard, 10-Min DB Write, and Midnight Reset
  */
@@ -660,7 +784,7 @@ async function syncWithEcowitt(station, forceWrite = false) {
         (now - (st.lastDailyExtremesFetchTime || 0) >= 30000);
 
     // ── FETCH RAW DATA FROM API ──────────────────────────────
-    const fetchLiveData = async () => {
+    const fetchLiveDataRaw = async () => {
         if (station.type === 'ecowitt') {
             const url = `https://api.ecowitt.net/api/v3/device/real_time?application_key=${station.appKey}&api_key=${station.apiKey}&mac=${station.mac}&rainfall_unitid=12`;
             const response = await fetch(url);
@@ -710,6 +834,15 @@ async function syncWithEcowitt(station, forceWrite = false) {
         pressRaw:   parseFloat(d.baromrelin),
     };
 }
+    };
+
+    const fetchLiveData = async () => {
+        const r = await fetchLiveDataRaw();
+        const yearlyMm = Math.round(r.yearlyIn * 2540) / 100;
+        st.lastRawYearlyMm = yearlyMm;
+        recordImdCheckpoint(station, yearlyMm, Date.now())
+            .catch(e => console.error(`IMD checkpoint [${station.id}]:`, e.message));
+        return r;
     };
 
     // ── VISITOR PATH (cache < 9 min) ─────────────────────────
@@ -1122,7 +1255,16 @@ function getStation(req) {
 
 app.get("/weather", async (req, res) => {
     const s = getStation(req);
-    res.json(await syncWithEcowitt(s, false));
+    const data = await syncWithEcowitt(s, false);
+    if (data && data.rain) {
+        try {
+            data.rain.imd = await getImdLive(s, stationState[s.id].lastRawYearlyMm, Date.now());
+        } catch (e) {
+            console.error(`IMD live [${s.id}]:`, e.message);
+            data.rain.imd = null;
+        }
+    }
+    res.json(data);
 });
 
 app.get("/api/rain-status", async (req, res) => {
@@ -1171,6 +1313,20 @@ app.get("/api/summary", async (req, res) => {
         st.lastSummaryFetchDate = null;
     }
     res.json(await getWeatherSummary(s));
+});
+
+app.get("/api/imd-history", async (req, res) => {
+    const s = getStation(req);
+    try {
+        await ensureImdTables();
+        const r = await pool.query(
+            `SELECT to_char(window_date, 'YYYY-MM-DD') AS date, total_mm
+             FROM imd_rain_daily WHERE station_id = $1
+             ORDER BY window_date DESC LIMIT 30`, [s.id]);
+        res.json(r.rows.map(x => ({ date: x.date, mm: Number(x.total_mm) })));
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
 });
 
 app.get("/api/sync", async (req, res) => {
@@ -2901,6 +3057,16 @@ body:not(.is-night) .station-summary-radar-card.is-rain-leader { background: rad
 }
 
 </style>
+<style>
+.rain-head { display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap; }
+.rain-mode-toggle { display:inline-flex; gap:2px; padding:3px; border-radius:999px; background:rgba(148,163,184,0.12); border:1px solid rgba(148,163,184,0.22); }
+.rain-mode-btn { border:0; background:transparent; color:var(--muted, #94a3b8); font-family:inherit; font-size:10px; font-weight:700; letter-spacing:0.4px; padding:6px 10px; border-radius:999px; cursor:pointer; transition:background .2s, color .2s; }
+.rain-mode-btn.active { background:#3b82f6; color:#fff; box-shadow:0 2px 10px rgba(59,130,246,0.35); }
+.rain-imd-box { margin-top:8px; font-size:11px; color:var(--muted, #94a3b8); }
+.rain-imd-list { margin-top:6px; display:grid; gap:2px; }
+.rain-imd-row { display:flex; justify-content:space-between; padding:4px 0; border-bottom:1px dashed rgba(148,163,184,0.2); }
+.rain-imd-empty { opacity:.7; padding:4px 0; }
+</style>
 </head>
 <body>
 <div id="pwa-install-banner" hidden>
@@ -3066,7 +3232,17 @@ body:not(.is-night) .station-summary-radar-card.is-rain-leader { background: rad
 
                 <div class="card">
                     <div>
-                        <div class="label">Rainfall</div>
+                        <div class="label rain-head">
+                            <span id="r_title">Rainfall (24H)</span>
+                            <div class="rain-mode-toggle" role="group" aria-label="Rainfall window">
+                                <button type="button" class="rain-mode-btn active" data-mode="24h" onclick="setRainMode('24h')">24H</button>
+                                <button type="button" class="rain-mode-btn" data-mode="imd" onclick="setRainMode('imd')">8:30–8:30</button>
+                            </div>
+                        </div>
+                        <div id="r_imd_box" class="rain-imd-box" style="display:none;">
+                            <div id="r_imd_since"></div>
+                            <div id="r_imd_list" class="rain-imd-list"></div>
+                        </div>
                         <div class="row-block">
                             <div class="left-panel">
                                 <div class="main-val"><span id="r_tot">0.0</span><span class="unit">mm</span></div>
@@ -3666,6 +3842,76 @@ document.addEventListener('click', function(e) {
             }
         }
 
+        var rainMode = localStorage.getItem('rainMode') || '24h';
+        var lastRainData = null;
+        var imdHistoryRows = [];
+
+        function setRainMode(mode) {
+            rainMode = mode;
+            localStorage.setItem('rainMode', mode);
+            renderRainMode();
+            if (mode === 'imd') loadImdHistory();
+        }
+
+        function renderRainMode() {
+            var btns = document.querySelectorAll('.rain-mode-btn');
+            for (var i = 0; i < btns.length; i++) {
+                btns[i].classList.toggle('active', btns[i].getAttribute('data-mode') === rainMode);
+            }
+            if (!lastRainData) return;
+
+            var title = document.getElementById('r_title');
+            var box = document.getElementById('r_imd_box');
+
+            if (rainMode !== 'imd') {
+                title.innerText = 'Rainfall (24H)';
+                box.style.display = 'none';
+                updateValueWithFade('r_tot', lastRainData.total, 1);
+                return;
+            }
+
+            title.innerText = 'Rainfall (8:30–8:30)';
+            box.style.display = 'block';
+            var imd = lastRainData.imd;
+            if (imd && imd.total !== null && imd.total !== undefined) {
+                updateValueWithFade('r_tot', imd.total, 1);
+                var since = new Date(imd.since).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' });
+                document.getElementById('r_imd_since').innerText = 'Since ' + since + ' IST';
+            } else {
+                document.getElementById('r_tot').innerText = '--';
+                document.getElementById('r_imd_since').innerText = 'Waiting for the 8:30 AM reading';
+            }
+            renderImdHistory();
+        }
+
+        function loadImdHistory() {
+            fetch('/api/imd-history?station=' + currentStation + '&t=' + Date.now(), { cache: 'no-store' })
+                .then(function (r) { return r.json(); })
+                .then(function (rows) {
+                    imdHistoryRows = Array.isArray(rows) ? rows : [];
+                    renderImdHistory();
+                })
+                .catch(function (e) { console.error(e); });
+        }
+
+        function renderImdHistory() {
+            var list = document.getElementById('r_imd_list');
+            if (!list) return;
+            if (!imdHistoryRows.length) {
+                list.innerHTML = '<div class="rain-imd-empty">No completed 8:30 AM days yet</div>';
+                return;
+            }
+            var html = '';
+            imdHistoryRows.slice(0, 7).forEach(function (row) {
+                var start = new Date(row.date + 'T12:00:00+05:30');
+                var end = new Date(start.getTime() + 86400000);
+                var fmt = { day: '2-digit', month: 'short', timeZone: 'Asia/Kolkata' };
+                var label = start.toLocaleDateString('en-IN', fmt) + ' → ' + end.toLocaleDateString('en-IN', fmt);
+                html += '<div class="rain-imd-row"><span>' + label + '</span><span>' + Number(row.mm).toFixed(1) + ' mm</span></div>';
+            });
+            list.innerHTML = html;
+        }
+
         async function update() {
             if (isStationSummaryRoute()) {
                 updateStationSummary();
@@ -3678,7 +3924,9 @@ document.addEventListener('click', function(e) {
 
                 updateValueWithFade('t', d.temp.current, 1);
                 updateValueWithFade('w', d.wind.speed, 1);
-                updateValueWithFade('r_tot', d.rain.total, 1);
+                lastRainData = d.rain;
+                renderRainMode();
+                if (rainMode === 'imd') loadImdHistory();
                 renderRainRateValues(d.rain.rate, d.rain.maxR, d.rain.maxRTime);
                 updateValueWithFade('wg', d.wind.gust, 1, ' km/h'); 
 
