@@ -439,26 +439,14 @@ function calculateRealFeel(tempC, humidity) {
  */
 
 // ── MIDNIGHT HANDOFF ─────────────────────────────────────────────
-// Needs no marker row and no schema change. It acts only while there is yesterday's
-// work left to do:
-//   • yesterday's raw rows still exist in weather_history, or
-//   • the buffer still holds yesterday's rain total.
-// Once the handoff has run, neither is true, so every later call is a no-op.
-// Nothing is written to daily_max_records unless real data is being closed.
-//   1. save yesterday's last rain total (from the buffer) with GREATEST
-//   2. write a 23:59:59 closing row holding yesterday's peaks, with 0 daily rain
-//   3. roll yesterday up into daily_max_records, then delete yesterday's raw rows
-//   4. clear the buffer's peaks (only when yesterday's rows were actually closed)
-// One transaction, under an advisory lock, so the two crons cannot both do it.
-// Any failure rolls back and throws; the next run retries.
+// Once a new IST day starts, roll every finished day's raw rows into
+// daily_max_records, then delete those raw rows. Runs only while raw rows from
+// before today's midnight still exist, so later calls are no-ops.
 const istDayOf = (ms) => new Date(ms).toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
 
 async function midnightHandoff(station, buf, nowMs) {
     const todayStr = istDayOf(nowMs);
     const todayStartIso = new Date(`${todayStr}T00:00:00+05:30`).toISOString();
-    const closingMs = new Date(todayStartIso).getTime() - 1000;   // 23:59:59 yesterday IST
-    const closingIso = new Date(closingMs).toISOString();
-    const endedDay = istDayOf(closingMs);
 
     const client = await pool.connect();
     try {
@@ -472,43 +460,8 @@ async function midnightHandoff(station, buf, nowMs) {
         const hasPendingRows = pending.rows.length > 0;
 
         if (hasPendingRows) {
-            // 1. Yesterday's last rain total, as the buffer last saw it (e.g. the 23:58 reading).
-            //    Only written when yesterday's rows exist, so no empty statistics row is created.
-            if (buf.lastRainRaw !== null && buf.lastRainRaw > 0 && buf.lastRainTime &&
-                istDayOf(buf.lastRainTime) < todayStr) {
-                await client.query(`
-                    INSERT INTO daily_max_records (station_id, record_date, total_rain_mm)
-                    VALUES ($1, $2::date, $3)
-                    ON CONFLICT (station_id, record_date) DO UPDATE SET
-                        total_rain_mm = GREATEST(COALESCE(daily_max_records.total_rain_mm, 0), EXCLUDED.total_rain_mm)
-                `, [station.id, endedDay, Math.round(buf.lastRainRaw * 25.4 * 100) / 100]);
-            }
-
-            // 2. Closing row for yesterday: buffer peaks, 0 daily rain. Other sensor fields
-            //    are copied from the latest stored row (same column list as the writer).
-            const real = (v) => (v === null || v === undefined || v === -999 || v === 999) ? null : v;
-            await client.query(`
-                INSERT INTO weather_history
-                    (station_id, time, temp_f, temp_min_f, temp_current_f, humidity,
-                     wind_speed_mph, wind_gust_mph, rain_rate_in, daily_rain_in,
-                     max_w_time, max_t_time, min_t_time, max_r_time, max_g_time,
-                     solar_radiation, press_rel)
-                SELECT station_id, $2::timestamptz,
-                       COALESCE($3, temp_f), COALESCE($4, temp_min_f), temp_current_f, humidity,
-                       COALESCE($5, wind_speed_mph), COALESCE($6, wind_gust_mph), COALESCE($7, 0), 0,
-                       COALESCE($8::timestamptz, $2::timestamptz), COALESCE($9::timestamptz, $2::timestamptz),
-                       COALESCE($10::timestamptz, $2::timestamptz), COALESCE($11::timestamptz, $2::timestamptz),
-                       COALESCE($12::timestamptz, $2::timestamptz),
-                       solar_radiation, press_rel
-                FROM weather_history
-                WHERE station_id = $1
-                ORDER BY time DESC
-                LIMIT 1
-            `, [station.id, closingIso,
-                real(buf.bufMaxT), real(buf.bufMinT), real(buf.bufW), real(buf.bufG), real(buf.bufRR),
-                buf.tW || null, buf.tMaxT || null, buf.tMinT || null, buf.tRR || null, buf.tG || null]);
-
-            // 3. Roll yesterday up (includes the closing row), then delete yesterday's raw rows.
+            // 1. Max / min / wind / gust / rain for each finished IST day.
+            //    Non-numeric rain values are ignored by the FILTER clause.
             await client.query(`
                 INSERT INTO daily_max_records
                     (station_id, record_date, max_temp_c, min_temp_c, max_wind_kmh, max_gust_kmh, total_rain_mm)
@@ -521,11 +474,14 @@ async function midnightHandoff(station, buf, nowMs) {
                   AND time < $2::timestamptz
                 GROUP BY station_id, (time AT TIME ZONE 'Asia/Kolkata')::date
                 ON CONFLICT (station_id, record_date) DO UPDATE SET
-                    max_temp_c = EXCLUDED.max_temp_c, min_temp_c = EXCLUDED.min_temp_c,
-                    max_wind_kmh = EXCLUDED.max_wind_kmh, max_gust_kmh = EXCLUDED.max_gust_kmh,
+                    max_temp_c    = EXCLUDED.max_temp_c,
+                    min_temp_c    = EXCLUDED.min_temp_c,
+                    max_wind_kmh  = EXCLUDED.max_wind_kmh,
+                    max_gust_kmh  = EXCLUDED.max_gust_kmh,
                     total_rain_mm = GREATEST(COALESCE(daily_max_records.total_rain_mm, 0), EXCLUDED.total_rain_mm)
             `, [station.id, todayStartIso]);
 
+            // 2. Delete the raw rows that have been rolled up.
             await client.query(`
                 DELETE FROM weather_history
                 WHERE station_id = $1
@@ -536,7 +492,7 @@ async function midnightHandoff(station, buf, nowMs) {
                 await maintainKKNagarHistoricalRainfall(client, todayStr);
             }
 
-            // 4. Clear yesterday's peaks from the buffer.
+            // 3. Clear the buffer's peaks so the new day starts from zero.
             await client.query(`
                 UPDATE buffer_state SET
                     buf_w = 0, buf_g = 0, buf_max_t = -999, buf_min_t = 999, buf_rr = 0,
@@ -548,7 +504,7 @@ async function midnightHandoff(station, buf, nowMs) {
         await client.query('COMMIT');
 
         if (hasPendingRows) {
-            console.log(`🌙 Midnight handoff [${station.id}] ${endedDay} closed (rain ${buf.lastRainRaw !== null ? (buf.lastRainRaw * 25.4).toFixed(2) : '0'} mm)`);
+            console.log(`🌙 Midnight handoff [${station.id}] complete (days before ${todayStr})`);
         }
         return hasPendingRows;
     } catch (err) {
@@ -772,7 +728,9 @@ async function syncWithEcowitt(station, forceWrite = false) {
     const hour = nowIST.getHours();
     const minute = nowIST.getMinutes();
 
-    if (st.lastArchivedDate && st.lastArchivedDate !== todayISTStr) {
+    // The in-memory copy belongs to one IST day. Discard it when the day changes,
+    // so yesterday's peaks cannot carry into today.
+    if (st.cachedData && st.cachedData.dayKey !== todayISTStr) {
         st.cachedData = null;
     }
 
@@ -1113,6 +1071,7 @@ try {
         if (source.rr > 0) { const v = parseFloat((source.rr*25.4).toFixed(1)); if (v > mx_r) { mx_r = v; mx_r_t = fmtIso(source.tRR); } }
 
         st.cachedData = {
+            dayKey: todayISTStr,
             temp: { current: liveTemp, max: mx_t, maxTime: mx_t_time, min: mn_t, minTime: mn_t_time, realFeel: calculateRealFeel(liveTemp, liveHum), rate: tempRate, dew: liveDewC },
             atmo: { hum: liveHum, hTrend: humRate, press: livePress, pTrend: pressRate, sol: r.solar, uv: r.uv },
             wind: { speed: liveWind, gust: liveGust, maxS: mx_w, maxSTime: mx_w_t, maxG: mx_g, maxGTime: mx_g_t, deg: r.windDeg, card: getCard(r.windDeg) },
@@ -1224,8 +1183,9 @@ async function getRainStatus(station) {
         }) : null;
         const currentRate = toMillimetresPerHour(buffer.lastCalculatedRate);
         const dbPeak = historyRes.rows[0];
+        const sameDayCache = st.cachedData && st.cachedData.dayKey === todayISTStr ? st.cachedData : null;
         let peak = keepHigherRainPeak(0, null, toMillimetresPerHour(dbPeak?.rain_rate_in), formatTime(dbPeak?.max_r_time));
-        peak = keepHigherRainPeak(peak.value, peak.time, st.cachedData?.rain?.maxR, st.cachedData?.rain?.maxRTime);
+        peak = keepHigherRainPeak(peak.value, peak.time, sameDayCache?.rain?.maxR, sameDayCache?.rain?.maxRTime);
         peak = keepHigherRainPeak(peak.value, peak.time, toMillimetresPerHour(buffer.bufRR), formatTime(buffer.tRR));
         peak = keepHigherRainPeak(peak.value, peak.time, currentRate, null);
 
