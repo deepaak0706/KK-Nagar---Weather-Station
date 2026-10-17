@@ -3059,8 +3059,8 @@ body:not(.is-night) .station-summary-radar-card.is-rain-leader { background: rad
 </style>
 <style>
 .rain-head { display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap; }
-.rain-window-toggle { all:unset; cursor:pointer; color:inherit; font:inherit; letter-spacing:inherit; text-transform:inherit; border-bottom:1px dotted currentColor; padding:0 1px; transition:opacity .2s; }
-.rain-window-toggle:hover, .rain-window-toggle:focus-visible { opacity:.7; }
+.rain-swap-btn { all:unset; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; width:22px; height:22px; margin-left:8px; border-radius:6px; background:rgba(148,163,184,0.14); color:#93c5fd; vertical-align:middle; transition:background .2s; }
+.rain-swap-btn:hover, .rain-swap-btn:focus-visible { background:rgba(148,163,184,0.26); }
 .rain-imd-box { margin-top:8px; font-size:11px; color:var(--muted, #94a3b8); }
 .rain-imd-list { margin-top:6px; display:grid; gap:2px; }
 .rain-imd-row { display:flex; justify-content:space-between; padding:4px 0; border-bottom:1px dashed rgba(148,163,184,0.2); }
@@ -3232,7 +3232,7 @@ body:not(.is-night) .station-summary-radar-card.is-rain-leader { background: rad
                 <div class="card">
                     <div>
                         <div class="label rain-head">
-                            <span>Rainfall (<button type="button" id="r_window" class="rain-window-toggle" onclick="toggleRainMode()" aria-label="Switch rainfall window">24H</button>)</span>
+                            <span>Rainfall (<span id="r_window">24H</span>)</span><button type="button" class="rain-swap-btn" onclick="toggleRainMode()" aria-label="Switch rainfall window"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h14"/><path d="M14 4l4 4-4 4"/><path d="M20 16H6"/><path d="M10 12l-4 4 4 4"/></svg></button>
                         </div>
                         <div id="r_imd_box" class="rain-imd-box" style="display:none;">
                             <div id="r_imd_since"></div>
