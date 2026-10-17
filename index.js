@@ -59,6 +59,7 @@ const STATIONS = {
         appKey: APPLICATION_KEY,
         apiKey: API_KEY,
         mac: MAC,
+        nemPresetMm: 0.5,
         yearlyBaseline: 375.0,
         // ← ADD THESE 4 LINES:
         dataStartYear: 2019,
@@ -1010,7 +1011,7 @@ try {
 
     // KK Nagar correction: Add 5.5mm preset to monthly (this month only - will be removed on Nov 1st)
     const kknagar_monthly_adjusted = station.id === 'kknagar' 
-        ? Math.round(r.monthlyIn * 2540) / 100 + 5.5 
+        ? Math.round(r.monthlyIn * 2540) / 100 + 6.0 
         : Math.round(r.monthlyIn * 2540) / 100;
     
     return {
