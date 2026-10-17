@@ -3059,9 +3059,8 @@ body:not(.is-night) .station-summary-radar-card.is-rain-leader { background: rad
 </style>
 <style>
 .rain-head { display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap; }
-.rain-mode-toggle { display:inline-flex; gap:2px; padding:3px; border-radius:999px; background:rgba(148,163,184,0.12); border:1px solid rgba(148,163,184,0.22); }
-.rain-mode-btn { border:0; background:transparent; color:var(--muted, #94a3b8); font-family:inherit; font-size:10px; font-weight:700; letter-spacing:0.4px; padding:6px 10px; border-radius:999px; cursor:pointer; transition:background .2s, color .2s; }
-.rain-mode-btn.active { background:#3b82f6; color:#fff; box-shadow:0 2px 10px rgba(59,130,246,0.35); }
+.rain-window-toggle { all:unset; cursor:pointer; color:inherit; font:inherit; letter-spacing:inherit; text-transform:inherit; border-bottom:1px dotted currentColor; padding:0 1px; transition:opacity .2s; }
+.rain-window-toggle:hover, .rain-window-toggle:focus-visible { opacity:.7; }
 .rain-imd-box { margin-top:8px; font-size:11px; color:var(--muted, #94a3b8); }
 .rain-imd-list { margin-top:6px; display:grid; gap:2px; }
 .rain-imd-row { display:flex; justify-content:space-between; padding:4px 0; border-bottom:1px dashed rgba(148,163,184,0.2); }
@@ -3233,11 +3232,7 @@ body:not(.is-night) .station-summary-radar-card.is-rain-leader { background: rad
                 <div class="card">
                     <div>
                         <div class="label rain-head">
-                            <span id="r_title">Rainfall (24H)</span>
-                            <div class="rain-mode-toggle" role="group" aria-label="Rainfall window">
-                                <button type="button" class="rain-mode-btn active" data-mode="24h" onclick="setRainMode('24h')">24H</button>
-                                <button type="button" class="rain-mode-btn" data-mode="imd" onclick="setRainMode('imd')">8:30–8:30</button>
-                            </div>
+                            <span>Rainfall (<button type="button" id="r_window" class="rain-window-toggle" onclick="toggleRainMode()" aria-label="Switch rainfall window">24H</button>)</span>
                         </div>
                         <div id="r_imd_box" class="rain-imd-box" style="display:none;">
                             <div id="r_imd_since"></div>
@@ -3853,24 +3848,22 @@ document.addEventListener('click', function(e) {
             if (mode === 'imd') loadImdHistory();
         }
 
+        function toggleRainMode() {
+            setRainMode(rainMode === 'imd' ? '24h' : 'imd');
+        }
+
         function renderRainMode() {
-            var btns = document.querySelectorAll('.rain-mode-btn');
-            for (var i = 0; i < btns.length; i++) {
-                btns[i].classList.toggle('active', btns[i].getAttribute('data-mode') === rainMode);
-            }
+            var windowLabel = document.getElementById('r_window');
+            var box = document.getElementById('r_imd_box');
+            if (windowLabel) windowLabel.innerText = rainMode === 'imd' ? '8:30–8:30' : '24H';
             if (!lastRainData) return;
 
-            var title = document.getElementById('r_title');
-            var box = document.getElementById('r_imd_box');
-
             if (rainMode !== 'imd') {
-                title.innerText = 'Rainfall (24H)';
                 box.style.display = 'none';
                 updateValueWithFade('r_tot', lastRainData.total, 1);
                 return;
             }
 
-            title.innerText = 'Rainfall (8:30–8:30)';
             box.style.display = 'block';
             var imd = lastRainData.imd;
             if (imd && imd.total !== null && imd.total !== undefined) {
