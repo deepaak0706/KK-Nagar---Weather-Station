@@ -487,6 +487,22 @@ async function bufferOnlyUpdate(station) {
             .catch(e => console.error(`IMD checkpoint [${station.id}]:`, e.message));
 
         let buf = await loadBufferState(station);
+        // After the midnight close has removed yesterday's rows, yesterday's peaks
+        // must not be carried forward into the new day's buffer.
+        const bufTodayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+        const bufTodayStartMs = new Date(`${bufTodayStr}T00:00:00+05:30`).getTime();
+        const yesterdayLeft = await pool.query(
+            `SELECT 1 FROM weather_history WHERE station_id = $1 AND time < $2 LIMIT 1`,
+            [station.id, new Date(bufTodayStartMs).toISOString()]
+        );
+        if (yesterdayLeft.rows.length === 0) {
+            const isStale = (t) => t !== null && t !== undefined && new Date(t).getTime() < bufTodayStartMs;
+            if (isStale(buf.tRR))   { buf.bufRR = 0;    buf.tRR = null; }
+            if (isStale(buf.tMaxT)) { buf.bufMaxT = -999; buf.tMaxT = null; }
+            if (isStale(buf.tMinT)) { buf.bufMinT = 999;  buf.tMinT = null; }
+            if (isStale(buf.tW))    { buf.bufW = 0;     buf.tW = null; }
+            if (isStale(buf.tG))    { buf.bufG = 0;     buf.tG = null; }
+        }
 
         // 1. Calculate RR from the provider's observation interval, not cron timing.
         //    processRainLogic performs the zeroing, only after the snap above succeeded.
