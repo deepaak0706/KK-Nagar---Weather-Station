@@ -915,6 +915,14 @@ try {
               AND (time AT TIME ZONE 'Asia/Kolkata')::date < $2::date
         `, [station.id, todayISTStr]);
 
+        // Buffer reset inside the same transaction, so it only happens with the rollup.
+        await client.query(`
+            UPDATE buffer_state SET
+                buf_w = 0, buf_g = 0, buf_max_t = -999, buf_min_t = 999, buf_rr = 0,
+                t_w = NULL, t_g = NULL, t_max_t = NULL, t_min_t = NULL, t_rr = NULL
+            WHERE station_id = $1
+        `, [station.id]);
+
         if (station.id === 'kknagar') {
             await maintainKKNagarHistoricalRainfall(client, todayISTStr);
         }
