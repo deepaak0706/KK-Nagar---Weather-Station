@@ -843,7 +843,7 @@ try {
     : r.dailyIn;
 
 
-    if (isNaN(r.tempF) || isNaN(dbMaxT) || isNaN(dbMinT) || isNaN(dbW) || isNaN(dbG)) {
+    if (isNaN(r.tempF) || isNaN(dbMaxT) || isNaN(dbMinT) || isNaN(dbW) || isNaN(dbG) || !Number.isFinite(dbDailyIn) || !Number.isFinite(dbRR)) {
     console.error(`Bad reading — skipping insert [${station.id}]`, { tempF: r.tempF, dbMaxT, dbMinT, dbW, dbG });
     await client.query('ROLLBACK');
     client.release();
@@ -878,9 +878,11 @@ try {
             SELECT 
                 station_id,
                 (time AT TIME ZONE 'Asia/Kolkata')::date,
-                MAX((temp_f - 32) * 5/9), MIN((temp_min_f - 32) * 5/9),
-                MAX(wind_speed_mph * 1.60934), MAX(wind_gust_mph * 1.60934),
-                MAX(daily_rain_in * 25.4)
+                MAX((temp_f - 32) * 5/9) FILTER (WHERE temp_f::text <> 'NaN'),
+                MIN((temp_min_f - 32) * 5/9) FILTER (WHERE temp_min_f::text <> 'NaN'),
+                MAX(wind_speed_mph * 1.60934) FILTER (WHERE wind_speed_mph::text <> 'NaN'),
+                MAX(wind_gust_mph * 1.60934) FILTER (WHERE wind_gust_mph::text <> 'NaN'),
+                MAX(daily_rain_in * 25.4) FILTER (WHERE daily_rain_in::text <> 'NaN')
             FROM weather_history
             WHERE station_id = $1
               AND (time AT TIME ZONE 'Asia/Kolkata')::date < $2::date
