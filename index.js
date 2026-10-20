@@ -3787,7 +3787,7 @@ document.addEventListener('click', function(e) {
             rainMode = mode;
             localStorage.setItem('rainMode', mode);
             renderRainMode();
-            if (mode === 'imd') loadImdHistory();
+            // previous-day history disabled
         }
 
         function toggleRainMode() {
@@ -3828,12 +3828,10 @@ document.addEventListener('click', function(e) {
         }
 
         function renderImdHistory() {
+            // Previous-day history is no longer shown; only the current 8:30–8:30 total is.
             var list = document.getElementById('r_imd_list');
-            if (!list) return;
-            if (!imdHistoryRows.length) {
-                list.innerHTML = '';
-                return;
-            }
+            if (list) list.innerHTML = '';
+            return;
             var html = '';
             imdHistoryRows.slice(0, 7).forEach(function (row) {
                 var start = new Date(row.date + 'T12:00:00+05:30');
@@ -3859,7 +3857,7 @@ document.addEventListener('click', function(e) {
                 updateValueWithFade('w', d.wind.speed, 1);
                 lastRainData = d.rain;
                 renderRainMode();
-                if (rainMode === 'imd') loadImdHistory();
+                // previous-day history disabled
                 renderRainRateValues(d.rain.rate, d.rain.maxR, d.rain.maxRTime);
                 updateValueWithFade('wg', d.wind.gust, 1, ' km/h'); 
 
