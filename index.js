@@ -418,10 +418,14 @@ function resolveEnvReadings(d, lastGood) {
         dewF = (b * g / (a - g)) * 9 / 5 + 32;
     }
 
+    // Pressure: sensor → last known → standard sea-level 29.92 inHg (for stations with no barometer).
+    const pressInHg = pickFirst(num(d.pressure?.relative?.value), lastGood?.pressInHg ?? null) ?? 29.92;
+
     return {
         tempF: tempF ?? 0,
         humidity: humidity ?? 0,
         dewF: dewF ?? tempF ?? 0,
+        pressInHg,
     };
 }
 
@@ -523,7 +527,7 @@ async function bufferOnlyUpdate(station) {
 
             apiW = parseFloat(d.wind.wind_speed.value);
             apiG = parseFloat(d.wind.wind_gust.value);
-            apiT = parseFloat(d.outdoor.temperature.value);
+            apiT = resolveEnvReadings(d, stationState[station.id].lastEnv).tempF;
             dailyRainInches = parseFloat(d.rainfall.daily.value) / 25.4;
             yearlyIn = parseFloat(d.rainfall.yearly.value) / 25.4;
             observationTimeMs = Number(d.rainfall.daily.time) * 1000;
@@ -759,7 +763,7 @@ async function syncWithEcowitt(station, forceWrite = false) {
                 tempF:      env.tempF,
                 dewF:       env.dewF,
                 humidity:   env.humidity,
-                pressInHg:  parseFloat(d.pressure.relative.value),
+                pressInHg:  env.pressInHg,
                 windMph:    parseFloat(d.wind.wind_speed.value),
                 gustMph:    parseFloat(d.wind.wind_gust.value),
                 windDeg:    parseFloat(d.wind.wind_direction.value),
@@ -768,7 +772,7 @@ async function syncWithEcowitt(station, forceWrite = false) {
                 yearlyIn:   parseFloat(d.rainfall.yearly.value) / 25.4,
                 solar:      d.solar_and_uvi?.solar?.value || 0,
                 uv:         d.solar_and_uvi?.uvi?.value || 0,
-                pressRaw:   parseFloat(d.pressure.relative.value),
+                pressRaw:   env.pressInHg,
             };
         } else {
     const url = `https://api.ambientweather.net/v1/devices?applicationKey=${station.appKey}&apiKey=${station.apiKey}&limit=1`;
