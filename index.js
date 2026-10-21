@@ -47,6 +47,11 @@ const AN_APPLICATION_KEY = process.env.AN_APPLICATION_KEY;
 const AN_API_KEY = process.env.AN_API_KEY;
 const AN_MAC = process.env.AN_MAC;
 
+// New — Chromepet (Ecowitt)
+const CP_APPLICATION_KEY = process.env.CP_APPLICATION_KEY;
+const CP_API_KEY = process.env.CP_API_KEY;
+const CP_MAC = process.env.CP_MAC;
+
 // =============================================
 // STATION CONFIGURATION
 // =============================================
@@ -125,6 +130,21 @@ const STATIONS = {
         summaryEndYear: 2032,
     },
     
+    // New — Chromepet (Ecowitt, no outdoor temp/humidity/dew point: indoor → channel average fallback)
+    chromepet: {
+        id: 'chromepet',
+        name: 'Chromepet',
+        type: 'ecowitt',
+        appKey: CP_APPLICATION_KEY,
+        apiKey: CP_API_KEY,
+        mac: CP_MAC,
+        yearlyBaseline: 0,
+        nemPresetMm: 0,
+        dataStartYear: 2026,
+        dataEndYear: 2026,
+        summaryStartYear: 2026,
+        summaryEndYear: 2032,
+    },
 };
 
 
@@ -183,6 +203,17 @@ const stationState = {
         summaryCache: null, lastSummaryFetchDate: null, lastDateSeen: null,
         yearlyMidnightSnapshot: null,
         nemBaseDate: null, nemBaseRainMm: 0,
+    },
+    chromepet: {
+        cachedData: null, lastFetchTime: 0, lastDbWrite: 0,
+        lastRainRaw: null, lastCalculatedRate: 0, lastRainTime: 0,
+        bufW: 0, bufG: 0, bufMaxT: -999, bufMinT: 999, bufRR: 0,
+        tW: null, tG: null, tMaxT: null, tMinT: null, tRR: null,
+        lastArchivedDate: null, dataChangedSinceLastRead: false,
+        summaryCache: null, lastSummaryFetchDate: null, lastDateSeen: null,
+        yearlyMidnightSnapshot: null,
+        nemBaseDate: null, nemBaseRainMm: 0,
+        lastEnv: null,
     },
 };
 
@@ -355,6 +386,44 @@ const getCard = (a) => {
     const directions = ["N","NNE","NE","ENE","E","ESE","SE","SSE","S","SSW","SW","WSW","W","WNW","NW","NNW"];
     return directions[Math.round(a / 22.5) % 16];
 };
+
+// Ecowitt environment values: outdoor → indoor → average of channel sensors → last known.
+// Outdoor values are used unchanged whenever the station reports them.
+function resolveEnvReadings(d, lastGood) {
+    const num = (v) => { const n = parseFloat(v); return Number.isFinite(n) ? n : null; };
+    const pickFirst = (...vals) => vals.find(v => v !== null) ?? null;
+    const channels = Object.values(d.ch_aisle || {});
+    const channelAvg = (key) => {
+        const xs = channels.map(c => num(c && c[key] && c[key].value)).filter(v => v !== null);
+        return xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null;
+    };
+
+    const tempF = pickFirst(
+        num(d.outdoor?.temperature?.value), num(d.indoor?.temperature?.value),
+        channelAvg('temperature'), lastGood?.tempF ?? null
+    );
+    const humidity = pickFirst(
+        num(d.outdoor?.humidity?.value), num(d.indoor?.humidity?.value),
+        channelAvg('humidity'), lastGood?.humidity ?? null
+    );
+    let dewF = pickFirst(
+        num(d.outdoor?.dew_point?.value), num(d.indoor?.dew_point?.value), lastGood?.dewF ?? null
+    );
+
+    // Dew point from temperature and humidity (Magnus formula) when the station doesn't report one.
+    if (dewF === null && tempF !== null && humidity !== null) {
+        const tC = (tempF - 32) * 5 / 9;
+        const a = 17.62, b = 243.12;
+        const g = Math.log(Math.max(humidity, 1) / 100) + (a * tC) / (b + tC);
+        dewF = (b * g / (a - g)) * 9 / 5 + 32;
+    }
+
+    return {
+        tempF: tempF ?? 0,
+        humidity: humidity ?? 0,
+        dewF: dewF ?? tempF ?? 0,
+    };
+}
 
 function calculateRealFeel(tempC, humidity) {
     const T = (tempC * 9/5) + 32;
@@ -684,10 +753,12 @@ async function syncWithEcowitt(station, forceWrite = false) {
             const json = await response.json();
             if (!json.data) throw new Error("Invalid Ecowitt Response");
             const d = json.data;
+            const env = resolveEnvReadings(d, st.lastEnv);
+            st.lastEnv = env;
             return {
-                tempF:      parseFloat(d.outdoor.temperature.value),
-                dewF:       parseFloat(d.outdoor.dew_point.value),
-                humidity:   parseFloat(d.outdoor.humidity.value) || 0,
+                tempF:      env.tempF,
+                dewF:       env.dewF,
+                humidity:   env.humidity,
                 pressInHg:  parseFloat(d.pressure.relative.value),
                 windMph:    parseFloat(d.wind.wind_speed.value),
                 gustMph:    parseFloat(d.wind.wind_gust.value),
@@ -1067,7 +1138,8 @@ try {
         ayyapakkam: 642.3,
         neelangarai: 410.1,
         sanatorium: 405.2,
-        annanagar: 0
+        annanagar: 0,
+        chromepet: 0
     };
 
     const yearlyBaseline = {
@@ -1075,7 +1147,8 @@ try {
         ayyapakkam: 547.37,
         neelangarai: 593.6,
         sanatorium: 529.3,
-        annanagar: 0
+        annanagar: 0,
+        chromepet: 0
     };
 
     // SWM = station SWM baseline + raw yearly API rainfall - station yearly baseline.
@@ -1223,7 +1296,7 @@ app.get("/api/rain-status", async (req, res) => {
 // Additive compact-data view. It reuses the existing per-station sync/cache path
 // and deliberately exposes only the four values needed by Station Summary.
 app.get("/api/station-summary", async (req, res) => {
-    const stationIds = ['kknagar', 'neelangarai', 'ayyapakkam', 'sanatorium', 'annanagar'];
+    const stationIds = ['kknagar', 'neelangarai', 'ayyapakkam', 'sanatorium', 'annanagar', 'chromepet'];
     const stations = await Promise.all(stationIds.map(async (stationId) => {
         const station = STATIONS[stationId];
         try {
@@ -1280,7 +1353,7 @@ app.get("/api/sync", async (req, res) => {
 app.get("/api/sync-all", async (req, res) => {
     const results = {};
     try {
-        for (const stationId of ['kknagar', 'neelangarai', 'ayyapakkam', 'sanatorium', 'annanagar']) {
+        for (const stationId of ['kknagar', 'neelangarai', 'ayyapakkam', 'sanatorium', 'annanagar', 'chromepet']) {
             const s = STATIONS[stationId];
             if (req.query.buffer === 'true') {
                 results[stationId] = await bufferOnlyUpdate(s);
@@ -2718,6 +2791,7 @@ body:not(.is-night) .station-summary-metric:nth-child(4) .station-summary-value 
 .station-summary-radar-card.station-radar-ayyapakkam { --station-mark: #22d3ee; }
 .station-summary-radar-card.station-radar-sanatorium { --station-mark: #a78bfa; }
 .station-summary-radar-card.station-radar-annanagar { --station-mark: #34d399; }
+.station-summary-radar-card.station-radar-chromepet { --station-mark: #f59e0b; }
 
 /* Centre the odd last card across the full width */
 .station-summary-radar-card:last-child:nth-child(odd) { grid-column: 1 / -1; }
@@ -3055,6 +3129,9 @@ body:not(.is-night) .station-summary-radar-card.is-rain-leader { background: rad
                 <div class="station-menu-item" id="opt-annanagar" onclick="switchStation('annanagar')">
                     <span class="pin">📍</span><span>Madras - Monsoon ANW</span><span class="check">✓</span>
                 </div>
+                <div class="station-menu-item" id="opt-chromepet" onclick="switchStation('chromepet')">
+                    <span class="pin">📍</span><span>Chromepet</span><span class="check">✓</span>
+                </div>
             </div>
         </div>
 
@@ -3375,7 +3452,8 @@ const stationSummaryStations = [
     { id: 'neelangarai', name: 'Neelangarai' },
     { id: 'ayyapakkam', name: 'Ayyapakkam' },
     { id: 'sanatorium', name: 'Sanatorium' },
-    { id: 'annanagar', name: 'Madras - Monsoon ANW' }
+    { id: 'annanagar', name: 'Madras - Monsoon ANW' },
+    { id: 'chromepet', name: 'Chromepet' }
 ];
 let stationSummaryUpdating = false;
 
@@ -3526,12 +3604,14 @@ function switchStation(id) {
     document.getElementById('opt-ayyapakkam').classList.toggle('active', id === 'ayyapakkam');
     document.getElementById('opt-sanatorium').classList.toggle('active', id === 'sanatorium');
     document.getElementById('opt-annanagar').classList.toggle('active', id === 'annanagar');
+    document.getElementById('opt-chromepet').classList.toggle('active', id === 'chromepet');
 
     document.getElementById('station-title').textContent =
     id === 'kknagar' ? 'KK Nagar Weather Station' : 
     id === 'neelangarai' ? 'Neelangarai Weather Station' :
     id === 'ayyapakkam' ? 'Ayyapakkam Weather Station' :
     id === 'annanagar' ? 'Madras - Monsoon ANW Weather Station' :
+    id === 'chromepet' ? 'Chromepet Weather Station' :
     'Sanatorium Weather Station';
 
     updateHistoricalTabAvailability();
