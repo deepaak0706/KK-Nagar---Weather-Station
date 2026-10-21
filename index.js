@@ -139,7 +139,7 @@ const STATIONS = {
         apiKey: CP_API_KEY,
         mac: CP_MAC,
         yearlyBaseline: 0,
-        nemPresetMm: 268.5,
+        nemPresetMm: 183.6,
         indoorFallback: true,
         dataStartYear: 2026,
         dataEndYear: 2026,
