@@ -140,6 +140,7 @@ const STATIONS = {
         mac: CP_MAC,
         yearlyBaseline: 0,
         nemPresetMm: 0,
+        indoorFallback: true,
         dataStartYear: 2026,
         dataEndYear: 2026,
         summaryStartYear: 2026,
@@ -527,7 +528,7 @@ async function bufferOnlyUpdate(station) {
 
             apiW = parseFloat(d.wind.wind_speed.value);
             apiG = parseFloat(d.wind.wind_gust.value);
-            apiT = resolveEnvReadings(d, stationState[station.id].lastEnv).tempF;
+            apiT = station.indoorFallback ? resolveEnvReadings(d, stationState[station.id].lastEnv).tempF : parseFloat(d.outdoor.temperature.value);
             dailyRainInches = parseFloat(d.rainfall.daily.value) / 25.4;
             yearlyIn = parseFloat(d.rainfall.yearly.value) / 25.4;
             observationTimeMs = Number(d.rainfall.daily.time) * 1000;
@@ -757,13 +758,14 @@ async function syncWithEcowitt(station, forceWrite = false) {
             const json = await response.json();
             if (!json.data) throw new Error("Invalid Ecowitt Response");
             const d = json.data;
-            const env = resolveEnvReadings(d, st.lastEnv);
-            st.lastEnv = env;
+            // Stations flagged indoorFallback (Chromepet) use the resolver; all others keep their original reads.
+            const env = station.indoorFallback ? resolveEnvReadings(d, st.lastEnv) : null;
+            if (env) st.lastEnv = env;
             return {
-                tempF:      env.tempF,
-                dewF:       env.dewF,
-                humidity:   env.humidity,
-                pressInHg:  env.pressInHg,
+                tempF:      env ? env.tempF    : parseFloat(d.outdoor.temperature.value),
+                dewF:       env ? env.dewF     : parseFloat(d.outdoor.dew_point.value),
+                humidity:   env ? env.humidity : (parseFloat(d.outdoor.humidity.value) || 0),
+                pressInHg:  env ? env.pressInHg : parseFloat(d.pressure.relative.value),
                 windMph:    parseFloat(d.wind.wind_speed.value),
                 gustMph:    parseFloat(d.wind.wind_gust.value),
                 windDeg:    parseFloat(d.wind.wind_direction.value),
@@ -772,7 +774,7 @@ async function syncWithEcowitt(station, forceWrite = false) {
                 yearlyIn:   parseFloat(d.rainfall.yearly.value) / 25.4,
                 solar:      d.solar_and_uvi?.solar?.value || 0,
                 uv:         d.solar_and_uvi?.uvi?.value || 0,
-                pressRaw:   env.pressInHg,
+                pressRaw:   env ? env.pressInHg : parseFloat(d.pressure.relative.value),
             };
         } else {
     const url = `https://api.ambientweather.net/v1/devices?applicationKey=${station.appKey}&apiKey=${station.apiKey}&limit=1`;
