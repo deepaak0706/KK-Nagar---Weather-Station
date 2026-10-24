@@ -557,8 +557,12 @@ async function bufferOnlyUpdate(station) {
         }
         const currentTimeStamp = new Date(observationTimeMs).toISOString();
 
-        recordImdCheckpoint(station, Math.round(yearlyIn * 2540) / 100, observationTimeMs)
+        const imdYearlyMm = Math.round(yearlyIn * 2540) / 100;
+        const imdDailyMm = Math.round(dailyRainInches * 2540) / 100;
+        recordImdCheckpoint(station, imdYearlyMm, imdDailyMm, observationTimeMs)
             .catch(e => console.error(`IMD checkpoint [${station.id}]:`, e.message));
+        recordImdCloseSnapshot(station, imdYearlyMm, imdDailyMm, observationTimeMs)
+            .catch(e => console.error(`IMD close snapshot [${station.id}]:`, e.message));
 
         let buf = await loadBufferState(station);
         // After the midnight close has removed yesterday's rows, yesterday's peaks
@@ -613,6 +617,8 @@ async function bufferOnlyUpdate(station) {
 const IMD_CHECKPOINT_MIN = 8 * 60 + 30;
 const IMD_ACCEPT_WINDOW_MS = 45 * 60 * 1000;   // first reading must arrive within 45 min of 08:30
 const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
+const IMD_YEARLY_COUNTER_CAP_MM = 6000;
+const IMD_CLOSE_CAPTURE_MIN = 23 * 60 + 55;    // retain the latest source reading before midnight
 
 let imdTablesReady = null;
 function ensureImdTables() {
@@ -630,6 +636,14 @@ function ensureImdTables() {
                 window_date DATE          NOT NULL,
                 total_mm    NUMERIC(10,2) NOT NULL,
                 PRIMARY KEY (station_id, window_date)
+            );
+            CREATE TABLE IF NOT EXISTS imd_rain_daily_snapshots (
+                station_id   TEXT          NOT NULL,
+                snapshot_date DATE         NOT NULL,
+                snapshot_kind TEXT          NOT NULL,
+                daily_mm      NUMERIC(10,2) NOT NULL,
+                observed_at   TIMESTAMPTZ   NOT NULL,
+                PRIMARY KEY (station_id, snapshot_date, snapshot_kind)
             );
         `).catch(err => { imdTablesReady = null; throw err; });
     }
@@ -661,8 +675,35 @@ function imdDelta(startMm, endMm) {
     return Math.round(v * 100) / 100;
 }
 
-async function recordImdCheckpoint(station, yearlyMm, observationMs) {
-    if (!Number.isFinite(yearlyMm) || !Number.isFinite(observationMs)) return;
+function isImdYearlyCounterCapped(yearlyMm) {
+    return Number.isFinite(yearlyMm) && yearlyMm >= IMD_YEARLY_COUNTER_CAP_MM - 0.01;
+}
+
+function imdDailyDelta(startMm, closeMm, nextMorningMm) {
+    const beforeMidnight = Math.max(0, closeMm - startMm);
+    return Math.round((beforeMidnight + Math.max(0, nextMorningMm)) * 100) / 100;
+}
+
+async function recordImdCloseSnapshot(station, yearlyMm, dailyMm, observationMs) {
+    if (!isImdYearlyCounterCapped(yearlyMm) || !Number.isFinite(dailyMm) || !Number.isFinite(observationMs)) return;
+    const ist = new Date(observationMs + IST_OFFSET_MS);
+    const minutes = ist.getUTCHours() * 60 + ist.getUTCMinutes();
+    if (minutes < IMD_CLOSE_CAPTURE_MIN || minutes >= 24 * 60) return;
+
+    await ensureImdTables();
+    const snapshotDate = ist.toISOString().slice(0, 10);
+    await pool.query(
+        `INSERT INTO imd_rain_daily_snapshots (station_id, snapshot_date, snapshot_kind, daily_mm, observed_at)
+         VALUES ($1, $2::date, 'close', $3, $4::timestamptz)
+         ON CONFLICT (station_id, snapshot_date, snapshot_kind) DO UPDATE
+         SET daily_mm = EXCLUDED.daily_mm, observed_at = EXCLUDED.observed_at
+         WHERE EXCLUDED.observed_at > imd_rain_daily_snapshots.observed_at`,
+        [station.id, snapshotDate, dailyMm, new Date(observationMs).toISOString()]
+    );
+}
+
+async function recordImdCheckpoint(station, yearlyMm, dailyMm, observationMs) {
+    if (!Number.isFinite(yearlyMm) || !Number.isFinite(dailyMm) || !Number.isFinite(observationMs)) return;
     const st = stationState[station.id];
     const windowDate = imdWindowDateOf(observationMs);
     if (st.imdRecordedWindow === windowDate) return;          // already done this window
@@ -678,6 +719,16 @@ async function recordImdCheckpoint(station, yearlyMm, observationMs) {
         [station.id, windowDate, new Date(observationMs).toISOString(), yearlyMm]
     );
 
+    const yearlyCounterCapped = isImdYearlyCounterCapped(yearlyMm);
+    if (yearlyCounterCapped) {
+        await pool.query(
+            `INSERT INTO imd_rain_daily_snapshots (station_id, snapshot_date, snapshot_kind, daily_mm, observed_at)
+             VALUES ($1, $2::date, 'start', $3, $4::timestamptz)
+             ON CONFLICT (station_id, snapshot_date, snapshot_kind) DO NOTHING`,
+            [station.id, windowDate, dailyMm, new Date(observationMs).toISOString()]
+        );
+    }
+
     const prev = shiftIstDate(windowDate, -1);
     const rows = (await pool.query(
         `SELECT to_char(window_date, 'YYYY-MM-DD') AS d, yearly_mm
@@ -688,15 +739,33 @@ async function recordImdCheckpoint(station, yearlyMm, observationMs) {
     const byDate = {};
     rows.forEach(r => { byDate[r.d] = Number(r.yearly_mm); });
 
-    // Both ends of the previous IMD day now exist. IMD reports it against the
-    // date on which the ending 08:30 observation was taken.
-    if (byDate[prev] !== undefined && byDate[windowDate] !== undefined) {
+    // A normal station uses the yearly counter exactly as before. A capped
+    // counter uses its daily value either side of midnight instead.
+    if (!yearlyCounterCapped && byDate[prev] !== undefined && byDate[windowDate] !== undefined) {
         await pool.query(
             `INSERT INTO imd_rain_daily (station_id, window_date, total_mm)
              VALUES ($1, $2::date, $3)
              ON CONFLICT (station_id, window_date) DO UPDATE SET total_mm = EXCLUDED.total_mm`,
             [station.id, windowDate, imdDelta(byDate[prev], byDate[windowDate])]
         );
+    } else if (yearlyCounterCapped) {
+        const dailySnapshots = (await pool.query(
+            `SELECT snapshot_kind, daily_mm
+             FROM imd_rain_daily_snapshots
+             WHERE station_id = $1 AND snapshot_date = $2::date
+               AND snapshot_kind IN ('start', 'close')`,
+            [station.id, prev]
+        )).rows;
+        const previous = {};
+        dailySnapshots.forEach(row => { previous[row.snapshot_kind] = Number(row.daily_mm); });
+        if (Number.isFinite(previous.start) && Number.isFinite(previous.close)) {
+            await pool.query(
+                `INSERT INTO imd_rain_daily (station_id, window_date, total_mm)
+                 VALUES ($1, $2::date, $3)
+                 ON CONFLICT (station_id, window_date) DO UPDATE SET total_mm = EXCLUDED.total_mm`,
+                [station.id, windowDate, imdDailyDelta(previous.start, previous.close, dailyMm)]
+            );
+        }
     }
 
     st.imdRecordedWindow = windowDate;
@@ -810,8 +879,9 @@ async function syncWithEcowitt(station, forceWrite = false) {
     const fetchLiveData = async () => {
         const r = await fetchLiveDataRaw();
         const yearlyMm = Math.round(r.yearlyIn * 2540) / 100;
+        const dailyMm = Math.round(r.dailyIn * 2540) / 100;
         st.lastRawYearlyMm = yearlyMm;
-        recordImdCheckpoint(station, yearlyMm, Date.now())
+        recordImdCheckpoint(station, yearlyMm, dailyMm, Date.now())
             .catch(e => console.error(`IMD checkpoint [${station.id}]:`, e.message));
         return r;
     };
@@ -1368,7 +1438,7 @@ app.get("/api/imd-summary", async (req, res) => {
              WHERE station_id = $1
                AND EXTRACT(YEAR FROM window_date) = $2
                AND EXTRACT(MONTH FROM window_date) = $3
-             ORDER BY window_date ASC`,
+             ORDER BY window_date DESC`,
             [s.id, year, month]
         );
         res.json(r.rows.map(row => ({
