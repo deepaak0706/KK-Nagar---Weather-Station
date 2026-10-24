@@ -4118,8 +4118,8 @@ window.showMonthlySummaryUI = function() {
                 </div>
             </div>
             <div style="display: flex; gap: 8px; margin: -8px 0 20px; justify-content: center;">
-                <button onclick="setMonthlySummaryMode('calendar')" style="padding: 8px 14px; border-radius: 999px; cursor: pointer; font-weight: 700; \${calendarButtonStyle}">Calendar Day</button>
-                <button onclick="setMonthlySummaryMode('imd')" style="padding: 8px 14px; border-radius: 999px; cursor: pointer; font-weight: 700; \${imdButtonStyle}">IMD 08:30–08:30</button>
+                <button onclick="setMonthlySummaryMode('calendar')" style="padding: 8px 14px; border-radius: 999px; cursor: pointer; font-weight: 700; \${calendarButtonStyle}">24H Format</button>
+                <button onclick="setMonthlySummaryMode('imd')" style="padding: 8px 14px; border-radius: 999px; cursor: pointer; font-weight: 700; \${imdButtonStyle}">8:30–8:30 Format</button>
             </div>
             <div id="archive-data-table">
                 <div class="card" style="text-align:center; padding:60px; color: var(--muted);">
@@ -4159,7 +4159,7 @@ async function fetchMonthlySummary() {
         if (days.length === 0) {
             tableContainer.innerHTML = \`
                 <div class="card" style="text-align:center; padding:60px; color: var(--muted); font-weight: 600;">
-                    No \${isImd ? 'finalised IMD rainfall' : 'data'} recorded for \${currentKey}
+                    \${isImd ? 'No data found' : 'No data recorded for ' + currentKey}
                 </div>\`;
             return;
         }
@@ -4167,17 +4167,17 @@ async function fetchMonthlySummary() {
         if (isImd) {
             tableContainer.innerHTML = \`
                 <div class="pro-summary-table" style="background: var(--card); border-radius: 15px; overflow: hidden; border: 1px solid var(--border);">
-                    <div class="pro-row" style="background: var(--badge); font-weight: 800; font-size: 11px; text-transform: uppercase; display: flex; align-items: center; padding: 15px; border-bottom: 1px solid var(--border);">
-                        <div style="width: 35%;">IMD Date</div>
-                        <div style="width: 65%; text-align: right;">Rainfall · 08:30 to 08:30</div>
+                    <div class="pro-row" style="background: linear-gradient(90deg, var(--badge), color-mix(in srgb, var(--badge) 72%, var(--accent) 28%)); font-weight: 800; font-size: 11px; text-transform: uppercase; display: flex; align-items: center; padding: 15px; border-bottom: 1px solid var(--border); letter-spacing: .06em;">
+                        <div style="width: 50%;">Date</div>
+                        <div style="width: 50%; text-align: right;">Rainfall</div>
                     </div>
                     \${days.map(function(d) {
                         const date = new Date(d.record_date + 'T12:00:00+05:30');
                         const label = date.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', timeZone: 'Asia/Kolkata' });
                         return \`
-                        <div class="pro-row" style="display: flex; align-items: center; padding: 15px; border-bottom: 1px solid var(--border);">
-                            <div style="width: 35%; font-size: 16px;"><b>\${label}</b></div>
-                            <div style="width: 65%; font-weight: 800; color: #3b82f6; text-align: right;">\${parseFloat(d.total_rain_mm).toFixed(1)} <small>mm</small></div>
+                        <div class="pro-row" style="display: flex; align-items: center; padding: 15px; border-bottom: 1px solid var(--border); transition: background .2s ease;">
+                            <div style="width: 50%; font-size: 16px;"><b>\${label}</b></div>
+                            <div style="width: 50%; font-weight: 800; color: #3b82f6; text-align: right; font-size: 18px; letter-spacing: -.03em;">\${parseFloat(d.total_rain_mm).toFixed(1)} <small style="font-size:11px; opacity:.72;">mm</small></div>
                         </div>\`;
                     }).join('')}
                 </div>\`;
