@@ -631,24 +631,7 @@ function ensureImdTables() {
                 total_mm    NUMERIC(10,2) NOT NULL,
                 PRIMARY KEY (station_id, window_date)
             );
-            CREATE TABLE IF NOT EXISTS imd_rain_schema_migrations (
-                migration_key TEXT PRIMARY KEY,
-                applied_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
-            );
         `).catch(err => { imdTablesReady = null; throw err; });
-        // Older rows used the start of the 08:30→08:30 window as their date.
-        // Move those existing totals once to their closing (IMD reporting) date.
-        imdTablesReady = imdTablesReady.then(() => pool.query(`
-            WITH applied AS (
-                INSERT INTO imd_rain_schema_migrations (migration_key)
-                VALUES ('imd-rain-daily-ending-date-v1')
-                ON CONFLICT (migration_key) DO NOTHING
-                RETURNING migration_key
-            )
-            UPDATE imd_rain_daily
-            SET window_date = window_date + 1
-            WHERE EXISTS (SELECT 1 FROM applied)
-        `)).catch(err => { imdTablesReady = null; throw err; });
     }
     return imdTablesReady;
 }
