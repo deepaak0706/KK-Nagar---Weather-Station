@@ -4180,7 +4180,7 @@ window.showMonthlySummaryUI = function() {
     content.innerHTML = \`
         <div class="archive-container" style="animation: fadeIn 0.5s ease;">
             <div style="margin-bottom: 20px; padding: 15px 25px; display: flex; justify-content: space-between; align-items: center; background: var(--card); border-radius: 20px; border: 1px solid var(--border);">
-                <div style="font-weight: 800; letter-spacing: 0.5px; color: var(--accent);">\${isImd ? 'IMD MONTHLY RAINFALL' : 'MONTHLY ARCHIVES'}</div>
+                <div style="font-weight: 800; letter-spacing: 0.5px; color: var(--accent);">\${isImd ? 'MONTHLY ARCHIVES (RAINFALL)' : 'MONTHLY ARCHIVES'}</div>
                 <div style="display: flex; gap: 10px;">
                     <select id="monthSelect" class="glass-select">\${monthOptions}</select>
                     <select id="yearSelect" class="glass-select">\${yearOptions}</select>
@@ -4193,7 +4193,7 @@ window.showMonthlySummaryUI = function() {
             </div>
             <div id="archive-data-table">
                 <div class="card" style="text-align:center; padding:60px; color: var(--muted);">
-                    Select a month and click "Get Data" to load \${isImd ? 'finalised IMD rainfall totals.' : 'records.'}
+                    \${isImd ? 'Select a month and click "Get Data" to load rainfall totals (8:30–8:30).' : 'Select a month and click "Get Data" to load records.'}
                 </div>
             </div>
         </div>\`;
