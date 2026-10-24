@@ -631,7 +631,24 @@ function ensureImdTables() {
                 total_mm    NUMERIC(10,2) NOT NULL,
                 PRIMARY KEY (station_id, window_date)
             );
+            CREATE TABLE IF NOT EXISTS imd_rain_schema_migrations (
+                migration_key TEXT PRIMARY KEY,
+                applied_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            );
         `).catch(err => { imdTablesReady = null; throw err; });
+        // Older rows used the start of the 08:30→08:30 window as their date.
+        // Move those existing totals once to their closing (IMD reporting) date.
+        imdTablesReady = imdTablesReady.then(() => pool.query(`
+            WITH applied AS (
+                INSERT INTO imd_rain_schema_migrations (migration_key)
+                VALUES ('imd-rain-daily-ending-date-v1')
+                ON CONFLICT (migration_key) DO NOTHING
+                RETURNING migration_key
+            )
+            UPDATE imd_rain_daily
+            SET window_date = window_date + 1
+            WHERE EXISTS (SELECT 1 FROM applied)
+        `)).catch(err => { imdTablesReady = null; throw err; });
     }
     return imdTablesReady;
 }
@@ -642,7 +659,7 @@ function shiftIstDate(dateStr, days) {
     return d.toISOString().slice(0, 10);
 }
 
-// The IMD day is labelled with the IST date on which its 08:30 window starts.
+// Checkpoints are labelled with the IST date on which their 08:30 window starts.
 function imdWindowDateOf(ms) {
     const ist = new Date(ms + IST_OFFSET_MS);
     const mins = ist.getUTCHours() * 60 + ist.getUTCMinutes();
@@ -688,13 +705,14 @@ async function recordImdCheckpoint(station, yearlyMm, observationMs) {
     const byDate = {};
     rows.forEach(r => { byDate[r.d] = Number(r.yearly_mm); });
 
-    // Both ends of the previous IMD day now exist, so close that day.
+    // Both ends of the previous IMD day now exist. IMD reports it against the
+    // date on which the ending 08:30 observation was taken.
     if (byDate[prev] !== undefined && byDate[windowDate] !== undefined) {
         await pool.query(
             `INSERT INTO imd_rain_daily (station_id, window_date, total_mm)
              VALUES ($1, $2::date, $3)
              ON CONFLICT (station_id, window_date) DO UPDATE SET total_mm = EXCLUDED.total_mm`,
-            [station.id, prev, imdDelta(byDate[prev], byDate[windowDate])]
+            [station.id, windowDate, imdDelta(byDate[prev], byDate[windowDate])]
         );
     }
 
@@ -1345,6 +1363,35 @@ app.get("/api/imd-history", async (req, res) => {
              FROM imd_rain_daily WHERE station_id = $1
              ORDER BY window_date DESC LIMIT 30`, [s.id]);
         res.json(r.rows.map(x => ({ date: x.date, mm: Number(x.total_mm) })));
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Finalised IMD rainfall totals only.  Each row is dated by the ending
+// 08:30 IST observation, matching the conventional IMD daily report.
+app.get("/api/imd-summary", async (req, res) => {
+    const s = getStation(req);
+    const year = Number(req.query.year);
+    const month = Number(req.query.month);
+    if (!Number.isInteger(year) || !Number.isInteger(month) || month < 1 || month > 12) {
+        return res.status(400).json({ error: 'A valid year and month are required.' });
+    }
+    try {
+        await ensureImdTables();
+        const r = await pool.query(
+            `SELECT to_char(window_date, 'YYYY-MM-DD') AS record_date, total_mm
+             FROM imd_rain_daily
+             WHERE station_id = $1
+               AND EXTRACT(YEAR FROM window_date) = $2
+               AND EXTRACT(MONTH FROM window_date) = $3
+             ORDER BY window_date ASC`,
+            [s.id, year, month]
+        );
+        res.json(r.rows.map(row => ({
+            record_date: row.record_date,
+            total_rain_mm: Number(row.total_mm)
+        })));
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
@@ -4049,11 +4096,19 @@ document.addEventListener('click', function(e) {
 /* --- START CHIP CHOP --- */
 let selectedMonth = new Date().toLocaleDateString('en-IN', { month: 'long' });
 let selectedYear = new Date().getFullYear().toString();
+let monthlySummaryMode = localStorage.getItem('monthlySummaryMode') === 'imd' ? 'imd' : 'calendar';
 
 // 1. Function to show the UI (dropdowns) immediately
 window.showMonthlySummaryUI = function() {
     const content = document.getElementById('summary-content');
     const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+    const isImd = monthlySummaryMode === 'imd';
+    const calendarButtonStyle = isImd
+        ? 'background: transparent; color: var(--muted); border: 1px solid var(--border);'
+        : 'background: var(--accent); color: white; border: 1px solid var(--accent);';
+    const imdButtonStyle = isImd
+        ? 'background: var(--accent); color: white; border: 1px solid var(--accent);'
+        : 'background: transparent; color: var(--muted); border: 1px solid var(--border);';
     
     let monthOptions = months.map(function(m) {
         var sel = (selectedMonth === m) ? 'selected' : '';
@@ -4072,19 +4127,29 @@ window.showMonthlySummaryUI = function() {
     content.innerHTML = \`
         <div class="archive-container" style="animation: fadeIn 0.5s ease;">
             <div style="margin-bottom: 20px; padding: 15px 25px; display: flex; justify-content: space-between; align-items: center; background: var(--card); border-radius: 20px; border: 1px solid var(--border);">
-                <div style="font-weight: 800; letter-spacing: 0.5px; color: var(--accent);">MONTHLY ARCHIVES</div>
+                <div style="font-weight: 800; letter-spacing: 0.5px; color: var(--accent);">\${isImd ? 'IMD MONTHLY RAINFALL' : 'MONTHLY ARCHIVES'}</div>
                 <div style="display: flex; gap: 10px;">
                     <select id="monthSelect" class="glass-select">\${monthOptions}</select>
                     <select id="yearSelect" class="glass-select">\${yearOptions}</select>
                     <button onclick="updateArchiveFilter()" style="padding: 6px 12px; margin-left: 8px; background: var(--accent); color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">Get Data</button>
                 </div>
             </div>
+            <div style="display: flex; gap: 8px; margin: -8px 0 20px; justify-content: center;">
+                <button onclick="setMonthlySummaryMode('calendar')" style="padding: 8px 14px; border-radius: 999px; cursor: pointer; font-weight: 700; \${calendarButtonStyle}">Calendar Day</button>
+                <button onclick="setMonthlySummaryMode('imd')" style="padding: 8px 14px; border-radius: 999px; cursor: pointer; font-weight: 700; \${imdButtonStyle}">IMD 08:30–08:30</button>
+            </div>
             <div id="archive-data-table">
                 <div class="card" style="text-align:center; padding:60px; color: var(--muted);">
-                    Select a month and click "Get Data" to load records.
+                    Select a month and click "Get Data" to load \${isImd ? 'finalised IMD rainfall totals.' : 'records.'}
                 </div>
             </div>
         </div>\`;
+};
+
+window.setMonthlySummaryMode = function(mode) {
+    monthlySummaryMode = mode === 'imd' ? 'imd' : 'calendar';
+    localStorage.setItem('monthlySummaryMode', monthlySummaryMode);
+    showMonthlySummaryUI();
 };
 
 // 2. Updated data fetcher that targets only the table container
@@ -4095,15 +4160,43 @@ async function fetchMonthlySummary() {
     tableContainer.innerHTML = '<div class="card" style="text-align:center; padding:40px;">Querying Database...</div>';
     
     try {
-        const res = await fetch('/api/summary?station=' + currentStation + '&fresh=1&t=' + Date.now(), { cache: 'no-store' });
-        const groups = await res.json();
+        const isImd = monthlySummaryMode === 'imd';
+        const monthNumber = new Date(Date.parse(selectedMonth + ' 1, 2000')).getMonth() + 1;
+        const res = await fetch(
+            isImd
+                ? '/api/imd-summary?station=' + currentStation + '&year=' + selectedYear + '&month=' + monthNumber + '&t=' + Date.now()
+                : '/api/summary?station=' + currentStation + '&fresh=1&t=' + Date.now(),
+            { cache: 'no-store' }
+        );
+        if (!res.ok) throw new Error('Summary request failed');
+        const payload = await res.json();
         const currentKey = \`\${selectedMonth} \${selectedYear}\`;
-        const days = groups[currentKey] || [];
+        const days = isImd ? payload : (payload[currentKey] || []);
 
         if (days.length === 0) {
             tableContainer.innerHTML = \`
                 <div class="card" style="text-align:center; padding:60px; color: var(--muted); font-weight: 600;">
-                    No data recorded for \${currentKey}
+                    No \${isImd ? 'finalised IMD rainfall' : 'data'} recorded for \${currentKey}
+                </div>\`;
+            return;
+        }
+
+        if (isImd) {
+            tableContainer.innerHTML = \`
+                <div class="pro-summary-table" style="background: var(--card); border-radius: 15px; overflow: hidden; border: 1px solid var(--border);">
+                    <div class="pro-row" style="background: var(--badge); font-weight: 800; font-size: 11px; text-transform: uppercase; display: flex; align-items: center; padding: 15px; border-bottom: 1px solid var(--border);">
+                        <div style="width: 35%;">IMD Date</div>
+                        <div style="width: 65%; text-align: right;">Rainfall · 08:30 to 08:30</div>
+                    </div>
+                    \${days.map(function(d) {
+                        const date = new Date(d.record_date + 'T12:00:00+05:30');
+                        const label = date.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', timeZone: 'Asia/Kolkata' });
+                        return \`
+                        <div class="pro-row" style="display: flex; align-items: center; padding: 15px; border-bottom: 1px solid var(--border);">
+                            <div style="width: 35%; font-size: 16px;"><b>\${label}</b></div>
+                            <div style="width: 65%; font-weight: 800; color: #3b82f6; text-align: right;">\${parseFloat(d.total_rain_mm).toFixed(1)} <small>mm</small></div>
+                        </div>\`;
+                    }).join('')}
                 </div>\`;
             return;
         }
