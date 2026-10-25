@@ -773,10 +773,50 @@ async function recordImdCheckpoint(station, yearlyMm, dailyMm, observationMs) {
 }
 
 // Live "since 08:30" total for the current IMD day.
-async function getImdLive(station, yearlyMm, nowMs) {
+// The normal path uses the provider's yearly counter.  Some stations stop that
+// counter at 6,000 mm; for those stations, use the separately stored daily
+// reading captured at 08:30 instead.
+async function getImdLive(station, yearlyMm, dailyMm, nowMs) {
     if (!Number.isFinite(yearlyMm)) return null;
     const st = stationState[station.id];
     const windowDate = imdWindowDateOf(nowMs);
+
+    if (isImdYearlyCounterCapped(yearlyMm)) {
+        if (!Number.isFinite(dailyMm)) return null;
+
+        await ensureImdTables();
+        const snapshots = await pool.query(
+            `SELECT snapshot_kind, daily_mm
+             FROM imd_rain_daily_snapshots
+             WHERE station_id = $1
+               AND snapshot_date = $2::date
+               AND snapshot_kind IN ('start', 'close')`,
+            [station.id, windowDate]
+        );
+        const snapshotMm = {};
+        snapshots.rows.forEach(row => { snapshotMm[row.snapshot_kind] = Number(row.daily_mm); });
+        const startDailyMm = snapshotMm.start;
+        const closeDailyMm = snapshotMm.close;
+        const currentIstDate = new Date(nowMs + IST_OFFSET_MS).toISOString().slice(0, 10);
+        const isAfterMidnight = currentIstDate !== windowDate;
+
+        // Before midnight, the daily counter is continuous from the 08:30
+        // snapshot. After its midnight reset, add the captured pre-reset
+        // portion to the new day's reading through the next 08:30.
+        let total = null;
+        if (Number.isFinite(startDailyMm)) {
+            total = isAfterMidnight
+                ? (Number.isFinite(closeDailyMm)
+                    ? imdDailyDelta(startDailyMm, closeDailyMm, dailyMm)
+                    : null)
+                : Math.round(Math.max(0, dailyMm - startDailyMm) * 100) / 100;
+        }
+        return {
+            total,
+            since: new Date(imdCheckpointMs(windowDate)).toISOString(),
+            windowDate
+        };
+    }
 
     if (!st.imdCheckpoint || st.imdCheckpoint.windowDate !== windowDate || st.imdCheckpoint.yearlyMm === null) {
         await ensureImdTables();
@@ -881,6 +921,7 @@ async function syncWithEcowitt(station, forceWrite = false) {
         const yearlyMm = Math.round(r.yearlyIn * 2540) / 100;
         const dailyMm = Math.round(r.dailyIn * 2540) / 100;
         st.lastRawYearlyMm = yearlyMm;
+        st.lastRawDailyMm = dailyMm;
         recordImdCheckpoint(station, yearlyMm, dailyMm, Date.now())
             .catch(e => console.error(`IMD checkpoint [${station.id}]:`, e.message));
         return r;
@@ -1350,7 +1391,12 @@ app.get("/weather", async (req, res) => {
     const data = await syncWithEcowitt(s, false);
     if (data && data.rain) {
         try {
-            data.rain.imd = await getImdLive(s, stationState[s.id].lastRawYearlyMm, Date.now());
+            data.rain.imd = await getImdLive(
+                s,
+                stationState[s.id].lastRawYearlyMm,
+                stationState[s.id].lastRawDailyMm,
+                Date.now()
+            );
         } catch (e) {
             console.error(`IMD live [${s.id}]:`, e.message);
             data.rain.imd = null;
