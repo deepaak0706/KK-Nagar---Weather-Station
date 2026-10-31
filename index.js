@@ -1276,7 +1276,7 @@ try {
 
     // KK Nagar correction: Add 5.5mm preset to monthly (this month only - will be removed on Nov 1st)
     const kknagar_monthly_adjusted = station.id === 'kknagar' 
-        ? Math.round(r.monthlyIn * 2540) / 100 + 6.0 
+        ? Math.round(r.monthlyIn * 2540) / 100 + 0.0 
         : Math.round(r.monthlyIn * 2540) / 100;
     
     return {
