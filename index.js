@@ -1712,6 +1712,14 @@ if ('serviceWorker' in navigator) {
 
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, shrink-to-fit=no, viewport-fit=cover">
+    <script>
+        // Chrome on iOS uses WebKit, so CSS feature detection cannot tell it
+        // apart from Safari. Mark only Android browsers and iOS Chrome; the
+        // compact rules below remain excluded from Safari and all desktops.
+        if (/Android|CriOS/.test(navigator.userAgent)) {
+            document.documentElement.classList.add('compact-mobile-client');
+        }
+    </script>
     <title>KK Nagar Weather Station</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Sora:wght@400;500;600&display=swap" rel="stylesheet">
@@ -2574,6 +2582,67 @@ if ('serviceWorker' in navigator) {
             padding: 6px 32px 6px 10px;
         }
     }
+}
+
+/* Chrome on iOS reports Safari's WebKit capabilities, so it does not enter
+   the feature-query block above.  This class is set only for Android or
+   CriOS, and the width gate excludes tablets/desktops. Safari is untouched. */
+@media screen and (max-width: 767px) {
+    html.compact-mobile-client,
+    html.compact-mobile-client * {
+        text-size-adjust: 100%;
+        -webkit-text-size-adjust: 100%;
+    }
+
+    html.compact-mobile-client body {
+        padding: calc(16px + env(safe-area-inset-top, 0px)) 10px 100px;
+    }
+
+    html.compact-mobile-client .header {
+        gap: 10px;
+        margin-bottom: 18px;
+    }
+
+    html.compact-mobile-client .title-trigger h1 {
+        font-size: clamp(16px, 5vw, 21px);
+    }
+
+    html.compact-mobile-client .header-actions { gap: 8px; }
+    html.compact-mobile-client .theme-toggle { padding: 3px; }
+    html.compact-mobile-client .theme-btn { padding: 4px 8px; font-size: 10px; }
+    html.compact-mobile-client .status-bar { padding: 6px 12px; font-size: 11px; }
+
+    html.compact-mobile-client .container > .nav-tabs {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 5px;
+        width: 100%;
+        margin-bottom: 18px;
+    }
+
+    html.compact-mobile-client .container > .nav-tabs .tab-btn {
+        width: 100%;
+        min-width: 0;
+        padding: 8px 2px;
+        font-size: clamp(9px, 2.7vw, 11px);
+        line-height: 1.15;
+        letter-spacing: 0;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    html.compact-mobile-client .main-val { font-size: clamp(32px, 9vw, 40px); letter-spacing: -1px; }
+    html.compact-mobile-client .unit { font-size: clamp(12px, 3.5vw, 15px); }
+    html.compact-mobile-client #mx,
+    html.compact-mobile-client #mn { font-size: clamp(15px, 4.8vw, 20px) !important; }
+    html.compact-mobile-client #r_rate,
+    html.compact-mobile-client #mr { font-size: clamp(16px, 5vw, 22px) !important; }
+
+    html.compact-mobile-client .card { overflow: hidden; }
+    html.compact-mobile-client .row-block { grid-template-columns: 48% 1px 1fr; gap: 0; }
+    html.compact-mobile-client .left-panel { padding-right: 10px; min-width: 0; overflow: hidden; }
+    html.compact-mobile-client .right-panel { padding-left: 10px; min-width: 0; overflow: hidden; }
 }
 
 #pwa-install-banner[hidden] {
