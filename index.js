@@ -3346,7 +3346,7 @@ body:not(.is-night) .station-summary-radar-card.is-rain-leader { background: rad
             <span id="stationSummaryTitle">Station Summary (24H)</span>
             <span class="station-summary-mode-switch" role="group" aria-label="Station Summary rainfall format">
                 <button class="station-summary-mode-button" id="stationSummary24h" type="button" onclick="setStationSummaryRainMode('24h')">24H</button>
-                <button class="station-summary-mode-button" id="stationSummaryImd" type="button" onclick="setStationSummaryRainMode('imd')">8:30</button>
+                <button class="station-summary-mode-button" id="stationSummaryImd" type="button" onclick="setStationSummaryRainMode('imd')">8:30–8:30</button>
             </span>
         </div>
         <div class="station-picker" id="stationPicker">
