@@ -2738,11 +2738,17 @@ body.dashboard-nav-open { overflow: hidden; }
 .station-summary-mode-switch { display: inline-flex; align-items: center; gap: 3px; padding: 3px; border: 1px solid var(--border); border-radius: 999px; background: var(--card); box-shadow: 0 7px 18px -14px rgba(56, 189, 248, .8); }
 .station-summary-mode-button { min-height: 28px; padding: 0 10px; border: 0; border-radius: 999px; background: transparent; color: var(--muted); cursor: pointer; font: inherit; font-size: 10px; font-weight: 700; letter-spacing: .04em; }
 .station-summary-mode-button.is-active { color: white; background: var(--accent); box-shadow: 0 5px 12px -8px rgba(56, 189, 248, .95); }
+.station-summary-mode-mobile-toggle { display: none; place-items: center; width: 32px; height: 32px; padding: 0; border: 1px solid var(--border); border-radius: 10px; background: var(--card); color: var(--accent); cursor: pointer; font-size: 17px; font-weight: 700; line-height: 1; box-shadow: 0 7px 18px -14px rgba(56, 189, 248, .8); }
 body.station-summary-active .station-picker,
 body.station-summary-active .header-actions,
 body.station-summary-active .nav-tabs { display: none; }
 body.station-summary-active .station-summary-page-title { display: flex; }
 body.station-summary-active .header { justify-content: flex-start; margin-bottom: 28px; }
+@media screen and (max-width: 767px) {
+    .station-summary-page-title { gap: 8px; }
+    .station-summary-mode-switch { display: none; }
+    .station-summary-mode-mobile-toggle { display: inline-grid; }
+}
 
 /* Additive Station Summary page — all selectors are intentionally namespaced. */
 .station-summary-shell { width: 100%; }
@@ -3348,6 +3354,7 @@ body:not(.is-night) .station-summary-radar-card.is-rain-leader { background: rad
                 <button class="station-summary-mode-button" id="stationSummary24h" type="button" onclick="setStationSummaryRainMode('24h')">24H</button>
                 <button class="station-summary-mode-button" id="stationSummaryImd" type="button" onclick="setStationSummaryRainMode('imd')">8:30–8:30</button>
             </span>
+            <button class="station-summary-mode-mobile-toggle" id="stationSummaryMobileToggle" type="button" onclick="toggleStationSummaryRainMode()" aria-label="Switch rainfall format" title="Switch rainfall format">↔</button>
         </div>
         <div class="station-picker" id="stationPicker">
          <button class="title-trigger" id="titleTrigger" onclick="toggleStationMenu()">
@@ -3707,9 +3714,11 @@ function updateStationSummaryModeUI() {
     const title = document.getElementById('stationSummaryTitle');
     const button24h = document.getElementById('stationSummary24h');
     const buttonImd = document.getElementById('stationSummaryImd');
+    const mobileToggle = document.getElementById('stationSummaryMobileToggle');
     if (title) title.textContent = isImd ? 'Station Summary (8:30–8:30)' : 'Station Summary (24H)';
     if (button24h) button24h.classList.toggle('is-active', !isImd);
     if (buttonImd) buttonImd.classList.toggle('is-active', isImd);
+    if (mobileToggle) mobileToggle.setAttribute('aria-label', isImd ? 'Switch to 24 hour rainfall format' : 'Switch to 8:30 to 8:30 rainfall format');
 }
 
 function setStationSummaryRainMode(mode) {
@@ -3717,6 +3726,10 @@ function setStationSummaryRainMode(mode) {
     localStorage.setItem('stationSummaryRainMode', stationSummaryRainMode);
     updateStationSummaryModeUI();
     if (isStationSummaryRoute()) updateStationSummary();
+}
+
+function toggleStationSummaryRainMode() {
+    setStationSummaryRainMode(stationSummaryRainMode === 'imd' ? '24h' : 'imd');
 }
 
 function isStationSummaryRoute() {
