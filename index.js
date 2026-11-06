@@ -1425,12 +1425,24 @@ app.get("/api/station-summary", async (req, res) => {
         try {
             const data = await syncWithEcowitt(station, false);
             if (!data) return { id: station.id, name: station.name, available: false };
+            let imd = null;
+            try {
+                imd = await getImdLive(
+                    station,
+                    stationState[station.id].lastRawYearlyMm,
+                    stationState[station.id].lastRawDailyMm,
+                    Date.now()
+                );
+            } catch (imdError) {
+                console.error(`Station Summary IMD unavailable [${station.id}]:`, imdError.message);
+            }
             return {
                 id: station.id,
                 name: station.name,
                 available: true,
                 temperature: data.temp.current,
-                rainfall: data.rain.total,
+                rainfall24h: data.rain.total,
+                rainfallImd: imd && imd.total !== null ? imd.total : null,
                 rainRate: data.rain.rate,
                 maxRainRate: data.rain.maxR,
                 lastSync: data.lastSync
@@ -2722,7 +2734,10 @@ if ('serviceWorker' in navigator) {
 .dashboard-nav-link.active { color: white; background: var(--accent); border-color: var(--accent); }
 .dashboard-nav-link:active { transform: scale(0.98); }
 body.dashboard-nav-open { overflow: hidden; }
-.station-summary-page-title { display: none; align-items: center; min-width: 0; color: var(--text); font-size: 28px; font-weight: 900; letter-spacing: -0.8px; }
+.station-summary-page-title { display: none; align-items: center; flex-wrap: wrap; gap: 12px; min-width: 0; color: var(--text); font-size: 28px; font-weight: 900; letter-spacing: -0.8px; }
+.station-summary-mode-switch { display: inline-flex; align-items: center; gap: 3px; padding: 3px; border: 1px solid var(--border); border-radius: 999px; background: var(--card); box-shadow: 0 7px 18px -14px rgba(56, 189, 248, .8); }
+.station-summary-mode-button { min-height: 28px; padding: 0 10px; border: 0; border-radius: 999px; background: transparent; color: var(--muted); cursor: pointer; font: inherit; font-size: 10px; font-weight: 700; letter-spacing: .04em; }
+.station-summary-mode-button.is-active { color: white; background: var(--accent); box-shadow: 0 5px 12px -8px rgba(56, 189, 248, .95); }
 body.station-summary-active .station-picker,
 body.station-summary-active .header-actions,
 body.station-summary-active .nav-tabs { display: none; }
@@ -2780,7 +2795,9 @@ body.station-summary-active .header { justify-content: flex-start; margin-bottom
 }
 
 @media screen and (max-width: 767px) {
-    .station-summary-page-title { font-size: clamp(22px, 7vw, 28px); }
+    .station-summary-page-title { gap: 8px; font-size: clamp(22px, 7vw, 28px); }
+    .station-summary-mode-switch { padding: 2px; }
+    .station-summary-mode-button { min-height: 26px; padding: 0 8px; font-size: 9px; }
     .station-summary-grid { grid-template-columns: minmax(0, 1fr); gap: 12px; }
     .station-summary-card { min-height: 184px; padding: 20px; border-radius: 18px; }
     .station-summary-name { font-size: 20px; }
@@ -3325,7 +3342,13 @@ body:not(.is-night) .station-summary-radar-card.is-rain-leader { background: rad
                 <svg viewBox="0 0 24 24" fill="none" stroke-width="2.2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
             </button>
         </div>
-        <div class="station-summary-page-title">Station Summary</div>
+        <div class="station-summary-page-title">
+            <span id="stationSummaryTitle">Station Summary (24H)</span>
+            <span class="station-summary-mode-switch" role="group" aria-label="Station Summary rainfall format">
+                <button class="station-summary-mode-button" id="stationSummary24h" type="button" onclick="setStationSummaryRainMode('24h')">24H</button>
+                <button class="station-summary-mode-button" id="stationSummaryImd" type="button" onclick="setStationSummaryRainMode('imd')">8:30</button>
+            </span>
+        </div>
         <div class="station-picker" id="stationPicker">
          <button class="title-trigger" id="titleTrigger" onclick="toggleStationMenu()">
     <h1 id="station-title">KK Nagar Weather Station</h1>
@@ -3677,6 +3700,24 @@ const stationSummaryStations = [
     { id: 'chromepet', name: 'Chromepet' }
 ];
 let stationSummaryUpdating = false;
+let stationSummaryRainMode = localStorage.getItem('stationSummaryRainMode') || localStorage.getItem('rainMode') || '24h';
+
+function updateStationSummaryModeUI() {
+    const isImd = stationSummaryRainMode === 'imd';
+    const title = document.getElementById('stationSummaryTitle');
+    const button24h = document.getElementById('stationSummary24h');
+    const buttonImd = document.getElementById('stationSummaryImd');
+    if (title) title.textContent = isImd ? 'Station Summary (8:30–8:30)' : 'Station Summary (24H)';
+    if (button24h) button24h.classList.toggle('is-active', !isImd);
+    if (buttonImd) buttonImd.classList.toggle('is-active', isImd);
+}
+
+function setStationSummaryRainMode(mode) {
+    stationSummaryRainMode = mode === 'imd' ? 'imd' : '24h';
+    localStorage.setItem('stationSummaryRainMode', stationSummaryRainMode);
+    updateStationSummaryModeUI();
+    if (isStationSummaryRoute()) updateStationSummary();
+}
 
 function isStationSummaryRoute() {
     return window.location.pathname.replace(/\\/+$/, '') === '/station-summary';
@@ -3738,7 +3779,10 @@ function renderStationSummaryCards(records) {
     const grid = document.getElementById('stationSummaryGrid');
     if (!grid) return;
 
-    const rainfall = function(record) { return Math.max(0, Number(record.rainfall) || 0); };
+    const rainfall = function(record) {
+        const value = stationSummaryRainMode === 'imd' ? record.rainfallImd : record.rainfall24h;
+        return Math.max(0, Number(value) || 0);
+    };
     const recordsByStation = stationSummaryStations.map(function(station) {
         return Object.assign({}, station, byId[station.id] || { available: false });
     });
@@ -3748,7 +3792,10 @@ function renderStationSummaryCards(records) {
 
     const cardMarkup = available.map(function(data, index) {
         const temperature = formatStationSummaryValue(data.temperature, '°C');
-        const rainfallValue = formatStationSummaryValue(data.rainfall, ' mm');
+        const rainfallValue = formatStationSummaryValue(
+            stationSummaryRainMode === 'imd' ? data.rainfallImd : data.rainfall24h,
+            ' mm'
+        );
         const currentRate = formatStationSummaryValue(data.rainRate, ' mm/h');
         const maxRate = formatStationSummaryValue(data.maxRainRate, ' mm/h');
         return '<article class="station-summary-radar-card station-radar-' + data.id + (index === 0 ? ' is-rain-leader' : '') + '" data-station-id="' + data.id + '" role="button" tabindex="0" aria-label="Open ' + data.name + ' dashboard">' +
@@ -3801,6 +3848,7 @@ function showStationSummaryPage() {
     document.getElementById('tab-dash').classList.remove('active');
     document.getElementById('tab-sum').classList.remove('active');
     document.getElementById('tab-hist').classList.remove('active');
+    updateStationSummaryModeUI();
     renderStationSummaryCards();
     updateStationSummary();
 }
