@@ -3326,29 +3326,6 @@ body:not(.is-night) .station-summary-radar-card.is-rain-leader { background: rad
 .rain-imd-list { margin-top:6px; display:grid; gap:2px; }
 .rain-imd-row { display:flex; justify-content:space-between; padding:4px 0; border-bottom:1px dashed rgba(148,163,184,0.2); }
 .rain-imd-empty { opacity:.7; padding:4px 0; }
-
-/* Rain Observatory — animated only when the readings say rain is active. */
-.rain-observation { margin-top:12px; padding:10px 12px; border:1px solid color-mix(in srgb, var(--border) 78%, #38bdf8 22%); border-radius:12px; background:linear-gradient(105deg, color-mix(in srgb, var(--card) 92%, #0b3452 8%), var(--card)); }
-.rain-observation-top { display:flex; align-items:center; justify-content:space-between; gap:10px; }
-.rain-status-chip { display:inline-flex; align-items:center; gap:6px; color:var(--muted); font-size:10px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; }
-.rain-status-chip::before { content:''; width:6px; height:6px; border-radius:50%; background:#64748b; }
-.rain-status-chip.is-raining { color:#67e8f9; }
-.rain-status-chip.is-raining::before { background:#2dd4bf; box-shadow:0 0 0 4px rgba(45,212,191,.12); animation:rainPulse 1.7s ease-in-out infinite; }
-.rain-event-detail { overflow:hidden; color:var(--muted); font-size:10px; font-weight:500; text-align:right; text-overflow:ellipsis; white-space:nowrap; }
-.rain-rate-ribbon { display:grid; grid-template-columns:repeat(12, minmax(0,1fr)); align-items:end; gap:3px; height:22px; margin-top:9px; }
-.rain-rate-ribbon span { display:block; min-height:3px; border-radius:999px; background:rgba(100,116,139,.28); transition:height .45s ease, background .45s ease; }
-.rain-observation.has-rain { border-color:rgba(56,189,248,.42); box-shadow:0 12px 26px -24px rgba(34,211,238,.85); }
-@keyframes rainPulse { 50% { box-shadow:0 0 0 7px rgba(45,212,191,0); } }
-
-/* Station Summary network context and rain-aware cards. */
-.station-summary-network-note { display:flex; align-items:center; justify-content:space-between; gap:12px; margin:0 0 14px; color:var(--muted); font-size:11px; font-weight:600; }
-.station-summary-network-note strong { color:#7dd3fc; font-weight:700; }
-.station-summary-radar-card.is-raining { border-color:rgba(45,212,191,.52); background:radial-gradient(330px 180px at 100% 0%, rgba(45,212,191,.12), transparent 68%), var(--card); }
-.station-summary-radar-card.is-raining .station-summary-radar-live { color:#6ee7d4; }
-.station-summary-rain-state { margin-top:7px; color:var(--muted); font-size:10px; font-weight:600; }
-.station-summary-rain-state.is-raining { color:#5eead4; }
-.station-summary-rain-state.is-raining::before { content:'●'; margin-right:5px; color:#2dd4bf; animation:rainPulse 1.7s ease-in-out infinite; }
-@media screen and (max-width:767px) { .rain-observation { padding:9px 10px; } .rain-event-detail { max-width:48%; font-size:9px; } .station-summary-network-note { margin-bottom:10px; font-size:10px; } }
 </style>
 </head>
 <body>
@@ -3532,13 +3509,6 @@ body:not(.is-night) .station-summary-radar-card.is-rain-leader { background: rad
                             <div id="r_imd_since"></div>
                             <div id="r_imd_list" class="rain-imd-list"></div>
                         </div>
-                        <div id="rainObservation" class="rain-observation" aria-live="polite">
-                            <div class="rain-observation-top">
-                                <span id="rainStatusChip" class="rain-status-chip">Monitoring rainfall</span>
-                                <span id="rainEventDetail" class="rain-event-detail">Building today's rain trace</span>
-                            </div>
-                            <div id="rainRateRibbon" class="rain-rate-ribbon" aria-label="Recent rain-rate activity"></div>
-                        </div>
                         <div class="row-block">
                             <div class="left-panel">
                                 <div class="main-val"><span id="r_tot">0.0</span><span class="unit">mm</span></div>
@@ -3718,7 +3688,6 @@ body:not(.is-night) .station-summary-radar-card.is-rain-leader { background: rad
 
         <div id="page-station-summary" style="display: none;">
             <div class="station-summary-shell">
-                <div id="stationSummaryNetworkNote" class="station-summary-network-note" aria-live="polite"></div>
                 <div class="station-summary-grid" id="stationSummaryGrid" aria-live="polite"></div>
             </div>
         </div>
@@ -3834,21 +3803,6 @@ function renderStationSummaryCards(records) {
     const available = recordsByStation.filter(function(record) { return record.available !== false; });
     const unavailable = recordsByStation.filter(function(record) { return record.available === false; });
     available.sort(function(left, right) { return rainfall(right) - rainfall(left) || left.name.localeCompare(right.name); });
-    const rainingStations = available.filter(function(record) { return (Number(record.rainRate) || 0) > 0; });
-    const networkNote = document.getElementById('stationSummaryNetworkNote');
-    if (networkNote) {
-        const period = stationSummaryRainMode === 'imd' ? '8:30–8:30 window' : '24-hour window';
-        if (rainingStations.length) {
-            const strongest = rainingStations.slice().sort(function(a, b) { return (Number(b.rainRate) || 0) - (Number(a.rainRate) || 0); })[0];
-            networkNote.style.display = 'flex';
-            networkNote.innerHTML = '<strong>Rain at ' + rainingStations.length + ' station' + (rainingStations.length === 1 ? '' : 's') + '</strong><span>Strongest: ' + strongest.name + ' · ' + Number(strongest.rainRate).toFixed(1) + ' mm/h</span>';
-        } else {
-            // The cards and selected window already explain the dry view. Keep
-            // this contextual message reserved for a genuine active rain event.
-            networkNote.style.display = 'none';
-            networkNote.textContent = '';
-        }
-    }
 
     const cardMarkup = available.map(function(data, index) {
         const temperature = formatStationSummaryValue(data.temperature, '°C');
@@ -3858,12 +3812,10 @@ function renderStationSummaryCards(records) {
         );
         const currentRate = formatStationSummaryValue(data.rainRate, ' mm/h');
         const maxRate = formatStationSummaryValue(data.maxRainRate, ' mm/h');
-        const isRaining = (Number(data.rainRate) || 0) > 0;
-        const rainState = isRaining ? '<span class="station-summary-rain-state is-raining">Rain active · ' + Number(data.rainRate).toFixed(1) + ' mm/h</span>' : '';
-        return '<article class="station-summary-radar-card station-radar-' + data.id + (index === 0 ? ' is-rain-leader' : '') + (isRaining ? ' is-raining' : '') + '" data-station-id="' + data.id + '" role="button" tabindex="0" aria-label="Open ' + data.name + ' dashboard">' +
-            '<div class="station-summary-radar-header"><span class="station-summary-radar-name">' + data.name + '</span><span class="station-summary-radar-live">' + (isRaining ? 'RAIN' : 'LIVE') + '</span></div>' +
+        return '<article class="station-summary-radar-card station-radar-' + data.id + (index === 0 ? ' is-rain-leader' : '') + '" data-station-id="' + data.id + '" role="button" tabindex="0" aria-label="Open ' + data.name + ' dashboard">' +
+            '<div class="station-summary-radar-header"><span class="station-summary-radar-name">' + data.name + '</span><span class="station-summary-radar-live">LIVE</span></div>' +
             '<div class="station-summary-radar-main"><div class="station-summary-temp-readout"><span class="station-summary-temp-label">Temperature</span><span class="station-summary-temp-value">' + temperature.replace('°C', '<small>°C</small>') + '</span></div><span class="station-summary-temp-rain-divider" aria-hidden="true"></span>' +
-                '<div class="station-summary-rain-core"><span class="station-summary-rain-label">Rain</span><span class="station-summary-rain-value">' + rainfallValue.replace(' mm', '<small>mm</small>') + '</span>' + rainState + '</div></div>' +
+                '<div class="station-summary-rain-core"><span class="station-summary-rain-label">Rain</span><span class="station-summary-rain-value">' + rainfallValue.replace(' mm', '<small>mm</small>') + '</span></div></div>' +
             '<div class="station-summary-radar-rates"><div class="station-summary-radar-rate"><span class="station-summary-radar-rate-label">Current RR</span><span class="station-summary-radar-rate-value">' + currentRate.replace(' mm/h', ' <small>mm/h</small>') + '</span></div>' +
             '<div class="station-summary-radar-rate max"><span class="station-summary-radar-rate-label">Max RR</span><span class="station-summary-radar-rate-value">' + maxRate.replace(' mm/h', ' <small>mm/h</small>') + '</span></div></div></article>';
     });
@@ -4159,42 +4111,6 @@ document.addEventListener('click', function(e) {
         }
 
         let rainStatusRequestInFlight = false;
-        const rainRateTrail = [];
-
-        function renderRainObservation(rate, maxRate, maxRateTime) {
-            const current = Math.max(0, Number(rate) || 0);
-            const peak = Math.max(0, Number(maxRate) || 0);
-            const observation = document.getElementById('rainObservation');
-            const chip = document.getElementById('rainStatusChip');
-            const detail = document.getElementById('rainEventDetail');
-            const ribbon = document.getElementById('rainRateRibbon');
-            if (!observation || !chip || !detail || !ribbon) return;
-
-            rainRateTrail.push(current);
-            if (rainRateTrail.length > 12) rainRateTrail.shift();
-            const trailPeak = Math.max(1, ...rainRateTrail, peak);
-            ribbon.innerHTML = rainRateTrail.concat(Array(Math.max(0, 12 - rainRateTrail.length)).fill(0)).map(function(value) {
-                const height = Math.max(3, Math.round((value / trailPeak) * 22));
-                const active = value > 0;
-                return '<span style="height:' + height + 'px;background:' + (active ? 'linear-gradient(180deg,#67e8f9,#2563eb)' : 'rgba(100,116,139,.28)') + '"></span>';
-            }).join('');
-
-            const hasRainContext = current > 0 || peak > 0;
-            observation.style.display = hasRainContext ? 'block' : 'none';
-            observation.classList.toggle('has-rain', current > 0);
-            chip.classList.toggle('is-raining', current > 0);
-            if (current > 0) {
-                const intensity = current >= 50 ? 'Heavy rain' : current >= 15 ? 'Moderate rain' : 'Light rain';
-                chip.textContent = intensity + ' in progress';
-                detail.textContent = current.toFixed(1) + ' mm/h right now';
-            } else if (peak > 0) {
-                chip.textContent = 'Dry now · rain recorded today';
-                detail.textContent = 'Peak ' + peak.toFixed(1) + ' mm/h' + (maxRateTime ? ' at ' + maxRateTime : '');
-            } else {
-                chip.textContent = 'Dry conditions';
-                detail.textContent = 'No rain recorded in this window';
-            }
-        }
 
         function renderRainRateValues(rate, maxRate, maxRateTime) {
             const current = Number(rate) || 0;
@@ -4208,7 +4124,6 @@ document.addEventListener('click', function(e) {
                     ? peak.toFixed(1) + '<span style="font-size:11px; font-weight:600; color:var(--muted); margin-left:3px;">mm/h</span> <span style="font-size:9px; color:var(--muted); font-weight:500; opacity:0.75;">' + (maxRateTime || '') + '</span>'
                     : '0<span style="font-size:11px; font-weight:600; color:var(--muted); margin-left:3px;">mm/h</span>';
             }
-            renderRainObservation(current, peak, maxRateTime);
         }
 
         async function refreshRainRateOnly() {
