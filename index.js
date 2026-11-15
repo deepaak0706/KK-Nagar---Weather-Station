@@ -3840,11 +3840,13 @@ function renderStationSummaryCards(records) {
         const period = stationSummaryRainMode === 'imd' ? '8:30–8:30 window' : '24-hour window';
         if (rainingStations.length) {
             const strongest = rainingStations.slice().sort(function(a, b) { return (Number(b.rainRate) || 0) - (Number(a.rainRate) || 0); })[0];
+            networkNote.style.display = 'flex';
             networkNote.innerHTML = '<strong>Rain at ' + rainingStations.length + ' station' + (rainingStations.length === 1 ? '' : 's') + '</strong><span>Strongest: ' + strongest.name + ' · ' + Number(strongest.rainRate).toFixed(1) + ' mm/h</span>';
-        } else if (available.length) {
-            networkNote.innerHTML = '<strong>Rain network</strong><span>Sorted by rainfall · ' + period + '</span>';
         } else {
-            networkNote.textContent = 'Connecting to the rain network…';
+            // The cards and selected window already explain the dry view. Keep
+            // this contextual message reserved for a genuine active rain event.
+            networkNote.style.display = 'none';
+            networkNote.textContent = '';
         }
     }
 
@@ -4177,6 +4179,8 @@ document.addEventListener('click', function(e) {
                 return '<span style="height:' + height + 'px;background:' + (active ? 'linear-gradient(180deg,#67e8f9,#2563eb)' : 'rgba(100,116,139,.28)') + '"></span>';
             }).join('');
 
+            const hasRainContext = current > 0 || peak > 0;
+            observation.style.display = hasRainContext ? 'block' : 'none';
             observation.classList.toggle('has-rain', current > 0);
             chip.classList.toggle('is-raining', current > 0);
             if (current > 0) {
