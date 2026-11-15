@@ -3369,6 +3369,20 @@ body:not(.is-night) .station-summary-radar-card.is-rain-leader { background: rad
 body.dashboard-layout-rain #page-dashboard .grid-system { display:block; width:min(1120px,100%); max-width:none; margin:0 auto 30px; } body.dashboard-layout-rain #page-dashboard .grid-system > .card:nth-child(1), body.dashboard-layout-rain #page-dashboard .grid-system > .card:nth-child(2), body.dashboard-layout-rain #page-dashboard .grid-system > .card:nth-child(4), body.dashboard-layout-rain #page-dashboard .sub-tabs-section { display:none !important; } body.dashboard-layout-rain #page-dashboard .grid-system > .card:nth-child(3) { display:flex; min-height:0; padding:clamp(8px,2vw,20px) !important; border:0 !important; border-radius:0 !important; background:transparent !important; box-shadow:none !important; } body.dashboard-layout-rain #page-dashboard .grid-system > .card:nth-child(3) > .mod-divider, body.dashboard-layout-rain #page-dashboard .grid-system > .card:nth-child(3) > .modular-inline-stack, body.dashboard-layout-rain #page-dashboard .rain-observation { display:none !important; } body.dashboard-layout-rain #page-dashboard .grid-system > .card:nth-child(3) .row-block { margin:12px 0 8px; } body.dashboard-layout-rain .rain-focus-panel { display:block; margin-top:16px; padding:22px 0 0; border:0; border-top:1px solid rgba(125,211,252,.22); border-radius:0; background:transparent; } body.dashboard-layout-rain .rain-focus-chart { border-top:1px solid rgba(125,211,252,.12); border-radius:0; background:transparent; }
 body.dashboard-layout-minimal #page-dashboard .sub-tabs-section { display:none !important; } body.dashboard-layout-minimal #page-dashboard .grid-system { grid-template-columns:repeat(2,minmax(0,1fr)) !important; gap:0; padding:7px; overflow:hidden; border:1px solid rgba(80,213,255,.25); border-radius:24px; background:radial-gradient(520px 230px at 100% 0%,rgba(56,189,248,.12),transparent 70%),var(--card); } body.dashboard-layout-minimal #page-dashboard .card { min-height:180px; padding:22px !important; border:0 !important; border-radius:0 !important; background:transparent !important; box-shadow:none !important; } body.dashboard-layout-minimal #page-dashboard .card:nth-child(odd) { border-right:1px solid rgba(125,211,252,.16) !important; } body.dashboard-layout-minimal #page-dashboard .card:nth-child(-n+2) { border-bottom:1px solid rgba(125,211,252,.16) !important; } body.dashboard-layout-minimal #page-dashboard .card .right-panel, body.dashboard-layout-minimal #page-dashboard .card .v-line, body.dashboard-layout-minimal #page-dashboard .card .mod-divider, body.dashboard-layout-minimal #page-dashboard .card .modular-inline-stack, body.dashboard-layout-minimal #page-dashboard .card canvas, body.dashboard-layout-minimal #page-dashboard .card .sub-pill, body.dashboard-layout-minimal #page-dashboard .rain-observation { display:none !important; }
 @media(max-width:767px){.rain-focus-panel{margin-top:16px;padding:18px 0 0}.rain-bands{gap:3px}.rain-bands span{font-size:7px}.rain-bands b{font-size:8px}.rain-focus-totals{grid-template-columns:repeat(2,1fr)}.rain-focus-chart{height:150px}body.dashboard-layout-minimal #page-dashboard .card{min-height:142px;padding:15px !important}.dashboard-nav-drawer{top:70px;bottom:auto;left:14px;width:min(250px,calc(100vw - 28px));padding:13px;border-radius:17px;transform:translateY(-10px);opacity:0;pointer-events:none}.dashboard-nav-drawer.is-open{transform:translateY(0);opacity:1;pointer-events:auto}}
+
+/* Compact mode palette: a floating, glassy control rather than a side panel. */
+.dashboard-nav-overlay { background:rgba(2,6,23,.18); }
+.dashboard-nav-drawer { top:76px; bottom:auto; left:max(18px, calc((100vw - 1400px) / 2)); width:322px; padding:13px; border:1px solid color-mix(in srgb, var(--border) 78%, #38bdf8 22%); border-radius:18px; background:color-mix(in srgb, var(--card) 93%, #07111f 7%); box-shadow:0 20px 48px -20px rgba(2,6,23,.72), 0 0 0 1px rgba(125,211,252,.05) inset; backdrop-filter:blur(24px); -webkit-backdrop-filter:blur(24px); transform:translateY(-10px) scale(.97); opacity:0; pointer-events:none; transition:transform .22s cubic-bezier(.22,1,.36,1), opacity .18s ease; gap:10px; }
+.dashboard-nav-drawer.is-open { transform:translateY(0) scale(1); opacity:1; pointer-events:auto; }
+.dashboard-nav-heading { padding:3px 5px 2px; color:#8fb1cc; font-size:9px; font-weight:700; letter-spacing:.14em; }
+.dashboard-nav-links { grid-template-columns:repeat(3,minmax(0,1fr)); gap:7px; }
+.dashboard-nav-link.dashboard-mode-tile { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; min-height:82px; padding:8px 4px; border:1px solid transparent; border-radius:13px; background:rgba(15,31,51,.45); color:var(--muted); font-size:10px; font-weight:650; line-height:1.1; text-align:center; }
+.dashboard-nav-link.dashboard-mode-tile:hover { border-color:rgba(80,213,255,.30); background:rgba(56,189,248,.10); transform:translateY(-1px); }
+.dashboard-nav-link.dashboard-mode-tile.active { color:#e9f8ff; border-color:rgba(80,213,255,.55); background:linear-gradient(145deg,rgba(56,189,248,.22),rgba(14,116,144,.12)); box-shadow:0 8px 22px -16px rgba(56,189,248,.95), inset 0 1px 0 rgba(186,230,253,.18); }
+.dashboard-nav-link .mode-icon { display:grid; place-items:center; width:28px; height:28px; border-radius:9px; background:rgba(56,189,248,.12); color:#6ddcff; font-size:14px; line-height:1; }
+.dashboard-nav-link.dashboard-mode-tile.active .mode-icon { background:#38bdf8; color:#06283c; }
+.rain-focus-chart { height:270px; }
+@media(max-width:767px){.dashboard-nav-drawer { top:70px; left:14px; width:min(300px,calc(100vw - 28px)); padding:12px; border-radius:16px; }.dashboard-nav-links { gap:6px; }.dashboard-nav-link.dashboard-mode-tile { min-height:74px; font-size:9px; }.dashboard-nav-link .mode-icon { width:25px; height:25px; font-size:12px; }.rain-focus-chart { height:210px; }}
 </style>
 </head>
 <body>
@@ -3379,12 +3393,11 @@ body.dashboard-layout-minimal #page-dashboard .sub-tabs-section { display:none !
 </div>
 <div class="dashboard-nav-overlay" id="dashboardNavOverlay" onclick="closeDashboardNav()"></div>
 <aside class="dashboard-nav-drawer" id="dashboardNavDrawer" aria-label="Application navigation" aria-hidden="true">
-    <div class="dashboard-nav-heading">Dashboard view</div>
+    <div class="dashboard-nav-heading">Dashboard mode</div>
     <div class="dashboard-nav-links">
-        <button class="dashboard-nav-link" id="dashboardNavMain" type="button" onclick="navigateDashboardNav('dashboard')">Main Dashboard</button>
-        <button class="dashboard-nav-link" type="button" onclick="setDashboardLayout('classic')">Classic</button>
-        <button class="dashboard-nav-link" type="button" onclick="setDashboardLayout('rain')">Rain Focus</button>
-        <button class="dashboard-nav-link" type="button" onclick="navigateDashboardNav('summary')">Station Summary</button>
+        <button class="dashboard-nav-link dashboard-mode-tile" data-mode="classic" type="button" onclick="setDashboardLayout('classic')"><span class="mode-icon">▦</span><span>Classic</span></button>
+        <button class="dashboard-nav-link dashboard-mode-tile" data-mode="rain" type="button" onclick="setDashboardLayout('rain')"><span class="mode-icon">☔</span><span>Rain Focus</span></button>
+        <button class="dashboard-nav-link dashboard-mode-tile" data-mode="summary" type="button" onclick="navigateDashboardNav('summary')"><span class="mode-icon">◫</span><span>Station Summary</span></button>
     </div>
 </aside>
     <div class="container">
@@ -3778,9 +3791,18 @@ function setDashboardLayout(layout) {
     localStorage.setItem('dashboardLayout', dashboardLayout);
     document.body.classList.remove('dashboard-layout-classic','dashboard-layout-rain','dashboard-layout-minimal');
     document.body.classList.add('dashboard-layout-' + dashboardLayout);
+    updateDashboardModePalette();
     if (isStationSummaryRoute()) { navigateDashboardNav('dashboard'); }
     else closeDashboardNav();
     if (dashboardLayout === 'rain') setTimeout(updateRainFocus, 0);
+}
+
+function updateDashboardModePalette() {
+    const summaryOpen = isStationSummaryRoute();
+    document.querySelectorAll('.dashboard-mode-tile').forEach(function(tile) {
+        const mode = tile.dataset.mode;
+        tile.classList.toggle('active', mode === 'summary' ? summaryOpen : (!summaryOpen && mode === dashboardLayout));
+    });
 }
 
 function renderRainFocus(data, rain) {
@@ -3794,7 +3816,10 @@ function renderRainFocus(data, rain) {
     const label=document.getElementById('rfSeasonLabel'); if(label)label.textContent=(rain&&rain.seasonLabel)||'Season';
     const series=Array.isArray(data&&data.series)?data.series:[]; const c=document.getElementById('rainFocusChart'); if(!c||typeof Chart==='undefined')return;
     if(!rainFocusChart) rainFocusChart=new Chart(c.getContext('2d'),{type:'line',data:{labels:[],datasets:[{label:'Rain rate',data:[],borderColor:'#50d5ff',backgroundColor:'rgba(80,213,255,.16)',fill:true,tension:.35,pointRadius:0,yAxisID:'rate'},{label:'Accumulated rain',data:[],borderColor:'#a78bfa',borderDash:[5,4],fill:false,tension:.25,pointRadius:0,yAxisID:'rain'}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#9eb5ce',boxWidth:9,font:{size:9}}}},scales:{x:{grid:{display:false},ticks:{color:'#7890a8',font:{size:8},maxTicksLimit:6}},rate:{beginAtZero:true,position:'left',grid:{color:'rgba(148,163,184,.12)'},ticks:{color:'#7890a8',font:{size:8},maxTicksLimit:4}},rain:{beginAtZero:true,position:'right',grid:{drawOnChartArea:false},ticks:{color:'#a78bfa',font:{size:8},maxTicksLimit:4}}}}});
-    rainFocusChart.data.labels=series.map(x=>new Date(x.time).toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',hour12:false,timeZone:'Asia/Kolkata'})); rainFocusChart.data.datasets[0].data=series.map(x=>x.rate); rainFocusChart.data.datasets[1].data=series.map(x=>x.rain); rainFocusChart.update('none');
+    const rateValues=series.map(x=>x.rate); const rainValues=series.map(x=>x.rain); const rateMax=Math.max(...rateValues,0); const rainMax=Math.max(...rainValues,0);
+    rainFocusChart.options.scales.rate.suggestedMax=rateMax>0 ? Math.ceil(rateMax*1.22*10)/10 : 1;
+    rainFocusChart.options.scales.rain.suggestedMax=rainMax>0 ? Math.ceil(rainMax*1.12*10)/10 : 1;
+    rainFocusChart.data.labels=series.map(x=>new Date(x.time).toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',hour12:false,timeZone:'Asia/Kolkata'})); rainFocusChart.data.datasets[0].data=rateValues; rainFocusChart.data.datasets[1].data=rainValues; rainFocusChart.update('none');
 }
 async function updateRainFocus() { if(!document.body.classList.contains('dashboard-layout-rain'))return; try { const r=await fetch('/api/rain-focus?station='+currentStation+'&t='+Date.now(),{cache:'no-store'}); if(r.ok)renderRainFocus(await r.json(),lastRainData); } catch(e){console.error(e);} }
 
@@ -3848,8 +3873,7 @@ function closeDashboardNav() {
 }
 
 function updateDashboardNavState() {
-    const summaryOpen = isStationSummaryRoute();
-    document.getElementById('dashboardNavMain').classList.toggle('active', !summaryOpen);
+    updateDashboardModePalette();
 }
 
 function navigateDashboardNav(destination) {
