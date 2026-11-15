@@ -3349,6 +3349,29 @@ body:not(.is-night) .station-summary-radar-card.is-rain-leader { background: rad
 .station-summary-rain-state.is-raining { color:#5eead4; }
 .station-summary-rain-state.is-raining::before { content:'●'; margin-right:5px; color:#2dd4bf; animation:rainPulse 1.7s ease-in-out infinite; }
 @media screen and (max-width:767px) { .rain-observation { padding:9px 10px; } .rain-event-detail { max-width:48%; font-size:9px; } .station-summary-network-note { margin-bottom:10px; font-size:10px; } }
+
+/* Personal dashboard views: preferences are visual only and are saved per visitor. */
+.dashboard-layout-control { position:relative; flex:0 0 auto; }
+.dashboard-layout-toggle { display:inline-flex; align-items:center; gap:6px; min-height:34px; padding:0 10px; border:1px solid var(--border); border-radius:11px; background:var(--card); color:var(--muted); box-shadow:var(--glow); cursor:pointer; font:inherit; font-size:10px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; }
+.dashboard-layout-toggle svg { width:14px; height:14px; stroke:currentColor; }
+.dashboard-layout-menu { display:none; position:absolute; z-index:80; top:calc(100% + 9px); right:0; width:218px; padding:7px; border:1px solid var(--border); border-radius:15px; background:color-mix(in srgb, var(--card) 94%, #07111f 6%); box-shadow:0 20px 40px -22px rgba(0,0,0,.7); backdrop-filter:blur(22px); }
+.dashboard-layout-menu.is-open { display:grid; gap:3px; }
+.dashboard-layout-menu-title { padding:6px 8px 5px; color:var(--muted); font-size:9px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; }
+.dashboard-layout-option { display:grid; grid-template-columns:25px 1fr; gap:7px; align-items:center; width:100%; padding:8px; border:0; border-radius:10px; background:transparent; color:var(--text); cursor:pointer; font:inherit; text-align:left; }
+.dashboard-layout-option:hover, .dashboard-layout-option.is-active { background:rgba(56,189,248,.11); }
+.dashboard-layout-option-icon { display:grid; place-items:center; width:24px; height:24px; border-radius:8px; background:rgba(56,189,248,.1); color:#7dd3fc; font-size:13px; }
+.dashboard-layout-option strong { display:block; font-size:11px; font-weight:700; }
+.dashboard-layout-option small { display:block; margin-top:1px; color:var(--muted); font-size:9px; font-weight:500; line-height:1.25; }
+body.dashboard-layout-rain #page-dashboard .grid-system { grid-template-areas:'rain rain' 'temperature wind' 'atmosphere atmosphere'; }
+body.dashboard-layout-rain #page-dashboard .grid-system > .card:nth-child(1) { grid-area:temperature; }
+body.dashboard-layout-rain #page-dashboard .grid-system > .card:nth-child(2) { grid-area:wind; }
+body.dashboard-layout-rain #page-dashboard .grid-system > .card:nth-child(3) { grid-area:rain; border-top-color:#38bdf8 !important; box-shadow:0 18px 34px -27px rgba(56,189,248,.72), var(--glow) !important; }
+body.dashboard-layout-rain #page-dashboard .grid-system > .card:nth-child(4) { grid-area:atmosphere; }
+body.dashboard-layout-minimal #page-dashboard .card { min-height:0; gap:12px; }
+body.dashboard-layout-minimal #page-dashboard .card .mod-divider,
+body.dashboard-layout-minimal #page-dashboard .card .modular-inline-stack { display:none; }
+body.dashboard-layout-minimal #page-dashboard .card .row-block { min-height:74px; }
+@media screen and (max-width:767px) { .dashboard-layout-toggle { width:34px; padding:0; justify-content:center; } .dashboard-layout-toggle span { display:none; } .dashboard-layout-menu { position:fixed; top:auto; right:12px; bottom:calc(16px + env(safe-area-inset-bottom, 0px)); width:min(250px, calc(100vw - 24px)); } body.dashboard-layout-rain #page-dashboard .grid-system { display:flex; flex-direction:column; } body.dashboard-layout-rain #page-dashboard .grid-system > .card:nth-child(3) { order:-1; } }
 </style>
 </head>
 <body>
@@ -3411,6 +3434,16 @@ body:not(.is-night) .station-summary-radar-card.is-rain-leader { background: rad
         </div>
 
         <div class="header-actions">
+            <div class="dashboard-layout-control" id="dashboardLayoutControl">
+                <button class="dashboard-layout-toggle" id="dashboardLayoutToggle" type="button" onclick="toggleDashboardLayoutMenu()" aria-expanded="false" aria-controls="dashboardLayoutMenu" title="Choose dashboard view"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z"/></svg><span>View</span></button>
+                <div class="dashboard-layout-menu" id="dashboardLayoutMenu" role="menu" aria-label="Dashboard view">
+                    <div class="dashboard-layout-menu-title">Dashboard view</div>
+                    <button class="dashboard-layout-option" type="button" data-layout="classic" onclick="setDashboardLayout('classic')"><span class="dashboard-layout-option-icon">▦</span><span><strong>Classic</strong><small>Balanced four-card dashboard</small></span></button>
+                    <button class="dashboard-layout-option" type="button" data-layout="rain" onclick="setDashboardLayout('rain')"><span class="dashboard-layout-option-icon">☔</span><span><strong>Rain focus</strong><small>Rainfall becomes the lead card</small></span></button>
+                    <button class="dashboard-layout-option" type="button" data-layout="minimal" onclick="setDashboardLayout('minimal')"><span class="dashboard-layout-option-icon">—</span><span><strong>Minimal</strong><small>Live readings with less detail</small></span></button>
+                    <button class="dashboard-layout-option" type="button" onclick="openStationComparison()"><span class="dashboard-layout-option-icon">◫</span><span><strong>Station comparison</strong><small>Open the all-station rain grid</small></span></button>
+                </div>
+            </div>
             <div class="status-bar"><div class="live-dot"></div><div class="timestamp"><span id="ts">--:--:--</span></div></div>
             <div class="theme-toggle" id="themeToggle">
                 <div class="theme-btn" id="btn-light">LIGHT</div>
@@ -3740,6 +3773,43 @@ const stationSummaryStations = [
 ];
 let stationSummaryUpdating = false;
 let stationSummaryRainMode = localStorage.getItem('stationSummaryRainMode') || localStorage.getItem('rainMode') || '24h';
+let dashboardLayout = localStorage.getItem('dashboardLayout') || 'classic';
+
+function updateDashboardLayoutUI() {
+    document.body.classList.remove('dashboard-layout-classic', 'dashboard-layout-rain', 'dashboard-layout-minimal');
+    document.body.classList.add('dashboard-layout-' + dashboardLayout);
+    document.querySelectorAll('.dashboard-layout-option[data-layout]').forEach(function(option) {
+        option.classList.toggle('is-active', option.dataset.layout === dashboardLayout);
+    });
+}
+
+function toggleDashboardLayoutMenu() {
+    const menu = document.getElementById('dashboardLayoutMenu');
+    const toggle = document.getElementById('dashboardLayoutToggle');
+    if (!menu || !toggle) return;
+    const willOpen = !menu.classList.contains('is-open');
+    menu.classList.toggle('is-open', willOpen);
+    toggle.setAttribute('aria-expanded', String(willOpen));
+}
+
+function closeDashboardLayoutMenu() {
+    const menu = document.getElementById('dashboardLayoutMenu');
+    const toggle = document.getElementById('dashboardLayoutToggle');
+    if (menu) menu.classList.remove('is-open');
+    if (toggle) toggle.setAttribute('aria-expanded', 'false');
+}
+
+function setDashboardLayout(layout) {
+    dashboardLayout = ['classic', 'rain', 'minimal'].includes(layout) ? layout : 'classic';
+    localStorage.setItem('dashboardLayout', dashboardLayout);
+    updateDashboardLayoutUI();
+    closeDashboardLayoutMenu();
+}
+
+function openStationComparison() {
+    closeDashboardLayoutMenu();
+    navigateDashboardNav('summary');
+}
 
 function updateStationSummaryModeUI() {
     const isImd = stationSummaryRainMode === 'imd';
@@ -3986,6 +4056,8 @@ function closeStationMenu() {
 document.addEventListener('click', function(e) {
     const picker = document.getElementById('stationPicker');
     if (picker && !picker.contains(e.target)) closeStationMenu();
+    const layoutControl = document.getElementById('dashboardLayoutControl');
+    if (layoutControl && !layoutControl.contains(e.target)) closeDashboardLayoutMenu();
 });
 
 
@@ -4374,6 +4446,7 @@ document.addEventListener('click', function(e) {
             ctxW.stroke(); requestAnimationFrame(animateWind);
         }
 
+        updateDashboardLayoutUI();
         applyTheme(); animateWind();
         setInterval(update, 30000);
         // Five-second checks happen only in a visible dashboard tab and use the
