@@ -1417,6 +1417,70 @@ app.get("/api/rain-status", async (req, res) => {
     }
 });
 
+// Rain Focus uses the durable weather-history samples only. A rolling-hour
+// calculation is used instead of simply reading the current hourly rate, and
+// explicitly bridges the midnight reset of the provider's daily counter.
+app.get("/api/rain-focus", async (req, res) => {
+    const s = getStation(req);
+    res.set('Cache-Control', 'no-store, max-age=0');
+    try {
+        const [historyRes, status] = await Promise.all([
+            pool.query(`
+                SELECT time, daily_rain_in, rain_rate_in
+                FROM weather_history
+                WHERE station_id = $1
+                  AND time >= NOW() - INTERVAL '27 hours'
+                  AND daily_rain_in IS NOT NULL
+                ORDER BY time ASC
+            `, [s.id]),
+            getRainStatus(s)
+        ]);
+        const rows = historyRes.rows.map(row => ({
+            time: new Date(row.time),
+            dailyMm: Number(row.daily_rain_in) * 25.4,
+            rate: Math.max(0, Number(row.rain_rate_in) * 25.4 || 0)
+        })).filter(row => Number.isFinite(row.time.getTime()) && Number.isFinite(row.dailyMm));
+        const dayKey = date => date.toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+        const rolling = [];
+
+        rows.forEach((end, endIndex) => {
+            const cutoff = end.time.getTime() - 60 * 60 * 1000;
+            let startIndex = -1;
+            for (let i = endIndex - 1; i >= 0; i--) {
+                if (rows[i].time.getTime() <= cutoff) { startIndex = i; break; }
+            }
+            if (startIndex < 0) return;
+            const start = rows[startIndex];
+            let amount;
+            if (dayKey(start.time) === dayKey(end.time)) {
+                amount = end.dailyMm - start.dailyMm;
+            } else {
+                const openingDayHigh = rows.slice(startIndex, endIndex + 1)
+                    .filter(row => dayKey(row.time) === dayKey(start.time))
+                    .reduce((highest, row) => Math.max(highest, row.dailyMm), start.dailyMm);
+                amount = (openingDayHigh - start.dailyMm) + end.dailyMm;
+            }
+            rolling.push({ time: end.time, amount: Math.max(0, amount) });
+        });
+        const latestRolling = rolling.length ? rolling[rolling.length - 1].amount : null;
+        const peakRolling = rolling.length ? Math.max(...rolling.map(row => row.amount)) : null;
+        res.json({
+            lastHourMm: latestRolling === null ? null : Number(latestRolling.toFixed(1)),
+            peakHourMm: peakRolling === null ? null : Number(peakRolling.toFixed(1)),
+            rate: status.rate,
+            maxRate: status.maxRate,
+            series: rows.slice(-72).map(row => ({
+                time: row.time.toISOString(),
+                rate: Number(row.rate.toFixed(1)),
+                dailyMm: Number(row.dailyMm.toFixed(1))
+            }))
+        });
+    } catch (error) {
+        console.error(`Rain Focus unavailable [${s.id}]:`, error.message);
+        res.status(503).json({ error: 'Rain Focus data is temporarily unavailable.' });
+    }
+});
+
 // Additive compact-data view. It reuses the existing per-station sync/cache path
 // and deliberately exposes only the four values needed by Station Summary.
 app.get("/api/station-summary", async (req, res) => {
@@ -3469,6 +3533,16 @@ body.dashboard-layout-minimal #page-dashboard .card:nth-child(4) .main-val { col
     body.dashboard-layout-minimal #page-dashboard .card { min-height:148px; padding:16px !important; }
     body.dashboard-layout-minimal #page-dashboard .card::before { right:16px; left:16px; }
 }
+
+/* Rain Focus is a dedicated rainfall observatory, not a resized normal dashboard. */
+.rain-focus-panel { display:none; margin-top:24px; padding:20px; border:1px solid rgba(80,213,255,.22); border-radius:18px; background:linear-gradient(135deg, rgba(12,49,79,.38), rgba(15,23,42,.12)); }
+.rain-focus-topline { display:flex; align-items:flex-end; justify-content:space-between; gap:12px; }.rain-focus-eyebrow { display:block; color:#7dd3fc; font-size:10px; font-weight:700; letter-spacing:.13em; text-transform:uppercase; }.rain-focus-topline strong { display:block; margin-top:5px; color:var(--text); font-size:20px; font-weight:650; }.rain-focus-rate { color:#50d5ff; font-size:18px; font-weight:650; font-variant-numeric:tabular-nums; }
+.rain-intensity-guide { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:5px; margin-top:18px; }.rain-intensity-guide span { position:relative; min-height:50px; padding:8px 7px; border:1px solid rgba(148,163,184,.13); border-radius:10px; color:var(--muted); font-size:9px; font-weight:600; line-height:1.2; text-align:center; }.rain-intensity-guide span::before { content:''; position:absolute; top:0; right:8px; left:8px; height:3px; border-radius:999px; background:#475569; }.rain-intensity-guide b { display:block; margin-top:4px; color:var(--text); font-size:10px; font-weight:700; }
+.rain-intensity-guide span[data-band="light"].is-active { color:#67e8f9; border-color:rgba(103,232,249,.45); background:rgba(34,211,238,.08); }.rain-intensity-guide span[data-band="light"].is-active::before { background:#22d3ee; }.rain-intensity-guide span[data-band="moderate"].is-active { color:#fef08a; border-color:rgba(253,224,71,.45); background:rgba(253,224,71,.08); }.rain-intensity-guide span[data-band="moderate"].is-active::before { background:#facc15; }.rain-intensity-guide span[data-band="heavy"].is-active { color:#fdba74; border-color:rgba(251,146,60,.5); background:rgba(251,146,60,.08); }.rain-intensity-guide span[data-band="heavy"].is-active::before { background:#f97316; }.rain-intensity-guide span[data-band="very-heavy"].is-active { color:#f9a8d4; border-color:rgba(244,114,182,.52); background:rgba(244,114,182,.1); }.rain-intensity-guide span[data-band="very-heavy"].is-active::before { background:#f472b6; }
+.rain-focus-stats { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; margin-top:17px; }.rain-focus-stats > div { padding:12px; border-radius:12px; background:rgba(15,23,42,.28); }.rain-focus-stats span { display:block; color:var(--muted); font-size:9px; font-weight:700; letter-spacing:.09em; text-transform:uppercase; }.rain-focus-stats strong { display:inline-block; margin-top:5px; color:var(--text); font-size:26px; font-weight:600; letter-spacing:-1.4px; font-variant-numeric:tabular-nums; }.rain-focus-stats small { margin-left:3px; color:var(--muted); font-size:10px; font-weight:600; }
+.rain-focus-chart-head { display:flex; justify-content:space-between; margin:19px 2px 8px; color:var(--muted); font-size:9px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; }.rain-focus-chart-head span:last-child { color:#7dd3fc; }.rain-focus-chart-wrap { position:relative; height:164px; padding:8px 4px 0; border-radius:13px; background:rgba(2,6,23,.14); }.rain-focus-chart-wrap canvas { width:100% !important; height:100% !important; }.rain-focus-empty { position:absolute; inset:0; display:none; place-items:center; padding:20px; color:var(--muted); font-size:11px; text-align:center; }
+body.dashboard-layout-rain #page-dashboard .grid-system { display:block; max-width:980px; margin:0 auto 32px; } body.dashboard-layout-rain #page-dashboard .grid-system > .card:nth-child(1), body.dashboard-layout-rain #page-dashboard .grid-system > .card:nth-child(2), body.dashboard-layout-rain #page-dashboard .grid-system > .card:nth-child(4), body.dashboard-layout-rain #page-dashboard .sub-tabs-section { display:none !important; } body.dashboard-layout-rain #page-dashboard .grid-system > .card:nth-child(3) { display:flex; min-height:0; padding:clamp(22px,4vw,38px) !important; border-top-color:#38bdf8 !important; background:radial-gradient(560px 340px at 100% 0%, rgba(56,189,248,.14), transparent 66%), var(--card) !important; } body.dashboard-layout-rain #page-dashboard .grid-system > .card:nth-child(3) > .mod-divider, body.dashboard-layout-rain #page-dashboard .grid-system > .card:nth-child(3) > .modular-inline-stack, body.dashboard-layout-rain #page-dashboard .grid-system > .card:nth-child(3) .rain-observation { display:none !important; } body.dashboard-layout-rain #page-dashboard .grid-system > .card:nth-child(3) .row-block { margin-top:20px; } body.dashboard-layout-rain #rainFocusPanel { display:block; } body.dashboard-layout-minimal #page-dashboard .sub-tabs-section { display:none !important; }
+@media screen and (max-width:767px) { .rain-focus-panel { margin-top:18px; padding:14px; border-radius:15px; }.rain-focus-topline strong { font-size:18px; }.rain-focus-rate { font-size:15px; }.rain-intensity-guide { gap:4px; margin-top:14px; }.rain-intensity-guide span { min-height:46px; padding:7px 3px; font-size:8px; }.rain-intensity-guide b { font-size:9px; }.rain-focus-stats { gap:8px; margin-top:13px; }.rain-focus-stats > div { padding:10px; }.rain-focus-stats strong { font-size:23px; }.rain-focus-chart-wrap { height:142px; } body.dashboard-layout-rain #page-dashboard .grid-system { display:block; } body.dashboard-layout-rain #page-dashboard .grid-system > .card:nth-child(3) { order:initial; padding:18px !important; border-radius:20px !important; } }
 </style>
 </head>
 <body>
@@ -3591,7 +3665,7 @@ body.dashboard-layout-minimal #page-dashboard .card:nth-child(4) .main-val { col
 
                         </div>
                     </div>
-                    
+
                     <div class="mod-divider"></div>
                     
                     <div class="modular-inline-stack">
@@ -3699,6 +3773,25 @@ body.dashboard-layout-minimal #page-dashboard .card:nth-child(4) .main-val { col
                   
                         </div>
                     </div>
+
+                    <section id="rainFocusPanel" class="rain-focus-panel" aria-label="Rainfall observatory">
+                        <div class="rain-focus-topline">
+                            <div><span class="rain-focus-eyebrow">Rain observatory</span><strong id="rainFocusState">Dry conditions</strong></div>
+                            <span id="rainFocusRate" class="rain-focus-rate">0 mm/h</span>
+                        </div>
+                        <div class="rain-intensity-guide" aria-label="Rain-rate intensity guide">
+                            <span data-band="light">Light<br><b>0–20</b></span>
+                            <span data-band="moderate">Moderate<br><b>20–40</b></span>
+                            <span data-band="heavy">Heavy<br><b>40–60</b></span>
+                            <span data-band="very-heavy">Very heavy<br><b>60+</b></span>
+                        </div>
+                        <div class="rain-focus-stats">
+                            <div><span>Last 1 hour</span><strong id="rainFocusLastHour">—</strong><small>mm</small></div>
+                            <div><span>Highest 1 hour</span><strong id="rainFocusPeakHour">—</strong><small>mm</small></div>
+                        </div>
+                        <div class="rain-focus-chart-head"><span>Rain intensity</span><span>Recent readings</span></div>
+                        <div class="rain-focus-chart-wrap"><canvas id="rainFocusChart"></canvas><div id="rainFocusEmpty" class="rain-focus-empty">Rain history will appear here as readings are stored.</div></div>
+                    </section>
                     
                     <div class="mod-divider"></div>
                     
@@ -3905,6 +3998,7 @@ function setDashboardLayout(layout) {
     // can switch directly from Station Summary without a two-step detour.
     if (isStationSummaryRoute()) navigateDashboardNav('dashboard');
     else closeDashboardNav();
+    if (dashboardLayout === 'rain') setTimeout(updateRainFocus, 0);
 }
 
 function openStationComparison() {
@@ -4332,6 +4426,78 @@ document.addEventListener('click', function(e) {
 
         let rainStatusRequestInFlight = false;
         const rainRateTrail = [];
+        let rainFocusChart = null;
+        let rainFocusRequestInFlight = false;
+
+        function formatRainFocusAmount(value) {
+            return value === null || value === undefined || !Number.isFinite(Number(value)) ? '—' : Number(value).toFixed(1);
+        }
+
+        function getRainIntensity(rate) {
+            const value = Math.max(0, Number(rate) || 0);
+            if (value >= 60) return { band: 'very-heavy', label: 'Very heavy rain' };
+            if (value >= 40) return { band: 'heavy', label: 'Heavy rain' };
+            if (value >= 20) return { band: 'moderate', label: 'Moderate rain' };
+            if (value > 0) return { band: 'light', label: 'Light rain' };
+            return { band: '', label: 'Dry conditions' };
+        }
+
+        function renderRainFocus(data) {
+            const rate = Math.max(0, Number(data && data.rate) || 0);
+            const intensity = getRainIntensity(rate);
+            const state = document.getElementById('rainFocusState');
+            const rateLabel = document.getElementById('rainFocusRate');
+            const lastHour = document.getElementById('rainFocusLastHour');
+            const peakHour = document.getElementById('rainFocusPeakHour');
+            const empty = document.getElementById('rainFocusEmpty');
+            if (!state || !rateLabel || !lastHour || !peakHour || !empty) return;
+
+            state.textContent = intensity.label;
+            rateLabel.textContent = rate.toFixed(rate > 0 ? 1 : 0) + ' mm/h';
+            lastHour.textContent = formatRainFocusAmount(data && data.lastHourMm);
+            peakHour.textContent = formatRainFocusAmount(data && data.peakHourMm);
+            document.querySelectorAll('.rain-intensity-guide [data-band]').forEach(function(band) {
+                band.classList.toggle('is-active', band.dataset.band === intensity.band);
+            });
+
+            const series = Array.isArray(data && data.series) ? data.series.slice(-36) : [];
+            empty.style.display = series.length >= 2 ? 'none' : 'grid';
+            const canvas = document.getElementById('rainFocusChart');
+            if (!canvas || typeof Chart === 'undefined') return;
+            const labels = series.map(function(point) {
+                return new Date(point.time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' });
+            });
+            const values = series.map(function(point) { return Math.max(0, Number(point.rate) || 0); });
+            if (!rainFocusChart) {
+                const context = canvas.getContext('2d');
+                const fill = context.createLinearGradient(0, 0, 0, 180);
+                fill.addColorStop(0, 'rgba(80,213,255,.38)');
+                fill.addColorStop(1, 'rgba(80,213,255,0)');
+                rainFocusChart = new Chart(context, {
+                    type: 'line',
+                    data: { labels: [], datasets: [{ data: [], borderColor: '#50d5ff', backgroundColor: fill, borderWidth: 2, fill: true, tension: .35, pointRadius: 0, pointHoverRadius: 4 }] },
+                    options: { responsive: true, maintainAspectRatio: false, animation: false, plugins: { legend: { display: false }, tooltip: { displayColors: false, callbacks: { label: function(context) { return context.parsed.y.toFixed(1) + ' mm/h'; } } } }, scales: { x: { grid: { display: false }, ticks: { color: '#7890a8', font: { size: 9 }, maxTicksLimit: 6 } }, y: { beginAtZero: true, grid: { color: 'rgba(148,163,184,.12)' }, ticks: { color: '#7890a8', font: { size: 9 }, maxTicksLimit: 4, callback: function(value) { return value + ' mm/h'; } } } } }
+                });
+            }
+            rainFocusChart.data.labels = labels;
+            rainFocusChart.data.datasets[0].data = values;
+            rainFocusChart.update('none');
+        }
+
+        async function updateRainFocus() {
+            if (rainFocusRequestInFlight || !document.body.classList.contains('dashboard-layout-rain') || isStationSummaryRoute()) return;
+            rainFocusRequestInFlight = true;
+            try {
+                const response = await fetch('/api/rain-focus?station=' + currentStation + '&t=' + Date.now(), { cache: 'no-store' });
+                if (!response.ok) throw new Error('Rain Focus request failed');
+                renderRainFocus(await response.json());
+            } catch (error) {
+                console.error('Rain Focus refresh failed:', error);
+                renderRainFocus({ rate: lastRainData && lastRainData.rate, series: [] });
+            } finally {
+                rainFocusRequestInFlight = false;
+            }
+        }
 
         function renderRainObservation(rate, maxRate, maxRateTime) {
             const current = Math.max(0, Number(rate) || 0);
@@ -4479,6 +4645,7 @@ document.addEventListener('click', function(e) {
                 renderRainMode();
                 // previous-day history disabled
                 renderRainRateValues(d.rain.rate, d.rain.maxR, d.rain.maxRTime);
+                if (document.body.classList.contains('dashboard-layout-rain')) updateRainFocus();
                 updateValueWithFade('wg', d.wind.gust, 1, ' km/h'); 
 
                 document.getElementById('tTrendBox').innerHTML = d.temp.rate > 0 ? '<span class="trend-up">▲</span> +' + d.temp.rate + '°C /hr' : d.temp.rate < 0 ? '<span class="trend-down">▼</span> ' + d.temp.rate + '°C /hr' : '● Steady';
