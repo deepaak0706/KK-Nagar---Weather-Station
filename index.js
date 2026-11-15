@@ -3416,6 +3416,59 @@ body.dashboard-layout-minimal #page-dashboard .card:nth-child(4) #pr { color:var
     body.dashboard-layout-minimal #page-dashboard .card .main-val { font-size:clamp(26px, 10vw, 38px); letter-spacing:-2px; }
     body.dashboard-layout-minimal #page-dashboard .card .unit { font-size:10px; }
 }
+
+/* Final compact navigation: a consistent glass quick-switcher on every screen. */
+.dashboard-nav-views .dashboard-layout-option { grid-template-columns:28px 1fr; min-height:44px; padding:8px; }
+.dashboard-nav-views .dashboard-layout-option strong { font-size:13px; font-weight:650; }
+.dashboard-nav-views .dashboard-layout-option small { display:none; }
+.dashboard-nav-views .dashboard-layout-option-icon { color:#7dd3fc; background:rgba(56,189,248,.12); }
+@media screen and (max-width:767px) {
+    .dashboard-nav-overlay { background:rgba(2,6,23,.20); }
+    .dashboard-nav-drawer { top:76px; right:auto; bottom:auto; left:16px; width:min(274px, calc(100vw - 32px)); max-height:calc(100dvh - 92px); padding:14px; border-radius:18px; box-shadow:0 18px 42px rgba(2,6,23,.38); transform:translateY(-12px) scale(.98); opacity:0; pointer-events:none; }
+    .dashboard-nav-drawer.is-open { transform:translateY(0) scale(1); opacity:1; pointer-events:auto; }
+    .dashboard-nav-drawer::before { display:none; }
+    .dashboard-nav-heading { padding:2px 5px 5px; font-size:9px; }
+    .dashboard-nav-link { min-height:40px; padding:0 10px; font-size:13px; }
+    .dashboard-nav-views .dashboard-layout-option { min-height:40px; padding:6px 7px; }
+    .dashboard-nav-views .dashboard-layout-option strong { font-size:12px; }
+}
+
+/* Minimal is one weather-pulse board: four readings share one canvas. */
+body.dashboard-layout-minimal #page-dashboard .grid-system {
+    position:relative;
+    display:grid;
+    grid-template-columns:repeat(2, minmax(0, 1fr)) !important;
+    gap:0;
+    padding:8px;
+    overflow:hidden;
+    border:1px solid color-mix(in srgb, var(--border) 78%, #38bdf8 22%);
+    border-radius:26px;
+    background:
+        radial-gradient(500px 250px at 100% 0%, rgba(56,189,248,.12), transparent 68%),
+        linear-gradient(145deg, color-mix(in srgb, var(--card) 96%, #0b2940 4%), var(--card));
+    box-shadow:0 22px 42px -32px rgba(56,189,248,.55);
+}
+body.dashboard-layout-minimal #page-dashboard .card {
+    min-height:196px;
+    margin:0;
+    padding:24px !important;
+    border:0 !important;
+    border-radius:0 !important;
+    background:transparent !important;
+    box-shadow:none !important;
+}
+body.dashboard-layout-minimal #page-dashboard .card::before { right:24px; left:24px; }
+body.dashboard-layout-minimal #page-dashboard .card:nth-child(odd) { border-right:1px solid rgba(125,211,252,.16) !important; }
+body.dashboard-layout-minimal #page-dashboard .card:nth-child(-n+2) { border-bottom:1px solid rgba(125,211,252,.16) !important; }
+body.dashboard-layout-minimal #page-dashboard .card:nth-child(1) .main-val { color:#fecdd3; }
+body.dashboard-layout-minimal #page-dashboard .card:nth-child(2) .main-val { color:#fde68a; }
+body.dashboard-layout-minimal #page-dashboard .card:nth-child(3) .main-val { color:#67e8f9; }
+body.dashboard-layout-minimal #page-dashboard .card:nth-child(4) .main-val { color:#99f6e4; }
+@media screen and (max-width:767px) {
+    body.dashboard-layout-minimal #page-dashboard .grid-system { padding:5px; border-radius:21px; gap:0; }
+    body.dashboard-layout-minimal #page-dashboard .card { min-height:148px; padding:16px !important; }
+    body.dashboard-layout-minimal #page-dashboard .card::before { right:16px; left:16px; }
+}
 </style>
 </head>
 <body>
@@ -3426,18 +3479,17 @@ body.dashboard-layout-minimal #page-dashboard .card:nth-child(4) #pr { color:var
 </div>
 <div class="dashboard-nav-overlay" id="dashboardNavOverlay" onclick="closeDashboardNav()"></div>
 <aside class="dashboard-nav-drawer" id="dashboardNavDrawer" aria-label="Application navigation" aria-hidden="true">
-    <div class="dashboard-nav-heading">Dashboard</div>
+    <div class="dashboard-nav-heading">Dashboard view</div>
     <div class="dashboard-nav-links">
-        <button class="dashboard-nav-link" id="dashboardNavMain" type="button" onclick="navigateDashboardNav('dashboard')">← Main Dashboard</button>
+        <button class="dashboard-nav-link" id="dashboardNavMain" type="button" onclick="navigateDashboardNav('dashboard')">Main Dashboard</button>
     </div>
     <div class="dashboard-nav-view-divider"></div>
-    <div class="dashboard-nav-heading">Choose your view</div>
     <div class="dashboard-nav-views" id="dashboardLayoutControl">
         <div class="dashboard-layout-menu is-open" id="dashboardLayoutMenu" role="menu" aria-label="Dashboard view">
-            <button class="dashboard-layout-option" type="button" data-layout="classic" onclick="setDashboardLayout('classic')"><span class="dashboard-layout-option-icon">▦</span><span><strong>Classic</strong><small>Balanced four-card dashboard</small></span></button>
-            <button class="dashboard-layout-option" type="button" data-layout="rain" onclick="setDashboardLayout('rain')"><span class="dashboard-layout-option-icon">☔</span><span><strong>Rain focus</strong><small>Rainfall becomes the lead card</small></span></button>
-            <button class="dashboard-layout-option" type="button" data-layout="minimal" onclick="setDashboardLayout('minimal')"><span class="dashboard-layout-option-icon">—</span><span><strong>Minimal pulse</strong><small>Compact live-weather deck</small></span></button>
-            <button class="dashboard-layout-option" type="button" onclick="openStationComparison()"><span class="dashboard-layout-option-icon">◫</span><span><strong>Station comparison</strong><small>Open the all-station rain grid</small></span></button>
+            <button class="dashboard-layout-option" type="button" data-layout="classic" onclick="setDashboardLayout('classic')"><span class="dashboard-layout-option-icon">▦</span><span><strong>Classic</strong></span></button>
+            <button class="dashboard-layout-option" type="button" data-layout="rain" onclick="setDashboardLayout('rain')"><span class="dashboard-layout-option-icon">☔</span><span><strong>Rain Focus</strong></span></button>
+            <button class="dashboard-layout-option" type="button" data-layout="minimal" onclick="setDashboardLayout('minimal')"><span class="dashboard-layout-option-icon">—</span><span><strong>Minimal</strong></span></button>
+            <button class="dashboard-layout-option" type="button" onclick="openStationComparison()"><span class="dashboard-layout-option-icon">◫</span><span><strong>Station Summary</strong></span></button>
         </div>
     </div>
 </aside>
@@ -3849,7 +3901,10 @@ function setDashboardLayout(layout) {
     dashboardLayout = ['classic', 'rain', 'minimal'].includes(layout) ? layout : 'classic';
     localStorage.setItem('dashboardLayout', dashboardLayout);
     updateDashboardLayoutUI();
-    closeDashboardNav();
+    // Layout choices always take the visitor to the dashboard. This means they
+    // can switch directly from Station Summary without a two-step detour.
+    if (isStationSummaryRoute()) navigateDashboardNav('dashboard');
+    else closeDashboardNav();
 }
 
 function openStationComparison() {
