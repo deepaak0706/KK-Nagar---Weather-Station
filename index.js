@@ -3383,6 +3383,19 @@ body.dashboard-layout-minimal #page-dashboard .sub-tabs-section { display:none !
 .dashboard-nav-link.dashboard-mode-tile.active .mode-icon { background:#38bdf8; color:#06283c; }
 .rain-focus-chart { height:270px; }
 @media(max-width:767px){.dashboard-nav-drawer { top:70px; left:14px; width:min(300px,calc(100vw - 28px)); padding:12px; border-radius:16px; }.dashboard-nav-links { gap:6px; }.dashboard-nav-link.dashboard-mode-tile { min-height:74px; font-size:9px; }.dashboard-nav-link .mode-icon { width:25px; height:25px; font-size:12px; }.rain-focus-chart { height:210px; }}
+
+/* iOS-safe floating menu and a compact vertical mode list. */
+.dashboard-nav-links { grid-template-columns:1fr; gap:6px; }
+.dashboard-nav-link.dashboard-mode-tile { min-height:54px; flex-direction:row; justify-content:flex-start; gap:11px; padding:8px 10px; border-radius:12px; font-size:12px; text-align:left; }
+.dashboard-nav-link.dashboard-mode-tile::after { content:'›'; margin-left:auto; color:#6d8ca5; font-size:18px; font-weight:400; }
+.dashboard-nav-link .mode-icon { flex:0 0 auto; width:30px; height:30px; }
+@media(max-width:767px){
+    body { padding-top:calc(30px + env(safe-area-inset-top, 0px)); }
+    .dashboard-nav-drawer { top:calc(82px + env(safe-area-inset-top, 0px)); width:min(292px,calc(100vw - 28px)); padding:12px; }
+    .dashboard-nav-links { gap:5px; }
+    .dashboard-nav-link.dashboard-mode-tile { min-height:50px; padding:7px 9px; font-size:12px; }
+    .dashboard-nav-link .mode-icon { width:28px; height:28px; }
+}
 </style>
 </head>
 <body>
