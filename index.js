@@ -3638,8 +3638,8 @@ body.dashboard-layout-minimal #page-dashboard .sub-tabs-section { display:none !
                     </div>
 
                     <section id="rainFocusPanel" class="rain-focus-panel" aria-label="Rainfall observatory">
-                        <div class="rain-focus-top"><div><span class="rain-focus-kicker">Rain observatory</span><strong id="rainFocusState" class="rain-focus-state">Dry conditions</strong></div></div>
-                        <div class="rain-bands"><span data-band="light">Light<b>0–10</b></span><span data-band="moderate">Moderate<b>10–40</b></span><span data-band="heavy">Heavy<b>40–80</b></span><span data-band="very-heavy">Very heavy<b>80–120</b></span><span data-band="extreme">Extreme<b>120+</b></span></div>
+                        <div class="rain-focus-top"><div><span class="rain-focus-kicker">Rain intensity</span><strong id="rainFocusState" class="rain-focus-state">Dry conditions</strong></div></div>
+                        <div class="rain-bands"><span data-band="light">Light<b>0–10 mm/h</b></span><span data-band="moderate">Moderate<b>10–40 mm/h</b></span><span data-band="heavy">Heavy<b>40–80 mm/h</b></span><span data-band="very-heavy">Very heavy<b>80–120 mm/h</b></span><span data-band="extreme">Extreme<b>120+ mm/h</b></span></div>
                         <div class="rain-focus-totals"><div><span>Last 1 hour</span><strong id="rfLastHour">—</strong><small> mm</small></div><div><span>Highest 1 hour</span><strong id="rfPeakHour">—</strong><small> mm</small></div><div><span>Monthly</span><strong id="rfMonth">—</strong><small> mm</small></div><div><span id="rfSeasonLabel">Season</span><strong id="rfSeason">—</strong><small> mm</small></div><div><span>Yearly</span><strong id="rfYear">—</strong><small> mm</small></div></div>
                         <div class="rain-focus-chart-head"><span>Rain rate + accumulation</span><span>Recent readings</span></div><div class="rain-focus-chart"><canvas id="rainFocusChart"></canvas></div>
                     </section>
