@@ -3372,6 +3372,50 @@ body.dashboard-layout-minimal #page-dashboard .card .mod-divider,
 body.dashboard-layout-minimal #page-dashboard .card .modular-inline-stack { display:none; }
 body.dashboard-layout-minimal #page-dashboard .card .row-block { min-height:74px; }
 @media screen and (max-width:767px) { .dashboard-layout-toggle { width:34px; padding:0; justify-content:center; } .dashboard-layout-toggle span { display:none; } .dashboard-layout-menu { position:fixed; top:auto; right:12px; bottom:calc(16px + env(safe-area-inset-bottom, 0px)); width:min(250px, calc(100vw - 24px)); } body.dashboard-layout-rain #page-dashboard .grid-system { display:flex; flex-direction:column; } body.dashboard-layout-rain #page-dashboard .grid-system > .card:nth-child(3) { order:-1; } }
+
+/* The view picker lives inside the hamburger; never floats over dashboard cards. */
+.dashboard-nav-view-divider { height:1px; margin:1px 2px; background:linear-gradient(90deg, transparent, var(--border), transparent); }
+.dashboard-nav-views .dashboard-layout-menu { position:static; display:grid; width:auto; padding:0; border:0; border-radius:0; background:transparent; box-shadow:none; backdrop-filter:none; }
+.dashboard-nav-views .dashboard-layout-option { padding:10px 8px; }
+.dashboard-nav-views .dashboard-layout-option.is-active { background:linear-gradient(90deg, rgba(56,189,248,.18), rgba(56,189,248,.05)); box-shadow:inset 2px 0 0 #38bdf8; }
+.dashboard-nav-views .dashboard-layout-option-icon { width:28px; height:28px; border-radius:9px; }
+
+/* Minimal pulse: a crisp two-by-two live reading deck, not a vertical stack. */
+body.dashboard-layout-minimal #page-dashboard .grid-system { grid-template-columns:repeat(2, minmax(0, 1fr)) !important; gap:12px; }
+body.dashboard-layout-minimal #page-dashboard .card { min-height:178px; padding:18px !important; justify-content:flex-start; overflow:hidden; background:linear-gradient(145deg, color-mix(in srgb, var(--card) 96%, #0b2940 4%), var(--card)) !important; }
+body.dashboard-layout-minimal #page-dashboard .card::before { content:''; position:absolute; top:0; right:18px; left:18px; height:2px; border-radius:999px; background:linear-gradient(90deg, transparent, currentColor, transparent); opacity:.55; }
+body.dashboard-layout-minimal #page-dashboard .card:nth-child(1) { color:#fb7185; }
+body.dashboard-layout-minimal #page-dashboard .card:nth-child(2) { color:#fbbf24; }
+body.dashboard-layout-minimal #page-dashboard .card:nth-child(3) { color:#38bdf8; }
+body.dashboard-layout-minimal #page-dashboard .card:nth-child(4) { color:#2dd4bf; }
+body.dashboard-layout-minimal #page-dashboard .card > div:first-child { width:100%; }
+body.dashboard-layout-minimal #page-dashboard .card .label { color:currentColor; font-size:10px; letter-spacing:.12em; }
+body.dashboard-layout-minimal #page-dashboard .card .row-block { display:block; min-height:0; margin-top:20px; }
+body.dashboard-layout-minimal #page-dashboard .card .left-panel { width:100%; }
+body.dashboard-layout-minimal #page-dashboard .card .right-panel,
+body.dashboard-layout-minimal #page-dashboard .card .v-line,
+body.dashboard-layout-minimal #page-dashboard .card #tTrendBox,
+body.dashboard-layout-minimal #page-dashboard .card .sub-pill,
+body.dashboard-layout-minimal #page-dashboard .card canvas,
+body.dashboard-layout-minimal #page-dashboard .card .rain-observation,
+body.dashboard-layout-minimal #page-dashboard .card #r_imd_box { display:none !important; }
+body.dashboard-layout-minimal #page-dashboard .card .main-val { color:var(--text); font-size:clamp(30px, 4.8vw, 46px); }
+body.dashboard-layout-minimal #page-dashboard .card .unit { font-size:12px; }
+body.dashboard-layout-minimal #page-dashboard .card:nth-child(3) #r_tot { color:#50d5ff; }
+body.dashboard-layout-minimal #page-dashboard .card:nth-child(4) #pr { color:var(--text); }
+@media screen and (max-width:767px) {
+    .dashboard-nav-drawer { top:auto; right:10px; bottom:10px; left:10px; width:auto; max-height:min(490px, calc(100dvh - 20px)); padding:18px 16px calc(18px + env(safe-area-inset-bottom, 0px)); border:1px solid var(--border); border-radius:24px; box-shadow:0 -16px 42px rgba(2,6,23,.34); transform:translateY(calc(100% + 28px)); overflow:auto; }
+    .dashboard-nav-drawer.is-open { transform:translateY(0); }
+    .dashboard-nav-drawer::before { content:''; width:36px; height:4px; margin:0 auto 2px; border-radius:999px; background:var(--border); }
+    .dashboard-nav-links { grid-template-columns:1fr; }
+    .dashboard-nav-link { min-height:42px; }
+    body.dashboard-layout-minimal #page-dashboard .grid-system { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)) !important; gap:10px; }
+    body.dashboard-layout-minimal #page-dashboard .card { min-height:142px; padding:14px !important; border-radius:16px !important; }
+    body.dashboard-layout-minimal #page-dashboard .card .label { font-size:8px; }
+    body.dashboard-layout-minimal #page-dashboard .card .row-block { margin-top:15px; }
+    body.dashboard-layout-minimal #page-dashboard .card .main-val { font-size:clamp(26px, 10vw, 38px); letter-spacing:-2px; }
+    body.dashboard-layout-minimal #page-dashboard .card .unit { font-size:10px; }
+}
 </style>
 </head>
 <body>
@@ -3382,10 +3426,19 @@ body.dashboard-layout-minimal #page-dashboard .card .row-block { min-height:74px
 </div>
 <div class="dashboard-nav-overlay" id="dashboardNavOverlay" onclick="closeDashboardNav()"></div>
 <aside class="dashboard-nav-drawer" id="dashboardNavDrawer" aria-label="Application navigation" aria-hidden="true">
-    <div class="dashboard-nav-heading">Navigate</div>
+    <div class="dashboard-nav-heading">Dashboard</div>
     <div class="dashboard-nav-links">
-        <button class="dashboard-nav-link" id="dashboardNavMain" type="button" onclick="navigateDashboardNav('dashboard')">Main Dashboard</button>
-        <button class="dashboard-nav-link" id="dashboardNavSummary" type="button" onclick="navigateDashboardNav('summary')">Station Summary</button>
+        <button class="dashboard-nav-link" id="dashboardNavMain" type="button" onclick="navigateDashboardNav('dashboard')">← Main Dashboard</button>
+    </div>
+    <div class="dashboard-nav-view-divider"></div>
+    <div class="dashboard-nav-heading">Choose your view</div>
+    <div class="dashboard-nav-views" id="dashboardLayoutControl">
+        <div class="dashboard-layout-menu is-open" id="dashboardLayoutMenu" role="menu" aria-label="Dashboard view">
+            <button class="dashboard-layout-option" type="button" data-layout="classic" onclick="setDashboardLayout('classic')"><span class="dashboard-layout-option-icon">▦</span><span><strong>Classic</strong><small>Balanced four-card dashboard</small></span></button>
+            <button class="dashboard-layout-option" type="button" data-layout="rain" onclick="setDashboardLayout('rain')"><span class="dashboard-layout-option-icon">☔</span><span><strong>Rain focus</strong><small>Rainfall becomes the lead card</small></span></button>
+            <button class="dashboard-layout-option" type="button" data-layout="minimal" onclick="setDashboardLayout('minimal')"><span class="dashboard-layout-option-icon">—</span><span><strong>Minimal pulse</strong><small>Compact live-weather deck</small></span></button>
+            <button class="dashboard-layout-option" type="button" onclick="openStationComparison()"><span class="dashboard-layout-option-icon">◫</span><span><strong>Station comparison</strong><small>Open the all-station rain grid</small></span></button>
+        </div>
     </div>
 </aside>
     <div class="container">
@@ -3434,16 +3487,6 @@ body.dashboard-layout-minimal #page-dashboard .card .row-block { min-height:74px
         </div>
 
         <div class="header-actions">
-            <div class="dashboard-layout-control" id="dashboardLayoutControl">
-                <button class="dashboard-layout-toggle" id="dashboardLayoutToggle" type="button" onclick="toggleDashboardLayoutMenu()" aria-expanded="false" aria-controls="dashboardLayoutMenu" title="Choose dashboard view"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z"/></svg><span>View</span></button>
-                <div class="dashboard-layout-menu" id="dashboardLayoutMenu" role="menu" aria-label="Dashboard view">
-                    <div class="dashboard-layout-menu-title">Dashboard view</div>
-                    <button class="dashboard-layout-option" type="button" data-layout="classic" onclick="setDashboardLayout('classic')"><span class="dashboard-layout-option-icon">▦</span><span><strong>Classic</strong><small>Balanced four-card dashboard</small></span></button>
-                    <button class="dashboard-layout-option" type="button" data-layout="rain" onclick="setDashboardLayout('rain')"><span class="dashboard-layout-option-icon">☔</span><span><strong>Rain focus</strong><small>Rainfall becomes the lead card</small></span></button>
-                    <button class="dashboard-layout-option" type="button" data-layout="minimal" onclick="setDashboardLayout('minimal')"><span class="dashboard-layout-option-icon">—</span><span><strong>Minimal</strong><small>Live readings with less detail</small></span></button>
-                    <button class="dashboard-layout-option" type="button" onclick="openStationComparison()"><span class="dashboard-layout-option-icon">◫</span><span><strong>Station comparison</strong><small>Open the all-station rain grid</small></span></button>
-                </div>
-            </div>
             <div class="status-bar"><div class="live-dot"></div><div class="timestamp"><span id="ts">--:--:--</span></div></div>
             <div class="theme-toggle" id="themeToggle">
                 <div class="theme-btn" id="btn-light">LIGHT</div>
@@ -3795,6 +3838,9 @@ function toggleDashboardLayoutMenu() {
 function closeDashboardLayoutMenu() {
     const menu = document.getElementById('dashboardLayoutMenu');
     const toggle = document.getElementById('dashboardLayoutToggle');
+    // The picker now lives permanently inside the hamburger. This branch only
+    // supports the former floating header control if an older cached page has it.
+    if (!toggle) return;
     if (menu) menu.classList.remove('is-open');
     if (toggle) toggle.setAttribute('aria-expanded', 'false');
 }
@@ -3803,7 +3849,7 @@ function setDashboardLayout(layout) {
     dashboardLayout = ['classic', 'rain', 'minimal'].includes(layout) ? layout : 'classic';
     localStorage.setItem('dashboardLayout', dashboardLayout);
     updateDashboardLayoutUI();
-    closeDashboardLayoutMenu();
+    closeDashboardNav();
 }
 
 function openStationComparison() {
@@ -3863,7 +3909,6 @@ function closeDashboardNav() {
 function updateDashboardNavState() {
     const summaryOpen = isStationSummaryRoute();
     document.getElementById('dashboardNavMain').classList.toggle('active', !summaryOpen);
-    document.getElementById('dashboardNavSummary').classList.toggle('active', summaryOpen);
 }
 
 function navigateDashboardNav(destination) {
