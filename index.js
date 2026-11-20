@@ -3580,13 +3580,6 @@ body.dashboard-layout-minimal #page-dashboard .sub-tabs-section { display:none !
                             <div id="r_imd_since"></div>
                             <div id="r_imd_list" class="rain-imd-list"></div>
                         </div>
-                        <div id="rainObservation" class="rain-observation" aria-live="polite">
-                            <div class="rain-observation-top">
-                                <span id="rainStatusChip" class="rain-status-chip">Monitoring rainfall</span>
-                                <span id="rainEventDetail" class="rain-event-detail">Building today's rain trace</span>
-                            </div>
-                            <div id="rainRateRibbon" class="rain-rate-ribbon" aria-label="Recent rain-rate activity"></div>
-                        </div>
                         <div class="row-block">
                             <div class="left-panel">
                                 <div class="main-val"><span id="r_tot">0.0</span><span class="unit">mm</span></div>
@@ -4252,42 +4245,6 @@ document.addEventListener('click', function(e) {
         }
 
         let rainStatusRequestInFlight = false;
-        const rainRateTrail = [];
-
-        function renderRainObservation(rate, maxRate, maxRateTime) {
-            const current = Math.max(0, Number(rate) || 0);
-            const peak = Math.max(0, Number(maxRate) || 0);
-            const observation = document.getElementById('rainObservation');
-            const chip = document.getElementById('rainStatusChip');
-            const detail = document.getElementById('rainEventDetail');
-            const ribbon = document.getElementById('rainRateRibbon');
-            if (!observation || !chip || !detail || !ribbon) return;
-
-            rainRateTrail.push(current);
-            if (rainRateTrail.length > 12) rainRateTrail.shift();
-            const trailPeak = Math.max(1, ...rainRateTrail, peak);
-            ribbon.innerHTML = rainRateTrail.concat(Array(Math.max(0, 12 - rainRateTrail.length)).fill(0)).map(function(value) {
-                const height = Math.max(3, Math.round((value / trailPeak) * 22));
-                const active = value > 0;
-                return '<span style="height:' + height + 'px;background:' + (active ? 'linear-gradient(180deg,#67e8f9,#2563eb)' : 'rgba(100,116,139,.28)') + '"></span>';
-            }).join('');
-
-            const hasRainContext = current > 0 || peak > 0;
-            observation.style.display = hasRainContext ? 'block' : 'none';
-            observation.classList.toggle('has-rain', current > 0);
-            chip.classList.toggle('is-raining', current > 0);
-            if (current > 0) {
-                const intensity = current >= 50 ? 'Heavy rain' : current >= 15 ? 'Moderate rain' : 'Light rain';
-                chip.textContent = intensity + ' in progress';
-                detail.textContent = current.toFixed(1) + ' mm/h right now';
-            } else if (peak > 0) {
-                chip.textContent = 'Dry now · rain recorded today';
-                detail.textContent = 'Peak ' + peak.toFixed(1) + ' mm/h' + (maxRateTime ? ' at ' + maxRateTime : '');
-            } else {
-                chip.textContent = 'Dry conditions';
-                detail.textContent = 'No rain recorded in this window';
-            }
-        }
 
         function renderRainRateValues(rate, maxRate, maxRateTime) {
             const current = Number(rate) || 0;
@@ -4301,7 +4258,6 @@ document.addEventListener('click', function(e) {
                     ? peak.toFixed(1) + '<span style="font-size:11px; font-weight:600; color:var(--muted); margin-left:3px;">mm/h</span> <span style="font-size:9px; color:var(--muted); font-weight:500; opacity:0.75;">' + (maxRateTime || '') + '</span>'
                     : '0<span style="font-size:11px; font-weight:600; color:var(--muted); margin-left:3px;">mm/h</span>';
             }
-            renderRainObservation(current, peak, maxRateTime);
         }
 
         async function refreshRainRateOnly() {
