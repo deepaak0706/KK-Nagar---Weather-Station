@@ -3422,6 +3422,24 @@ body.is-night { background:radial-gradient(1100px 680px at 8% -15%, rgba(14,165,
 @keyframes pageReveal { from { opacity:0; transform:translateY(9px); } to { opacity:1; transform:translateY(0); } }
 @media(max-width:767px){ body.is-night { background:radial-gradient(560px 420px at 12% -8%, rgba(14,165,233,.14), transparent 65%), radial-gradient(520px 360px at 105% 20%, rgba(99,102,241,.09), transparent 70%), #070b13 !important; } .nav-tabs { padding:4px; border-radius:16px; } .grid-system .card { background:linear-gradient(135deg, rgba(15,29,48,.58), rgba(15,23,42,.16)) !important; box-shadow:0 14px 28px -29px rgba(56,189,248,.75) !important; } #page-summary .archive-container > div:first-child, #page-historical .archive-container > div:first-child { border-radius:16px !important; }}
 @media(prefers-reduced-motion:reduce){ html { scroll-behavior:auto; } *,*::before,*::after { animation-duration:.01ms !important; transition-duration:.01ms !important; } }
+
+/* Live environmental canvas — the atmosphere changes, not the information layout. */
+body { isolation:isolate; background:#070b13 !important; }
+body::before { content:''; position:fixed; z-index:0; inset:-25vmax; pointer-events:none; opacity:.9; background:radial-gradient(ellipse at 22% 18%, rgba(14,165,233,.20), transparent 34%), radial-gradient(ellipse at 82% 12%, rgba(99,102,241,.14), transparent 31%), radial-gradient(ellipse at 57% 86%, rgba(6,182,212,.10), transparent 35%); filter:blur(18px); animation:atmosphereDrift 20s ease-in-out infinite alternate; }
+body::after { content:''; position:fixed; z-index:0; inset:0; pointer-events:none; opacity:.30; background-image:linear-gradient(rgba(125,211,252,.035) 1px,transparent 1px),linear-gradient(90deg,rgba(125,211,252,.03) 1px,transparent 1px); background-size:56px 56px; mask-image:linear-gradient(to bottom,transparent,black 18%,black 80%,transparent); -webkit-mask-image:linear-gradient(to bottom,transparent,black 18%,black 80%,transparent); }
+.container { z-index:1; }
+@keyframes atmosphereDrift { 0% { transform:translate3d(-2%, -1%, 0) scale(1); } 48% { transform:translate3d(2%, 1%, 0) scale(1.06); } 100% { transform:translate3d(-1%, 3%, 0) scale(1.02); } }
+
+/* Restore the original clean card language: ambient background carries the energy. */
+.grid-system .card, .graph-card, .pro-summary-table, #page-summary .archive-container > div:first-child, #page-historical .archive-container > div:first-child { background:var(--card) !important; border-color:var(--border) !important; box-shadow:var(--glow) !important; }
+.grid-system .card::after { display:none !important; }
+.grid-system .card:hover, .graph-card:hover, .pro-summary-table:hover { transform:none !important; border-color:var(--border) !important; box-shadow:var(--glow) !important; }
+
+/* Actual rain produces a faint rainfield; dry days remain calm. */
+body.weather-raining::after { opacity:.55; background-image:repeating-linear-gradient(112deg, transparent 0 24px, rgba(125,211,252,.11) 25px 26px, transparent 27px 50px),linear-gradient(rgba(125,211,252,.035) 1px,transparent 1px),linear-gradient(90deg,rgba(125,211,252,.03) 1px,transparent 1px); background-size:108px 108px,56px 56px,56px 56px; animation:rainfield 1.7s linear infinite; }
+body.weather-raining::before { opacity:1; background:radial-gradient(ellipse at 25% 18%, rgba(34,211,238,.24), transparent 36%),radial-gradient(ellipse at 84% 13%, rgba(99,102,241,.18), transparent 35%),radial-gradient(ellipse at 50% 90%, rgba(14,165,233,.13), transparent 38%); }
+@keyframes rainfield { to { background-position:32px 76px,0 0,0 0; } }
+@media(max-width:767px){ body::before { inset:-42vmax; filter:blur(14px); opacity:.82; } body::after { background-size:42px 42px; } body.weather-raining::after { background-size:88px 88px,42px 42px,42px 42px; } }
 </style>
 </head>
 <body>
@@ -4275,6 +4293,8 @@ document.addEventListener('click', function(e) {
         function renderRainRateValues(rate, maxRate, maxRateTime) {
             const current = Number(rate) || 0;
             const peak = Number(maxRate) || 0;
+            // Ambient rain streaks are tied only to the actual current rate.
+            document.body.classList.toggle('weather-raining', current > 0);
             const rateElement = document.getElementById('r_rate');
             const maxElement = document.getElementById('mr');
             const currentText = current > 0 ? current.toFixed(1) : '0';
