@@ -651,6 +651,28 @@ function ensureImdTables() {
     return imdTablesReady;
 }
 
+// Daily spell summaries are kept independently from weather_history. The raw
+// history is intentionally cleared after the midnight archive, but these
+// records preserve the day's rain-event facts for later analysis.
+let rainStatisticsTablesReady = null;
+function ensureRainStatisticsTables() {
+    if (!rainStatisticsTablesReady) {
+        rainStatisticsTablesReady = pool.query(`
+            CREATE TABLE IF NOT EXISTS rain_daily_statistics (
+                station_id              TEXT        NOT NULL,
+                record_date             DATE        NOT NULL,
+                spell_count             INTEGER     NOT NULL DEFAULT 0,
+                longest_spell_minutes    INTEGER     NOT NULL DEFAULT 0,
+                longest_spell_total_mm   NUMERIC(10,2) NOT NULL DEFAULT 0,
+                strongest_spell_peak_mmh NUMERIC(10,2) NOT NULL DEFAULT 0,
+                strongest_spell_total_mm NUMERIC(10,2) NOT NULL DEFAULT 0,
+                PRIMARY KEY (station_id, record_date)
+            );
+        `).catch(err => { rainStatisticsTablesReady = null; throw err; });
+    }
+    return rainStatisticsTablesReady;
+}
+
 function shiftIstDate(dateStr, days) {
     const d = new Date(dateStr + 'T00:00:00Z');
     d.setUTCDate(d.getUTCDate() + days);
@@ -836,6 +858,65 @@ async function getImdLive(station, yearlyMm, dailyMm, nowMs) {
     };
 }
 
+const RAIN_SPELL_DRY_GAP_MS = 10 * 60 * 1000;
+
+function calculateRainSpellStats(rows, nowMs = Date.now()) {
+    const spells = [];
+    let active = null;
+    let previous = null;
+
+    const closeActiveSpell = () => {
+        if (!active) return;
+        active.durationMinutes = Math.max(0, Math.round((active.lastWetAt - active.startedAt) / 60000));
+        active.totalMm = Math.max(0, Number(active.totalMm.toFixed(2)));
+        active.peakRate = Math.max(0, Number(active.peakRate.toFixed(1)));
+        spells.push(active);
+        active = null;
+    };
+
+    for (const point of rows) {
+        const at = new Date(point.time).getTime();
+        if (!Number.isFinite(at)) continue;
+        const cumulative = Number(point.daily);
+        const previousCumulative = previous ? Number(previous.daily) : cumulative;
+        const increment = Number.isFinite(cumulative) && Number.isFinite(previousCumulative)
+            ? Math.max(0, cumulative - previousCumulative) : 0;
+        const rate = Math.max(0, Number(point.rate) || 0);
+        const isWet = increment > 0.001 || rate > 0.001;
+
+        if (isWet) {
+            if (active && at - active.lastWetAt > RAIN_SPELL_DRY_GAP_MS) closeActiveSpell();
+            if (!active) active = { startedAt: at, lastWetAt: at, totalMm: 0, peakRate: 0, durationMinutes: 0 };
+            active.totalMm += increment;
+            active.peakRate = Math.max(active.peakRate, rate);
+            active.lastWetAt = at;
+        } else if (active && at - active.lastWetAt >= RAIN_SPELL_DRY_GAP_MS) {
+            closeActiveSpell();
+        }
+        previous = point;
+    }
+
+    // A spell remains live until it has been dry for ten minutes.
+    const currentSpell = active && nowMs - active.lastWetAt < RAIN_SPELL_DRY_GAP_MS ? {
+        ...active,
+        durationMinutes: Math.max(0, Math.round((nowMs - active.startedAt) / 60000)),
+        totalMm: Math.max(0, Number(active.totalMm.toFixed(2))),
+        peakRate: Math.max(0, Number(active.peakRate.toFixed(1)))
+    } : null;
+    if (active && !currentSpell) closeActiveSpell();
+
+    const completed = currentSpell ? [...spells, currentSpell] : spells;
+    const longest = completed.reduce((best, spell) => !best || spell.durationMinutes > best.durationMinutes ? spell : best, null);
+    const strongest = completed.reduce((best, spell) => !best || spell.peakRate > best.peakRate ? spell : best, null);
+
+    return {
+        spellCount: completed.length,
+        currentSpell,
+        longestSpell: longest,
+        strongestSpell: strongest
+    };
+}
+
 /**
  * MAIN SYNC: Handles Dashboard, 10-Min DB Write, and Midnight Reset
  */
@@ -1004,6 +1085,7 @@ async function syncWithEcowitt(station, forceWrite = false) {
 
         let writerBuf;
         if (forceWrite) {
+            await ensureRainStatisticsTables();
             writerBuf = await loadBufferState(station);
             snap = {
                 maxT: writerBuf.bufMaxT, minT: writerBuf.bufMinT,
@@ -1078,6 +1160,47 @@ try {
     // Midnight rollup — runs INSIDE transaction
     let didRollup = false;
     if (hour === 0 && minute < 30 && st.lastArchivedDate !== todayISTStr) {
+        // Calculate rain spells while the detailed readings still exist. They
+        // are then saved permanently before the normal raw-history cleanup.
+        const spellRows = (await client.query(`
+            SELECT time, daily_rain_in, rain_rate_in
+            FROM weather_history
+            WHERE station_id = $1
+              AND (time AT TIME ZONE 'Asia/Kolkata')::date < $2::date
+            ORDER BY time ASC
+        `, [station.id, todayISTStr])).rows;
+        const spellDays = new Map();
+        spellRows.forEach(row => {
+            const recordDate = new Date(row.time).toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+            if (!spellDays.has(recordDate)) spellDays.set(recordDate, []);
+            spellDays.get(recordDate).push({
+                time: row.time,
+                daily: Number(row.daily_rain_in) * 25.4,
+                rate: Math.max(0, Number(row.rain_rate_in) * 25.4 || 0)
+            });
+        });
+        for (const [recordDate, points] of spellDays) {
+            const spellStats = calculateRainSpellStats(points, new Date(`${recordDate}T23:59:59+05:30`).getTime());
+            const longest = spellStats.longestSpell || {};
+            const strongest = spellStats.strongestSpell || {};
+            await client.query(`
+                INSERT INTO rain_daily_statistics
+                    (station_id, record_date, spell_count, longest_spell_minutes,
+                     longest_spell_total_mm, strongest_spell_peak_mmh, strongest_spell_total_mm)
+                VALUES ($1, $2::date, $3, $4, $5, $6, $7)
+                ON CONFLICT (station_id, record_date) DO UPDATE SET
+                    spell_count = EXCLUDED.spell_count,
+                    longest_spell_minutes = EXCLUDED.longest_spell_minutes,
+                    longest_spell_total_mm = EXCLUDED.longest_spell_total_mm,
+                    strongest_spell_peak_mmh = EXCLUDED.strongest_spell_peak_mmh,
+                    strongest_spell_total_mm = EXCLUDED.strongest_spell_total_mm
+            `, [
+                station.id, recordDate, spellStats.spellCount,
+                longest.durationMinutes || 0, longest.totalMm || 0,
+                strongest.peakRate || 0, strongest.totalMm || 0
+            ]);
+        }
+
         await client.query(`
             INSERT INTO daily_max_records 
                 (station_id, record_date, max_temp_c, min_temp_c, max_wind_kmh, max_gust_kmh, total_rain_mm)
@@ -1420,10 +1543,37 @@ app.get("/api/rain-status", async (req, res) => {
 app.get("/api/rain-focus", async (req, res) => {
     const s = getStation(req);
     try {
+        await Promise.all([ensureImdTables(), ensureRainStatisticsTables()]);
         const rows = (await pool.query(`SELECT time, daily_rain_in, rain_rate_in FROM weather_history WHERE station_id=$1 AND time >= NOW()-INTERVAL '27 hours' ORDER BY time ASC`, [s.id])).rows.map(r => ({ time:new Date(r.time), daily:Number(r.daily_rain_in)*25.4, rate:Math.max(0,Number(r.rain_rate_in)*25.4||0) }));
         const key = d => d.toLocaleDateString('en-CA',{timeZone:'Asia/Kolkata'});
         const rolling = rows.map((end,j) => { let i=j-1; while(i>=0 && end.time-rows[i].time<3600000)i--; if(i<0)return null; const start=rows[i]; let amount=key(start.time)===key(end.time)?end.daily-start.daily:(Math.max(...rows.slice(i,j+1).filter(x=>key(x.time)===key(start.time)).map(x=>x.daily))-start.daily+end.daily); return Math.max(0,amount); }).filter(x=>x!==null);
-        res.json({ lastHour:rolling.length?Number(rolling.at(-1).toFixed(1)):null, peakHour:rolling.length?Number(Math.max(...rolling).toFixed(1)):null, series:rows.slice(-48).map(r=>({time:r.time.toISOString(),rate:Number(r.rate.toFixed(1)),rain:Number(r.daily.toFixed(1))})) });
+        const todayKey = new Date().toLocaleDateString('en-CA', { timeZone:'Asia/Kolkata' });
+        const todayRows = rows.filter(row => key(row.time) === todayKey);
+        const spellStats = calculateRainSpellStats(todayRows);
+        const rainyDaysResult = await pool.query(`
+            SELECT COUNT(*)::int AS rainy_days
+            FROM imd_rain_daily
+            WHERE station_id = $1
+              AND window_date >= date_trunc('month', NOW() AT TIME ZONE 'Asia/Kolkata')::date
+              AND window_date < (date_trunc('month', NOW() AT TIME ZONE 'Asia/Kolkata') + INTERVAL '1 month')::date
+              AND total_mm >= 2.5
+        `, [s.id]);
+        const spell = value => value ? {
+            totalMm: value.totalMm,
+            durationMinutes: value.durationMinutes,
+            peakRate: value.peakRate,
+            startedAt: new Date(value.startedAt).toISOString()
+        } : null;
+        res.json({
+            lastHour: rolling.length ? Number(rolling.at(-1).toFixed(1)) : null,
+            peakHour: rolling.length ? Number(Math.max(...rolling).toFixed(1)) : null,
+            rainyDaysThisMonth: Number(rainyDaysResult.rows[0]?.rainy_days || 0),
+            spellsToday: spellStats.spellCount,
+            currentSpell: spell(spellStats.currentSpell),
+            longestSpell: spell(spellStats.longestSpell),
+            strongestSpell: spell(spellStats.strongestSpell),
+            series: rows.slice(-48).map(r=>({time:r.time.toISOString(),rate:Number(r.rate.toFixed(1)),rain:Number(r.daily.toFixed(1))}))
+        });
     } catch(e) { res.status(503).json({error:e.message}); }
 });
 
@@ -3365,10 +3515,11 @@ body:not(.is-night) .station-summary-radar-card.is-rain-leader { background: rad
 .rain-focus-top { display:flex; justify-content:space-between; align-items:end; gap:12px; }.rain-focus-kicker { display:block; color:#7dd3fc; font-size:10px; font-weight:700; letter-spacing:.12em; text-transform:uppercase; }.rain-focus-state { display:block; margin-top:5px; color:var(--text); font-size:20px; font-weight:650; }.rain-focus-current { color:#50d5ff; font-size:18px; font-weight:650; }
 .rain-bands { display:grid; grid-template-columns:repeat(5,1fr); gap:5px; margin-top:18px; }.rain-bands span { position:relative; padding:8px 3px; border:1px solid rgba(148,163,184,.14); border-radius:10px; color:var(--muted); font-size:8px; font-weight:600; line-height:1.25; text-align:center; }.rain-bands b { display:block; color:var(--text); font-size:9px; }.rain-bands span::before { content:''; position:absolute; top:0; right:7px; left:7px; height:3px; border-radius:99px; background:#475569; }.rain-bands .is-active { color:#e0f2fe; border-color:#38bdf8; background:rgba(56,189,248,.11); }.rain-bands .is-active::before { background:#38bdf8; }
 .rain-focus-totals { display:grid; grid-template-columns:repeat(5,1fr); gap:8px; margin-top:15px; }.rain-focus-totals div { min-width:0; padding:10px; border-radius:11px; background:rgba(15,23,42,.42); }.rain-focus-totals span { display:block; overflow:hidden; color:var(--muted); font-size:8px; font-weight:700; letter-spacing:.08em; text-overflow:ellipsis; text-transform:uppercase; white-space:nowrap; }.rain-focus-totals strong { display:inline-block; margin-top:5px; color:var(--text); font-size:20px; font-weight:600; letter-spacing:-1px; }.rain-focus-totals small { color:var(--muted); font-size:9px; font-weight:600; }
+.rain-spell-insights { margin-top:18px; padding-top:15px; border-top:1px solid rgba(125,211,252,.14); }.rain-spell-insights h3 { margin:0 0 10px; color:#7dd3fc; font-size:10px; font-weight:750; letter-spacing:.11em; text-transform:uppercase; }.rain-spell-grid { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:8px; }.rain-spell-grid div { min-width:0; padding:11px; border-radius:11px; background:linear-gradient(135deg,rgba(30,58,88,.3),rgba(15,23,42,.26)); }.rain-spell-grid span { display:block; overflow:hidden; color:var(--muted); font-size:8px; font-weight:700; letter-spacing:.08em; text-overflow:ellipsis; text-transform:uppercase; white-space:nowrap; }.rain-spell-grid strong { display:block; overflow:hidden; margin-top:5px; color:var(--text); font-size:18px; font-weight:650; letter-spacing:-.6px; text-overflow:ellipsis; white-space:nowrap; }.rain-spell-grid div:nth-child(1) strong { color:#7dd3fc; }.rain-spell-grid div:nth-child(2) strong { color:#67e8f9; }.rain-spell-grid div:nth-child(5) strong { color:#c4b5fd; }.rain-spell-grid small { display:block; margin-top:3px; overflow:hidden; color:var(--muted); font-size:9px; text-overflow:ellipsis; white-space:nowrap; }
 .rain-focus-chart-head { display:flex; justify-content:space-between; margin:18px 2px 8px; color:var(--muted); font-size:9px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; }.rain-focus-chart-head span:last-child { color:#7dd3fc; }.rain-focus-chart { height:190px; padding:7px 4px 0; border-radius:12px; background:rgba(2,6,23,.18); }.rain-focus-chart canvas { width:100% !important; height:100% !important; }
 body.dashboard-layout-rain #page-dashboard .grid-system { display:block; width:min(1120px,100%); max-width:none; margin:0 auto 30px; } body.dashboard-layout-rain #page-dashboard .grid-system > .card:nth-child(1), body.dashboard-layout-rain #page-dashboard .grid-system > .card:nth-child(2), body.dashboard-layout-rain #page-dashboard .grid-system > .card:nth-child(4), body.dashboard-layout-rain #page-dashboard .sub-tabs-section { display:none !important; } body.dashboard-layout-rain #page-dashboard .grid-system > .card:nth-child(3) { display:flex; min-height:0; padding:clamp(8px,2vw,20px) !important; border:0 !important; border-radius:0 !important; background:transparent !important; box-shadow:none !important; } body.dashboard-layout-rain #page-dashboard .grid-system > .card:nth-child(3) > .mod-divider, body.dashboard-layout-rain #page-dashboard .grid-system > .card:nth-child(3) > .modular-inline-stack, body.dashboard-layout-rain #page-dashboard .rain-observation { display:none !important; } body.dashboard-layout-rain #page-dashboard .grid-system > .card:nth-child(3) .row-block { margin:12px 0 8px; } body.dashboard-layout-rain .rain-focus-panel { display:block; margin-top:16px; padding:22px 0 0; border:0; border-top:1px solid rgba(125,211,252,.22); border-radius:0; background:transparent; } body.dashboard-layout-rain .rain-focus-chart { border-top:1px solid rgba(125,211,252,.12); border-radius:0; background:transparent; }
 body.dashboard-layout-minimal #page-dashboard .sub-tabs-section { display:none !important; } body.dashboard-layout-minimal #page-dashboard .grid-system { grid-template-columns:repeat(2,minmax(0,1fr)) !important; gap:0; padding:7px; overflow:hidden; border:1px solid rgba(80,213,255,.25); border-radius:24px; background:radial-gradient(520px 230px at 100% 0%,rgba(56,189,248,.12),transparent 70%),var(--card); } body.dashboard-layout-minimal #page-dashboard .card { min-height:180px; padding:22px !important; border:0 !important; border-radius:0 !important; background:transparent !important; box-shadow:none !important; } body.dashboard-layout-minimal #page-dashboard .card:nth-child(odd) { border-right:1px solid rgba(125,211,252,.16) !important; } body.dashboard-layout-minimal #page-dashboard .card:nth-child(-n+2) { border-bottom:1px solid rgba(125,211,252,.16) !important; } body.dashboard-layout-minimal #page-dashboard .card .right-panel, body.dashboard-layout-minimal #page-dashboard .card .v-line, body.dashboard-layout-minimal #page-dashboard .card .mod-divider, body.dashboard-layout-minimal #page-dashboard .card .modular-inline-stack, body.dashboard-layout-minimal #page-dashboard .card canvas, body.dashboard-layout-minimal #page-dashboard .card .sub-pill, body.dashboard-layout-minimal #page-dashboard .rain-observation { display:none !important; }
-@media(max-width:767px){.rain-focus-panel{margin-top:16px;padding:18px 0 0}.rain-bands{gap:3px}.rain-bands span{font-size:7px}.rain-bands b{font-size:8px}.rain-focus-totals{grid-template-columns:repeat(2,1fr)}.rain-focus-chart{height:150px}body.dashboard-layout-minimal #page-dashboard .card{min-height:142px;padding:15px !important}.dashboard-nav-drawer{top:70px;bottom:auto;left:14px;width:min(250px,calc(100vw - 28px));padding:13px;border-radius:17px;transform:translateY(-10px);opacity:0;pointer-events:none}.dashboard-nav-drawer.is-open{transform:translateY(0);opacity:1;pointer-events:auto}}
+@media(max-width:767px){.rain-focus-panel{margin-top:16px;padding:18px 0 0}.rain-bands{gap:3px}.rain-bands span{font-size:7px}.rain-bands b{font-size:8px}.rain-focus-totals,.rain-spell-grid{grid-template-columns:repeat(2,1fr)}.rain-focus-chart{height:150px}body.dashboard-layout-minimal #page-dashboard .card{min-height:142px;padding:15px !important}.dashboard-nav-drawer{top:70px;bottom:auto;left:14px;width:min(250px,calc(100vw - 28px));padding:13px;border-radius:17px;transform:translateY(-10px);opacity:0;pointer-events:none}.dashboard-nav-drawer.is-open{transform:translateY(0);opacity:1;pointer-events:auto}}
 
 /* Compact mode palette: a floating, glassy control rather than a side panel. */
 .dashboard-nav-overlay { background:rgba(2,6,23,.18); }
@@ -3634,6 +3785,7 @@ body.dashboard-layout-minimal #page-dashboard .sub-tabs-section { display:none !
                         <div class="rain-focus-top"><div><span class="rain-focus-kicker">Rain intensity</span><strong id="rainFocusState" class="rain-focus-state">Dry conditions</strong></div></div>
                         <div class="rain-bands"><span data-band="light">Light<b>0–10 mm/h</b></span><span data-band="moderate">Moderate<b>10–40 mm/h</b></span><span data-band="heavy">Heavy<b>40–80 mm/h</b></span><span data-band="very-heavy">Very heavy<b>80–120 mm/h</b></span><span data-band="extreme">Extreme<b>120+ mm/h</b></span></div>
                         <div class="rain-focus-totals"><div><span>Last 1 hour</span><strong id="rfLastHour">—</strong><small> mm</small></div><div><span>Highest 1 hour</span><strong id="rfPeakHour">—</strong><small> mm</small></div><div><span>Monthly</span><strong id="rfMonth">—</strong><small> mm</small></div><div><span id="rfSeasonLabel">Season</span><strong id="rfSeason">—</strong><small> mm</small></div><div><span>Yearly</span><strong id="rfYear">—</strong><small> mm</small></div></div>
+                        <div class="rain-spell-insights" aria-label="Rain day insights"><h3>Rain day insights</h3><div class="rain-spell-grid"><div><span>Rainy days</span><strong id="rfRainyDays">—</strong><small>this month · ≥2.5 mm</small></div><div><span>Spells today</span><strong id="rfSpellCount">—</strong><small>10-min dry-gap rule</small></div><div><span>Current spell</span><strong id="rfCurrentSpell">—</strong><small id="rfCurrentSpellDetail">No active rain</small></div><div><span>Longest spell</span><strong id="rfLongestSpell">—</strong><small id="rfLongestSpellDetail">today</small></div><div><span>Strongest spell</span><strong id="rfStrongestSpell">—</strong><small id="rfStrongestSpellDetail">peak rate today</small></div></div></div>
                         <div class="rain-focus-chart-head"><span>Rain rate + accumulation</span><span>Recent readings</span></div><div class="rain-focus-chart"><canvas id="rainFocusChart"></canvas></div>
                     </section>
                 </div>
@@ -3816,9 +3968,20 @@ function renderRainFocus(data, rain) {
     const band = rate >= 120 ? 'extreme' : rate >= 80 ? 'very-heavy' : rate >= 40 ? 'heavy' : rate >= 10 ? 'moderate' : rate > 0 ? 'light' : '';
     const names = {light:'Light rain',moderate:'Moderate rain',heavy:'Heavy rain','very-heavy':'Very heavy rain',extreme:'Extreme rain'};
     const put = (id,v) => { const e=document.getElementById(id); if(e)e.textContent=v===null||v===undefined?'—':Number(v).toFixed(1); };
+    const text = (id, value) => { const e=document.getElementById(id); if(e)e.textContent=value; };
+    const formatSpell = spell => spell ? Number(spell.totalMm || 0).toFixed(1) + ' mm' : '—';
+    const formatMinutes = spell => spell ? Math.max(0, Number(spell.durationMinutes) || 0) + ' min' : '—';
     const state=document.getElementById('rainFocusState'); if(state)state.textContent=names[band]||'Dry conditions';
     document.querySelectorAll('.rain-bands [data-band]').forEach(e=>e.classList.toggle('is-active',e.dataset.band===band));
     put('rfLastHour',data&&data.lastHour); put('rfPeakHour',data&&data.peakHour); put('rfMonth',rain&&rain.monthly); put('rfSeason',rain&&(rain.seasonTotal ?? rain.swm)); put('rfYear',rain&&rain.yearly);
+    text('rfRainyDays', data && data.rainyDaysThisMonth !== undefined ? String(data.rainyDaysThisMonth) : '—');
+    text('rfSpellCount', data && data.spellsToday !== undefined ? String(data.spellsToday) : '—');
+    text('rfCurrentSpell', formatSpell(data && data.currentSpell));
+    text('rfCurrentSpellDetail', data && data.currentSpell ? formatMinutes(data.currentSpell) + ' · active now' : 'No active rain');
+    text('rfLongestSpell', formatMinutes(data && data.longestSpell));
+    text('rfLongestSpellDetail', data && data.longestSpell ? formatSpell(data.longestSpell) + ' accumulated' : 'No spell today');
+    text('rfStrongestSpell', data && data.strongestSpell ? Number(data.strongestSpell.peakRate || 0).toFixed(1) + ' mm/h' : '—');
+    text('rfStrongestSpellDetail', data && data.strongestSpell ? formatSpell(data.strongestSpell) + ' in that spell' : 'No spell today');
     const label=document.getElementById('rfSeasonLabel'); if(label)label.textContent=(rain&&rain.seasonLabel)||'Season';
     const series=Array.isArray(data&&data.series)?data.series:[]; const c=document.getElementById('rainFocusChart'); if(!c||typeof Chart==='undefined')return;
     if(!rainFocusChart) rainFocusChart=new Chart(c.getContext('2d'),{type:'line',data:{labels:[],datasets:[{label:'Rain rate',data:[],borderColor:'#50d5ff',backgroundColor:'rgba(80,213,255,.16)',fill:true,tension:.35,pointRadius:0,yAxisID:'rate'},{label:'Accumulated rain',data:[],borderColor:'#a78bfa',borderDash:[5,4],fill:false,tension:.25,pointRadius:0,yAxisID:'rain'}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#9eb5ce',boxWidth:9,font:{size:9}}}},scales:{x:{grid:{display:false},ticks:{color:'#7890a8',font:{size:8},maxTicksLimit:6}},rate:{beginAtZero:true,position:'left',grid:{color:'rgba(148,163,184,.12)'},ticks:{color:'#7890a8',font:{size:8},maxTicksLimit:4}},rain:{beginAtZero:true,position:'right',grid:{drawOnChartArea:false},ticks:{color:'#a78bfa',font:{size:8},maxTicksLimit:4}}}}});
