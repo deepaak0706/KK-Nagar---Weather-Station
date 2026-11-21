@@ -3625,6 +3625,32 @@ body:not(.is-night).dashboard-layout-rain #page-dashboard .grid-system > .card:n
   .rain-spell-grid > div{padding:14px 12px}.rain-spell-grid > div + div{border-left-color:rgba(125,211,252,.16)}body:not(.is-night).dashboard-layout-rain .rain-spell-grid > div + div{border-left-color:#d7e2ed}
 }
 
+/* Mobile only: a balanced 2 + 3 rainfall-metric grid with laser dividers. */
+@media(max-width:767px){
+  body.dashboard-layout-rain .rain-focus-totals{
+    display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); gap:0;
+    margin-top:17px; border-top:1px solid rgba(125,211,252,.22); border-bottom:1px solid rgba(125,211,252,.22);
+  }
+  body.dashboard-layout-rain .rain-focus-totals>div{
+    min-width:0; padding:12px 12px; border:0; border-radius:0; background:transparent; box-shadow:none;
+  }
+  body.dashboard-layout-rain .rain-focus-totals>div:nth-child(1),
+  body.dashboard-layout-rain .rain-focus-totals>div:nth-child(2){grid-column:span 3}
+  body.dashboard-layout-rain .rain-focus-totals>div:nth-child(3),
+  body.dashboard-layout-rain .rain-focus-totals>div:nth-child(4),
+  body.dashboard-layout-rain .rain-focus-totals>div:nth-child(5){grid-column:span 2; border-top:1px solid rgba(125,211,252,.18)}
+  body.dashboard-layout-rain .rain-focus-totals>div:nth-child(2),
+  body.dashboard-layout-rain .rain-focus-totals>div:nth-child(4),
+  body.dashboard-layout-rain .rain-focus-totals>div:nth-child(5){border-left:1px solid rgba(125,211,252,.18)}
+  body:not(.is-night).dashboard-layout-rain .rain-focus-totals{border-color:#cbd5e1}
+  body:not(.is-night).dashboard-layout-rain .rain-focus-totals>div:nth-child(3),
+  body:not(.is-night).dashboard-layout-rain .rain-focus-totals>div:nth-child(4),
+  body:not(.is-night).dashboard-layout-rain .rain-focus-totals>div:nth-child(5){border-top-color:#cbd5e1}
+  body:not(.is-night).dashboard-layout-rain .rain-focus-totals>div:nth-child(2),
+  body:not(.is-night).dashboard-layout-rain .rain-focus-totals>div:nth-child(4),
+  body:not(.is-night).dashboard-layout-rain .rain-focus-totals>div:nth-child(5){border-left-color:#cbd5e1}
+}
+
 /* iOS-safe floating menu and a compact vertical mode list. */
 .dashboard-nav-links { grid-template-columns:1fr; gap:6px; }
 .dashboard-nav-link.dashboard-mode-tile { min-height:54px; flex-direction:row; justify-content:flex-start; gap:11px; padding:8px 10px; border-radius:12px; font-size:12px; text-align:left; }
