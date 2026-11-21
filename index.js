@@ -3559,6 +3559,43 @@ body.dashboard-layout-minimal #page-dashboard .sub-tabs-section { display:none !
 .rain-focus-chart { height:270px; }
 @media(max-width:767px){.dashboard-nav-drawer { top:70px; left:14px; width:min(300px,calc(100vw - 28px)); padding:12px; border-radius:16px; }.dashboard-nav-links { gap:6px; }.dashboard-nav-link.dashboard-mode-tile { min-height:74px; font-size:9px; }.dashboard-nav-link .mode-icon { width:25px; height:25px; font-size:12px; }.rain-focus-chart { height:210px; }}
 
+/* Final light-mode contrast pass: no dark glass colours are allowed to wash
+   out navigation or rainfall data on white and system-light screens. */
+body:not(.is-night) .dashboard-nav-overlay { background:rgba(15,23,42,.18); }
+body:not(.is-night) .dashboard-nav-drawer { border-color:#93d8f5; background:linear-gradient(145deg,rgba(255,255,255,.98),rgba(240,249,255,.97)); box-shadow:0 24px 54px -24px rgba(15,23,42,.38),0 0 0 1px rgba(255,255,255,.9) inset; }
+body:not(.is-night) .dashboard-nav-heading { color:#41647d; }
+body:not(.is-night) .dashboard-nav-link.dashboard-mode-tile { border-color:#d7e2ed; background:rgba(248,250,252,.88); color:#1e3a5f; }
+body:not(.is-night) .dashboard-nav-link.dashboard-mode-tile::after { color:#0f6f9e; }
+body:not(.is-night) .dashboard-nav-link .mode-icon { background:#e0f2fe; color:#0369a1; }
+body:not(.is-night) .dashboard-nav-link.dashboard-mode-tile:hover { border-color:#7dd3fc; background:#f0f9ff; }
+body:not(.is-night) .dashboard-nav-link.dashboard-mode-tile.active { color:#062b45; border-color:#38bdf8; background:linear-gradient(135deg,#e0f2fe,#f8fdff); box-shadow:0 12px 24px -19px rgba(2,132,199,.7),inset 0 1px 0 #fff; }
+body:not(.is-night) .dashboard-nav-link.dashboard-mode-tile.active .mode-icon { background:#0284c7; color:#fff; }
+
+/* One continuous live-insights rail: data-led, not five coloured cards. */
+.rain-spell-grid { position:relative; isolation:isolate; gap:0; border-color:rgba(125,211,252,.22); background:radial-gradient(360px 120px at 0% 100%,rgba(45,212,191,.09),transparent 70%),radial-gradient(300px 140px at 100% 0%,rgba(56,189,248,.11),transparent 72%),rgba(10,25,43,.16); box-shadow:inset 0 1px 0 rgba(255,255,255,.04),0 18px 34px -31px rgba(2,6,23,.8); }
+.rain-spell-grid::before { content:''; position:absolute; z-index:-1; top:-50px; right:14%; width:150px; height:130px; border-radius:50%; background:rgba(56,189,248,.16); filter:blur(34px); pointer-events:none; }
+.rain-spell-grid > div { padding:15px 14px; }
+.rain-spell-grid > div::before { display:none; }
+.rain-spell-grid > div + div { border-left-color:rgba(125,211,252,.16); }
+.rain-spell-grid strong { margin-top:8px; font-size:22px; }
+body:not(.is-night).dashboard-layout-rain .rain-spell-grid { border-color:#bfdbfe; background:radial-gradient(350px 130px at 0% 100%,rgba(45,212,191,.14),transparent 72%),radial-gradient(320px 150px at 100% 0%,rgba(56,189,248,.16),transparent 70%),linear-gradient(105deg,rgba(255,255,255,.92),rgba(240,249,255,.80)); box-shadow:0 18px 34px -29px rgba(15,23,42,.40),inset 0 1px 0 rgba(255,255,255,.98); }
+body:not(.is-night).dashboard-layout-rain .rain-spell-grid > div + div { border-left-color:#d7e2ed; }
+
+/* Station Summary: rain must read as primary data even in light mode. */
+body:not(.is-night) .station-summary-radar-card { box-shadow:0 18px 34px -29px rgba(15,23,42,.42); }
+body:not(.is-night) .station-summary-rain-label { color:#0369a1; }
+body:not(.is-night) .station-summary-rain-value { color:#0284c7; text-shadow:0 2px 12px rgba(14,165,233,.10); }
+body:not(.is-night) .station-summary-rain-value small { color:#38556f; }
+body:not(.is-night) .station-summary-temp-rain-divider { background:linear-gradient(to bottom,transparent,#38bdf8 18%,#38bdf8 82%,transparent); box-shadow:0 0 10px rgba(14,165,233,.22); }
+body:not(.is-night) .station-summary-radar-rates { border-top-color:#d7e2ed; }
+body:not(.is-night) .station-summary-radar-rates::after { background:linear-gradient(to bottom,#7dd3fc,transparent); }
+body:not(.is-night) .station-summary-radar-rate-label { color:#0f766e; }
+body:not(.is-night) .station-summary-radar-rate.max .station-summary-radar-rate-label { color:#6d28d9; }
+body:not(.is-night) .station-summary-radar-rate-value { color:#0f766e; }
+body:not(.is-night) .station-summary-radar-rate.max .station-summary-radar-rate-value { color:#6d28d9; }
+body:not(.is-night) .station-summary-radar-rate-value small { color:#38556f; }
+@media(max-width:767px){.rain-spell-grid > div{padding:14px 12px}.rain-spell-grid > div + div{border-left-color:rgba(125,211,252,.16)}body:not(.is-night).dashboard-layout-rain .rain-spell-grid > div + div{border-left-color:#d7e2ed}}
+
 /* iOS-safe floating menu and a compact vertical mode list. */
 .dashboard-nav-links { grid-template-columns:1fr; gap:6px; }
 .dashboard-nav-link.dashboard-mode-tile { min-height:54px; flex-direction:row; justify-content:flex-start; gap:11px; padding:8px 10px; border-radius:12px; font-size:12px; text-align:left; }
