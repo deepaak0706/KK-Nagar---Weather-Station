@@ -3594,7 +3594,28 @@ body:not(.is-night) .station-summary-radar-rate.max .station-summary-radar-rate-
 body:not(.is-night) .station-summary-radar-rate-value { color:#0f766e; }
 body:not(.is-night) .station-summary-radar-rate.max .station-summary-radar-rate-value { color:#6d28d9; }
 body:not(.is-night) .station-summary-radar-rate-value small { color:#38556f; }
-@media(max-width:767px){.rain-spell-grid > div{padding:14px 12px}.rain-spell-grid > div + div{border-left-color:rgba(125,211,252,.16)}body:not(.is-night).dashboard-layout-rain .rain-spell-grid > div + div{border-left-color:#d7e2ed}}
+
+/* Rainfall hero: constrain the original dashboard card so readings never
+   float in empty space. This is intentionally a compact app-style masthead. */
+body.dashboard-layout-rain #page-dashboard .grid-system > .card:nth-child(3) > div:first-child { padding:18px 20px; border:1px solid rgba(125,211,252,.20); border-radius:18px; background:radial-gradient(260px 135px at 100% 0%,rgba(56,189,248,.12),transparent 72%),rgba(15,23,42,.16); box-shadow:inset 0 1px 0 rgba(255,255,255,.035); }
+body.dashboard-layout-rain #page-dashboard .grid-system > .card:nth-child(3) .row-block { min-height:112px; margin:9px 0 0 !important; }
+body.dashboard-layout-rain #page-dashboard .grid-system > .card:nth-child(3) .left-panel,
+body.dashboard-layout-rain #page-dashboard .grid-system > .card:nth-child(3) .right-panel { align-self:stretch; }
+body.dashboard-layout-rain #page-dashboard .grid-system > .card:nth-child(3) .main-val { font-size:clamp(48px,5vw,64px); }
+body.dashboard-layout-rain #page-dashboard .grid-system > .card:nth-child(3) .v-line { height:104px; }
+body:not(.is-night).dashboard-layout-rain #page-dashboard .grid-system > .card:nth-child(3) > div:first-child { border-color:#bfdbfe; background:radial-gradient(270px 140px at 100% 0%,rgba(56,189,248,.17),transparent 72%),linear-gradient(120deg,rgba(255,255,255,.92),rgba(240,249,255,.74)); box-shadow:0 16px 32px -28px rgba(15,23,42,.42),inset 0 1px 0 rgba(255,255,255,.96); }
+body:not(.is-night).dashboard-layout-rain #page-dashboard .grid-system > .card:nth-child(3) .v-line { background:linear-gradient(to bottom,transparent,#38bdf8 14%,#38bdf8 86%,transparent); opacity:.55; }
+
+@media(max-width:767px){
+  body.dashboard-layout-rain #page-dashboard .grid-system > .card:nth-child(3) > div:first-child{padding:15px 14px;border-radius:16px}
+  body.dashboard-layout-rain #page-dashboard .grid-system > .card:nth-child(3) .row-block{min-height:94px;margin-top:7px!important}
+  body.dashboard-layout-rain #page-dashboard .grid-system > .card:nth-child(3) .main-val{font-size:clamp(42px,12vw,55px)}
+  body.dashboard-layout-rain #page-dashboard .grid-system > .card:nth-child(3) .v-line{height:88px}
+  .rain-focus-totals{grid-template-columns:repeat(6,minmax(0,1fr))}
+  .rain-focus-totals>div{grid-column:span 2}
+  .rain-focus-totals>div:nth-child(4),.rain-focus-totals>div:nth-child(5){grid-column:span 3}
+  .rain-spell-grid > div{padding:14px 12px}.rain-spell-grid > div + div{border-left-color:rgba(125,211,252,.16)}body:not(.is-night).dashboard-layout-rain .rain-spell-grid > div + div{border-left-color:#d7e2ed}
+}
 
 /* iOS-safe floating menu and a compact vertical mode list. */
 .dashboard-nav-links { grid-template-columns:1fr; gap:6px; }
