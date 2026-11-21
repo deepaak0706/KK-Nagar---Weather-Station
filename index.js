@@ -3606,14 +3606,22 @@ body.dashboard-layout-rain #page-dashboard .grid-system > .card:nth-child(3) .v-
 body:not(.is-night).dashboard-layout-rain #page-dashboard .grid-system > .card:nth-child(3) > div:first-child { border-color:#bfdbfe; background:radial-gradient(270px 140px at 100% 0%,rgba(56,189,248,.17),transparent 72%),linear-gradient(120deg,rgba(255,255,255,.92),rgba(240,249,255,.74)); box-shadow:0 16px 32px -28px rgba(15,23,42,.42),inset 0 1px 0 rgba(255,255,255,.96); }
 body:not(.is-night).dashboard-layout-rain #page-dashboard .grid-system > .card:nth-child(3) .v-line { background:linear-gradient(to bottom,transparent,#38bdf8 14%,#38bdf8 86%,transparent); opacity:.55; }
 
+/* Let rainfall breathe as page content, not as a separate card. The glow is
+   atmospheric only; its edges are intentionally invisible. */
+body.dashboard-layout-rain #page-dashboard .grid-system > .card:nth-child(3) > div:first-child { position:relative; padding:18px 4px; border:0; border-radius:0; background:transparent; box-shadow:none; isolation:isolate; }
+body.dashboard-layout-rain #page-dashboard .grid-system > .card:nth-child(3) > div:first-child::before { content:''; position:absolute; z-index:-1; top:-42px; right:4%; width:52%; height:190px; border-radius:50%; background:radial-gradient(ellipse,rgba(56,189,248,.13),transparent 68%); filter:blur(12px); pointer-events:none; }
+body.dashboard-layout-rain #page-dashboard .grid-system > .card:nth-child(3) > div:first-child > * { position:relative; z-index:1; }
+body:not(.is-night).dashboard-layout-rain #page-dashboard .grid-system > .card:nth-child(3) > div:first-child { background:transparent; box-shadow:none; }
+body:not(.is-night).dashboard-layout-rain #page-dashboard .grid-system > .card:nth-child(3) > div:first-child::before { background:radial-gradient(ellipse,rgba(56,189,248,.15),transparent 68%); }
+
 @media(max-width:767px){
-  body.dashboard-layout-rain #page-dashboard .grid-system > .card:nth-child(3) > div:first-child{padding:15px 14px;border-radius:16px}
+  body.dashboard-layout-rain #page-dashboard .grid-system > .card:nth-child(3) > div:first-child{padding:15px 2px;border-radius:0}
   body.dashboard-layout-rain #page-dashboard .grid-system > .card:nth-child(3) .row-block{min-height:94px;margin-top:7px!important}
   body.dashboard-layout-rain #page-dashboard .grid-system > .card:nth-child(3) .main-val{font-size:clamp(42px,12vw,55px)}
   body.dashboard-layout-rain #page-dashboard .grid-system > .card:nth-child(3) .v-line{height:88px}
   .rain-focus-totals{grid-template-columns:repeat(6,minmax(0,1fr))}
-  .rain-focus-totals>div{grid-column:span 2}
-  .rain-focus-totals>div:nth-child(4),.rain-focus-totals>div:nth-child(5){grid-column:span 3}
+  .rain-focus-totals>div:nth-child(1),.rain-focus-totals>div:nth-child(2){grid-column:span 3}
+  .rain-focus-totals>div:nth-child(3),.rain-focus-totals>div:nth-child(4),.rain-focus-totals>div:nth-child(5){grid-column:span 2}
   .rain-spell-grid > div{padding:14px 12px}.rain-spell-grid > div + div{border-left-color:rgba(125,211,252,.16)}body:not(.is-night).dashboard-layout-rain .rain-spell-grid > div + div{border-left-color:#d7e2ed}
 }
 
