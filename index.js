@@ -3614,34 +3614,14 @@ body.dashboard-layout-rain #page-dashboard .grid-system > .card:nth-child(3) > d
 body:not(.is-night).dashboard-layout-rain #page-dashboard .grid-system > .card:nth-child(3) > div:first-child { background:transparent; box-shadow:none; }
 body:not(.is-night).dashboard-layout-rain #page-dashboard .grid-system > .card:nth-child(3) > div:first-child::before { background:radial-gradient(ellipse,rgba(56,189,248,.15),transparent 68%); }
 
-/* Keep the Rain Focus surface calm: no coloured fog behind live readings. */
-body.dashboard-layout-rain #page-dashboard .grid-system > .card:nth-child(3) > div:first-child::before,
-.rain-spell-grid::before { display:none; }
-.rain-spell-grid { background:rgba(15,23,42,.10); box-shadow:inset 0 1px 0 rgba(255,255,255,.04); }
-body:not(.is-night).dashboard-layout-rain .rain-spell-grid { background:rgba(255,255,255,.54); box-shadow:inset 0 1px 0 rgba(255,255,255,.92); }
-
-/* Restore the fine laser dividers between rainfall metrics without bringing
-   back individual cards or any coloured glow. */
-body.dashboard-layout-rain .rain-focus-totals { gap:0; margin-top:16px; border-top:1px solid rgba(125,211,252,.18); border-bottom:1px solid rgba(125,211,252,.18); }
-body.dashboard-layout-rain .rain-focus-totals > div { padding:12px 14px; border:0; border-radius:0; background:transparent; box-shadow:none; }
-body.dashboard-layout-rain .rain-focus-totals > div + div { border-left:1px solid rgba(125,211,252,.18); }
-body:not(.is-night).dashboard-layout-rain .rain-focus-totals { border-color:#cbd5e1; }
-body:not(.is-night).dashboard-layout-rain .rain-focus-totals > div { background:transparent; border-color:#cbd5e1; box-shadow:none; }
-body.dashboard-layout-rain #page-dashboard .grid-system > .card:nth-child(3) .row-block { min-height:88px; }
-body.dashboard-layout-rain #page-dashboard .grid-system > .card:nth-child(3) .v-line { height:82px; }
-body.dashboard-layout-rain .rain-focus-panel { margin-top:10px; padding-top:18px; }
-
 @media(max-width:767px){
   body.dashboard-layout-rain #page-dashboard .grid-system > .card:nth-child(3) > div:first-child{padding:15px 2px;border-radius:0}
-  body.dashboard-layout-rain #page-dashboard .grid-system > .card:nth-child(3) .row-block{min-height:78px;margin-top:7px!important}
+  body.dashboard-layout-rain #page-dashboard .grid-system > .card:nth-child(3) .row-block{min-height:94px;margin-top:7px!important}
   body.dashboard-layout-rain #page-dashboard .grid-system > .card:nth-child(3) .main-val{font-size:clamp(42px,12vw,55px)}
-  body.dashboard-layout-rain #page-dashboard .grid-system > .card:nth-child(3) .v-line{height:74px}
+  body.dashboard-layout-rain #page-dashboard .grid-system > .card:nth-child(3) .v-line{height:88px}
   .rain-focus-totals{grid-template-columns:repeat(6,minmax(0,1fr))}
   .rain-focus-totals>div:nth-child(1),.rain-focus-totals>div:nth-child(2){grid-column:span 3}
   .rain-focus-totals>div:nth-child(3),.rain-focus-totals>div:nth-child(4),.rain-focus-totals>div:nth-child(5){grid-column:span 2}
-  .rain-focus-totals>div:nth-child(3){border-left:0}
-  .rain-focus-totals>div:nth-child(3),.rain-focus-totals>div:nth-child(4),.rain-focus-totals>div:nth-child(5){border-top:1px solid rgba(125,211,252,.18)}
-  body:not(.is-night).dashboard-layout-rain .rain-focus-totals>div:nth-child(3),body:not(.is-night).dashboard-layout-rain .rain-focus-totals>div:nth-child(4),body:not(.is-night).dashboard-layout-rain .rain-focus-totals>div:nth-child(5){border-top-color:#cbd5e1}
   .rain-spell-grid > div{padding:14px 12px}.rain-spell-grid > div + div{border-left-color:rgba(125,211,252,.16)}body:not(.is-night).dashboard-layout-rain .rain-spell-grid > div + div{border-left-color:#d7e2ed}
 }
 
