@@ -3614,6 +3614,12 @@ body.dashboard-layout-rain #page-dashboard .grid-system > .card:nth-child(3) > d
 body:not(.is-night).dashboard-layout-rain #page-dashboard .grid-system > .card:nth-child(3) > div:first-child { background:transparent; box-shadow:none; }
 body:not(.is-night).dashboard-layout-rain #page-dashboard .grid-system > .card:nth-child(3) > div:first-child::before { background:radial-gradient(ellipse,rgba(56,189,248,.15),transparent 68%); }
 
+/* Keep the Rain Focus surface calm: no coloured fog behind live readings. */
+body.dashboard-layout-rain #page-dashboard .grid-system > .card:nth-child(3) > div:first-child::before,
+.rain-spell-grid::before { display:none; }
+.rain-spell-grid { background:transparent; box-shadow:inset 0 1px 0 rgba(255,255,255,.04); }
+body:not(.is-night).dashboard-layout-rain .rain-spell-grid { background:rgba(255,255,255,.36); box-shadow:inset 0 1px 0 rgba(255,255,255,.92); }
+
 @media(max-width:767px){
   body.dashboard-layout-rain #page-dashboard .grid-system > .card:nth-child(3) > div:first-child{padding:15px 2px;border-radius:0}
   body.dashboard-layout-rain #page-dashboard .grid-system > .card:nth-child(3) .row-block{min-height:94px;margin-top:7px!important}
